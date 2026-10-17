@@ -1,0 +1,9 @@
+[package]
+name = "script-panel"
+version = "0.2.0"
+edition = "2024"
+publish = false
+description = "What npm-scripts and shell-scripts share: a dock page listing a repository's runnable scripts, grouped and folded, each run in a terminal."
+
+[dependencies]
+pumi-plugin = { workspace = true }

@@ -1,0 +1,13 @@
+[package]
+name = "shell-scripts"
+version = "0.2.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pumi-plugin = { workspace = true }
+script-panel = { path = "../../lib/script-panel" }
+serde_json = { workspace = true }
