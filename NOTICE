@@ -1,0 +1,50 @@
+pumi plugins
+============
+
+Copyright (C) 2026 The pumi authors.
+
+Licensed under the GNU General Public License, version 3 or (at your option) any later version
+(LICENSE), except where a file says otherwise.
+
+Third-party code
+----------------
+
+Zed
+  palette/src/score.ts (normalizeActionQuery, humanizeActionName) and the test vectors in
+  palette/test/score.test.ts are adapted from Zed's command palette
+  (crates/command_palette/src/command_palette.rs, https://github.com/zed-industries/zed).
+  Copyright Zed Industries, Inc. Licensed under the GNU General Public License, version 3 or
+  later. Changed for pumi.
+
+nucleo
+  palette/src/nucleo.ts is a port of nucleo's fuzzy matcher,
+  https://github.com/helix-editor/nucleo. Licensed under the Mozilla Public License, version 2.0;
+  that file stays under the MPL-2.0 (https://mozilla.org/MPL/2.0/). Changed for pumi.
+
+herdr and Heeler
+  heeler/ ports code from herdr (https://github.com/herdrdev/herdr) and from Heeler's plugin
+  (https://github.com/ZingerLittleBee/Heeler), both licensed under the Apache License, Version
+  2.0 (https://www.apache.org/licenses/LICENSE-2.0). Each ported file names its source in a
+  PROVENANCE comment. Changed for pumi: written in TypeScript, against pumi's API.
+
+Material Icon Theme
+  files/icons/material is from Material Icon Theme (https://github.com/material-extensions/vscode-material-icon-theme).
+  Copyright (c) 2025 Material Extensions. Licensed under the MIT License
+  (files/icons/material/LICENSE).
+
+Monaco Editor
+  monaco/web is a build of the Monaco Editor (https://github.com/microsoft/monaco-editor).
+  Copyright (c) 2016 - present Microsoft Corporation. Licensed under the MIT License
+  (monaco/web/MONACO-LICENSE.txt). Its icon font (monaco/web/assets/codicon-*.ttf) is VS Code's
+  Codicons (https://github.com/microsoft/vscode-codicons), licensed under CC BY 4.0.
+
+Pele
+  marmaide/src/pele.vendor.js is a build of Pele (https://www.npmjs.com/package/pele), a Mermaid
+  renderer. Copyright (c) 2026 kepano. Licensed under the MIT License (marmaide/src/PELE-LICENSE).
+
+Pixelify Sans
+  office/themes/office/fonts/PixelifySans.ttf. Copyright 2021 The Pixelify Sans Project Authors
+  (https://github.com/eifetx/Pixelify-Sans). Licensed under the SIL Open Font License, Version 1.1
+  (office/themes/office/fonts/OFL.txt).
+
+The dependencies named in the package.json files and Cargo.lock are under their own licenses.

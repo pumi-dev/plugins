@@ -1,0 +1,25 @@
+# The packages' UI plugins: each package's `ui/` crate, built for wasm32-wasip2 against pumi's
+# SDK (`crates/pumi-plugin` in a pumi checkout beside this one). One workspace, so gpui is
+# compiled once for all of them; the app finds each component in `target/wasm32-wasip2`.
+[workspace]
+resolver = "3"
+members = ["*/ui", "lib/*"]
+# Not a member: it is written against the v1 plugin shape (see image-preview/README.md).
+exclude = ["image-preview"]
+
+[workspace.dependencies]
+pumi-plugin = { path = "../pumi/crates/pumi-plugin" }
+serde_json = "=1.0.154"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+
+# Compiling a component is slow when the compiler's own dependencies are unoptimised.
+# No debug info either: `cargo build` (dev) lands in target/wasm32-wasip2/debug, which the app
+# already looks in, and it is where a rebuilt component is iterated.
+[profile.dev]
+opt-level = 1
+debug = 0

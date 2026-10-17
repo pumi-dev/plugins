@@ -1,0 +1,5 @@
+# The SDK builds gpui from Zed's tree for wasm32-wasip2, which needs pumi's toolchain.
+[toolchain]
+channel = "1.97.1"
+components = ["rustfmt", "clippy", "rust-src"]
+targets = ["wasm32-wasip2"]
