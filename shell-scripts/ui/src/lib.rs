@@ -3,6 +3,9 @@
 //! `shell_scripts.shebang`) a file with no extension whose `#!` names a shell. It runs with
 //! the shell its `#!` names (through `env` and its switches), else its extension's, else `sh`,
 //! named to the shell rather than run as `./x`, so a script without its executable bit runs.
+//!
+//! `init` is the rest of the package, which was its `plugin/*.lua`: the options it declares and
+//! its page in the left sidebar.
 
 use std::collections::BTreeSet;
 use std::io::Read;
@@ -156,7 +159,45 @@ impl Finder for Scripts {
     }
 }
 
+/// Declare one of its options, in its heading in Settings.
+fn declare_option(name: &str, mut spec: Value) {
+    spec["group"] = json!("Shell Scripts");
+    if let Err(err) = api::pumi_create_option(&format!("shell_scripts.{name}"), spec) {
+        eprintln!("shell-scripts: {err}");
+    }
+}
+
 fn init(plugin: &mut Plugin, _cx: &mut App) {
+    declare_option(
+        "show_command",
+        json!({ "type": "boolean", "default": true, "label": "Commands", "desc": "Show how each script runs, beside its name." }),
+    );
+    declare_option(
+        "max_depth",
+        json!({ "type": "number", "default": 4, "min": 1, "max": 10, "step": 1, "label": "Depth", "desc": "How many directories below the repository root to look in." }),
+    );
+    declare_option(
+        "extensions",
+        json!({ "type": "string", "default": DEFAULT_EXTENSIONS, "label": "Extensions", "desc": "Which file extensions are scripts, separated by commas." }),
+    );
+    declare_option(
+        "shebang",
+        json!({ "type": "boolean", "default": true, "label": "#! files", "desc": "Also list files with no extension whose first line names a shell." }),
+    );
+    // Its page in the left sidebar, unless a reload already left one there.
+    let missing = api::pumi_list_panes(json!({ "type": "shell-scripts.scripts" }))
+        .map(|panes| panes.as_array().is_none_or(|list| list.is_empty()))
+        .unwrap_or(false);
+    if missing {
+        let place = json!({ "kind": "slot", "slot": "sidebar.left", "order": 31, "focus": false });
+        match api::pumi_open_pane("shell-scripts.scripts", json!({}), place) {
+            Ok(pane) => {
+                let _ = api::set_option("title", json!("Shell Scripts"), json!({ "pane": pane }));
+                let _ = api::set_option("@icon", json!("terminal"), json!({ "pane": pane }));
+            }
+            Err(err) => eprintln!("shell-scripts: {err}"),
+        }
+    }
     plugin.view("scripts", |_open, _window, cx| {
         Panel::open(Scripts::read(), "script", cx).into()
     });
