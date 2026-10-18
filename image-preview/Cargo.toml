@@ -5,18 +5,10 @@ edition = "2024"
 publish = false
 description = "Rest the pointer on an image file's path in a terminal to see the image."
 
-# A plugin: a WebAssembly component on pumi-plugin
-# (`cargo build --release --target wasm32-wasip2`). A debug build of the app finds it in
-# this checkout's `plugins/`; an installed app looks in
-# `~/.config/pumi/extensions/image-preview`.
+# Not a workspace member yet: it is not ported (see README.md). Built as
+# `cargo build --release --target wasm32-wasip2` once it is.
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-pumi-plugin = { path = "../../crates/pumi-plugin" }
-
-[profile.release]
-opt-level = "s"
-lto = true
-codegen-units = 1
-strip = true
+pumi-plugin = { path = "../pumi/crates/pumi-plugin" }

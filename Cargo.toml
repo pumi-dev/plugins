@@ -4,6 +4,8 @@
 [workspace]
 resolver = "3"
 members = ["*/ui", "lib/*"]
+# Written against the v1 plugin shape; ported before it joins (see image-preview/README.md).
+exclude = ["image-preview"]
 
 [workspace.dependencies]
 pumi-plugin = { path = "../pumi/crates/pumi-plugin" }
