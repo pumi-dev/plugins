@@ -1,6 +1,7 @@
 //! pumi-dog: a little pumi in the status bar. It walks back and forth, stops to wag and blink,
-//! and barks when clicked or when `pumi_dog.bark` is called. `plugin/pumi-dog.lua` places it
-//! (a `pumi-dog.dog` pane in the `statusline` slot) and declares its options.
+//! and barks when clicked or when `pumi_dog.bark` is called. `init` is the rest of the package,
+//! which was its `plugin/*.lua`: the options it declares and the `pumi-dog.dog` pane in the
+//! `statusline` slot, which `pumi_dog.toggle` takes away and brings back.
 
 mod sprite;
 
@@ -292,7 +293,52 @@ impl Render for Dog {
     }
 }
 
+/// Declare one of its options, in its heading in Settings.
+fn declare_option(name: &str, mut spec: Value) {
+    spec["group"] = json!("Pumi dog");
+    if let Err(err) = api::pumi_create_option(&format!("pumi_dog.{name}"), spec) {
+        eprintln!("pumi-dog: {err}");
+    }
+}
+
+/// The dog's pane, if it is out.
+fn pane() -> Option<u64> {
+    let panes = api::pumi_list_panes(json!({ "type": "pumi-dog.dog" })).ok()?;
+    panes.as_array()?.first()?.as_u64()
+}
+
+fn show() {
+    if pane().is_some() {
+        return;
+    }
+    let place = json!({ "kind": "slot", "slot": "statusline", "order": 1000, "focus": false });
+    if let Err(err) = api::pumi_open_pane("pumi-dog.dog", json!({}), place) {
+        eprintln!("pumi-dog: {err}");
+    }
+}
+
+fn toggle() {
+    match pane() {
+        Some(pane) => {
+            let _ = api::pumi_pane_close(pane, Some(true));
+        }
+        None => show(),
+    }
+}
+
 fn init(plugin: &mut Plugin, _cx: &mut App) {
+    declare_option(
+        "speed",
+        json!({ "type": "number", "default": 8, "min": 2, "max": 16, "step": 1, "unit": "fps", "label": "Speed", "control": "slider", "desc": "Animation frames per second. Lower is calmer and cheaper." }),
+    );
+    declare_option(
+        "track",
+        json!({ "type": "number", "default": 140, "min": 40, "max": 600, "unit": "px", "label": "Walking room", "desc": "How much of the status bar the dog walks along." }),
+    );
+    declare_option(
+        "size",
+        json!({ "type": "number", "default": 20, "min": 12, "max": 32, "step": 1, "unit": "px", "label": "Size", "control": "slider", "desc": "The dog's height." }),
+    );
     plugin.view("dog", |_open, _window, cx| {
         let frames = write_frames();
         let dog = cx.new(|cx| {
@@ -335,6 +381,15 @@ fn init(plugin: &mut Plugin, _cx: &mut App) {
         }
         dog.into()
     });
+    // `pumi call pumi_dog.toggle`: takes the dog away and brings it back.
+    let spec = json!({ "desc": "Show or hide the dog.", "examples": [{ "args": [] }] });
+    if let Err(err) = api::provide("pumi_dog.toggle", spec, |_| {
+        toggle();
+        Ok(Value::Null)
+    }) {
+        eprintln!("pumi-dog: {err}");
+    }
+    show();
 }
 
 pumi_plugin::plugin!(init);
