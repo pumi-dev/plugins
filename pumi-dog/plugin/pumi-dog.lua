@@ -39,8 +39,8 @@ end
 
 pcall(api.pumi_create_function, 'pumi_dog.toggle', {
   desc = 'Show or hide the dog.',
-  callback = M.toggle,
-})
+  examples = { { args = {} } },
+}, M.toggle)
 
 M.show()
 package.loaded['pumi-dog'] = M

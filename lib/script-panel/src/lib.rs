@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use pumi_plugin::gpui::{ClickEvent, FontWeight, WeakEntity};
 use pumi_plugin::prelude::*;
+use pumi_plugin::ui::color;
 
 /// Directories never walked into.
 pub const SKIP: &[&str] = &[
@@ -230,7 +231,7 @@ impl<F: Finder> Render for Panel<F> {
             .px_2()
             .py_1()
             .text_xs()
-            .text_color(rgb(0x9399b2))
+            .text_color(color::muted_foreground())
             .child(div().flex_1().child(format!(
                 "{} · {}",
                 plural(items, self.noun),
@@ -242,7 +243,7 @@ impl<F: Finder> Render for Panel<F> {
                     .px_1()
                     .rounded_sm()
                     .cursor_pointer()
-                    .hover(|s| s.bg(rgb(0x313244)).text_color(rgb(0xcdd6f4)))
+                    .hover(|s| s.bg(color::list_hover()).text_color(color::foreground()))
                     .child("Rescan")
                     .on_click(cx.listener(|panel: &mut Self, _: &ClickEvent, _, cx| {
                         panel.finder.configure();
@@ -264,7 +265,7 @@ impl<F: Finder> Render for Panel<F> {
                     .px_3()
                     .py_2()
                     .text_xs()
-                    .text_color(rgb(0x7f849c))
+                    .text_color(color::muted_foreground())
                     .child(self.finder.empty()),
             );
         }
@@ -281,14 +282,14 @@ impl<F: Finder> Render for Panel<F> {
                     .h(px(22.))
                     .text_xs()
                     .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(rgb(0xbac2de))
+                    .text_color(color::foreground())
                     .cursor_pointer()
-                    .hover(|s| s.bg(rgb(0x313244)))
+                    .hover(|s| s.bg(color::list_hover()))
                     .child(if open { "▾" } else { "▸" })
                     .child(div().flex_1().truncate().child(group.label.clone()))
                     .child(
                         div()
-                            .text_color(rgb(0x7f849c))
+                            .text_color(color::muted_foreground())
                             .child(group.items.len().to_string()),
                     )
                     .on_click(cx.listener(move |panel: &mut Self, _: &ClickEvent, _, cx| {
@@ -313,9 +314,9 @@ impl<F: Finder> Render for Panel<F> {
                         .pr_2()
                         .h(px(22.))
                         .text_xs()
-                        .text_color(rgb(0xcdd6f4))
+                        .text_color(color::foreground())
                         .cursor_pointer()
-                        .hover(|s| s.bg(rgb(0x313244)))
+                        .hover(|s| s.bg(color::list_hover()))
                         .child(div().flex_none().child(item.name.clone()))
                         .when(detail, |row| {
                             row.child(
@@ -323,7 +324,7 @@ impl<F: Finder> Render for Panel<F> {
                                     .flex_1()
                                     .min_w_0()
                                     .truncate()
-                                    .text_color(rgb(0x7f849c))
+                                    .text_color(color::muted_foreground())
                                     .child(item.detail.clone()),
                             )
                         })
@@ -344,7 +345,6 @@ impl<F: Finder> Render for Panel<F> {
             .size_full()
             .flex()
             .flex_col()
-            .bg(rgb(0x1e1e2e))
             .child(toolbar)
             .child(list)
     }

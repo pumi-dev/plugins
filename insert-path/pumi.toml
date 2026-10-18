@@ -1,0 +1,3 @@
+name = "insert-path"
+version = "0.1.0"
+description = "Type / in a terminal and pick a file: a floating fuzzy picker that types the path in."

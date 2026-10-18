@@ -12,6 +12,7 @@ directory is one package (pumi's docs/v2/07).
 | `shell-scripts` | A sidebar page of every shell script in the current repository; click to run | Lua + UI |
 | `pi-session` | A bar on every pi pane: Fork opens `pi --fork <session>` beside it, Copy copies the session | Lua + UI |
 | `pumi-dog` | A little dog walking along the status bar | Lua + UI |
+| `insert-path` | Type `/` in a terminal and pick a file: a floating fuzzy picker types the path in | Lua + UI |
 
 `lib/script-panel` is what the two script pages share: the walk, the grouped list, running a
 script in a terminal.

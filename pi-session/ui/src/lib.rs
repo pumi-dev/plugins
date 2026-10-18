@@ -6,6 +6,7 @@ use std::io::BufRead;
 
 use pumi_plugin::gpui::{ClickEvent, FontWeight};
 use pumi_plugin::prelude::*;
+use pumi_plugin::ui::color;
 
 /// What the bar knows of its pane, read when it acts so it is never stale.
 struct Session {
@@ -127,8 +128,8 @@ fn button(id: &'static str, label: &'static str) -> Stateful<Div> {
         .px_2()
         .rounded_sm()
         .cursor_pointer()
-        .text_color(rgb(0xbac2de))
-        .hover(|s| s.bg(rgb(0x45475a)).text_color(rgb(0xcdd6f4)))
+        .text_color(color::muted_foreground())
+        .hover(|s| s.bg(color::list_hover()).text_color(color::foreground()))
         .child(label)
 }
 
@@ -145,8 +146,7 @@ impl Render for Strip {
             .gap_1()
             .px_2()
             .text_xs()
-            .bg(rgb(0x1e1e2e))
-            .text_color(rgb(0x7f849c))
+            .text_color(color::muted_foreground())
             .child(div().flex_1().font_weight(FontWeight::MEDIUM).child("pi"))
             .child(button("fork", "Fork").on_click(cx.listener(
                 |strip: &mut Strip, _: &ClickEvent, _, _| {
