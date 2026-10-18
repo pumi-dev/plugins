@@ -1,0 +1,25 @@
+{
+  "name": "script-panel",
+  "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
+  "description": "What the `scripts` package draws: a dock page listing a repository's runnable scripts, grouped and folded, each run in a terminal.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "script-panel",
+    "api": 1
+  },
+  "exports": {
+    "./main.ts": "./src/main.ts",
+    "./ui.tsx": "./src/ui.tsx",
+    "./finder.ts": "./src/finder.ts"
+  }
+}
