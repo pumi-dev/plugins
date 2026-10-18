@@ -1,0 +1,1737 @@
+[
+ {
+  "name": "pumi_cmd",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "write",
+  "agent": true,
+  "desc": "Run commands (Neovim's `nvim_cmd`, tmux's command line): a string in tmux's language\n(`\"split-pane -h ; select-pane -L\"`), or `pumi_parse_cmd`'s tables. Returns what they printed.\nA command that waits (`run-shell`, `wait-for`, `new-pane -W`) holds the reply until it ends.",
+  "parameters": [
+   [
+    "Object",
+    "cmd"
+   ],
+   [
+    "Dict",
+    "opts"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "CmdOpts": {
+     "additionalProperties": false,
+     "description": "Where and how a command line runs.",
+     "properties": {
+      "cwd": {
+       "default": null,
+       "description": "The directory relative paths are in: the CLI's.",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "pane": {
+       "default": null,
+       "description": "The pane it is about, as if run from there.",
+       "format": "uint64",
+       "minimum": 0,
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "vars": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "default": {},
+       "description": "Format variables for it (`hook_pane`, \u2026).",
+       "type": "object"
+      }
+     },
+     "type": "object"
+    },
+    "CmdResult": {
+     "description": "What a command line printed, and the status of a program it waited for (`wait-pane`,\n`new-pane -W`).",
+     "properties": {
+      "output": {
+       "type": "string"
+      },
+      "status": {
+       "format": "int32",
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "waiting": {
+       "description": "The call returned before the commands ended (it was made inside another call).",
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "output"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "cmd": true,
+    "opts": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/CmdOpts"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "cmd"
+   ],
+   "type": "object"
+  },
+  "returns": "Dict",
+  "returns_schema": {
+   "$defs": {
+    "CmdOpts": {
+     "additionalProperties": false,
+     "description": "Where and how a command line runs.",
+     "properties": {
+      "cwd": {
+       "default": null,
+       "description": "The directory relative paths are in: the CLI's.",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "pane": {
+       "default": null,
+       "description": "The pane it is about, as if run from there.",
+       "format": "uint64",
+       "minimum": 0,
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "vars": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "default": {},
+       "description": "Format variables for it (`hook_pane`, \u2026).",
+       "type": "object"
+      }
+     },
+     "type": "object"
+    },
+    "CmdResult": {
+     "description": "What a command line printed, and the status of a program it waited for (`wait-pane`,\n`new-pane -W`).",
+     "properties": {
+      "output": {
+       "type": "string"
+      },
+      "status": {
+       "format": "int32",
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "waiting": {
+       "description": "The call returned before the commands ended (it was made inside another call).",
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "output"
+     ],
+     "type": "object"
+    }
+   },
+   "$ref": "#/$defs/CmdResult"
+  },
+  "examples": [
+   {
+    "args": [
+     "display-message -p '#{session_name}'",
+     {}
+    ],
+    "result": {
+     "output": "main\n",
+     "status": null
+    }
+   },
+   {
+    "args": [
+     {
+      "cmd": "split-pane",
+      "flags": {
+       "h": true,
+       "l": "30%"
+      }
+     },
+     {}
+    ],
+    "result": {
+     "output": "",
+     "status": null
+    },
+    "desc": "A table, as pumi_parse_cmd gives it."
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_create_user_command",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "write",
+  "agent": true,
+  "desc": "Create a user command (Neovim's `nvim_create_user_command`): its name is Capitalised, so it\nnever collides with a built-in. `command` is a command line, with `<args>`, `<q-args>`,\n`<f-args>` and `<bang>` replaced; a Lua function, called with `{name, args, fargs, bang}`;\nor `null` with `opts.call` naming a function.",
+  "parameters": [
+   [
+    "String",
+    "name"
+   ],
+   [
+    "Object",
+    "command"
+   ],
+   [
+    "Dict",
+    "opts"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "CommandBody": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "$ref": "#/$defs/LuaRef"
+      }
+     ],
+     "description": "What a user command runs: a command line, or a Lua function (`{\"luaref\": n}`, which the\nhost holds: from Lua, the host turns it into `opts.callback`)."
+    },
+    "LuaRef": {
+     "additionalProperties": false,
+     "description": "A Lua function the host's VM keeps.",
+     "properties": {
+      "luaref": {
+       "format": "uint64",
+       "minimum": 0,
+       "type": "integer"
+      }
+     },
+     "required": [
+      "luaref"
+     ],
+     "type": "object"
+    },
+    "UserCommandOpts": {
+     "additionalProperties": false,
+     "properties": {
+      "call": {
+       "default": null,
+       "description": "The function it calls instead of a command line; its flags are the function's parameters\n(`--name value`, `name=value`, or in order).",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "callback": {
+       "default": null,
+       "description": "The function it calls with `{name, args, fargs, bang}`, as Neovim calls a Lua callback\n(the host makes one of a Lua function given as `command`).",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "desc": {
+       "default": null,
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "force": {
+       "default": null,
+       "description": "Replace a command of that name (Neovim's `force`, `true` by default).",
+       "type": [
+        "boolean",
+        "null"
+       ]
+      },
+      "nargs": {
+       "default": null,
+       "description": "How many arguments it takes: `0` (the default), `1`, `*`, `?` or `+` (Neovim's)."
+      }
+     },
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "command": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/CommandBody"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "name": {
+     "type": "string"
+    },
+    "opts": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/UserCommandOpts"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "type": "object"
+  },
+  "returns": "nil",
+  "returns_schema": {
+   "$defs": {
+    "CommandBody": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "$ref": "#/$defs/LuaRef"
+      }
+     ],
+     "description": "What a user command runs: a command line, or a Lua function (`{\"luaref\": n}`, which the\nhost holds: from Lua, the host turns it into `opts.callback`)."
+    },
+    "LuaRef": {
+     "additionalProperties": false,
+     "description": "A Lua function the host's VM keeps.",
+     "properties": {
+      "luaref": {
+       "format": "uint64",
+       "minimum": 0,
+       "type": "integer"
+      }
+     },
+     "required": [
+      "luaref"
+     ],
+     "type": "object"
+    },
+    "UserCommandOpts": {
+     "additionalProperties": false,
+     "properties": {
+      "call": {
+       "default": null,
+       "description": "The function it calls instead of a command line; its flags are the function's parameters\n(`--name value`, `name=value`, or in order).",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "callback": {
+       "default": null,
+       "description": "The function it calls with `{name, args, fargs, bang}`, as Neovim calls a Lua callback\n(the host makes one of a Lua function given as `command`).",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "desc": {
+       "default": null,
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "force": {
+       "default": null,
+       "description": "Replace a command of that name (Neovim's `force`, `true` by default).",
+       "type": [
+        "boolean",
+        "null"
+       ]
+      },
+      "nargs": {
+       "default": null,
+       "description": "How many arguments it takes: `0` (the default), `1`, `*`, `?` or `+` (Neovim's)."
+      }
+     },
+     "type": "object"
+    }
+   },
+   "type": "null"
+  },
+  "examples": [
+   {
+    "args": [
+     "Build",
+     "run-shell 'make <args>'",
+     {
+      "desc": "Run make.",
+      "nargs": "*"
+     }
+    ]
+   },
+   {
+    "args": [
+     "Panes",
+     null,
+     {
+      "call": "pumi_list_panes"
+     }
+    ],
+    "desc": "A function as a command."
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_del_buffer",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "write",
+  "agent": true,
+  "desc": "Delete a paste buffer; `null` is the newest.",
+  "parameters": [
+   [
+    "String",
+    "name"
+   ]
+  ],
+  "params_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [],
+   "type": "object"
+  },
+  "returns": "nil",
+  "returns_schema": {
+   "type": "null"
+  },
+  "examples": [
+   {
+    "args": [
+     "buffer0"
+    ]
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_del_user_command",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "write",
+  "agent": true,
+  "desc": "Delete a user command (Neovim's `nvim_del_user_command`).",
+  "parameters": [
+   [
+    "String",
+    "name"
+   ]
+  ],
+  "params_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "type": "object"
+  },
+  "returns": "nil",
+  "returns_schema": {
+   "type": "null"
+  },
+  "examples": [
+   {
+    "args": [
+     "Build"
+    ]
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_exec2",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "write",
+  "agent": true,
+  "desc": "Run a script of commands, one or more lines with `%if` and `NAME=value` (Neovim's\n`nvim_exec2`, tmux's `source-file` on a string).",
+  "parameters": [
+   [
+    "String",
+    "src"
+   ],
+   [
+    "Dict",
+    "opts"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "CmdOpts": {
+     "additionalProperties": false,
+     "description": "Where and how a command line runs.",
+     "properties": {
+      "cwd": {
+       "default": null,
+       "description": "The directory relative paths are in: the CLI's.",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "pane": {
+       "default": null,
+       "description": "The pane it is about, as if run from there.",
+       "format": "uint64",
+       "minimum": 0,
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "vars": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "default": {},
+       "description": "Format variables for it (`hook_pane`, \u2026).",
+       "type": "object"
+      }
+     },
+     "type": "object"
+    },
+    "CmdResult": {
+     "description": "What a command line printed, and the status of a program it waited for (`wait-pane`,\n`new-pane -W`).",
+     "properties": {
+      "output": {
+       "type": "string"
+      },
+      "status": {
+       "format": "int32",
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "waiting": {
+       "description": "The call returned before the commands ended (it was made inside another call).",
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "output"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "opts": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/CmdOpts"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "src": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "src"
+   ],
+   "type": "object"
+  },
+  "returns": "Dict",
+  "returns_schema": {
+   "$defs": {
+    "CmdOpts": {
+     "additionalProperties": false,
+     "description": "Where and how a command line runs.",
+     "properties": {
+      "cwd": {
+       "default": null,
+       "description": "The directory relative paths are in: the CLI's.",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "pane": {
+       "default": null,
+       "description": "The pane it is about, as if run from there.",
+       "format": "uint64",
+       "minimum": 0,
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "vars": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "default": {},
+       "description": "Format variables for it (`hook_pane`, \u2026).",
+       "type": "object"
+      }
+     },
+     "type": "object"
+    },
+    "CmdResult": {
+     "description": "What a command line printed, and the status of a program it waited for (`wait-pane`,\n`new-pane -W`).",
+     "properties": {
+      "output": {
+       "type": "string"
+      },
+      "status": {
+       "format": "int32",
+       "type": [
+        "integer",
+        "null"
+       ]
+      },
+      "waiting": {
+       "description": "The call returned before the commands ended (it was made inside another call).",
+       "type": "boolean"
+      }
+     },
+     "required": [
+      "output"
+     ],
+     "type": "object"
+    }
+   },
+   "$ref": "#/$defs/CmdResult"
+  },
+  "examples": [
+   {
+    "args": [
+     "set -g @a 1\nset -g @b 2",
+     {}
+    ],
+    "result": {
+     "output": "",
+     "status": null
+    }
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_get_buffer",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "read",
+  "agent": true,
+  "desc": "A paste buffer by name; `null` is the newest (tmux's `show-buffer`).",
+  "parameters": [
+   [
+    "String",
+    "name"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "Buffer": {
+     "description": "A paste buffer (tmux's).",
+     "properties": {
+      "automatic": {
+       "description": "Named by the server (`buffer0`), so the oldest go when there are too many.",
+       "type": "boolean"
+      },
+      "created": {
+       "format": "uint64",
+       "minimum": 0,
+       "type": "integer"
+      },
+      "data": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name",
+      "data",
+      "created",
+      "automatic"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [],
+   "type": "object"
+  },
+  "returns": "Dict",
+  "returns_schema": {
+   "$defs": {
+    "Buffer": {
+     "description": "A paste buffer (tmux's).",
+     "properties": {
+      "automatic": {
+       "description": "Named by the server (`buffer0`), so the oldest go when there are too many.",
+       "type": "boolean"
+      },
+      "created": {
+       "format": "uint64",
+       "minimum": 0,
+       "type": "integer"
+      },
+      "data": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name",
+      "data",
+      "created",
+      "automatic"
+     ],
+     "type": "object"
+    }
+   },
+   "$ref": "#/$defs/Buffer"
+  },
+  "examples": [
+   {
+    "args": [
+     "buffer0"
+    ]
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_get_commands",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "read",
+  "agent": true,
+  "desc": "Every command, built-in and user, by name: what the CLI's `--help`, completion and\n`list-commands` read.",
+  "parameters": [
+   [
+    "Dict",
+    "opts"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "CommandInfo": {
+     "description": "A command as `pumi_get_commands` describes it.",
+     "properties": {
+      "aliases": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "desc": {
+       "type": "string"
+      },
+      "flags": {
+       "description": "tmux's flag template: `t:` takes a value, `t::` an optional one.",
+       "type": "string"
+      },
+      "long": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "max": {
+       "format": "int32",
+       "type": "integer"
+      },
+      "min": {
+       "format": "int32",
+       "type": "integer"
+      },
+      "name": {
+       "type": "string"
+      },
+      "usage": {
+       "type": "string"
+      },
+      "user": {
+       "anyOf": [
+        {
+         "$ref": "#/$defs/UserCommand"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "A user command (Neovim's `:command`), and what it runs."
+      }
+     },
+     "required": [
+      "name",
+      "aliases",
+      "usage",
+      "desc",
+      "flags",
+      "long",
+      "min",
+      "max"
+     ],
+     "type": "object"
+    },
+    "CommandsOpts": {
+     "additionalProperties": false,
+     "description": "Which commands `pumi_get_commands` lists.",
+     "properties": {
+      "builtin": {
+       "default": null,
+       "description": "Include the built-in commands; `true` by default (Neovim's `builtin`).",
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     },
+     "type": "object"
+    },
+    "UserCommand": {
+     "description": "A user command (Neovim's `:command`): Capitalised, a command line with `<args>`, or a\nfunction whose parameters are its flags.",
+     "properties": {
+      "call": {
+       "description": "Or the function it calls, its flags read from the function's parameters.",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "callback": {
+       "description": "Or a function called with `{name, args, fargs, bang}`, as Neovim calls a Lua one (the\nhost makes one of a Lua function).",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "command": {
+       "description": "The command line it runs; `<args>`, `<q-args>`, `<f-args>` and `<bang>` are replaced.",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "desc": {
+       "default": "",
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "nargs": {
+       "description": "`0`, `1`, `*`, `?` or `+`, as Neovim's `-nargs`.",
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name",
+      "nargs",
+      "source"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "opts": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/CommandsOpts"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [],
+   "type": "object"
+  },
+  "returns": "Dict",
+  "returns_schema": {
+   "$defs": {
+    "CommandInfo": {
+     "description": "A command as `pumi_get_commands` describes it.",
+     "properties": {
+      "aliases": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "desc": {
+       "type": "string"
+      },
+      "flags": {
+       "description": "tmux's flag template: `t:` takes a value, `t::` an optional one.",
+       "type": "string"
+      },
+      "long": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "max": {
+       "format": "int32",
+       "type": "integer"
+      },
+      "min": {
+       "format": "int32",
+       "type": "integer"
+      },
+      "name": {
+       "type": "string"
+      },
+      "usage": {
+       "type": "string"
+      },
+      "user": {
+       "anyOf": [
+        {
+         "$ref": "#/$defs/UserCommand"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "A user command (Neovim's `:command`), and what it runs."
+      }
+     },
+     "required": [
+      "name",
+      "aliases",
+      "usage",
+      "desc",
+      "flags",
+      "long",
+      "min",
+      "max"
+     ],
+     "type": "object"
+    },
+    "CommandsOpts": {
+     "additionalProperties": false,
+     "description": "Which commands `pumi_get_commands` lists.",
+     "properties": {
+      "builtin": {
+       "default": null,
+       "description": "Include the built-in commands; `true` by default (Neovim's `builtin`).",
+       "type": [
+        "boolean",
+        "null"
+       ]
+      }
+     },
+     "type": "object"
+    },
+    "UserCommand": {
+     "description": "A user command (Neovim's `:command`): Capitalised, a command line with `<args>`, or a\nfunction whose parameters are its flags.",
+     "properties": {
+      "call": {
+       "description": "Or the function it calls, its flags read from the function's parameters.",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "callback": {
+       "description": "Or a function called with `{name, args, fargs, bang}`, as Neovim calls a Lua one (the\nhost makes one of a Lua function).",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "command": {
+       "description": "The command line it runs; `<args>`, `<q-args>`, `<f-args>` and `<bang>` are replaced.",
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "desc": {
+       "default": "",
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      },
+      "nargs": {
+       "description": "`0`, `1`, `*`, `?` or `+`, as Neovim's `-nargs`.",
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name",
+      "nargs",
+      "source"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": {
+    "$ref": "#/$defs/CommandInfo"
+   },
+   "type": "object"
+  },
+  "examples": [
+   {
+    "args": [
+     {
+      "builtin": false
+     }
+    ],
+    "desc": "Only user commands."
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_get_environment",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "read",
+  "agent": true,
+  "desc": "tmux's environment, global or a session's: what new panes get over the server's own.\n`null` values are removed from panes' environments.",
+  "parameters": [
+   [
+    "Dict",
+    "opts"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "EnvOpts": {
+     "additionalProperties": false,
+     "properties": {
+      "hidden": {
+       "default": false,
+       "description": "Hidden: given to panes, not shown by `show-environment` (`-h`).",
+       "type": "boolean"
+      },
+      "remove": {
+       "default": false,
+       "description": "Removed from new panes' environment, rather than forgotten (`-r`).",
+       "type": "boolean"
+      },
+      "session": {
+       "default": null,
+       "description": "A session's environment (`0`: the current one); the global one without it.",
+       "format": "uint64",
+       "minimum": 0,
+       "type": [
+        "integer",
+        "null"
+       ]
+      }
+     },
+     "type": "object"
+    },
+    "Var": {
+     "description": "An environment variable: `None` removes it from new panes' environments (`setenv -r`).",
+     "properties": {
+      "hidden": {
+       "type": "boolean"
+      },
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "hidden"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "opts": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/EnvOpts"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [],
+   "type": "object"
+  },
+  "returns": "Dict",
+  "returns_schema": {
+   "$defs": {
+    "EnvOpts": {
+     "additionalProperties": false,
+     "properties": {
+      "hidden": {
+       "default": false,
+       "description": "Hidden: given to panes, not shown by `show-environment` (`-h`).",
+       "type": "boolean"
+      },
+      "remove": {
+       "default": false,
+       "description": "Removed from new panes' environment, rather than forgotten (`-r`).",
+       "type": "boolean"
+      },
+      "session": {
+       "default": null,
+       "description": "A session's environment (`0`: the current one); the global one without it.",
+       "format": "uint64",
+       "minimum": 0,
+       "type": [
+        "integer",
+        "null"
+       ]
+      }
+     },
+     "type": "object"
+    },
+    "Var": {
+     "description": "An environment variable: `None` removes it from new panes' environments (`setenv -r`).",
+     "properties": {
+      "hidden": {
+       "type": "boolean"
+      },
+      "value": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "hidden"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": {
+    "$ref": "#/$defs/Var"
+   },
+   "type": "object"
+  },
+  "examples": [
+   {
+    "args": [
+     {}
+    ],
+    "desc": "The global environment."
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_list_buffers",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "read",
+  "agent": true,
+  "desc": "Every paste buffer, newest first (tmux's `list-buffers`).",
+  "parameters": [],
+  "params_schema": {
+   "$defs": {
+    "Buffer": {
+     "description": "A paste buffer (tmux's).",
+     "properties": {
+      "automatic": {
+       "description": "Named by the server (`buffer0`), so the oldest go when there are too many.",
+       "type": "boolean"
+      },
+      "created": {
+       "format": "uint64",
+       "minimum": 0,
+       "type": "integer"
+      },
+      "data": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name",
+      "data",
+      "created",
+      "automatic"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {},
+   "required": [],
+   "type": "object"
+  },
+  "returns": "Array",
+  "returns_schema": {
+   "$defs": {
+    "Buffer": {
+     "description": "A paste buffer (tmux's).",
+     "properties": {
+      "automatic": {
+       "description": "Named by the server (`buffer0`), so the oldest go when there are too many.",
+       "type": "boolean"
+      },
+      "created": {
+       "format": "uint64",
+       "minimum": 0,
+       "type": "integer"
+      },
+      "data": {
+       "type": "string"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name",
+      "data",
+      "created",
+      "automatic"
+     ],
+     "type": "object"
+    }
+   },
+   "items": {
+    "$ref": "#/$defs/Buffer"
+   },
+   "type": "array"
+  },
+  "examples": [
+   {
+    "args": []
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_parse_cmd",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "read",
+  "agent": true,
+  "desc": "Parse a command line into tables (Neovim's `nvim_parse_cmd`): each command's name as the\nserver knows it, its flags and its arguments. A list, since a line may hold several.",
+  "parameters": [
+   [
+    "String",
+    "str"
+   ],
+   [
+    "Object",
+    "opts"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "Arg": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "items": {
+        "$ref": "#/$defs/Command"
+       },
+       "type": "array"
+      }
+     ],
+     "description": "One argument: a word, or a `{ \u2026 }` command list."
+    },
+    "CmdTable": {
+     "additionalProperties": false,
+     "description": "One command as data: Neovim's `nvim_cmd` table, as `pumi_parse_cmd` gives it.",
+     "properties": {
+      "args": {
+       "default": [],
+       "items": {
+        "$ref": "#/$defs/Arg"
+       },
+       "type": "array"
+      },
+      "cmd": {
+       "description": "The command; its flags and positional arguments follow.",
+       "type": "string"
+      },
+      "flags": {
+       "additionalProperties": true,
+       "default": {},
+       "description": "`{\"t\": \"%3\", \"h\": true}`; a flag given twice is a list.",
+       "type": "object"
+      },
+      "long": {
+       "additionalProperties": true,
+       "default": {},
+       "description": "`{\"type\": \"browser\"}`: long options.",
+       "type": "object"
+      },
+      "raw": {
+       "description": "Instead of `flags`, `long` and `args`: the arguments exactly as a shell split them, for\nthe server to read (what the CLI sends).",
+       "items": {
+        "$ref": "#/$defs/Arg"
+       },
+       "type": [
+        "array",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "cmd"
+     ],
+     "type": "object"
+    },
+    "Command": {
+     "description": "One command as parsed: its name as written and its arguments, flags included.",
+     "properties": {
+      "args": {
+       "default": [],
+       "items": {
+        "$ref": "#/$defs/Arg"
+       },
+       "type": "array"
+      },
+      "line": {
+       "description": "The line it is on, for errors in files.",
+       "format": "uint32",
+       "minimum": 0,
+       "type": "integer"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "opts": true,
+    "str": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "str"
+   ],
+   "type": "object"
+  },
+  "returns": "Array",
+  "returns_schema": {
+   "$defs": {
+    "Arg": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "items": {
+        "$ref": "#/$defs/Command"
+       },
+       "type": "array"
+      }
+     ],
+     "description": "One argument: a word, or a `{ \u2026 }` command list."
+    },
+    "CmdTable": {
+     "additionalProperties": false,
+     "description": "One command as data: Neovim's `nvim_cmd` table, as `pumi_parse_cmd` gives it.",
+     "properties": {
+      "args": {
+       "default": [],
+       "items": {
+        "$ref": "#/$defs/Arg"
+       },
+       "type": "array"
+      },
+      "cmd": {
+       "description": "The command; its flags and positional arguments follow.",
+       "type": "string"
+      },
+      "flags": {
+       "additionalProperties": true,
+       "default": {},
+       "description": "`{\"t\": \"%3\", \"h\": true}`; a flag given twice is a list.",
+       "type": "object"
+      },
+      "long": {
+       "additionalProperties": true,
+       "default": {},
+       "description": "`{\"type\": \"browser\"}`: long options.",
+       "type": "object"
+      },
+      "raw": {
+       "description": "Instead of `flags`, `long` and `args`: the arguments exactly as a shell split them, for\nthe server to read (what the CLI sends).",
+       "items": {
+        "$ref": "#/$defs/Arg"
+       },
+       "type": [
+        "array",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "cmd"
+     ],
+     "type": "object"
+    },
+    "Command": {
+     "description": "One command as parsed: its name as written and its arguments, flags included.",
+     "properties": {
+      "args": {
+       "default": [],
+       "items": {
+        "$ref": "#/$defs/Arg"
+       },
+       "type": "array"
+      },
+      "line": {
+       "description": "The line it is on, for errors in files.",
+       "format": "uint32",
+       "minimum": 0,
+       "type": "integer"
+      },
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "type": "object"
+    }
+   },
+   "items": {
+    "$ref": "#/$defs/CmdTable"
+   },
+   "type": "array"
+  },
+  "examples": [
+   {
+    "args": [
+     "splitw -h -t %3 top",
+     {}
+    ],
+    "result": [
+     {
+      "args": [
+       "top"
+      ],
+      "cmd": "split-pane",
+      "flags": {
+       "h": true,
+       "t": "%3"
+      },
+      "long": {}
+     }
+    ]
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_set_buffer",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "write",
+  "agent": true,
+  "desc": "Set a paste buffer; without a name it is a new automatic one (`buffer0`, \u2026), the oldest of\nwhich go past `buffer-limit`. Returns its name.",
+  "parameters": [
+   [
+    "String",
+    "name"
+   ],
+   [
+    "String",
+    "data"
+   ],
+   [
+    "Dict",
+    "opts"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "SetBufferOpts": {
+     "additionalProperties": false,
+     "properties": {
+      "append": {
+       "default": false,
+       "description": "Add to its end (`set-buffer -a`).",
+       "type": "boolean"
+      }
+     },
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "data": {
+     "type": "string"
+    },
+    "name": {
+     "type": [
+      "string",
+      "null"
+     ]
+    },
+    "opts": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SetBufferOpts"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "data"
+   ],
+   "type": "object"
+  },
+  "returns": "String",
+  "returns_schema": {
+   "$defs": {
+    "SetBufferOpts": {
+     "additionalProperties": false,
+     "properties": {
+      "append": {
+       "default": false,
+       "description": "Add to its end (`set-buffer -a`).",
+       "type": "boolean"
+      }
+     },
+     "type": "object"
+    }
+   },
+   "type": "string"
+  },
+  "examples": [
+   {
+    "args": [
+     null,
+     "hello",
+     {}
+    ],
+    "desc": "A new automatic buffer: buffer0, buffer1, \u2026"
+   }
+  ],
+  "source": "tmux"
+ },
+ {
+  "name": "pumi_set_environment",
+  "since": 1,
+  "provider": "tmux",
+  "runs_on": "server",
+  "effect": "write",
+  "agent": true,
+  "desc": "Set an environment variable for new panes (tmux's `set-environment`); `null` forgets it.",
+  "parameters": [
+   [
+    "String",
+    "name"
+   ],
+   [
+    "String",
+    "value"
+   ],
+   [
+    "Dict",
+    "opts"
+   ]
+  ],
+  "params_schema": {
+   "$defs": {
+    "EnvOpts": {
+     "additionalProperties": false,
+     "properties": {
+      "hidden": {
+       "default": false,
+       "description": "Hidden: given to panes, not shown by `show-environment` (`-h`).",
+       "type": "boolean"
+      },
+      "remove": {
+       "default": false,
+       "description": "Removed from new panes' environment, rather than forgotten (`-r`).",
+       "type": "boolean"
+      },
+      "session": {
+       "default": null,
+       "description": "A session's environment (`0`: the current one); the global one without it.",
+       "format": "uint64",
+       "minimum": 0,
+       "type": [
+        "integer",
+        "null"
+       ]
+      }
+     },
+     "type": "object"
+    }
+   },
+   "additionalProperties": false,
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "opts": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/EnvOpts"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "value": {
+     "type": [
+      "string",
+      "null"
+     ]
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "type": "object"
+  },
+  "returns": "nil",
+  "returns_schema": {
+   "$defs": {
+    "EnvOpts": {
+     "additionalProperties": false,
+     "properties": {
+      "hidden": {
+       "default": false,
+       "description": "Hidden: given to panes, not shown by `show-environment` (`-h`).",
+       "type": "boolean"
+      },
+      "remove": {
+       "default": false,
+       "description": "Removed from new panes' environment, rather than forgotten (`-r`).",
+       "type": "boolean"
+      },
+      "session": {
+       "default": null,
+       "description": "A session's environment (`0`: the current one); the global one without it.",
+       "format": "uint64",
+       "minimum": 0,
+       "type": [
+        "integer",
+        "null"
+       ]
+      }
+     },
+     "type": "object"
+    }
+   },
+   "type": "null"
+  },
+  "examples": [
+   {
+    "args": [
+     "EDITOR",
+     "vim",
+     {}
+    ]
+   },
+   {
+    "args": [
+     "SSH_AUTH_SOCK",
+     null,
+     {
+      "remove": true
+     }
+    ],
+    "desc": "Keep it out of new panes."
+   }
+  ],
+  "source": "tmux"
+ }
+]
