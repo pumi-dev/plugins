@@ -14,11 +14,17 @@ pub const LIST_SESSIONS: &str = "#{session_name}: #{session_windows} windows (cr
 /// [--type TYPE] [command…]`. Without `-d`, a client that asked switches to it.
 pub fn new_session(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     if p.get('t').is_some() {
-        return Err(Error::invalid_params("session groups (-t) are not supported"));
+        return Err(Error::invalid_params(
+            "session groups (-t) are not supported",
+        ));
     }
     let name = p.get('s').map(str::to_string);
     if let Some(name) = &name
-        && let Some(existing) = kernel(cx).sessions.values().find(|s| &s.name == name).map(|s| s.id)
+        && let Some(existing) = kernel(cx)
+            .sessions
+            .values()
+            .find(|s| &s.name == name)
+            .map(|s| s.id)
     {
         if p.has('A') {
             if !p.has('d') {
@@ -40,17 +46,34 @@ pub fn new_session(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         map.entry("cwd").or_insert(json!(cwd));
     }
     let opts = json!({ "name": name, "cwd": cwd, "pane": { "type": ty, "args": args } });
-    let session = call(cx, "pumi_create_session", json!([opts]))?.as_u64().unwrap_or(0);
+    let session = call(cx, "pumi_create_session", json!([opts]))?
+        .as_u64()
+        .unwrap_or(0);
     let k = kernel(cx);
     let tab = k.sessions.get(&session).and_then(|s| s.current);
     if let (Some(tab), Some(tab_name)) = (tab, p.get('n')) {
         call(cx, "pumi_tab_set_name", json!([tab, tab_name]))?;
     }
-    if !p.has('d') && kernel(cx).chans.get(&queue.caller.channel).is_some_and(|c| c.ui.is_some()) {
+    if !p.has('d')
+        && kernel(cx)
+            .chans
+            .get(&queue.caller.channel)
+            .is_some_and(|c| c.ui.is_some())
+    {
         call(cx, "pumi_set_current_session", json!([session]))?;
     }
     let pane = tab.and_then(|t| kernel(cx).tabs.get(&t).map(|t| t.active));
-    print_new(cx, queue, p, "#{session_name}:", Row { session: Some(session), tab, pane });
+    print_new(
+        cx,
+        queue,
+        p,
+        "#{session_name}:",
+        Row {
+            session: Some(session),
+            tab,
+            pane,
+        },
+    );
     Ok(Flow::Next)
 }
 
@@ -61,7 +84,12 @@ pub fn kill_session(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow>
         return Ok(Flow::Next);
     }
     let doomed: Vec<u64> = if p.has('a') {
-        kernel(cx).sessions.keys().copied().filter(|s| *s != session).collect()
+        kernel(cx)
+            .sessions
+            .keys()
+            .copied()
+            .filter(|s| *s != session)
+            .collect()
     } else {
         vec![session]
     };
@@ -74,7 +102,11 @@ pub fn kill_session(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow>
 /// `rename-session [-t session] name`.
 pub fn rename_session(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let session = target_session(cx, p.get('t'))?;
-    call(cx, "pumi_session_set_name", json!([session, p.arg(0).unwrap_or("")]))?;
+    call(
+        cx,
+        "pumi_session_set_name",
+        json!([session, p.arg(0).unwrap_or("")]),
+    )?;
     Ok(Flow::Next)
 }
 
@@ -86,11 +118,24 @@ pub fn has_session(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> 
 
 /// `list-sessions [-r] [-F format] [-f filter] [--json]`.
 pub fn list_sessions(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
-    let rows = kernel(cx).sessions.keys().map(|s| Row { session: Some(*s), tab: None, pane: None }).collect();
+    let rows = kernel(cx)
+        .sessions
+        .keys()
+        .map(|s| Row {
+            session: Some(*s),
+            tab: None,
+            pane: None,
+        })
+        .collect();
     list(cx, queue, p, rows, LIST_SESSIONS, |k, row| {
         let id = row.session.unwrap_or(0);
         let mut value = k.session_value(id);
-        value["attached"] = json!(k.chans.values().filter(|c| c.ui.as_ref().is_some_and(|u| u.session == id)).count());
+        value["attached"] = json!(
+            k.chans
+                .values()
+                .filter(|c| c.ui.as_ref().is_some_and(|u| u.session == id))
+                .count()
+        );
         value["created"] = json!(k.sessions[&id].created);
         value
     })

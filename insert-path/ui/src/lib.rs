@@ -13,7 +13,9 @@
 use std::cell::RefCell;
 use std::path::Path;
 
-use pumi_plugin::gpui::{AnyElement, ClickEvent, FontWeight, KeyDownEvent, MouseDownEvent, ScrollHandle};
+use pumi_plugin::gpui::{
+    AnyElement, ClickEvent, FontWeight, KeyDownEvent, MouseDownEvent, ScrollHandle,
+};
 use pumi_plugin::gpui::{FocusHandle, Focusable, Subscription, relative};
 use pumi_plugin::prelude::*;
 use pumi_plugin::ui::{self, color};
@@ -170,14 +172,23 @@ pub fn score(haystack: &str, query: &str) -> Option<i64> {
 /// matched against the whole relative path, so `src/ma` narrows to one directory.
 pub fn hits(entries: &[Entry], query: &str) -> Vec<(usize, i64)> {
     if query.is_empty() {
-        return entries.iter().take(MAX_HITS).enumerate().map(|(i, _)| (i, 0)).collect();
+        return entries
+            .iter()
+            .take(MAX_HITS)
+            .enumerate()
+            .map(|(i, _)| (i, 0))
+            .collect();
     }
     let by_path = query.contains('/');
     let mut scored: Vec<(usize, i64)> = entries
         .iter()
         .enumerate()
         .filter_map(|(i, entry)| {
-            let text = if by_path { entry.rel.as_str() } else { entry.name() };
+            let text = if by_path {
+                entry.rel.as_str()
+            } else {
+                entry.name()
+            };
             score(text, query).map(|score| (i, score))
         })
         .collect();
@@ -197,7 +208,11 @@ pub fn quote(path: &str) -> String {
         && path
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || "-_./~+@%:=,".contains(c));
-    if plain { path.to_string() } else { format!("'{}'", path.replace('\'', r"'\''")) }
+    if plain {
+        path.to_string()
+    } else {
+        format!("'{}'", path.replace('\'', r"'\''"))
+    }
 }
 
 /// `/Users/me/kit` as `~/kit`, for the header.
@@ -216,9 +231,11 @@ fn row_icon(entry: &Entry) -> AnyElement {
         return ui::icon("folder", ui::ICON, color);
     }
     match entry.extension().as_deref() {
-        Some("rs" | "py" | "js" | "jsx" | "ts" | "tsx" | "go" | "lua" | "c" | "h" | "cc" | "cpp" | "hpp" | "swift" | "kt"
-        | "java" | "rb" | "php" | "sh" | "bash" | "zsh" | "fish" | "css" | "scss" | "html" | "json" | "toml" | "yaml"
-        | "yml" | "sql") => ui::icon("code", ui::ICON, color),
+        Some(
+            "rs" | "py" | "js" | "jsx" | "ts" | "tsx" | "go" | "lua" | "c" | "h" | "cc" | "cpp"
+            | "hpp" | "swift" | "kt" | "java" | "rb" | "php" | "sh" | "bash" | "zsh" | "fish"
+            | "css" | "scss" | "html" | "json" | "toml" | "yaml" | "yml" | "sql",
+        ) => ui::icon("code", ui::ICON, color),
         Some("png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "ico" | "bmp" | "tiff") => {
             ui::icon("image", ui::ICON, color)
         }
@@ -262,7 +279,11 @@ impl Picker {
                     .and_then(|v| v.as_str().map(str::to_string))
             })
             .filter(|cwd| !cwd.is_empty())
-            .unwrap_or_else(|| std::env::current_dir().map(|d| d.display().to_string()).unwrap_or_default());
+            .unwrap_or_else(|| {
+                std::env::current_dir()
+                    .map(|d| d.display().to_string())
+                    .unwrap_or_default()
+            });
         let entries = walk(Path::new(&cwd));
         let hits = hits(&entries, "");
         let cancel = open.args["cancel"].as_str().map(str::to_string);
@@ -302,7 +323,9 @@ impl Picker {
     }
 
     fn selected(&self) -> Option<Entry> {
-        self.hits.get(self.at).map(|(index, _)| self.entries[*index].clone())
+        self.hits
+            .get(self.at)
+            .map(|(index, _)| self.entries[*index].clone())
     }
 
     fn step(&mut self, by: i64, cx: &mut Context<Self>) {
@@ -319,7 +342,11 @@ impl Picker {
     fn insert(&mut self, text: String, _cx: &mut Context<Self>) {
         let text = if self.quote { quote(&text) } else { text };
         if let Err(err) = api::pumi_pane_call(self.term, "input", json!({ "text": text })) {
-            let _ = api::pumi_notify(&format!("insert-path: {}", err.message), Some("error"), json!({}));
+            let _ = api::pumi_notify(
+                &format!("insert-path: {}", err.message),
+                Some("error"),
+                json!({}),
+            );
         }
         self.close();
     }
@@ -353,7 +380,11 @@ impl Picker {
             "escape" => self.dismiss(cx),
             "enter" => {
                 if let Some(entry) = self.selected() {
-                    let text = if entry.dir { format!("{}/", entry.rel) } else { entry.rel };
+                    let text = if entry.dir {
+                        format!("{}/", entry.rel)
+                    } else {
+                        entry.rel
+                    };
                     self.insert(text, cx);
                 }
             }
@@ -395,9 +426,12 @@ impl Render for Picker {
                     .rounded(px(ui::color::RADIUS_SM))
                     .cursor_pointer()
                     .when(selected, |row| {
-                        row.bg(color::primary()).text_color(color::primary_foreground())
+                        row.bg(color::primary())
+                            .text_color(color::primary_foreground())
                     })
-                    .when(!selected, |row| row.hover(|row| row.bg(color::list_hover())))
+                    .when(!selected, |row| {
+                        row.hover(|row| row.bg(color::list_hover()))
+                    })
                     .on_hover(cx.listener(move |this, hovered_here: &bool, _, cx| {
                         if *hovered_here && this.at != i {
                             this.at = i;
@@ -406,7 +440,11 @@ impl Render for Picker {
                         }
                     }))
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        let text = if clicked.dir { format!("{}/", clicked.rel) } else { clicked.rel.clone() };
+                        let text = if clicked.dir {
+                            format!("{}/", clicked.rel)
+                        } else {
+                            clicked.rel.clone()
+                        };
                         this.insert(text, cx);
                     }))
                     .child(row_icon(&entry))
@@ -539,7 +577,11 @@ fn open(event: &Value) -> bool {
         .and_then(Value::as_u64)
         .or_else(|| api::pumi_get_current_pane().ok());
     let Some(pane) = pane else {
-        let _ = api::pumi_notify("insert-path: no pane to pick a path for", Some("error"), json!({}));
+        let _ = api::pumi_notify(
+            "insert-path: no pane to pick a path for",
+            Some("error"),
+            json!({}),
+        );
         return false;
     };
     close();
@@ -565,11 +607,16 @@ fn open(event: &Value) -> bool {
     if let Some(cwd) = cwd {
         args["cwd"] = json!(cwd);
     }
-    let place = json!({ "kind": "float", "width": "60%", "height": height, "zindex": 60, "focus": false });
+    let place =
+        json!({ "kind": "float", "width": "60%", "height": height, "zindex": 60, "focus": false });
     match api::pumi_open_pane("insert-path.picker", args, place) {
         Ok(_) => true,
         Err(err) => {
-            let _ = api::pumi_notify(&format!("insert-path: {}", err.message), Some("error"), json!({}));
+            let _ = api::pumi_notify(
+                &format!("insert-path: {}", err.message),
+                Some("error"),
+                json!({}),
+            );
             false
         }
     }
@@ -592,8 +639,10 @@ fn bind() {
     if let Some(last) = BOUND.with(|bound| bound.borrow_mut().take()) {
         let _ = api::pumi_del_keymap("terminal", &last, json!({}));
     }
-    let opts = json!({ "desc": "Insert a path…", "callback": api::callback(|event, _| { open(&event); }) });
-    match api::pumi_set_keymap("terminal", &key, "", opts) {
+    // The rhs is a channel ref: the app calls it with `{key, pane}` when the key is pressed.
+    let rhs = json!({ "chan": 0, "ref": api::callback(|event, _| { open(&event); }).get("ref").cloned().unwrap_or_default() });
+    let opts = json!({ "desc": "Insert a path…" });
+    match api::pumi_set_keymap("terminal", &key, rhs, opts) {
         Ok(()) => BOUND.with(|bound| *bound.borrow_mut() = Some(key)),
         Err(err) => eprintln!("insert-path: {err}"),
     }
@@ -665,20 +714,41 @@ mod tests {
         std::fs::write(dir.join(".git/HEAD"), "").unwrap();
         let found: Vec<String> = walk(&dir).into_iter().map(|e| e.rel).collect();
         assert_eq!(found, vec!["Cargo.toml", "src", "src/main.rs"]);
-        assert!(walk(&dir).iter().find(|e| e.rel == "src").is_some_and(|e| e.dir));
+        assert!(
+            walk(&dir)
+                .iter()
+                .find(|e| e.rel == "src")
+                .is_some_and(|e| e.dir)
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn a_query_is_a_fuzzy_subsequence_with_word_starts() {
         assert_eq!(score("main.rs", ""), Some(0));
-        assert!(score("main.rs", "mr").is_some(), "`m` then `r`, not adjacent");
+        assert!(
+            score("main.rs", "mr").is_some(),
+            "`m` then `r`, not adjacent"
+        );
         assert_eq!(score("main.rs", "xyz"), None);
-        assert!(score("src/main.rs", "sm").is_some(), "`sm` spans a word start");
+        assert!(
+            score("src/main.rs", "sm").is_some(),
+            "`sm` spans a word start"
+        );
         assert_eq!(hits(&[], "x"), vec![]);
-        let entries = vec![Entry::new("src/module_maths.rs".into(), false), Entry::new("src/main.rs".into(), false)];
-        let found: Vec<&str> = hits(&entries, "src/m").into_iter().map(|(i, _)| entries[i].rel.as_str()).collect();
-        assert_eq!(found, vec!["src/main.rs", "src/module_maths.rs"], "equal scores fall back to the shorter path");
+        let entries = vec![
+            Entry::new("src/module_maths.rs".into(), false),
+            Entry::new("src/main.rs".into(), false),
+        ];
+        let found: Vec<&str> = hits(&entries, "src/m")
+            .into_iter()
+            .map(|(i, _)| entries[i].rel.as_str())
+            .collect();
+        assert_eq!(
+            found,
+            vec!["src/main.rs", "src/module_maths.rs"],
+            "equal scores fall back to the shorter path"
+        );
     }
 
     #[test]

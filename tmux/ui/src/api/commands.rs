@@ -64,7 +64,11 @@ pub struct CmdTable {
 impl CmdTable {
     fn to_command(&self) -> Command {
         if let Some(raw) = &self.raw {
-            return Command { name: self.cmd.clone(), args: raw.clone(), line: 0 };
+            return Command {
+                name: self.cmd.clone(),
+                args: raw.clone(),
+                line: 0,
+            };
         }
         let mut args = Vec::new();
         for (flag, value) in &self.flags {
@@ -102,7 +106,11 @@ impl CmdTable {
             args.push(Arg::String("--".into()));
             args.extend(self.args.iter().cloned());
         }
-        Command { name: self.cmd.clone(), args, line: 0 }
+        Command {
+            name: self.cmd.clone(),
+            args,
+            line: 0,
+        }
     }
 }
 
@@ -122,7 +130,9 @@ fn commands(cx: &mut Cx, cmd: Value, queue: &cmd::Queue) -> Result<Vec<Command>>
             let table: CmdTable = pumi_api::from_value(object, "a command")?;
             Ok(vec![table.to_command()])
         }
-        other => Err(Error::invalid_params(format!("a command is a string or a table, not {other}"))),
+        other => Err(Error::invalid_params(format!(
+            "a command is a string or a table, not {other}"
+        ))),
     }
 }
 
@@ -144,7 +154,12 @@ fn run(cx: &mut Cx, cmd: Value, opts: CmdOpts, interactive: bool) -> Result<CmdR
         interactive,
     };
     let list = commands(cx, cmd, &shadow)?;
-    let start = Start { caller: caller.clone(), cwd: opts.cwd.map(PathBuf::from), vars: opts.vars, interactive };
+    let start = Start {
+        caller: caller.clone(),
+        cwd: opts.cwd.map(PathBuf::from),
+        vars: opts.vars,
+        interactive,
+    };
     // The commands' own calls are not the request: only the queue answers it later.
     let rpc = kernel(cx)?.1.rpc.take();
     let started = cmd::start(cx, list, start);
@@ -186,9 +201,18 @@ pub fn pumi_parse_cmd(cx: &mut Cx, str: String, opts: Option<Value>) -> Result<V
                 let mut longs: Vec<(&str, pumi_lang::cmd::Long)> = entry.longs.to_vec();
                 longs.extend(pumi_lang::cmd::COMMON_LONGS.iter().copied());
                 let parsed = if entry.raw {
-                    pumi_lang::cmd::Parsed { args: command.args.clone(), ..Default::default() }
+                    pumi_lang::cmd::Parsed {
+                        args: command.args.clone(),
+                        ..Default::default()
+                    }
                 } else {
-                    pumi_lang::cmd::parse_args(entry.template, entry.min, entry.max, &longs, &command.args)?
+                    pumi_lang::cmd::parse_args(
+                        entry.template,
+                        entry.min,
+                        entry.max,
+                        &longs,
+                        &command.args,
+                    )?
                 };
                 let value = parsed.to_value();
                 out.push(CmdTable {
@@ -250,13 +274,20 @@ pub struct CommandsOpts {
 
 /// Every command, built-in and user, by name: what the CLI's `--help`, completion and
 /// `list-commands` read.
-pub fn pumi_get_commands(cx: &mut Cx, opts: Option<CommandsOpts>) -> Result<BTreeMap<String, CommandInfo>> {
+pub fn pumi_get_commands(
+    cx: &mut Cx,
+    opts: Option<CommandsOpts>,
+) -> Result<BTreeMap<String, CommandInfo>> {
     let (_, k) = kernel(cx)?;
     let mut out = BTreeMap::new();
     if opts.unwrap_or_default().builtin != Some(false) {
         for entry in cmd::table::ENTRIES {
             let mut long: Vec<String> = entry.longs.iter().map(|(n, _)| n.to_string()).collect();
-            long.extend(pumi_lang::cmd::COMMON_LONGS.iter().map(|(n, _)| n.to_string()));
+            long.extend(
+                pumi_lang::cmd::COMMON_LONGS
+                    .iter()
+                    .map(|(n, _)| n.to_string()),
+            );
             out.insert(
                 entry.name.to_string(),
                 CommandInfo {
@@ -346,15 +377,23 @@ pub fn pumi_create_user_command(
 ) -> Result<()> {
     let opts = opts.unwrap_or_default();
     if !name.chars().next().is_some_and(|c| c.is_ascii_uppercase())
-        || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
+        || !name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
     {
-        return Err(Error::invalid_params(format!("a user command is Capitalised and alphanumeric: {name}")));
+        return Err(Error::invalid_params(format!(
+            "a user command is Capitalised and alphanumeric: {name}"
+        )));
     }
     if command.is_none() && opts.call.is_none() && opts.callback.is_none() {
-        return Err(Error::invalid_params("a user command needs a command line or `call`"));
+        return Err(Error::invalid_params(
+            "a user command needs a command line or `call`",
+        ));
     }
     if let Some(CommandBody::Lua(_)) = command {
-        return Err(Error::invalid_params("a Lua function is the host's: give it from Lua"));
+        return Err(Error::invalid_params(
+            "a Lua function is the host's: give it from Lua",
+        ));
     }
     if let Some(call) = &opts.call
         && crate::api::function_info(cx, call).is_none()
@@ -365,7 +404,11 @@ pub fn pumi_create_user_command(
         None => if opts.call.is_some() { "*" } else { "0" }.to_string(),
         Some(Value::Number(n)) => n.to_string(),
         Some(Value::String(s)) if ["0", "1", "*", "?", "+"].contains(&s.as_str()) => s,
-        Some(other) => return Err(Error::invalid_params(format!("nargs is 0, 1, *, ? or +, not {other}"))),
+        Some(other) => {
+            return Err(Error::invalid_params(format!(
+                "nargs is 0, 1, *, ? or +, not {other}"
+            )));
+        }
     };
     let (caller, k) = kernel(cx)?;
     if opts.force == Some(false) && k.cmd().user.contains_key(&name) {
@@ -378,14 +421,29 @@ pub fn pumi_create_user_command(
         _ => None,
     };
     let callback = opts.callback;
-    k.cmd().user.insert(name.clone(), UserCommand { name, command, call: opts.call, callback, nargs, desc, source });
+    k.cmd().user.insert(
+        name.clone(),
+        UserCommand {
+            name,
+            command,
+            call: opts.call,
+            callback,
+            nargs,
+            desc,
+            source,
+        },
+    );
     Ok(())
 }
 
 /// Delete a user command (Neovim's `nvim_del_user_command`).
 pub fn pumi_del_user_command(cx: &mut Cx, name: String) -> Result<()> {
     let (_, k) = kernel(cx)?;
-    k.cmd().user.remove(&name).map(|_| ()).ok_or_else(|| Error::not_found(format!("no user command {name}")))
+    k.cmd()
+        .user
+        .remove(&name)
+        .map(|_| ())
+        .ok_or_else(|| Error::not_found(format!("no user command {name}")))
 }
 
 // ---- paste buffers
@@ -401,10 +459,13 @@ pub fn pumi_list_buffers(cx: &mut Cx) -> Result<Vec<Buffer>> {
 /// A paste buffer by name; `null` is the newest (tmux's `show-buffer`).
 pub fn pumi_get_buffer(cx: &mut Cx, name: Option<String>) -> Result<Buffer> {
     let (_, k) = kernel(cx)?;
-    k.cmd().buffer(name.as_deref()).cloned().ok_or_else(|| match name {
-        Some(name) => Error::not_found(format!("no buffer {name}")),
-        None => Error::not_found("no buffers"),
-    })
+    k.cmd()
+        .buffer(name.as_deref())
+        .cloned()
+        .ok_or_else(|| match name {
+            Some(name) => Error::not_found(format!("no buffer {name}")),
+            None => Error::not_found("no buffers"),
+        })
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -417,12 +478,23 @@ pub struct SetBufferOpts {
 
 /// Set a paste buffer; without a name it is a new automatic one (`buffer0`, …), the oldest of
 /// which go past `buffer-limit`. Returns its name.
-pub fn pumi_set_buffer(cx: &mut Cx, name: Option<String>, data: String, opts: Option<SetBufferOpts>) -> Result<String> {
+pub fn pumi_set_buffer(
+    cx: &mut Cx,
+    name: Option<String>,
+    data: String,
+    opts: Option<SetBufferOpts>,
+) -> Result<String> {
     let opts = opts.unwrap_or_default();
     let (_, k) = kernel(cx)?;
     let limit = k.global_option("buffer_limit").as_u64().unwrap_or(50) as usize;
     let data = match (&name, opts.append) {
-        (Some(n), true) => format!("{}{data}", k.cmd().buffer(Some(n)).map(|b| b.data.as_str()).unwrap_or("")),
+        (Some(n), true) => format!(
+            "{}{data}",
+            k.cmd()
+                .buffer(Some(n))
+                .map(|b| b.data.as_str())
+                .unwrap_or("")
+        ),
         (None, true) => {
             let newest = k.cmd().buffer(None).cloned();
             if let Some(newest) = newest {
@@ -439,7 +511,11 @@ pub fn pumi_set_buffer(cx: &mut Cx, name: Option<String>, data: String, opts: Op
 /// Delete a paste buffer; `null` is the newest.
 pub fn pumi_del_buffer(cx: &mut Cx, name: Option<String>) -> Result<()> {
     let (_, k) = kernel(cx)?;
-    let name = k.cmd().buffer(name.as_deref()).map(|b| b.name.clone()).ok_or_else(|| Error::not_found("no buffer"))?;
+    let name = k
+        .cmd()
+        .buffer(name.as_deref())
+        .map(|b| b.name.clone())
+        .ok_or_else(|| Error::not_found("no buffer"))?;
     k.cmd().buffers.retain(|b| b.name != name);
     Ok(())
 }
@@ -475,7 +551,15 @@ pub fn pumi_get_environment(cx: &mut Cx, opts: Option<EnvOpts>) -> Result<BTreeM
                 .config
                 .base_env
                 .iter()
-                .map(|(name, value)| (name.clone(), Var { value: Some(value.clone()), hidden: false }))
+                .map(|(name, value)| {
+                    (
+                        name.clone(),
+                        Var {
+                            value: Some(value.clone()),
+                            hidden: false,
+                        },
+                    )
+                })
                 .collect();
             all.extend(k.cmd().env.global.clone());
             Ok(all)
@@ -484,10 +568,17 @@ pub fn pumi_get_environment(cx: &mut Cx, opts: Option<EnvOpts>) -> Result<BTreeM
 }
 
 /// Set an environment variable for new panes (tmux's `set-environment`); `null` forgets it.
-pub fn pumi_set_environment(cx: &mut Cx, name: String, value: Option<String>, opts: Option<EnvOpts>) -> Result<()> {
+pub fn pumi_set_environment(
+    cx: &mut Cx,
+    name: String,
+    value: Option<String>,
+    opts: Option<EnvOpts>,
+) -> Result<()> {
     let opts = opts.unwrap_or_default();
     if name.is_empty() || name.contains('=') {
-        return Err(Error::invalid_params(format!("not a variable name: {name:?}")));
+        return Err(Error::invalid_params(format!(
+            "not a variable name: {name:?}"
+        )));
     }
     let (caller, k) = kernel(cx)?;
     let vars = match opts.session {
@@ -499,10 +590,22 @@ pub fn pumi_set_environment(cx: &mut Cx, name: String, value: Option<String>, op
     };
     match (value, opts.remove) {
         (_, true) => {
-            vars.insert(name, Var { value: None, hidden: opts.hidden });
+            vars.insert(
+                name,
+                Var {
+                    value: None,
+                    hidden: opts.hidden,
+                },
+            );
         }
         (Some(value), false) => {
-            vars.insert(name, Var { value: Some(value), hidden: opts.hidden });
+            vars.insert(
+                name,
+                Var {
+                    value: Some(value),
+                    hidden: opts.hidden,
+                },
+            );
         }
         (None, false) => {
             vars.remove(&name);

@@ -16,15 +16,25 @@ pub const LIST_BUFFERS: &str = "#{buffer_name}: #{buffer_size} bytes: \"#{buffer
 pub fn set_buffer(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     if let Some(new) = p.get('n') {
         let k = kernel(cx);
-        let old = k.cmd().buffer(p.get('b')).map(|b| b.name.clone()).ok_or_else(|| Error::not_found("no buffer"))?;
+        let old = k
+            .cmd()
+            .buffer(p.get('b'))
+            .map(|b| b.name.clone())
+            .ok_or_else(|| Error::not_found("no buffer"))?;
         if let Some(buffer) = k.cmd().buffers.iter_mut().find(|b| b.name == old) {
             buffer.name = new.to_string();
             buffer.automatic = false;
         }
         return Ok(Flow::Next);
     }
-    let data = p.arg(0).ok_or_else(|| Error::invalid_params("no data specified"))?;
-    call(cx, "pumi_set_buffer", json!([p.get('b'), data, {"append": p.has('a')}]))?;
+    let data = p
+        .arg(0)
+        .ok_or_else(|| Error::invalid_params("no data specified"))?;
+    call(
+        cx,
+        "pumi_set_buffer",
+        json!([p.get('b'), data, {"append": p.has('a')}]),
+    )?;
     Ok(Flow::Next)
 }
 
@@ -49,7 +59,11 @@ pub fn paste_buffer(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow>
         let separator = p.get('s').unwrap_or("\r");
         data = data.replace('\n', separator);
     }
-    let input = if p.has('p') { json!({"paste": data}) } else { json!({"text": data}) };
+    let input = if p.has('p') {
+        json!({"paste": data})
+    } else {
+        json!({"text": data})
+    };
     call(cx, "pumi_pane_call", json!([pane, "input", input]))?;
     if p.has('d') {
         call(cx, "pumi_del_buffer", json!([buffer["name"]]))?;
@@ -68,13 +82,23 @@ pub fn list_buffers(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
     for buffer in buffers {
         let data = buffer["data"].as_str().unwrap_or("");
         let mut vars = queue.vars.clone();
-        vars.insert("buffer_name".into(), buffer["name"].as_str().unwrap_or("").into());
+        vars.insert(
+            "buffer_name".into(),
+            buffer["name"].as_str().unwrap_or("").into(),
+        );
         vars.insert("buffer_size".into(), data.len().to_string());
         vars.insert("buffer_created".into(), buffer["created"].to_string());
-        let sample: String = data.chars().take(50).flat_map(char::escape_default).collect();
+        let sample: String = data
+            .chars()
+            .take(50)
+            .flat_map(char::escape_default)
+            .collect();
         vars.insert("buffer_sample".into(), sample);
         vars.insert("buffer_full".into(), data.into());
-        let shadow = Queue { vars, ..super::shell(queue) };
+        let shadow = Queue {
+            vars,
+            ..super::shell(queue)
+        };
         let k = kernel(cx);
         if let Some(filter) = p.get('f')
             && !crate::cmd::truthy(&crate::cmd::expand(k, &shadow, None, None, None, filter))
@@ -100,11 +124,18 @@ pub fn delete_buffer(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow
 pub fn load_buffer(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let file = p.arg(0).unwrap_or("");
     if file == "-" {
-        return Err(Error::invalid_params("load-buffer -: the CLI sends standard input as a path"));
+        return Err(Error::invalid_params(
+            "load-buffer -: the CLI sends standard input as a path",
+        ));
     }
     let full = path(queue, file);
-    let data = std::fs::read(&full).map_err(|err| Error::exception(format!("{}: {err}", full.display())))?;
-    call(cx, "pumi_set_buffer", json!([p.get('b'), String::from_utf8_lossy(&data), {}]))?;
+    let data = std::fs::read(&full)
+        .map_err(|err| Error::exception(format!("{}: {err}", full.display())))?;
+    call(
+        cx,
+        "pumi_set_buffer",
+        json!([p.get('b'), String::from_utf8_lossy(&data), {}]),
+    )?;
     Ok(Flow::Next)
 }
 
@@ -120,7 +151,11 @@ pub fn save_buffer(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let full = path(queue, file);
     let result = if p.has('a') {
         use std::io::Write;
-        std::fs::OpenOptions::new().create(true).append(true).open(&full).and_then(|mut f| f.write_all(data.as_bytes()))
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&full)
+            .and_then(|mut f| f.write_all(data.as_bytes()))
     } else {
         std::fs::write(&full, data)
     };

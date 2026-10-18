@@ -18,8 +18,14 @@ const PREFIX: &[(&str, &str)] = &[
     ("#", "list-buffers"),
     ("$", "command-prompt -I \"#S\" \"rename-session -- '%%'\""),
     ("%", "split-window -h"),
-    ("&", "confirm-before -p \"kill-window #W? (y/n)\" kill-window"),
-    ("'", "command-prompt -T window-target -p index \"select-window -t ':%%'\""),
+    (
+        "&",
+        "confirm-before -p \"kill-window #W? (y/n)\" kill-window",
+    ),
+    (
+        "'",
+        "command-prompt -T window-target -p index \"select-window -t ':%%'\"",
+    ),
     ("(", "switch-client -p"),
     (")", "switch-client -n"),
     (",", "command-prompt -I \"#W\" \"rename-window -- '%%'\""),
@@ -74,25 +80,49 @@ const RESIZE: &[(&str, &str)] = &[("Up", "U"), ("Down", "D"), ("Left", "L"), ("R
 /// The Session menu, merged into the app's menu bar.
 const MENU: &[(&str, &str)] = &[
     ("Session.New Session", "new-session -d"),
-    ("Session.Rename Session…", "command-prompt -I \"#S\" \"rename-session -- '%%'\""),
+    (
+        "Session.Rename Session…",
+        "command-prompt -I \"#S\" \"rename-session -- '%%'\"",
+    ),
     ("Session.Next Session", "switch-client -n"),
     ("Session.Previous Session", "switch-client -p"),
     ("Session.-sep1-", ""),
     ("Session.New Tab", "new-window"),
-    ("Session.Rename Tab…", "command-prompt -I \"#W\" \"rename-window -- '%%'\""),
+    (
+        "Session.Rename Tab…",
+        "command-prompt -I \"#W\" \"rename-window -- '%%'\"",
+    ),
     ("Session.-sep2-", ""),
     ("Session.Split Right", "split-window -h"),
     ("Session.Split Down", "split-window -v"),
     ("Session.Zoom Pane", "resize-pane -Z"),
-    ("Session.Layout.Even Horizontal", "select-layout even-horizontal"),
-    ("Session.Layout.Even Vertical", "select-layout even-vertical"),
-    ("Session.Layout.Main Horizontal", "select-layout main-horizontal"),
-    ("Session.Layout.Main Vertical", "select-layout main-vertical"),
+    (
+        "Session.Layout.Even Horizontal",
+        "select-layout even-horizontal",
+    ),
+    (
+        "Session.Layout.Even Vertical",
+        "select-layout even-vertical",
+    ),
+    (
+        "Session.Layout.Main Horizontal",
+        "select-layout main-horizontal",
+    ),
+    (
+        "Session.Layout.Main Vertical",
+        "select-layout main-vertical",
+    ),
     ("Session.Layout.Tiled", "select-layout tiled"),
     ("Session.-sep3-", ""),
     ("Session.Command Prompt…", "command-prompt"),
-    ("Session.Kill Pane", "confirm-before -p \"kill-pane #P? (y/n)\" kill-pane"),
-    ("Session.Kill Session", "confirm-before -p \"kill-session #S? (y/n)\" kill-session"),
+    (
+        "Session.Kill Pane",
+        "confirm-before -p \"kill-pane #P? (y/n)\" kill-pane",
+    ),
+    (
+        "Session.Kill Session",
+        "confirm-before -p \"kill-session #S? (y/n)\" kill-session",
+    ),
 ];
 
 /// tmux's options (`tmux.*`), declared for Settings.
@@ -135,7 +165,10 @@ fn bind(name: &str, head: &[&str], command: &str, opts: Value) {
 
 /// Binds the prefix keys and adds the Session menu, unless `tmux.default_keys` is off.
 pub fn install() {
-    let on = api::option("tmux.default_keys", json!({})).ok().and_then(|v| v.as_bool()).unwrap_or(true);
+    let on = api::option("tmux.default_keys", json!({}))
+        .ok()
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
     if !on {
         return;
     }
@@ -144,14 +177,34 @@ pub fn install() {
     }
     for i in 0..=9 {
         let key = i.to_string();
-        bind("pumi_set_keymap", &["prefix", &key], &format!("select-window -t :={i}"), json!({}));
+        bind(
+            "pumi_set_keymap",
+            &["prefix", &key],
+            &format!("select-window -t :={i}"),
+            json!({}),
+        );
     }
     for (key, dir) in RESIZE {
         let opts = json!({ "repeat": true });
-        bind("pumi_set_keymap", &["prefix", &format!("C-{key}")], &format!("resize-pane -{dir}"), opts.clone());
-        bind("pumi_set_keymap", &["prefix", &format!("M-{key}")], &format!("resize-pane -{dir} 5"), opts);
+        bind(
+            "pumi_set_keymap",
+            &["prefix", &format!("C-{key}")],
+            &format!("resize-pane -{dir}"),
+            opts.clone(),
+        );
+        bind(
+            "pumi_set_keymap",
+            &["prefix", &format!("M-{key}")],
+            &format!("resize-pane -{dir} 5"),
+            opts,
+        );
     }
     for (i, (path, command)) in MENU.iter().enumerate() {
-        bind("pumi_menu_add", &[path], command, json!({ "priority": i + 1 }));
+        bind(
+            "pumi_menu_add",
+            &[path],
+            command,
+            json!({ "priority": i + 1 }),
+        );
     }
 }

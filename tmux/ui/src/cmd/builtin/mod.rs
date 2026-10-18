@@ -61,7 +61,10 @@ pub(crate) fn list(
     for (line, row) in rows.into_iter().enumerate() {
         let mut vars = queue.vars.clone();
         vars.insert("line".into(), line.to_string());
-        let shadow = Queue { vars, ..shell(queue) };
+        let shadow = Queue {
+            vars,
+            ..shell(queue)
+        };
         if let Some(filter) = &filter
             && !truthy(&expand(k, &shadow, row.session, row.tab, row.pane, filter))
         {
@@ -105,15 +108,20 @@ pub(crate) fn print_new(cx: &mut Cx, queue: &mut Queue, p: &Parsed, default: &st
 /// A row about a pane: its tab and session too.
 pub(crate) fn pane_row(k: &Kernel, pane: PaneId) -> Row {
     let tab = k.tab_of_pane(pane);
-    Row { session: tab.and_then(|t| k.session_of_tab(t)), tab, pane: Some(pane) }
+    Row {
+        session: tab.and_then(|t| k.session_of_tab(t)),
+        tab,
+        pane: Some(pane),
+    }
 }
 
 /// `-e VAR=value`, as many times as given.
 pub(crate) fn env_flags(p: &Parsed) -> Result<serde_json::Map<String, Value>> {
     let mut env = serde_json::Map::new();
     for pair in p.all('e') {
-        let (name, value) =
-            pair.split_once('=').ok_or_else(|| Error::invalid_params(format!("-e needs VAR=value, not {pair}")))?;
+        let (name, value) = pair
+            .split_once('=')
+            .ok_or_else(|| Error::invalid_params(format!("-e needs VAR=value, not {pair}")))?;
         env.insert(name.into(), json!(value));
     }
     Ok(env)
@@ -132,7 +140,9 @@ pub(crate) fn command_args(p: &Parsed) -> Option<Value> {
 
 /// A pane's arguments for its type: a terminal's command, cwd and environment; a browser's URL.
 pub(crate) fn pane_args(queue: &Queue, p: &Parsed, ty: &str) -> Result<Value> {
-    let cwd = p.get('c').map(|c| super::path(queue, c).display().to_string());
+    let cwd = p
+        .get('c')
+        .map(|c| super::path(queue, c).display().to_string());
     match ty {
         "terminal" => {
             let mut args = serde_json::Map::new();
@@ -149,7 +159,11 @@ pub(crate) fn pane_args(queue: &Queue, p: &Parsed, ty: &str) -> Result<Value> {
             Ok(Value::Object(args))
         }
         "browser" => {
-            let url = p.words().first().cloned().unwrap_or_else(|| "about:blank".into());
+            let url = p
+                .words()
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "about:blank".into());
             Ok(json!({ "url": url }))
         }
         _ => {
@@ -162,9 +176,9 @@ pub(crate) fn pane_args(queue: &Queue, p: &Parsed, ty: &str) -> Result<Value> {
             }
             let mut args = serde_json::Map::new();
             for word in words {
-                let (k, v) = word
-                    .split_once('=')
-                    .ok_or_else(|| Error::invalid_params(format!("{ty} takes key=value, not {word}")))?;
+                let (k, v) = word.split_once('=').ok_or_else(|| {
+                    Error::invalid_params(format!("{ty} takes key=value, not {word}"))
+                })?;
                 args.insert(k.into(), serde_json::from_str(v).unwrap_or(json!(v)));
             }
             Ok(Value::Object(args))
@@ -185,7 +199,9 @@ pub(crate) fn size(text: &str) -> Value {
 
 /// A command that needs an attached client to draw it (phase 4's client rewrite).
 pub(crate) fn needs_client(_: &mut Cx, _: &mut Queue, _: &Parsed) -> Result<Flow> {
-    Err(Error::invalid_params("this command draws in a client, and no client draws commands' UI yet"))
+    Err(Error::invalid_params(
+        "this command draws in a client, and no client draws commands' UI yet",
+    ))
 }
 
 /// `command-prompt [-p prompt] [-I input] [template]` and `confirm-before [-p prompt] command`:
@@ -200,14 +216,22 @@ pub(crate) fn confirm_before(cx: &mut Cx, q: &mut Queue, p: &Parsed) -> Result<F
 }
 
 fn prompt(cx: &mut Cx, _: &mut Queue, p: &Parsed, confirm: bool) -> Result<Flow> {
-    let template = p.args.first().and_then(|a| a.as_str()).map(str::to_string).unwrap_or_default();
+    let template = p
+        .args
+        .first()
+        .and_then(|a| a.as_str())
+        .map(str::to_string)
+        .unwrap_or_default();
     if confirm && template.is_empty() {
         return Err(Error::invalid_params("confirm-before needs a command"));
     }
-    let prompt = p
-        .get('p')
-        .map(str::to_string)
-        .unwrap_or_else(|| if confirm { format!("Run '{template}'? (y/n)") } else { ":".into() });
+    let prompt = p.get('p').map(str::to_string).unwrap_or_else(|| {
+        if confirm {
+            format!("Run '{template}'? (y/n)")
+        } else {
+            ":".into()
+        }
+    });
     let caller = cx.caller().clone();
     let k = kernel(cx);
     let (width, height) = k

@@ -19,14 +19,20 @@ pub const LIST_ALL_TABS: &str = "#{session_name}:#{window_index}: #{window_name}
 
 /// Moves a session's tabs at `from` and above up by one, so `from` is free (`new-tab -a`).
 fn shift_up(cx: &mut Cx, session: SessionId, from: u32) -> Result<()> {
-    let Some(s) = kernel(cx).sessions.get(&session) else { return Ok(()) };
+    let Some(s) = kernel(cx).sessions.get(&session) else {
+        return Ok(());
+    };
     if !s.tabs.iter().any(|(i, _)| *i == from) {
         return Ok(());
     }
     let mut moving: Vec<(u32, u64)> = s.tabs.iter().filter(|(i, _)| *i >= from).copied().collect();
     moving.sort_by_key(|(i, _)| std::cmp::Reverse(*i));
     for (index, tab) in moving {
-        call(cx, "pumi_tab_set_place", json!([tab, { "session": session, "index": index + 1 }]))?;
+        call(
+            cx,
+            "pumi_tab_set_place",
+            json!([tab, { "session": session, "index": index + 1 }]),
+        )?;
     }
     Ok(())
 }
@@ -43,30 +49,49 @@ pub fn new_tab(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     {
         let fmt = crate::kernel::format::Fmt::new(k, Some(session), None, None);
         let _ = fmt;
-        let existing = <Kernel as pumi_lang::target::Tree>::tabs(k, session).into_iter().find(|t| t.name == name);
+        let existing = <Kernel as pumi_lang::target::Tree>::tabs(k, session)
+            .into_iter()
+            .find(|t| t.name == name);
         if let Some(existing) = existing {
             call(cx, "pumi_set_current_tab", json!([existing.id]))?;
             return Ok(Flow::Next);
         }
     }
     let k = kernel(cx);
-    let current_index = k.sessions[&session]
-        .current
-        .and_then(|c| k.sessions[&session].tabs.iter().find(|(_, t)| *t == c).map(|(i, _)| *i));
+    let current_index = k.sessions[&session].current.and_then(|c| {
+        k.sessions[&session]
+            .tabs
+            .iter()
+            .find(|(_, t)| *t == c)
+            .map(|(i, _)| *i)
+    });
     let mut index = match (found.tab, found.index) {
         (None, Some(index)) => Some(index),
-        (Some(tab), _) if p.has('a') || p.has('b') => {
-            k.sessions[&session].tabs.iter().find(|(_, t)| *t == tab).map(|(i, _)| *i)
-        }
+        (Some(tab), _) if p.has('a') || p.has('b') => k.sessions[&session]
+            .tabs
+            .iter()
+            .find(|(_, t)| *t == tab)
+            .map(|(i, _)| *i),
         (Some(tab), _) if p.get('t').is_some() && !p.has('k') => {
-            let i = k.sessions[&session].tabs.iter().find(|(_, t)| *t == tab).map(|(i, _)| *i);
+            let i = k.sessions[&session]
+                .tabs
+                .iter()
+                .find(|(_, t)| *t == tab)
+                .map(|(i, _)| *i);
             if p.get('t').is_some_and(|t| t.contains(':')) {
-                return Err(Error::invalid_params(format!("index {} in use", i.unwrap_or(0))));
+                return Err(Error::invalid_params(format!(
+                    "index {} in use",
+                    i.unwrap_or(0)
+                )));
             }
             None
         }
         (Some(tab), _) if p.has('k') => {
-            let i = k.sessions[&session].tabs.iter().find(|(_, t)| *t == tab).map(|(i, _)| *i);
+            let i = k.sessions[&session]
+                .tabs
+                .iter()
+                .find(|(_, t)| *t == tab)
+                .map(|(i, _)| *i);
             call(cx, "pumi_tab_close", json!([tab, true]))?;
             i
         }
@@ -92,9 +117,17 @@ pub fn new_tab(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         "name": p.get('n'),
         "focus": !p.has('d'),
     });
-    let pane = call(cx, "pumi_open_pane", json!([ty, args, place]))?.as_u64().unwrap_or(0);
+    let pane = call(cx, "pumi_open_pane", json!([ty, args, place]))?
+        .as_u64()
+        .unwrap_or(0);
     let row = super::pane_row(kernel(cx), pane);
-    print_new(cx, queue, p, "#{session_name}:#{window_index}.#{pane_index}", row);
+    print_new(
+        cx,
+        queue,
+        p,
+        "#{session_name}:#{window_index}.#{pane_index}",
+        row,
+    );
     Ok(Flow::Next)
 }
 
@@ -103,7 +136,12 @@ pub fn kill_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let found = target(cx, p.get('t'), Kind::Tab)?;
     let tab = found.tab.ok_or_else(|| Error::not_found("no tab"))?;
     let doomed: Vec<u64> = if p.has('a') {
-        kernel(cx).sessions[&found.session].tabs.iter().map(|(_, t)| *t).filter(|t| *t != tab).collect()
+        kernel(cx).sessions[&found.session]
+            .tabs
+            .iter()
+            .map(|(_, t)| *t)
+            .filter(|t| *t != tab)
+            .collect()
     } else {
         vec![tab]
     };
@@ -133,7 +171,9 @@ pub fn select_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let found = target(cx, p.get('t'), Kind::Tab)?;
     let k = kernel(cx);
     let tab = if p.has('l') {
-        k.sessions[&found.session].last.ok_or_else(|| Error::not_found("no last window"))?
+        k.sessions[&found.session]
+            .last
+            .ok_or_else(|| Error::not_found("no last window"))?
     } else if p.has('n') {
         neighbour(k, found.session, 1).ok_or_else(|| Error::not_found("no next window"))?
     } else if p.has('p') {
@@ -152,21 +192,25 @@ pub fn select_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 
 pub fn next_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let session = target_session(cx, p.get('t'))?;
-    let tab = neighbour(kernel(cx), session, 1).ok_or_else(|| Error::not_found("no next window"))?;
+    let tab =
+        neighbour(kernel(cx), session, 1).ok_or_else(|| Error::not_found("no next window"))?;
     call(cx, "pumi_set_current_tab", json!([tab]))?;
     Ok(Flow::Next)
 }
 
 pub fn previous_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let session = target_session(cx, p.get('t'))?;
-    let tab = neighbour(kernel(cx), session, -1).ok_or_else(|| Error::not_found("no previous window"))?;
+    let tab =
+        neighbour(kernel(cx), session, -1).ok_or_else(|| Error::not_found("no previous window"))?;
     call(cx, "pumi_set_current_tab", json!([tab]))?;
     Ok(Flow::Next)
 }
 
 pub fn last_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let session = target_session(cx, p.get('t'))?;
-    let tab = kernel(cx).sessions[&session].last.ok_or_else(|| Error::not_found("no last window"))?;
+    let tab = kernel(cx).sessions[&session]
+        .last
+        .ok_or_else(|| Error::not_found("no last window"))?;
     call(cx, "pumi_set_current_tab", json!([tab]))?;
     Ok(Flow::Next)
 }
@@ -176,14 +220,26 @@ pub fn move_tab(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     if p.has('r') {
         let session = target_session(cx, p.get('t'))?;
         let k = kernel(cx);
-        let base = k
-            .options
-            .get("base_index", &[crate::kernel::options::Key::Session(session), crate::kernel::options::Key::Global]);
+        let base = k.options.get(
+            "base_index",
+            &[
+                crate::kernel::options::Key::Session(session),
+                crate::kernel::options::Key::Global,
+            ],
+        );
         let base = base.and_then(|(v, _)| v.as_u64()).unwrap_or(0) as u32;
-        let tabs: Vec<(u32, u64)> = k.sessions.get(&session).map(|s| s.tabs.clone()).unwrap_or_default();
+        let tabs: Vec<(u32, u64)> = k
+            .sessions
+            .get(&session)
+            .map(|s| s.tabs.clone())
+            .unwrap_or_default();
         for (n, (index, tab)) in tabs.into_iter().enumerate() {
             if index != base + n as u32 {
-                call(cx, "pumi_tab_set_place", json!([tab, { "session": session, "index": base + n as u32 }]))?;
+                call(
+                    cx,
+                    "pumi_tab_set_place",
+                    json!([tab, { "session": session, "index": base + n as u32 }]),
+                )?;
             }
         }
         return Ok(Flow::Next);
@@ -201,9 +257,19 @@ fn place_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed, link: bool) -> Result<
     let found = crate::kernel::format::resolve_index(kernel(cx), &caller, p.get('t'))?;
     let k = kernel(cx);
     let mut index = found.index.or_else(|| {
-        found.tab.and_then(|t| k.sessions[&found.session].tabs.iter().find(|(_, x)| *x == t).map(|(i, _)| *i))
+        found.tab.and_then(|t| {
+            k.sessions[&found.session]
+                .tabs
+                .iter()
+                .find(|(_, x)| *x == t)
+                .map(|(i, _)| *i)
+        })
     });
-    if p.get('t').is_none_or(|t| !t.contains(':')) && found.tab.is_some() && !p.has('a') && !p.has('b') {
+    if p.get('t').is_none_or(|t| !t.contains(':'))
+        && found.tab.is_some()
+        && !p.has('a')
+        && !p.has('b')
+    {
         index = None;
     }
     if p.has('a') {
@@ -232,11 +298,19 @@ pub fn unlink_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let found = target(cx, p.get('t'), Kind::Tab)?;
     let tab = found.tab.ok_or_else(|| Error::not_found("no tab"))?;
     let k = kernel(cx);
-    let linked = k.sessions.values().filter(|s| s.tabs.iter().any(|(_, t)| *t == tab)).count();
+    let linked = k
+        .sessions
+        .values()
+        .filter(|s| s.tabs.iter().any(|(_, t)| *t == tab))
+        .count();
     if linked < 2 && !p.has('k') {
         return Err(Error::invalid_params("window only linked to one session"));
     }
-    call(cx, "pumi_tab_set_place", json!([tab, { "unlink": found.session }]))?;
+    call(
+        cx,
+        "pumi_tab_set_place",
+        json!([tab, { "unlink": found.session }]),
+    )?;
     Ok(Flow::Next)
 }
 
@@ -244,7 +318,11 @@ pub fn unlink_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 pub fn swap_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let source = target_tab(cx, p.get('s'))?;
     let destination = target_tab(cx, p.get('t'))?;
-    call(cx, "pumi_tab_set_place", json!([source, { "swap": destination }]))?;
+    call(
+        cx,
+        "pumi_tab_set_place",
+        json!([source, { "swap": destination }]),
+    )?;
     if !p.has('d') {
         call(cx, "pumi_set_current_tab", json!([source]))?;
     }
@@ -258,20 +336,33 @@ pub fn list_tabs(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         k.sessions.keys().copied().collect()
     } else {
         let caller = cx.caller().clone();
-        vec![crate::kernel::format::resolve(kernel(cx), &caller, p.get('t'), Kind::Session)?.session]
+        vec![
+            crate::kernel::format::resolve(kernel(cx), &caller, p.get('t'), Kind::Session)?.session,
+        ]
     };
     let k = kernel(cx);
     let rows: Vec<Row> = sessions
         .iter()
-        .flat_map(|s| k.sessions[s].tabs.iter().map(|(_, t)| Row { session: Some(*s), tab: Some(*t), pane: None }))
+        .flat_map(|s| {
+            k.sessions[s].tabs.iter().map(|(_, t)| Row {
+                session: Some(*s),
+                tab: Some(*t),
+                pane: None,
+            })
+        })
         .collect();
     let default = if p.has('a') { LIST_ALL_TABS } else { LIST_TABS };
     list(cx, queue, p, rows, default, |k, row| {
         let tab = row.tab.unwrap_or(0);
         let mut value = k.tab_value(tab);
         value["session"] = json!(row.session);
-        value["index"] =
-            json!(row.session.and_then(|s| k.sessions[&s].tabs.iter().find(|(_, t)| *t == tab).map(|(i, _)| *i)));
+        value["index"] = json!(row.session.and_then(|s| {
+            k.sessions[&s]
+                .tabs
+                .iter()
+                .find(|(_, t)| *t == tab)
+                .map(|(i, _)| *i)
+        }));
         value
     })
 }
@@ -291,7 +382,11 @@ pub fn select_layout(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow
     let area = k.tab_area(tab);
     let panes = t.layout.panes();
     let layout = if p.has('o') {
-        k.cmd().last_layout.get(&tab).cloned().ok_or_else(|| Error::not_found("no last layout"))?
+        k.cmd()
+            .last_layout
+            .get(&tab)
+            .cloned()
+            .ok_or_else(|| Error::not_found("no last layout"))?
     } else if p.has('E') {
         let mut layout = t.layout.clone();
         even_out(&mut layout.root);
@@ -303,7 +398,8 @@ pub fn select_layout(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow
                 layout::preset(layout::PRESETS[at], &panes, main_size(k, tab), area)?
             }
             Some(text) if text.starts_with('[') => Layout::from_value(
-                &serde_json::from_str::<Value>(text).map_err(|err| Error::invalid_params(format!("layout: {err}")))?,
+                &serde_json::from_str::<Value>(text)
+                    .map_err(|err| Error::invalid_params(format!("layout: {err}")))?,
             )?,
             Some(text) => match layout::PRESETS.iter().position(|n| n.starts_with(text)) {
                 Some(at) => {
@@ -336,11 +432,20 @@ fn main_size(k: &Kernel, tab: u64) -> Option<Size> {
 fn step_layout(cx: &mut Cx, tab: u64, by: i64) -> Result<Flow> {
     let k = kernel(cx);
     let n = layout::PRESETS.len() as i64;
-    let at = k.cmd().preset.get(&tab).map_or(if by > 0 { -1 } else { 0 }, |a| *a as i64);
+    let at = k
+        .cmd()
+        .preset
+        .get(&tab)
+        .map_or(if by > 0 { -1 } else { 0 }, |a| *a as i64);
     let next = (at + by).rem_euclid(n) as usize;
     k.cmd().preset.insert(tab, next);
     let panes = k.tabs[&tab].layout.panes();
-    let layout = layout::preset(layout::PRESETS[next], &panes, main_size(k, tab), k.tab_area(tab))?;
+    let layout = layout::preset(
+        layout::PRESETS[next],
+        &panes,
+        main_size(k, tab),
+        k.tab_area(tab),
+    )?;
     set_layout(cx, tab, layout)
 }
 
@@ -376,7 +481,13 @@ pub fn find_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let session = target_session(cx, p.get('t'))?;
     let pattern = p.arg(0).unwrap_or("").to_string();
     let all = !p.has('C') && !p.has('N') && !p.has('T');
-    let fold = |s: &str| if p.has('i') { s.to_lowercase() } else { s.to_string() };
+    let fold = |s: &str| {
+        if p.has('i') {
+            s.to_lowercase()
+        } else {
+            s.to_string()
+        }
+    };
     let wanted = fold(&pattern);
     let matches = |text: &str| {
         if p.has('r') {
@@ -386,8 +497,10 @@ pub fn find_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         }
     };
     let k = kernel(cx);
-    let tabs: Vec<(u64, String)> =
-        <Kernel as pumi_lang::target::Tree>::tabs(k, session).into_iter().map(|t| (t.id, t.name)).collect();
+    let tabs: Vec<(u64, String)> = <Kernel as pumi_lang::target::Tree>::tabs(k, session)
+        .into_iter()
+        .map(|t| (t.id, t.name))
+        .collect();
     for (tab, name) in tabs {
         let panes = kernel(cx).tabs[&tab].layout.panes();
         let mut hit = (all || p.has('N')) && matches(&name);
@@ -395,11 +508,16 @@ pub fn find_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
             if hit {
                 break;
             }
-            if (all || p.has('T')) && matches(&crate::kernel::format::text(&kernel(cx).pane_option(pane, "title"))) {
+            if (all || p.has('T'))
+                && matches(&crate::kernel::format::text(
+                    &kernel(cx).pane_option(pane, "title"),
+                ))
+            {
                 hit = true;
             }
             if !hit && (all || p.has('C')) {
-                let text = call(cx, "pumi_pane_call", json!([pane, "read", {}])).unwrap_or(Value::Null);
+                let text =
+                    call(cx, "pumi_pane_call", json!([pane, "read", {}])).unwrap_or(Value::Null);
                 hit = text.as_str().is_some_and(&matches);
             }
         }
@@ -416,7 +534,9 @@ pub fn find_tab(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 pub fn respawn_tab(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let tab = target_tab(cx, p.get('t'))?;
     let panes = kernel(cx).tabs[&tab].layout.panes();
-    let Some((first, rest)) = panes.split_first() else { return Ok(Flow::Next) };
+    let Some((first, rest)) = panes.split_first() else {
+        return Ok(Flow::Next);
+    };
     if !p.has('k') && kernel(cx).pane_option(*first, "pane_dead") != json!(true) {
         return Err(Error::invalid_params(format!("window @{tab} still active")));
     }

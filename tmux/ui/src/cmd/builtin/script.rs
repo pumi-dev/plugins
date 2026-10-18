@@ -8,10 +8,11 @@ use pumi_api::{Cx, Error, Result};
 use pumi_lang::cmd::{Arg, Command, Parsed};
 
 use super::{call, kernel};
-use crate::cmd::{Flow, JobKind, Outcome, Queue, arg_commands, expand, expand_time, path, target_pane, truthy};
+use crate::cmd::{
+    Flow, JobKind, Outcome, Queue, arg_commands, expand, expand_time, path, target_pane, truthy,
+};
 
-pub const DISPLAY_MESSAGE: &str =
-    "[#{session_name}] #{window_index}:#{window_name}, current pane #{pane_index} - (%H:%M %d-%b-%y)";
+pub const DISPLAY_MESSAGE: &str = "[#{session_name}] #{window_index}:#{window_name}, current pane #{pane_index} - (%H:%M %d-%b-%y)";
 
 /// The directory a job runs in: `-c`, else the target pane's, else the CLI's.
 fn job_cwd(cx: &mut Cx, queue: &Queue, p: &Parsed) -> Option<std::path::PathBuf> {
@@ -20,7 +21,11 @@ fn job_cwd(cx: &mut Cx, queue: &Queue, p: &Parsed) -> Option<std::path::PathBuf>
     }
     let pane = target_pane(cx, p.get('t')).ok();
     pane.map(|pane| kernel(cx).pane_option(pane, "pane_current_path"))
-        .and_then(|v| v.as_str().filter(|s| !s.is_empty()).map(std::path::PathBuf::from))
+        .and_then(|v| {
+            v.as_str()
+                .filter(|s| !s.is_empty())
+                .map(std::path::PathBuf::from)
+        })
         .or_else(|| queue.cwd.clone())
 }
 
@@ -28,7 +33,9 @@ fn job_cwd(cx: &mut Cx, queue: &Queue, p: &Parsed) -> Option<std::path::PathBuf>
 /// its output, failing when it fails; `-C` runs a tmux command instead; `-b` does not wait.
 pub fn run_shell(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     if let Some(delay) = p.get('d') {
-        let seconds: f64 = delay.parse().map_err(|_| Error::invalid_params(format!("invalid delay time: {delay}")))?;
+        let seconds: f64 = delay
+            .parse()
+            .map_err(|_| Error::invalid_params(format!("invalid delay time: {delay}")))?;
         // The same command again, without its delay, once the delay is over.
         let mut args: Vec<Arg> = Vec::new();
         for (flag, value) in p.flags.iter().filter(|(f, _)| *f != 'd') {
@@ -41,10 +48,21 @@ pub fn run_shell(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
             args.push(Arg::String("--".into()));
             args.extend(p.args.iter().cloned());
         }
-        let again = Command { name: "run-shell".into(), args, line: 0 };
+        let again = Command {
+            name: "run-shell".into(),
+            args,
+            line: 0,
+        };
         let k = kernel(cx);
-        let id = if p.has('b') { crate::cmd::fork(k, queue) } else { queue.id };
-        let outcome = Outcome { insert: vec![again], ..Outcome::default() };
+        let id = if p.has('b') {
+            crate::cmd::fork(k, queue)
+        } else {
+            queue.id
+        };
+        let outcome = Outcome {
+            insert: vec![again],
+            ..Outcome::default()
+        };
         if p.has('b') {
             crate::cmd::resume_after(k, id, Duration::from_secs_f64(seconds), outcome);
             return Ok(Flow::Next);
@@ -52,7 +70,9 @@ pub fn run_shell(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         crate::cmd::wait_for_time(k, queue, Duration::from_secs_f64(seconds), outcome);
         return Ok(Flow::Wait);
     }
-    let Some(command) = p.args.first() else { return Ok(Flow::Next) };
+    let Some(command) = p.args.first() else {
+        return Ok(Flow::Next);
+    };
     if p.has('C') {
         let list = arg_commands(cx, queue, command)?;
         return Ok(Flow::Insert(list));
@@ -71,11 +91,23 @@ pub fn run_shell(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
             &queue.caller,
             &text,
             cwd,
-            JobKind::Run { command: text.clone(), show: false },
+            JobKind::Run {
+                command: text.clone(),
+                show: false,
+            },
         )?;
         return Ok(Flow::Next);
     }
-    crate::cmd::spawn_job(k, queue, &text, cwd, JobKind::Run { command: text.clone(), show: true })?;
+    crate::cmd::spawn_job(
+        k,
+        queue,
+        &text,
+        cwd,
+        JobKind::Run {
+            command: text.clone(),
+            show: true,
+        },
+    )?;
     Ok(Flow::Wait)
 }
 
@@ -88,7 +120,11 @@ pub fn if_shell(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let pane = target_pane(cx, p.get('t')).ok();
     let condition = expand(kernel(cx), queue, None, None, pane, &condition);
     if p.has('F') {
-        let chosen = if truthy(&condition) { Some(then) } else { otherwise };
+        let chosen = if truthy(&condition) {
+            Some(then)
+        } else {
+            otherwise
+        };
         return match chosen {
             Some(arg) => Ok(Flow::Insert(arg_commands(cx, queue, &arg)?)),
             None => Ok(Flow::Next),
@@ -98,7 +134,14 @@ pub fn if_shell(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let k = kernel(cx);
     if p.has('b') {
         let id = crate::cmd::fork(k, queue);
-        crate::cmd::spawn_job_for(k, id, &queue.caller, &condition, cwd, JobKind::If { then, otherwise })?;
+        crate::cmd::spawn_job_for(
+            k,
+            id,
+            &queue.caller,
+            &condition,
+            cwd,
+            JobKind::If { then, otherwise },
+        )?;
         return Ok(Flow::Next);
     }
     crate::cmd::spawn_job(k, queue, &condition, cwd, JobKind::If { then, otherwise })?;
@@ -111,14 +154,21 @@ fn glob(pattern: &std::path::Path) -> Vec<std::path::PathBuf> {
     if !text.contains(['*', '?', '[']) {
         return vec![pattern.to_path_buf()];
     }
-    let (Some(dir), Some(name)) = (pattern.parent(), pattern.file_name().and_then(|n| n.to_str())) else {
+    let (Some(dir), Some(name)) = (
+        pattern.parent(),
+        pattern.file_name().and_then(|n| n.to_str()),
+    ) else {
         return Vec::new();
     };
     let mut found: Vec<std::path::PathBuf> = std::fs::read_dir(dir)
         .map(|entries| {
             entries
                 .flatten()
-                .filter(|e| e.file_name().to_str().is_some_and(|n| pumi_lang::format::fnmatch(name, n, false)))
+                .filter(|e| {
+                    e.file_name()
+                        .to_str()
+                        .is_some_and(|n| pumi_lang::format::fnmatch(name, n, false))
+                })
                 .map(|e| e.path())
                 .collect()
         })
@@ -140,7 +190,9 @@ pub fn source_file(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         };
         let files = glob(&path(queue, &word));
         if files.is_empty() && !p.has('q') {
-            return Err(Error::not_found(format!("{word}: no such file or directory")));
+            return Err(Error::not_found(format!(
+                "{word}: no such file or directory"
+            )));
         }
         for file in files {
             // A Lua file runs in the server's VM (Neovim's `:source x.lua`); the commands before it
@@ -166,11 +218,17 @@ pub fn source_file(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                 Err(_) if p.has('q') => continue,
                 Err(err) => return Err(Error::not_found(format!("{}: {err}", file.display()))),
             };
-            let list = crate::cmd::parse_text(cx, queue, &text)
-                .map_err(|err| Error::invalid_params(format!("{}:{}", file.display(), err.message)))?;
+            let list = crate::cmd::parse_text(cx, queue, &text).map_err(|err| {
+                Error::invalid_params(format!("{}:{}", file.display(), err.message))
+            })?;
             if p.has('v') {
                 for command in &list {
-                    queue.print(format!("{}:{}: {}", file.display(), command.line, pumi_lang::cmd::print(command)));
+                    queue.print(format!(
+                        "{}:{}: {}",
+                        file.display(),
+                        command.line,
+                        pumi_lang::cmd::print(command)
+                    ));
                 }
             }
             all.extend(list);
@@ -214,8 +272,16 @@ pub fn display_message(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flo
         }
         return Ok(Flow::Next);
     }
-    let template = p.arg(0).or(p.get('F')).unwrap_or(DISPLAY_MESSAGE).to_string();
-    let message = if p.has('l') { template } else { expand_time(k, queue, None, None, pane, &template) };
+    let template = p
+        .arg(0)
+        .or(p.get('F'))
+        .unwrap_or(DISPLAY_MESSAGE)
+        .to_string();
+    let message = if p.has('l') {
+        template
+    } else {
+        expand_time(k, queue, None, None, pane, &template)
+    };
     let printed = p.has('p') || (queue.interactive && !k.chans.values().any(|c| c.ui.is_some()));
     if printed {
         queue.print(message);

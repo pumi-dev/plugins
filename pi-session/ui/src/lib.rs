@@ -201,22 +201,37 @@ fn sync() {
     // Where the bars are: the pane each belongs to, and the bar itself.
     let mut bars: HashMap<u64, u64> = HashMap::new();
     let listed = api::pumi_list_panes(json!({ "type": "pi-session.strip" })).unwrap_or(Value::Null);
-    for bar in listed.as_array().into_iter().flatten().filter_map(Value::as_u64) {
-        let owner = api::pumi_pane_get_place(bar).ok().and_then(|place| place["owner"].as_u64());
+    for bar in listed
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_u64)
+    {
+        let owner = api::pumi_pane_get_place(bar)
+            .ok()
+            .and_then(|place| place["owner"].as_u64());
         if let Some(owner) = owner {
             bars.insert(owner, bar);
         }
     }
-    let only = focused_only().then(|| api::pumi_get_current_pane().ok()).flatten();
+    let only = focused_only()
+        .then(|| api::pumi_get_current_pane().ok())
+        .flatten();
     let panes = api::pumi_list_panes(json!({ "type": "terminal" })).unwrap_or(Value::Null);
-    for pane in panes.as_array().into_iter().flatten().filter_map(Value::as_u64) {
+    for pane in panes
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_u64)
+    {
         let wanted = is_pi(pane) && only.is_none_or(|only| only == pane);
         match bars.remove(&pane) {
             Some(bar) if !wanted => {
                 let _ = api::pumi_pane_close(bar, Some(true));
             }
             None if wanted => {
-                let place = json!({ "kind": "slot", "slot": "winbar", "owner": pane, "focus": false });
+                let place =
+                    json!({ "kind": "slot", "slot": "winbar", "owner": pane, "focus": false });
                 let args = json!({ "pane": pane });
                 if let Err(err) = api::pumi_open_pane("pi-session.strip", args, place) {
                     eprintln!("pi-session: {err}");
@@ -248,11 +263,15 @@ fn init(plugin: &mut Plugin, _cx: &mut App) {
     if let Err(err) = api::autocmd("OptionSet", pattern, |_, _| sync()) {
         eprintln!("pi-session: {err}");
     }
-    if let Err(err) = api::autocmd("PaneEnter", json!({ "desc": "the bar follows the focus" }), |_, _| {
-        if focused_only() {
-            sync();
-        }
-    }) {
+    if let Err(err) = api::autocmd(
+        "PaneEnter",
+        json!({ "desc": "the bar follows the focus" }),
+        |_, _| {
+            if focused_only() {
+                sync();
+            }
+        },
+    ) {
         eprintln!("pi-session: {err}");
     }
     plugin.view("strip", |open, _window, cx| {

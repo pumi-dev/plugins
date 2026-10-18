@@ -76,7 +76,10 @@ fn seconds(text: &str) -> f64 {
 /// Every process: pid → what it costs.
 fn processes() -> HashMap<u64, Proc> {
     let mut procs = HashMap::new();
-    let output = match system::Command::new("ps").args(["-A", "-o", "pid=,ppid=,time=,rss="]).run() {
+    let output = match system::Command::new("ps")
+        .args(["-A", "-o", "pid=,ppid=,time=,rss="])
+        .run()
+    {
         Ok(output) => output,
         Err(err) => {
             eprintln!("heavy-terminals: ps: {err}");
@@ -93,7 +96,14 @@ fn processes() -> HashMap<u64, Proc> {
         let (Ok(pid), Ok(ppid), Ok(rss)) = (pid.parse(), ppid.parse(), rss.parse::<f64>()) else {
             continue;
         };
-        procs.insert(pid, Proc { ppid, cpu: seconds(time), rss: rss * 1024. });
+        procs.insert(
+            pid,
+            Proc {
+                ppid,
+                cpu: seconds(time),
+                rss: rss * 1024.,
+            },
+        );
     }
     procs
 }
@@ -150,7 +160,12 @@ fn check() {
     let mut watches = WATCHES.with(|w| std::mem::take(&mut *w.borrow_mut()));
     let panes = api::pumi_list_panes(json!({ "type": "terminal" })).unwrap_or(Value::Null);
     let mut seen: Vec<u64> = Vec::new();
-    for pane in panes.as_array().into_iter().flatten().filter_map(Value::as_u64) {
+    for pane in panes
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_u64)
+    {
         seen.push(pane);
         let pid = api::option("pane_pid", json!({ "pane": pane }))
             .ok()
@@ -173,7 +188,11 @@ fn check() {
                 let (percent, mb) = (percent.round() as i64, (rss / 1_048_576.).round() as i64);
                 let cost = format!("{percent}% cpu, {mb} MB");
                 let _ = api::set_option("@heavy", json!(cost), json!({ "pane": pane }));
-                let _ = api::pumi_notify(&format!("%{pane} is heavy: {cost}"), Some("warn"), json!({}));
+                let _ = api::pumi_notify(
+                    &format!("%{pane} is heavy: {cost}"),
+                    Some("warn"),
+                    json!({}),
+                );
                 if auto_sleep {
                     sleep(pane);
                 }
@@ -194,7 +213,9 @@ fn start(cx: &mut App) {
         loop {
             check();
             let interval = number("interval", 5.).max(0.1);
-            cx.background_executor().timer(Duration::from_secs_f64(interval)).await;
+            cx.background_executor()
+                .timer(Duration::from_secs_f64(interval))
+                .await;
         }
     })
     .detach();
@@ -238,12 +259,14 @@ fn init(_plugin: &mut Plugin, cx: &mut App) {
         "parameters": [["number", "pane"]],
         "examples": [{ "args": [] }],
     });
-    if let Err(err) = api::provide("heavy_terminals.sleep", sleep_spec, |args| match pane_of(&args) {
-        Some(pane) => {
-            sleep(pane);
-            Ok(Value::Null)
+    if let Err(err) = api::provide("heavy_terminals.sleep", sleep_spec, |args| {
+        match pane_of(&args) {
+            Some(pane) => {
+                sleep(pane);
+                Ok(Value::Null)
+            }
+            None => Err(api::Error::new("invalid_params", "no pane to put to sleep")),
         }
-        None => Err(api::Error::new("invalid_params", "no pane to put to sleep")),
     }) {
         eprintln!("heavy-terminals: {err}");
     }
@@ -252,27 +275,19 @@ fn init(_plugin: &mut Plugin, cx: &mut App) {
         "parameters": [["number", "pane"]],
         "examples": [{ "args": [] }],
     });
-    if let Err(err) = api::provide("heavy_terminals.wake", wake_spec, |args| match pane_of(&args) {
-        Some(pane) => {
-            wake(pane);
-            Ok(Value::Null)
+    if let Err(err) = api::provide("heavy_terminals.wake", wake_spec, |args| {
+        match pane_of(&args) {
+            Some(pane) => {
+                wake(pane);
+                Ok(Value::Null)
+            }
+            None => Err(api::Error::new("invalid_params", "no pane to wake")),
         }
-        None => Err(api::Error::new("invalid_params", "no pane to wake")),
     }) {
         eprintln!("heavy-terminals: {err}");
     }
-    // Its user commands, the way tmux's are called (`HeavyWake %3`); best effort, since user
-    // commands are tmux's to serve.
-    let _ = api::pumi_create_user_command(
-        "HeavySleep",
-        Value::Null,
-        json!({ "call": "heavy_terminals.sleep", "nargs": "?", "desc": "Suspend a terminal's foreground job, as ctrl+z would." }),
-    );
-    let _ = api::pumi_create_user_command(
-        "HeavyWake",
-        Value::Null,
-        json!({ "call": "heavy_terminals.wake", "nargs": "?", "desc": "Wake a terminal put to sleep." }),
-    );
+    // tmux serves user commands, and it is a package of its own: `HeavySleep` reads the
+    // functions above (`heavy_terminals.sleep`), or the CLI calls them directly.
     start(cx);
 }
 
@@ -286,17 +301,48 @@ mod tests {
     fn ps_times_are_seconds() {
         assert_eq!(seconds("0:05"), 5.);
         assert_eq!(seconds("1:00:00"), 3_600.);
-        assert_eq!(seconds("2-03:04:05"), 2. * 86_400. + 3. * 3_600. + 4. * 60. + 5.);
+        assert_eq!(
+            seconds("2-03:04:05"),
+            2. * 86_400. + 3. * 3_600. + 4. * 60. + 5.
+        );
         assert_eq!(seconds("0:00.50"), 0.5);
     }
 
     #[test]
     fn a_pane_costs_what_it_and_its_children_cost() {
         let mut procs = HashMap::new();
-        procs.insert(10, Proc { ppid: 1, cpu: 2., rss: 1000. });
-        procs.insert(11, Proc { ppid: 10, cpu: 3., rss: 2000. });
-        procs.insert(12, Proc { ppid: 11, cpu: 4., rss: 3000. });
-        procs.insert(13, Proc { ppid: 1, cpu: 9., rss: 9000. });
+        procs.insert(
+            10,
+            Proc {
+                ppid: 1,
+                cpu: 2.,
+                rss: 1000.,
+            },
+        );
+        procs.insert(
+            11,
+            Proc {
+                ppid: 10,
+                cpu: 3.,
+                rss: 2000.,
+            },
+        );
+        procs.insert(
+            12,
+            Proc {
+                ppid: 11,
+                cpu: 4.,
+                rss: 3000.,
+            },
+        );
+        procs.insert(
+            13,
+            Proc {
+                ppid: 1,
+                cpu: 9.,
+                rss: 9000.,
+            },
+        );
         assert_eq!(usage(&procs, 10), (9., 6000.));
         assert_eq!(usage(&procs, 13), (9., 9000.));
         assert_eq!(usage(&procs, 99), (0., 0.));

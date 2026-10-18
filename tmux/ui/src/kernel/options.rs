@@ -13,7 +13,19 @@ use serde_json::{Value, json};
 
 use pumi_api::{Error, Result};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum Scope {
     Global,
@@ -235,7 +247,11 @@ pub struct Options {
 
 /// The stored spelling of a name.
 pub fn normalise(name: &str) -> String {
-    if name.starts_with('@') { name.to_string() } else { name.replace('-', "_") }
+    if name.starts_with('@') {
+        name.to_string()
+    } else {
+        name.replace('-', "_")
+    }
 }
 
 fn is_user(name: &str) -> bool {
@@ -294,7 +310,10 @@ impl Options {
     pub fn declare(&mut self, mut decl: Decl) -> Result<()> {
         decl.name = normalise(&decl.name);
         if is_user(&decl.name) || !valid_name(&decl.name) {
-            return Err(Error::invalid_params(format!("`{}` is not an option name", decl.name)));
+            return Err(Error::invalid_params(format!(
+                "`{}` is not an option name",
+                decl.name
+            )));
         }
         check_type(&decl, &decl.default)
             .map_err(|err| Error::invalid_params(format!("the default: {}", err.message)))?;
@@ -353,7 +372,14 @@ impl Options {
 
     /// Sets a value; a caller cannot set a read-only one, the server (`internal`) can.
     /// Returns what changed, or `None` when the value was already this.
-    pub fn set(&mut self, name: &str, key: Key, value: Value, source: &str, internal: bool) -> Result<Option<Change>> {
+    pub fn set(
+        &mut self,
+        name: &str,
+        key: Key,
+        value: Value,
+        source: &str,
+        internal: bool,
+    ) -> Result<Option<Change>> {
         let name = normalise(name);
         let value = match self.decls.get(&name) {
             Some(decl) => {
@@ -372,11 +398,25 @@ impl Options {
             None if is_user(&name) => value,
             None => return Err(Error::not_found(format!("no option `{name}`"))),
         };
-        let old = self.get(&name, &[key]).map(|(v, _)| v).unwrap_or(Value::Null);
+        let old = self
+            .get(&name, &[key])
+            .map(|(v, _)| v)
+            .unwrap_or(Value::Null);
         let values = self.values.entry(key).or_default();
         let unchanged = values.get(&name).is_some_and(|set| set.value == value);
-        values.insert(name.clone(), Set { value: value.clone(), source: source.into() });
-        Ok((!unchanged).then_some(Change { name, key, old, new: value }))
+        values.insert(
+            name.clone(),
+            Set {
+                value: value.clone(),
+                source: source.into(),
+            },
+        );
+        Ok((!unchanged).then_some(Change {
+            name,
+            key,
+            old,
+            new: value,
+        }))
     }
 
     /// A value in the option's type, as the host's `pumi_set_option_value` hands it to the core
@@ -393,8 +433,16 @@ impl Options {
     pub fn unset(&mut self, name: &str, key: Key) -> Option<Change> {
         let name = normalise(name);
         let old = self.values.get_mut(&key)?.remove(&name)?;
-        let new = self.get(&name, &[key]).map(|(v, _)| v).unwrap_or(Value::Null);
-        (old.value != new).then_some(Change { name, key, old: old.value, new })
+        let new = self
+            .get(&name, &[key])
+            .map(|(v, _)| v)
+            .unwrap_or(Value::Null);
+        (old.value != new).then_some(Change {
+            name,
+            key,
+            old: old.value,
+            new,
+        })
     }
 
     /// Everything set on one object.
@@ -425,13 +473,19 @@ fn reaches(declared: Scope, at: Scope) -> bool {
         Scope::Global => at == Scope::Global,
         Scope::Session => matches!(at, Scope::Global | Scope::Session),
         Scope::Tab => matches!(at, Scope::Global | Scope::Session | Scope::Tab),
-        Scope::Pane => matches!(at, Scope::Global | Scope::Session | Scope::Tab | Scope::Pane),
+        Scope::Pane => matches!(
+            at,
+            Scope::Global | Scope::Session | Scope::Tab | Scope::Pane
+        ),
         Scope::Client => matches!(at, Scope::Global | Scope::Client),
     }
 }
 
 fn valid_name(name: &str) -> bool {
-    !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.'))
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.'))
 }
 
 fn check_type(decl: &Decl, value: &Value) -> Result<()> {
@@ -443,7 +497,9 @@ fn check_type(decl: &Decl, value: &Value) -> Result<()> {
         Type::Any => true,
     } || value.is_null();
     if !ok {
-        return Err(Error::invalid_params(format!("`{}` is a {:?}, not {value}", decl.name, decl.ty).to_lowercase()));
+        return Err(Error::invalid_params(
+            format!("`{}` is a {:?}, not {value}", decl.name, decl.ty).to_lowercase(),
+        ));
     }
     if let Some(choices) = &decl.choices
         && !value.is_null()
@@ -452,7 +508,11 @@ fn check_type(decl: &Decl, value: &Value) -> Result<()> {
         return Err(Error::invalid_params(format!(
             "`{}` is one of {}, not {value}",
             decl.name,
-            choices.iter().map(Value::to_string).collect::<Vec<_>>().join(", ")
+            choices
+                .iter()
+                .map(Value::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
         )));
     }
     Ok(())
@@ -466,7 +526,12 @@ fn coerce(decl: &Decl, value: Value) -> Result<Value> {
             "off" | "false" | "no" | "0" => Value::Bool(false),
             _ => value,
         },
-        (Type::Number, Value::String(s)) => s.trim().parse::<f64>().ok().and_then(number).unwrap_or(value),
+        (Type::Number, Value::String(s)) => s
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .and_then(number)
+            .unwrap_or(value),
         _ => value,
     };
     check_type(decl, &value)?;
@@ -917,11 +982,30 @@ fn builtin() -> Vec<Decl> {
     // The browser's (16 §3): the pane keeps its address, which every client's webview follows;
     // a client reports where it went (`pumi_pane_call(pane, "report", …)`).
     decls.extend([
-        Decl::new("url", String, json!("about:blank"), Pane, "The page's address. Setting it navigates.")
-            .of_type("browser", "browser"),
-        Decl::new("zoom", Number, json!(1), Pane, "The page's zoom; 1 is 100%.").of_type("browser", "browser"),
-        Decl::new("loading", Boolean, json!(false), Pane, "The page is loading, as its client reports.")
-            .of_type("browser", "browser"),
+        Decl::new(
+            "url",
+            String,
+            json!("about:blank"),
+            Pane,
+            "The page's address. Setting it navigates.",
+        )
+        .of_type("browser", "browser"),
+        Decl::new(
+            "zoom",
+            Number,
+            json!(1),
+            Pane,
+            "The page's zoom; 1 is 100%.",
+        )
+        .of_type("browser", "browser"),
+        Decl::new(
+            "loading",
+            Boolean,
+            json!(false),
+            Pane,
+            "The page is loading, as its client reports.",
+        )
+        .of_type("browser", "browser"),
     ]);
     // Neovim's terminal palette (06 §4): what a colour scheme sets for ANSI colours 0 to 15.
     decls.extend((0..16).map(|i| {
@@ -944,23 +1028,57 @@ mod tests {
     fn a_pane_takes_the_nearest_value() {
         let mut options = Options::new();
         let chain = [Key::Pane(3), Key::Tab(2), Key::Session(1), Key::Global];
-        assert_eq!(options.get("remain-on-exit", &chain).unwrap().0, json!(false));
-        options.set("remain_on_exit", Key::Session(1), json!("on"), "cli", false).unwrap();
+        assert_eq!(
+            options.get("remain-on-exit", &chain).unwrap().0,
+            json!(false)
+        );
+        options
+            .set("remain_on_exit", Key::Session(1), json!("on"), "cli", false)
+            .unwrap();
         let (value, set) = options.get("remain_on_exit", &chain).unwrap();
         assert_eq!((value, set.unwrap().source.as_str()), (json!(true), "cli"));
-        options.set("remain_on_exit", Key::Pane(3), json!(false), "init.lua:3", false).unwrap();
-        assert_eq!(options.get("remain_on_exit", &chain).unwrap().0, json!(false));
+        options
+            .set(
+                "remain_on_exit",
+                Key::Pane(3),
+                json!(false),
+                "init.lua:3",
+                false,
+            )
+            .unwrap();
+        assert_eq!(
+            options.get("remain_on_exit", &chain).unwrap().0,
+            json!(false)
+        );
     }
 
     #[test]
     fn user_options_need_no_declaration_and_others_do() {
         let mut options = Options::new();
-        let change = options.set("@build", Key::Global, json!("ok"), "cli", false).unwrap().unwrap();
+        let change = options
+            .set("@build", Key::Global, json!("ok"), "cli", false)
+            .unwrap()
+            .unwrap();
         assert_eq!((change.old, change.new), (Value::Null, json!("ok")));
-        assert!(options.set("@build", Key::Global, json!("ok"), "cli", false).unwrap().is_none(), "no change");
-        assert_eq!(options.get("@build", &[Key::Pane(1), Key::Global]).unwrap().0, json!("ok"));
+        assert!(
+            options
+                .set("@build", Key::Global, json!("ok"), "cli", false)
+                .unwrap()
+                .is_none(),
+            "no change"
+        );
         assert_eq!(
-            options.set("nonsense", Key::Global, json!(1), "cli", false).unwrap_err().kind,
+            options
+                .get("@build", &[Key::Pane(1), Key::Global])
+                .unwrap()
+                .0,
+            json!("ok")
+        );
+        assert_eq!(
+            options
+                .set("nonsense", Key::Global, json!(1), "cli", false)
+                .unwrap_err()
+                .kind,
             pumi_api::ErrorKind::NotFound
         );
     }
@@ -968,21 +1086,62 @@ mod tests {
     #[test]
     fn types_choices_scopes_and_read_only_are_enforced() {
         let mut options = Options::new();
-        assert!(options.set("history_limit", Key::Global, json!("lots"), "cli", false).is_err());
+        assert!(
+            options
+                .set("history_limit", Key::Global, json!("lots"), "cli", false)
+                .is_err()
+        );
         assert_eq!(
-            options.set("history_limit", Key::Global, json!("500"), "cli", false).unwrap().unwrap().new,
+            options
+                .set("history_limit", Key::Global, json!("500"), "cli", false)
+                .unwrap()
+                .unwrap()
+                .new,
             json!(500)
         );
-        assert!(options.set("pane_pid", Key::Pane(1), json!(4), "cli", false).is_err());
-        assert!(options.set("pane_pid", Key::Pane(1), json!(4), "server", true).is_ok());
-        assert!(options.set("default_size", Key::Pane(1), json!("10x10"), "cli", false).is_err(), "global only");
+        assert!(
+            options
+                .set("pane_pid", Key::Pane(1), json!(4), "cli", false)
+                .is_err()
+        );
+        assert!(
+            options
+                .set("pane_pid", Key::Pane(1), json!(4), "server", true)
+                .is_ok()
+        );
+        assert!(
+            options
+                .set("default_size", Key::Pane(1), json!("10x10"), "cli", false)
+                .is_err(),
+            "global only"
+        );
         options
             .declare(
-                Decl::new("files.sort", Type::String, json!("name"), Scope::Global, "How files sort.")
-                    .choices(&["name", "mtime"]),
+                Decl::new(
+                    "files.sort",
+                    Type::String,
+                    json!("name"),
+                    Scope::Global,
+                    "How files sort.",
+                )
+                .choices(&["name", "mtime"]),
             )
             .unwrap();
-        assert!(options.set("files.sort", Key::Global, json!("size"), "cli", false).is_err());
-        assert!(options.declare(Decl::new("files.sort", Type::Number, json!(1), Scope::Global, "")).is_err());
+        assert!(
+            options
+                .set("files.sort", Key::Global, json!("size"), "cli", false)
+                .is_err()
+        );
+        assert!(
+            options
+                .declare(Decl::new(
+                    "files.sort",
+                    Type::Number,
+                    json!(1),
+                    Scope::Global,
+                    ""
+                ))
+                .is_err()
+        );
     }
 }

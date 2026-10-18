@@ -8,7 +8,9 @@
 use std::collections::BTreeMap;
 
 use crate::proto::ids;
-use crate::proto::types::{AgentInfo, AgentStatus, PaneInfo, SessionSnapshot, TabInfo, WorkspaceInfo};
+use crate::proto::types::{
+    AgentInfo, AgentStatus, PaneInfo, SessionSnapshot, TabInfo, WorkspaceInfo,
+};
 use serde_json::Value;
 
 #[derive(Clone, Debug)]
@@ -44,7 +46,9 @@ pub struct View {
 }
 
 fn leaves(layout: &Value, out: &mut Vec<u64>) {
-    let Some(list) = layout.as_array() else { return };
+    let Some(list) = layout.as_array() else {
+        return;
+    };
     match list.first().and_then(Value::as_str) {
         Some("leaf") => out.extend(list.get(1).and_then(Value::as_u64)),
         _ => {
@@ -89,7 +93,9 @@ impl View {
         let panes = list("panes")
             .iter()
             .filter_map(|p| {
-                let tab = (p["place"]["kind"] == "tiled").then(|| p["place"]["tab"].as_u64()).flatten();
+                let tab = (p["place"]["kind"] == "tiled")
+                    .then(|| p["place"]["tab"].as_u64())
+                    .flatten();
                 Some((
                     p["id"].as_u64()?,
                     Pane {
@@ -101,13 +107,25 @@ impl View {
                 ))
             })
             .collect();
-        let current =
-            state.get("current").and_then(|c| Some((c["session"].as_u64()?, c["tab"].as_u64()?, c["pane"].as_u64()?)));
-        View { sessions, tabs, panes, current }
+        let current = state.get("current").and_then(|c| {
+            Some((
+                c["session"].as_u64()?,
+                c["tab"].as_u64()?,
+                c["pane"].as_u64()?,
+            ))
+        });
+        View {
+            sessions,
+            tabs,
+            panes,
+            current,
+        }
     }
 
     pub fn session_of_tab(&self, tab: u64) -> Option<&Session> {
-        self.sessions.iter().find(|s| s.tabs.iter().any(|(_, t)| *t == tab))
+        self.sessions
+            .iter()
+            .find(|s| s.tabs.iter().any(|(_, t)| *t == tab))
     }
 
     fn ws_id(session: u64) -> String {
@@ -120,19 +138,28 @@ impl View {
     }
 
     pub fn pane_id(&self, pane: u64) -> String {
-        let ws =
-            self.panes.get(&pane).and_then(|p| p.tab).and_then(|t| self.session_of_tab(t)).map(|s| s.id).unwrap_or(0);
+        let ws = self
+            .panes
+            .get(&pane)
+            .and_then(|p| p.tab)
+            .and_then(|t| self.session_of_tab(t))
+            .map(|s| s.id)
+            .unwrap_or(0);
         ids::pane(&View::ws_id(ws), pane as usize)
     }
 
     /// A session from a workspace id (`w5`, or pumi's `$5`).
     pub fn session(&self, id: &str) -> Option<u64> {
-        let n = ids::workspace_number(id).map(|n| n as u64).or_else(|| id.strip_prefix('$')?.parse().ok())?;
+        let n = ids::workspace_number(id)
+            .map(|n| n as u64)
+            .or_else(|| id.strip_prefix('$')?.parse().ok())?;
         self.sessions.iter().any(|s| s.id == n).then_some(n)
     }
 
     pub fn tab(&self, id: &str) -> Option<u64> {
-        let n = ids::split_tab(id).map(|(_, n)| n as u64).or_else(|| id.strip_prefix('@')?.parse().ok())?;
+        let n = ids::split_tab(id)
+            .map(|(_, n)| n as u64)
+            .or_else(|| id.strip_prefix('@')?.parse().ok())?;
         self.tabs.contains_key(&n).then_some(n)
     }
 
@@ -146,11 +173,19 @@ impl View {
     }
 
     fn text(&self, pane: u64, key: &str) -> Option<String> {
-        self.panes.get(&pane)?.options.get(key)?.as_str().filter(|s| !s.is_empty()).map(str::to_string)
+        self.panes
+            .get(&pane)?
+            .options
+            .get(key)?
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
     }
 
     pub fn status(&self, pane: u64) -> AgentStatus {
-        self.text(pane, "@agent_status").and_then(|s| AgentStatus::parse(&s)).unwrap_or_default()
+        self.text(pane, "@agent_status")
+            .and_then(|s| AgentStatus::parse(&s))
+            .unwrap_or_default()
     }
 
     /// A terminal's own reports (OSC 7501), which the pane carries as `@program_status`.
@@ -171,16 +206,30 @@ impl View {
             AgentStatus::Idle => 1,
             AgentStatus::Unknown => 0,
         };
-        panes.map(|p| self.status(p)).max_by_key(|s| rank(*s)).unwrap_or_default()
+        panes
+            .map(|p| self.status(p))
+            .max_by_key(|s| rank(*s))
+            .unwrap_or_default()
     }
 
     fn tab_panes(&self, tab: u64) -> Vec<u64> {
-        self.tabs.get(&tab).map(|t| t.panes.clone()).unwrap_or_default()
+        self.tabs
+            .get(&tab)
+            .map(|t| t.panes.clone())
+            .unwrap_or_default()
     }
 
     pub fn workspace_info(&self, session: u64) -> Option<WorkspaceInfo> {
-        let (number, s) = self.sessions.iter().enumerate().find(|(_, s)| s.id == session)?;
-        let panes: Vec<u64> = s.tabs.iter().flat_map(|(_, t)| self.tab_panes(*t)).collect();
+        let (number, s) = self
+            .sessions
+            .iter()
+            .enumerate()
+            .find(|(_, s)| s.id == session)?;
+        let panes: Vec<u64> = s
+            .tabs
+            .iter()
+            .flat_map(|(_, t)| self.tab_panes(*t))
+            .collect();
         Some(WorkspaceInfo {
             workspace_id: View::ws_id(session),
             number: number + 1,
@@ -198,8 +247,17 @@ impl View {
     pub fn tab_info(&self, tab: u64) -> Option<TabInfo> {
         let session = self.session_of_tab(tab)?;
         let t = self.tabs.get(&tab)?;
-        let number = session.tabs.iter().position(|(_, x)| *x == tab).unwrap_or(0) + 1;
-        let label = t.name.clone().or_else(|| self.text(t.active, "title")).unwrap_or_else(|| number.to_string());
+        let number = session
+            .tabs
+            .iter()
+            .position(|(_, x)| *x == tab)
+            .unwrap_or(0)
+            + 1;
+        let label = t
+            .name
+            .clone()
+            .or_else(|| self.text(t.active, "title"))
+            .unwrap_or_else(|| number.to_string());
         Some(TabInfo {
             tab_id: self.tab_id(tab),
             workspace_id: View::ws_id(session.id),
@@ -273,7 +331,10 @@ impl View {
 
     /// Panes in tabs, in order: what herdr lists.
     pub fn tiled(&self) -> Vec<u64> {
-        self.sessions.iter().flat_map(|s| s.tabs.iter().flat_map(|(_, t)| self.tab_panes(*t))).collect()
+        self.sessions
+            .iter()
+            .flat_map(|s| s.tabs.iter().flat_map(|(_, t)| self.tab_panes(*t)))
+            .collect()
     }
 
     pub fn snapshot(&self, revision: impl Fn(u64) -> u64) -> SessionSnapshot {
@@ -284,9 +345,20 @@ impl View {
             focused_workspace_id: self.current.map(|c| View::ws_id(c.0)),
             focused_tab_id: self.current.map(|c| self.tab_id(c.1)),
             focused_pane_id: self.current.map(|c| self.pane_id(c.2)),
-            workspaces: self.sessions.iter().filter_map(|s| self.workspace_info(s.id)).collect(),
-            tabs: self.sessions.iter().flat_map(|s| s.tabs.iter().filter_map(|(_, t)| self.tab_info(*t))).collect(),
-            panes: panes.iter().filter_map(|p| self.pane_info(*p, revision(*p))).collect(),
+            workspaces: self
+                .sessions
+                .iter()
+                .filter_map(|s| self.workspace_info(s.id))
+                .collect(),
+            tabs: self
+                .sessions
+                .iter()
+                .flat_map(|s| s.tabs.iter().filter_map(|(_, t)| self.tab_info(*t)))
+                .collect(),
+            panes: panes
+                .iter()
+                .filter_map(|p| self.pane_info(*p, revision(*p)))
+                .collect(),
             layouts: Vec::new(),
             agents: panes.iter().filter_map(|p| self.agent_info(*p)).collect(),
         }

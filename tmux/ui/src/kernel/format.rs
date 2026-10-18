@@ -37,11 +37,23 @@ fn flag(b: bool) -> Option<String> {
 
 impl<'k> Fmt<'k> {
     /// The context of a pane, a tab or a session, completed upwards (a pane's tab and session).
-    pub fn new(kernel: &'k Kernel, session: Option<SessionId>, tab: Option<TabId>, pane: Option<PaneId>) -> Fmt<'k> {
+    pub fn new(
+        kernel: &'k Kernel,
+        session: Option<SessionId>,
+        tab: Option<TabId>,
+        pane: Option<PaneId>,
+    ) -> Fmt<'k> {
         let tab = tab.or_else(|| pane.and_then(|p| kernel.tab_of_pane(p)));
         let session = session.or_else(|| tab.and_then(|t| kernel.session_of_tab(t)));
         let pane = pane.or_else(|| tab.and_then(|t| kernel.tabs.get(&t).map(|t| t.active)));
-        Fmt { kernel, session, tab, pane, client: None, extra: None }
+        Fmt {
+            kernel,
+            session,
+            tab,
+            pane,
+            client: None,
+            extra: None,
+        }
     }
 
     fn tab_name(&self, tab: TabId) -> String {
@@ -52,7 +64,10 @@ impl<'k> Fmt<'k> {
                 let auto = self
                     .kernel
                     .options
-                    .get("automatic_rename", &self.kernel.chain(None, Some(tab), None))
+                    .get(
+                        "automatic_rename",
+                        &self.kernel.chain(None, Some(tab), None),
+                    )
                     .is_none_or(|(v, _)| v != Value::Bool(false));
                 let title = text(&self.kernel.pane_option(t.active, "title"));
                 if auto && !title.is_empty() {
@@ -81,10 +96,17 @@ impl<'k> Fmt<'k> {
                     .to_string(),
             ),
             "session_grouped" => flag(false),
-            "session_group" | "session_group_list" | "session_alerts" | "session_stack" => Some(String::new()),
+            "session_group" | "session_group_list" | "session_alerts" | "session_stack" => {
+                Some(String::new())
+            }
             "session_created" | "session_last_attached" => Some(s.created.to_string()),
             "session_many_attached" => flag(
-                self.kernel.chans.values().filter(|c| c.ui.as_ref().is_some_and(|u| u.session == s.id)).count() > 1,
+                self.kernel
+                    .chans
+                    .values()
+                    .filter(|c| c.ui.as_ref().is_some_and(|u| u.session == s.id))
+                    .count()
+                    > 1,
             ),
             "session_format" => flag(true),
             "session_marked" => flag(false),
@@ -98,7 +120,9 @@ impl<'k> Fmt<'k> {
         let session = self.session.and_then(|s| self.kernel.sessions.get(&s));
         match name {
             "window_id" => Some(format!("@{tab}")),
-            "window_index" => session.and_then(|s| s.tabs.iter().find(|(_, t)| *t == tab)).map(|(i, _)| i.to_string()),
+            "window_index" => session
+                .and_then(|s| s.tabs.iter().find(|(_, t)| *t == tab))
+                .map(|(i, _)| i.to_string()),
             "window_name" => Some(self.tab_name(tab)),
             "window_active" => flag(session.is_some_and(|s| s.current == Some(tab))),
             "window_last_flag" => flag(session.is_some_and(|s| s.last == Some(tab))),
@@ -106,7 +130,9 @@ impl<'k> Fmt<'k> {
             "window_zoomed_flag" => flag(t.zoomed),
             "window_width" => Some(self.kernel.tab_area(tab).width.to_string()),
             "window_height" => Some(self.kernel.tab_area(tab).height.to_string()),
-            "window_layout" | "window_visible_layout" => Some(t.layout.to_tmux(self.kernel.tab_area(tab))),
+            "window_layout" | "window_visible_layout" => {
+                Some(t.layout.to_tmux(self.kernel.tab_area(tab)))
+            }
             "window_flags" | "window_raw_flags" => {
                 let mut flags = String::new();
                 if session.is_some_and(|s| s.current == Some(tab)) {
@@ -122,19 +148,41 @@ impl<'k> Fmt<'k> {
                 }
                 Some(flags)
             }
-            "window_start_flag" => flag(session.is_some_and(|s| s.tabs.first().map(|(_, t)| *t) == Some(tab))),
-            "window_end_flag" => flag(session.is_some_and(|s| s.tabs.last().map(|(_, t)| *t) == Some(tab))),
-            "window_linked" => {
-                flag(self.kernel.sessions.values().filter(|s| s.tabs.iter().any(|(_, x)| *x == tab)).count() > 1)
+            "window_start_flag" => {
+                flag(session.is_some_and(|s| s.tabs.first().map(|(_, t)| *t) == Some(tab)))
             }
-            "window_linked_sessions" => Some(
-                self.kernel.sessions.values().filter(|s| s.tabs.iter().any(|(_, x)| *x == tab)).count().to_string(),
+            "window_end_flag" => {
+                flag(session.is_some_and(|s| s.tabs.last().map(|(_, t)| *t) == Some(tab)))
+            }
+            "window_linked" => flag(
+                self.kernel
+                    .sessions
+                    .values()
+                    .filter(|s| s.tabs.iter().any(|(_, x)| *x == tab))
+                    .count()
+                    > 1,
             ),
-            "window_activity_flag" | "window_bell_flag" | "window_silence_flag" | "window_marked_flag" => flag(false),
+            "window_linked_sessions" => Some(
+                self.kernel
+                    .sessions
+                    .values()
+                    .filter(|s| s.tabs.iter().any(|(_, x)| *x == tab))
+                    .count()
+                    .to_string(),
+            ),
+            "window_activity_flag"
+            | "window_bell_flag"
+            | "window_silence_flag"
+            | "window_marked_flag" => flag(false),
             "window_format" => flag(true),
-            "window_active_clients" | "window_active_sessions" => {
-                Some(self.kernel.sessions.values().filter(|s| s.current == Some(tab)).count().to_string())
-            }
+            "window_active_clients" | "window_active_sessions" => Some(
+                self.kernel
+                    .sessions
+                    .values()
+                    .filter(|s| s.current == Some(tab))
+                    .count()
+                    .to_string(),
+            ),
             _ => None,
         }
     }
@@ -145,7 +193,9 @@ impl<'k> Fmt<'k> {
         let tab = p.place.tab().and_then(|t| self.kernel.tabs.get(&t));
         match name {
             "pane_id" => Some(format!("%{pane}")),
-            "pane_index" => tab.and_then(|t| t.layout.panes().iter().position(|x| *x == pane)).map(|i| i.to_string()),
+            "pane_index" => tab
+                .and_then(|t| t.layout.panes().iter().position(|x| *x == pane))
+                .map(|i| i.to_string()),
             "pane_active" => flag(tab.is_some_and(|t| t.active == pane)),
             "pane_last" => flag(tab.is_some_and(|t| t.last == Some(pane))),
             "pane_title" => Some(text(&self.kernel.pane_option(pane, "title"))),
@@ -157,15 +207,19 @@ impl<'k> Fmt<'k> {
             | "pane_input_off"
             | "pane_pipe"
             | "pane_unseen_changes" => flag(false),
-            "pane_mode" | "pane_search_string" | "pane_dead_signal" | "pane_dead_time" => Some(String::new()),
-            "pane_synchronized" => flag(self.kernel.pane_option(pane, "synchronize_panes") == Value::Bool(true)),
+            "pane_mode" | "pane_search_string" | "pane_dead_signal" | "pane_dead_time" => {
+                Some(String::new())
+            }
+            "pane_synchronized" => {
+                flag(self.kernel.pane_option(pane, "synchronize_panes") == Value::Bool(true))
+            }
             "pane_tty" | "pane_start_command" => Some(text(&self.kernel.pane_option(pane, name))),
             // The host keeps no screen; the core keeps bytes, not rows.
             "history_size" => Some("0".into()),
             "pane_start_path" => Some(text(&self.kernel.pane_option(pane, "pane_current_path"))),
             // Geometry is the layout's, in the tab's area (18 §3); the core keeps only sizes.
-            "pane_left" | "pane_top" | "pane_right" | "pane_bottom" | "pane_at_left" | "pane_at_top"
-            | "pane_at_right" | "pane_at_bottom" => {
+            "pane_left" | "pane_top" | "pane_right" | "pane_bottom" | "pane_at_left"
+            | "pane_at_top" | "pane_at_right" | "pane_at_bottom" => {
                 let rect = self.kernel.pane_rect(pane)?;
                 let area = self.kernel.tab_area(p.place.tab()?);
                 let (right, bottom) = (rect.x + rect.width, rect.y + rect.height);
@@ -189,24 +243,54 @@ impl<'k> Fmt<'k> {
         let chan = self.kernel.chans.get(&client)?;
         let ui = chan.ui.as_ref();
         match name {
-            "client_name" => {
-                Some(if chan.info.name.is_empty() { format!("client{client}") } else { chan.info.name.clone() })
-            }
-            "client_pid" => Some(chan.info.attributes.get("pid").map(text).unwrap_or_default()),
-            "client_tty" => Some(chan.info.attributes.get("tty").map(text).unwrap_or_default()),
-            "client_termname" | "client_termtype" => {
-                Some(chan.info.attributes.get("term").map(text).unwrap_or_else(|| "pumi".into()))
-            }
-            "client_session" => ui.and_then(|u| self.kernel.sessions.get(&u.session)).map(|s| s.name.clone()),
+            "client_name" => Some(if chan.info.name.is_empty() {
+                format!("client{client}")
+            } else {
+                chan.info.name.clone()
+            }),
+            "client_pid" => Some(
+                chan.info
+                    .attributes
+                    .get("pid")
+                    .map(text)
+                    .unwrap_or_default(),
+            ),
+            "client_tty" => Some(
+                chan.info
+                    .attributes
+                    .get("tty")
+                    .map(text)
+                    .unwrap_or_default(),
+            ),
+            "client_termname" | "client_termtype" => Some(
+                chan.info
+                    .attributes
+                    .get("term")
+                    .map(text)
+                    .unwrap_or_else(|| "pumi".into()),
+            ),
+            "client_session" => ui
+                .and_then(|u| self.kernel.sessions.get(&u.session))
+                .map(|s| s.name.clone()),
             "client_width" => ui.map(|u| u.width.to_string()),
             "client_height" => ui.map(|u| u.height.to_string()),
-            "client_flags" => Some(if ui.is_some() { "attached,focused,UTF-8".into() } else { String::new() }),
+            "client_flags" => Some(if ui.is_some() {
+                "attached,focused,UTF-8".into()
+            } else {
+                String::new()
+            }),
             "client_utf8" => flag(true),
             "client_control_mode" => flag(chan.info.ty == "control"),
             "client_key_table" => Some(
                 self.kernel
                     .options
-                    .get("key_table", &[super::options::Key::Client(client), super::options::Key::Global])
+                    .get(
+                        "key_table",
+                        &[
+                            super::options::Key::Client(client),
+                            super::options::Key::Global,
+                        ],
+                    )
                     .map(|(v, _)| text(&v))
                     .unwrap_or_default(),
             ),
@@ -230,7 +314,10 @@ impl<'k> Fmt<'k> {
 
 /// The machine's name: WASI has no `gethostname`, so the environment the app gave says it.
 fn host() -> String {
-    ["HOSTNAME", "HOST"].iter().find_map(|name| std::env::var(name).ok()).unwrap_or_default()
+    ["HOSTNAME", "HOST"]
+        .iter()
+        .find_map(|name| std::env::var(name).ok())
+        .unwrap_or_default()
 }
 
 impl Context for Fmt<'_> {
@@ -253,7 +340,10 @@ impl Context for Fmt<'_> {
         if let Some(client) = self.client {
             chain.insert(chain.len() - 1, super::options::Key::Client(client));
         }
-        self.kernel.options.get(name, &chain).map(|(value, _)| text(&value))
+        self.kernel
+            .options
+            .get(name, &chain)
+            .map(|(value, _)| text(&value))
     }
 
     fn each(&self, what: &Loop, sort: Sort) -> Option<Vec<Item<'_>>> {
@@ -262,14 +352,24 @@ impl Context for Fmt<'_> {
             Loop::Sessions => kernel
                 .sessions
                 .values()
-                .map(|s| (s.name.clone(), Fmt::new(kernel, Some(s.id), None, None), Some(s.id) == self.session))
+                .map(|s| {
+                    (
+                        s.name.clone(),
+                        Fmt::new(kernel, Some(s.id), None, None),
+                        Some(s.id) == self.session,
+                    )
+                })
                 .collect(),
             Loop::Windows => {
                 let s = kernel.sessions.get(&self.session?)?;
                 s.tabs
                     .iter()
                     .map(|(i, t)| {
-                        (format!("{i:010}"), Fmt::new(kernel, Some(s.id), Some(*t), None), s.current == Some(*t))
+                        (
+                            format!("{i:010}"),
+                            Fmt::new(kernel, Some(s.id), Some(*t), None),
+                            s.current == Some(*t),
+                        )
                     })
                     .collect()
             }
@@ -280,7 +380,11 @@ impl Context for Fmt<'_> {
                     .into_iter()
                     .enumerate()
                     .map(|(i, p)| {
-                        (format!("{i:010}"), Fmt::new(kernel, self.session, Some(t.id), Some(p)), t.active == p)
+                        (
+                            format!("{i:010}"),
+                            Fmt::new(kernel, self.session, Some(t.id), Some(p)),
+                            t.active == p,
+                        )
                     })
                     .collect()
             }
@@ -296,7 +400,11 @@ impl Context for Fmt<'_> {
             items
                 .into_iter()
                 .map(|(_, context, current)| Item {
-                    context: Box::new(Fmt { extra: self.extra, client: self.client, ..context }),
+                    context: Box::new(Fmt {
+                        extra: self.extra,
+                        client: self.client,
+                        ..context
+                    }),
                     current,
                 })
                 .collect(),
@@ -317,17 +425,35 @@ impl Context for Fmt<'_> {
 /// The model as tmux's target resolver asks it.
 impl Tree for Kernel {
     fn sessions(&self) -> Vec<SessionInfo> {
-        self.sessions.values().map(|s| SessionInfo { id: s.id, name: s.name.clone(), activity: s.activity }).collect()
+        self.sessions
+            .values()
+            .map(|s| SessionInfo {
+                id: s.id,
+                name: s.name.clone(),
+                activity: s.activity,
+            })
+            .collect()
     }
 
     fn tabs(&self, session: SessionId) -> Vec<TabInfo> {
-        let Some(s) = self.sessions.get(&session) else { return Vec::new() };
+        let Some(s) = self.sessions.get(&session) else {
+            return Vec::new();
+        };
         let fmt = Fmt::new(self, Some(session), None, None);
-        s.tabs.iter().map(|(index, t)| TabInfo { id: *t, index: *index, name: fmt.tab_name(*t) }).collect()
+        s.tabs
+            .iter()
+            .map(|(index, t)| TabInfo {
+                id: *t,
+                index: *index,
+                name: fmt.tab_name(*t),
+            })
+            .collect()
     }
 
     fn panes(&self, tab: TabId) -> Vec<PaneInfo> {
-        let Some(t) = self.tabs.get(&tab) else { return Vec::new() };
+        let Some(t) = self.tabs.get(&tab) else {
+            return Vec::new();
+        };
         let area = self.tab_area(tab);
         t.layout
             .rects(area)
@@ -336,7 +462,11 @@ impl Tree for Kernel {
             .map(|(index, (pane, rect))| PaneInfo {
                 id: pane,
                 index: index as u32,
-                kind: self.panes.get(&pane).map(|p| p.ty.clone()).unwrap_or_default(),
+                kind: self
+                    .panes
+                    .get(&pane)
+                    .map(|p| p.ty.clone())
+                    .unwrap_or_default(),
                 x: rect.x,
                 y: rect.y,
                 width: rect.width,
@@ -374,7 +504,11 @@ pub fn resolve(
     target: Option<&str>,
     kind: target::Kind,
 ) -> pumi_api::Result<target::Found> {
-    let current = kernel.current(caller).map(|c| target::Current { session: c.session, tab: c.tab, pane: c.pane });
+    let current = kernel.current(caller).map(|c| target::Current {
+        session: c.session,
+        tab: c.tab,
+        pane: c.pane,
+    });
     target::resolve(kernel, current, target, kind, target::Flags::default())
 }
 
@@ -384,6 +518,16 @@ pub fn resolve_index(
     caller: &pumi_api::Caller,
     target: Option<&str>,
 ) -> pumi_api::Result<target::Found> {
-    let current = kernel.current(caller).map(|c| target::Current { session: c.session, tab: c.tab, pane: c.pane });
-    target::resolve(kernel, current, target, target::Kind::Tab, target::Flags { tab_index: true })
+    let current = kernel.current(caller).map(|c| target::Current {
+        session: c.session,
+        tab: c.tab,
+        pane: c.pane,
+    });
+    target::resolve(
+        kernel,
+        current,
+        target,
+        target::Kind::Tab,
+        target::Flags { tab_index: true },
+    )
 }

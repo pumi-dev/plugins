@@ -13,7 +13,11 @@ use crate::kernel::options::{Decl, Key, Scope, Type, normalise};
 
 /// tmux's spelling of an option's name: dashes, unless it is a user or a package option.
 pub fn tmux_name(name: &str) -> String {
-    if name.starts_with('@') || name.contains('.') { name.to_string() } else { name.replace('_', "-") }
+    if name.starts_with('@') || name.contains('.') {
+        name.to_string()
+    } else {
+        name.replace('_', "-")
+    }
 }
 
 /// A value as tmux prints it: `on`/`off`, numbers, strings quoted when they must be.
@@ -23,7 +27,12 @@ pub fn show_value(value: &Value) -> String {
         Value::Number(n) => n.to_string(),
         Value::String(s) if s.is_empty() => "\"\"".into(),
         Value::String(s) if s.chars().any(|c| " \t#;\"'{}$\\".contains(c)) => {
-            format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"").replace('$', "\\$"))
+            format!(
+                "\"{}\"",
+                s.replace('\\', "\\\\")
+                    .replace('"', "\\\"")
+                    .replace('$', "\\$")
+            )
         }
         Value::String(s) => s.clone(),
         Value::Null => String::new(),
@@ -49,7 +58,11 @@ fn split_index(name: &str) -> Result<(String, Option<usize>)> {
 fn scope(cx: &mut Cx, p: &Parsed, decl: Option<&Decl>, name: &str) -> Result<(Value, Key)> {
     let global = p.has('g') || p.has('s');
     let wanted = if global {
-        if decl.is_some_and(|d| d.scope == Scope::Client) { Scope::Client } else { Scope::Global }
+        if decl.is_some_and(|d| d.scope == Scope::Client) {
+            Scope::Client
+        } else {
+            Scope::Global
+        }
     } else if p.has('p') {
         Scope::Pane
     } else if p.has('w') {
@@ -71,16 +84,23 @@ fn scope(cx: &mut Cx, p: &Parsed, decl: Option<&Decl>, name: &str) -> Result<(Va
             (json!({"scope": "session", "session": s}), Key::Session(s))
         }
         Scope::Tab => {
-            let t = target(cx, p.get('t'), Kind::Tab)?.tab.ok_or_else(|| Error::not_found("no tab"))?;
+            let t = target(cx, p.get('t'), Kind::Tab)?
+                .tab
+                .ok_or_else(|| Error::not_found("no tab"))?;
             (json!({"scope": "tab", "tab": t}), Key::Tab(t))
         }
         Scope::Pane => {
-            let pane = target(cx, p.get('t'), Kind::Pane)?.pane.ok_or_else(|| Error::not_found("no pane"))?;
+            let pane = target(cx, p.get('t'), Kind::Pane)?
+                .pane
+                .ok_or_else(|| Error::not_found("no pane"))?;
             (json!({"scope": "pane", "pane": pane}), Key::Pane(pane))
         }
         Scope::Client => {
             let chan = cx.caller().channel;
-            (json!({"scope": "client", "client": chan}), Key::Client(chan))
+            (
+                json!({"scope": "client", "client": chan}),
+                Key::Client(chan),
+            )
         }
     })
 }
@@ -116,12 +136,18 @@ fn set_option_inner(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
         {
             let panes = k.tabs[&tab].layout.panes();
             for pane in panes {
-                call(cx, "pumi_set_option_value", json!([key, null, {"pane": pane}]))?;
+                call(
+                    cx,
+                    "pumi_set_option_value",
+                    json!([key, null, {"pane": pane}]),
+                )?;
             }
         }
         match index {
             Some(i) => {
-                let mut list = current.and_then(|c| c.as_array().cloned()).unwrap_or_default();
+                let mut list = current
+                    .and_then(|c| c.as_array().cloned())
+                    .unwrap_or_default();
                 if i < list.len() {
                     list.remove(i);
                 }
@@ -143,7 +169,11 @@ fn set_option_inner(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
         (raw, _) => raw,
     };
     let k = kernel(cx);
-    let effective = k.options.get(&key, &object_chain(k, object)).map(|(v, _)| v).unwrap_or(Value::Null);
+    let effective = k
+        .options
+        .get(&key, &object_chain(k, object))
+        .map(|(v, _)| v)
+        .unwrap_or(Value::Null);
     let value = match decl.as_ref().map(|d| d.ty) {
         Some(Type::Boolean) => match raw.as_deref() {
             None | Some("") => json!(!effective.as_bool().unwrap_or(false)),
@@ -167,8 +197,16 @@ fn set_option_inner(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
                     if !p.has('a') {
                         list.clear();
                     }
-                    let separators: &[char] = if key == "command_alias" { &[','] } else { &[' ', ','] };
-                    list.extend(text.split(separators).filter(|s| !s.is_empty()).map(|s| json!(s)));
+                    let separators: &[char] = if key == "command_alias" {
+                        &[',']
+                    } else {
+                        &[' ', ',']
+                    };
+                    list.extend(
+                        text.split(separators)
+                            .filter(|s| !s.is_empty())
+                            .map(|s| json!(s)),
+                    );
                 }
             }
             Value::Array(list)
@@ -176,7 +214,12 @@ fn set_option_inner(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
         _ => {
             let text = raw.unwrap_or_default();
             if p.has('a') {
-                let before = current.as_ref().or(Some(&effective)).and_then(Value::as_str).unwrap_or("").to_string();
+                let before = current
+                    .as_ref()
+                    .or(Some(&effective))
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_string();
                 json!(format!("{before}{text}"))
             } else {
                 json!(text)
@@ -220,11 +263,15 @@ pub fn show_options(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
         let (_, object) = scope(cx, p, decl.as_ref(), &key)?;
         let k = kernel(cx);
         let value = if p.has('A') || matches!(object, Key::Global) {
-            k.options.get(&key, &object_chain(k, object)).map(|(v, _)| v)
+            k.options
+                .get(&key, &object_chain(k, object))
+                .map(|(v, _)| v)
         } else {
             k.options.get_local(&key, object).map(|s| s.value.clone())
         };
-        let Some(value) = value.filter(|v| !v.is_null()) else { return Ok(Flow::Next) };
+        let Some(value) = value.filter(|v| !v.is_null()) else {
+            return Ok(Flow::Next);
+        };
         print_option(queue, &tmux_name(&key), &value, index, p.has('v'));
         return Ok(Flow::Next);
     }
@@ -251,7 +298,11 @@ pub fn show_options(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
                 if !shown || decl.readonly {
                     continue;
                 }
-                let value = k.options.get(&decl.name, &[Key::Global]).map(|(v, _)| v).unwrap_or(Value::Null);
+                let value = k
+                    .options
+                    .get(&decl.name, &[Key::Global])
+                    .map(|(v, _)| v)
+                    .unwrap_or(Value::Null);
                 lines.push((decl.name.clone(), value));
             }
             for (name, set) in k.options.local(Key::Global) {
@@ -280,7 +331,13 @@ pub fn show_options(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
     Ok(Flow::Next)
 }
 
-fn print_option(queue: &mut Queue, name: &str, value: &Value, index: Option<usize>, only_value: bool) {
+fn print_option(
+    queue: &mut Queue,
+    name: &str,
+    value: &Value,
+    index: Option<usize>,
+    only_value: bool,
+) {
     match value {
         Value::Array(list) => {
             for (i, item) in list.iter().enumerate() {
@@ -308,7 +365,11 @@ pub fn show_window_options(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result
 /// `set-environment [-Fhgru] [-t session] name [value]`.
 pub fn set_environment(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let name = p.arg(0).unwrap_or("");
-    let session = if p.has('g') { None } else { Some(target(cx, p.get('t'), Kind::Session)?.session) };
+    let session = if p.has('g') {
+        None
+    } else {
+        Some(target(cx, p.get('t'), Kind::Session)?.session)
+    };
     let value = p.arg(1).map(str::to_string);
     let value = match (value, p.has('F')) {
         (Some(v), true) => {
@@ -332,7 +393,11 @@ pub fn set_environment(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flo
 
 /// `show-environment [-hgs] [-t session] [name]`: `-s` as shell commands.
 pub fn show_environment(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
-    let session = if p.has('g') { None } else { Some(target(cx, p.get('t'), Kind::Session)?.session) };
+    let session = if p.has('g') {
+        None
+    } else {
+        Some(target(cx, p.get('t'), Kind::Session)?.session)
+    };
     let vars = call(cx, "pumi_get_environment", json!([{"session": session}]))?;
     let vars = vars.as_object().cloned().unwrap_or_default();
     if let Some(name) = p.arg(0)
@@ -349,9 +414,10 @@ pub fn show_environment(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Fl
             continue;
         }
         match var["value"].as_str() {
-            Some(value) if p.has('s') => {
-                queue.print(format!("{name}=\"{}\"; export {name};", value.replace('"', "\\\"").replace('$', "\\$")))
-            }
+            Some(value) if p.has('s') => queue.print(format!(
+                "{name}=\"{}\"; export {name};",
+                value.replace('"', "\\\"").replace('$', "\\$")
+            )),
             Some(value) => queue.print(format!("{name}={value}")),
             None if p.has('s') => queue.print(format!("unset {name};")),
             None => queue.print(format!("-{name}")),

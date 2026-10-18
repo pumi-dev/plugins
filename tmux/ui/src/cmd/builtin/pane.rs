@@ -21,14 +21,29 @@ const NEW_PANE: &str = "#{session_name}:#{window_index}.#{pane_index}";
 
 /// Waits for a new pane's program to exit and finishes with its status (`-W`).
 fn wait_exit(k: &mut Kernel, queue: &Queue, pane: PaneId) -> Flow {
-    crate::cmd::wait_for_event(k, queue, vec!["TermClose".into(), "PaneClosed".into()], move |_, event| {
-        let about = event.about.pane.or_else(|| event.data.get("pane").and_then(Value::as_u64));
-        if about != Some(pane) {
-            return None;
-        }
-        let status = event.data.get("status").and_then(Value::as_i64).map(|s| s as i32);
-        Some(Outcome { status: Some(status.unwrap_or(0)), ..Outcome::default() })
-    });
+    crate::cmd::wait_for_event(
+        k,
+        queue,
+        vec!["TermClose".into(), "PaneClosed".into()],
+        move |_, event| {
+            let about = event
+                .about
+                .pane
+                .or_else(|| event.data.get("pane").and_then(Value::as_u64));
+            if about != Some(pane) {
+                return None;
+            }
+            let status = event
+                .data
+                .get("status")
+                .and_then(Value::as_i64)
+                .map(|s| s as i32);
+            Some(Outcome {
+                status: Some(status.unwrap_or(0)),
+                ..Outcome::default()
+            })
+        },
+    );
     Flow::Wait
 }
 
@@ -54,11 +69,20 @@ pub fn split_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
             map.insert("cwd".into(), cwd);
         }
     }
-    let size = p.get('l').map(size).or_else(|| p.get('p').map(|pc| json!(format!("{pc}%"))));
+    let size = p
+        .get('l')
+        .map(size)
+        .or_else(|| p.get('p').map(|pc| json!(format!("{pc}%"))));
     let place = json!({ "beside": beside, "split": side, "size": size, "full": p.has('f'), "focus": !p.has('d') });
-    let pane = call(cx, "pumi_open_pane", json!([ty, args, place]))?.as_u64().unwrap_or(0);
+    let pane = call(cx, "pumi_open_pane", json!([ty, args, place]))?
+        .as_u64()
+        .unwrap_or(0);
     if let Some(title) = p.get('T') {
-        call(cx, "pumi_set_option_value", json!(["title", title, {"pane": pane}]))?;
+        call(
+            cx,
+            "pumi_set_option_value",
+            json!(["title", title, {"pane": pane}]),
+        )?;
     }
     if p.has('Z') {
         call(cx, "pumi_pane_set_zoom", json!([pane, true]))?;
@@ -83,7 +107,9 @@ pub fn new_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         return split_pane(cx, queue, p);
     }
     let anchor = target_pane(cx, p.get('t'))?;
-    let tab = kernel(cx).tab_of_pane(anchor).ok_or_else(|| Error::invalid_params("the target pane is in no tab"))?;
+    let tab = kernel(cx)
+        .tab_of_pane(anchor)
+        .ok_or_else(|| Error::invalid_params("the target pane is in no tab"))?;
     let ty = p.long("type").unwrap_or("terminal").to_string();
     let args = pane_args(queue, p, &ty)?;
     let place = json!({
@@ -95,9 +121,15 @@ pub fn new_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         "row": p.get('Y').and_then(|y| y.parse::<i64>().ok()),
         "focus": !p.has('d'),
     });
-    let pane = call(cx, "pumi_open_pane", json!([ty, args, place]))?.as_u64().unwrap_or(0);
+    let pane = call(cx, "pumi_open_pane", json!([ty, args, place]))?
+        .as_u64()
+        .unwrap_or(0);
     if let Some(title) = p.get('T') {
-        call(cx, "pumi_set_option_value", json!(["title", title, {"pane": pane}]))?;
+        call(
+            cx,
+            "pumi_set_option_value",
+            json!(["title", title, {"pane": pane}]),
+        )?;
     }
     let row = pane_row(kernel(cx), pane);
     print_new(cx, queue, p, NEW_PANE, row);
@@ -112,7 +144,9 @@ pub fn new_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 /// popup stays when its program exits.
 pub fn display_popup(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let anchor = target_pane(cx, p.get('t'))?;
-    let tab = kernel(cx).tab_of_pane(anchor).ok_or_else(|| Error::invalid_params("the target pane is in no tab"))?;
+    let tab = kernel(cx)
+        .tab_of_pane(anchor)
+        .ok_or_else(|| Error::invalid_params("the target pane is in no tab"))?;
     if p.has('C') {
         let floats: Vec<u64> = kernel(cx)
             .panes
@@ -128,7 +162,10 @@ pub fn display_popup(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow>
     let ty = p.long("type").unwrap_or("terminal").to_string();
     let mut args = pane_args(queue, p, &ty)?;
     if let (Some(dir), Some(map)) = (p.get('d'), args.as_object_mut()) {
-        map.insert("cwd".into(), json!(crate::cmd::path(queue, dir).display().to_string()));
+        map.insert(
+            "cwd".into(),
+            json!(crate::cmd::path(queue, dir).display().to_string()),
+        );
     }
     let place = json!({
         "kind": "float",
@@ -139,12 +176,22 @@ pub fn display_popup(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow>
         "row": p.get('y').and_then(|y| y.parse::<i64>().ok()),
         "border": if p.has('B') { Some("none") } else { p.get('b') },
     });
-    let pane = call(cx, "pumi_open_pane", json!([ty, args, place]))?.as_u64().unwrap_or(0);
+    let pane = call(cx, "pumi_open_pane", json!([ty, args, place]))?
+        .as_u64()
+        .unwrap_or(0);
     if !p.has('E') && ty == "terminal" {
-        call(cx, "pumi_set_option_value", json!(["remain_on_exit", true, {"pane": pane}]))?;
+        call(
+            cx,
+            "pumi_set_option_value",
+            json!(["remain_on_exit", true, {"pane": pane}]),
+        )?;
     }
     if let Some(title) = p.get('T') {
-        call(cx, "pumi_set_option_value", json!(["title", title, {"pane": pane}]))?;
+        call(
+            cx,
+            "pumi_set_option_value",
+            json!(["title", title, {"pane": pane}]),
+        )?;
     }
     Ok(Flow::Next)
 }
@@ -154,7 +201,12 @@ pub fn kill_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let pane = target_pane(cx, p.get('t'))?;
     let doomed: Vec<u64> = if p.has('a') {
         let tab = kernel(cx).tab_of_pane(pane);
-        kernel(cx).panes.values().filter(|x| x.place.tab() == tab && x.id != pane).map(|x| x.id).collect()
+        kernel(cx)
+            .panes
+            .values()
+            .filter(|x| x.place.tab() == tab && x.id != pane)
+            .map(|x| x.id)
+            .collect()
     } else {
         vec![pane]
     };
@@ -175,10 +227,22 @@ fn neighbour(k: &Kernel, pane: PaneId, side: Side) -> Option<PaneId> {
         .filter(|(p, r)| {
             *p != pane
                 && match side {
-                    Side::Left => r.x + r.width + 1 == me.x && overlap(r.y, r.y + r.height, me.y, me.y + me.height),
-                    Side::Right => me.x + me.width + 1 == r.x && overlap(r.y, r.y + r.height, me.y, me.y + me.height),
-                    Side::Up => r.y + r.height + 1 == me.y && overlap(r.x, r.x + r.width, me.x, me.x + me.width),
-                    Side::Down => me.y + me.height + 1 == r.y && overlap(r.x, r.x + r.width, me.x, me.x + me.width),
+                    Side::Left => {
+                        r.x + r.width + 1 == me.x
+                            && overlap(r.y, r.y + r.height, me.y, me.y + me.height)
+                    }
+                    Side::Right => {
+                        me.x + me.width + 1 == r.x
+                            && overlap(r.y, r.y + r.height, me.y, me.y + me.height)
+                    }
+                    Side::Up => {
+                        r.y + r.height + 1 == me.y
+                            && overlap(r.x, r.x + r.width, me.x, me.x + me.width)
+                    }
+                    Side::Down => {
+                        me.y + me.height + 1 == r.y
+                            && overlap(r.x, r.x + r.width, me.x, me.x + me.width)
+                    }
                 }
         })
         .max_by_key(|(p, _)| k.panes.get(p).map_or(0, |p| p.activity))
@@ -204,27 +268,46 @@ pub fn select_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> 
     let mut pane = target_pane(cx, p.get('t'))?;
     if p.has('m') || p.has('M') {
         let k = kernel(cx);
-        k.cmd().marked = if p.has('M') || k.cmd().marked == Some(pane) { None } else { Some(pane) };
+        k.cmd().marked = if p.has('M') || k.cmd().marked == Some(pane) {
+            None
+        } else {
+            Some(pane)
+        };
         return Ok(Flow::Next);
     }
     if let Some(title) = p.get('T') {
-        call(cx, "pumi_set_option_value", json!(["title", title, {"pane": pane}]))?;
+        call(
+            cx,
+            "pumi_set_option_value",
+            json!(["title", title, {"pane": pane}]),
+        )?;
         return Ok(Flow::Next);
     }
     if p.has('d') || p.has('e') {
-        call(cx, "pumi_set_option_value", json!(["@input_off", p.has('d'), {"pane": pane}]))?;
+        call(
+            cx,
+            "pumi_set_option_value",
+            json!(["@input_off", p.has('d'), {"pane": pane}]),
+        )?;
         return Ok(Flow::Next);
     }
     if p.has('l') {
-        let tab = kernel(cx).tab_of_pane(pane).ok_or_else(|| Error::not_found("no tab"))?;
-        pane = kernel(cx).tabs[&tab].last.ok_or_else(|| Error::not_found("no last pane"))?;
+        let tab = kernel(cx)
+            .tab_of_pane(pane)
+            .ok_or_else(|| Error::not_found("no tab"))?;
+        pane = kernel(cx).tabs[&tab]
+            .last
+            .ok_or_else(|| Error::not_found("no last pane"))?;
     } else if let Some(side) = side_flag(p) {
         match neighbour(kernel(cx), pane, side) {
             Some(next) => pane = next,
             None => return Ok(Flow::Next),
         }
     }
-    let zoomed = kernel(cx).tab_of_pane(pane).and_then(|t| kernel(cx).tabs.get(&t)).is_some_and(|t| t.zoomed);
+    let zoomed = kernel(cx)
+        .tab_of_pane(pane)
+        .and_then(|t| kernel(cx).tabs.get(&t))
+        .is_some_and(|t| t.zoomed);
     call(cx, "pumi_set_current_pane", json!([pane]))?;
     if zoomed && p.has('Z') {
         call(cx, "pumi_pane_set_zoom", json!([pane, true]))?;
@@ -237,7 +320,9 @@ pub fn select_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> 
 /// `last-pane [-deZ] [-t target]`.
 pub fn last_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let tab = target_tab(cx, p.get('t'))?;
-    let last = kernel(cx).tabs[&tab].last.ok_or_else(|| Error::not_found("no last pane"))?;
+    let last = kernel(cx).tabs[&tab]
+        .last
+        .ok_or_else(|| Error::not_found("no last pane"))?;
     call(cx, "pumi_set_current_pane", json!([last]))?;
     Ok(Flow::Next)
 }
@@ -246,7 +331,9 @@ pub fn last_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 pub fn resize_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let pane = target_pane(cx, p.get('t'))?;
     if p.has('Z') {
-        let tab = kernel(cx).tab_of_pane(pane).ok_or_else(|| Error::not_found("no tab"))?;
+        let tab = kernel(cx)
+            .tab_of_pane(pane)
+            .ok_or_else(|| Error::not_found("no tab"))?;
         let zoomed = kernel(cx).tabs[&tab].zoomed;
         call(cx, "pumi_pane_set_zoom", json!([pane, !zoomed]))?;
         return Ok(Flow::Next);
@@ -254,7 +341,9 @@ pub fn resize_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> 
     if p.has('M') || p.has('T') {
         return Ok(Flow::Next);
     }
-    let tab = kernel(cx).tab_of_pane(pane).ok_or_else(|| Error::not_found("the pane is in no tab"))?;
+    let tab = kernel(cx)
+        .tab_of_pane(pane)
+        .ok_or_else(|| Error::not_found("the pane is in no tab"))?;
     let k = kernel(cx);
     let area = k.tab_area(tab);
     let mut layout = k.tabs[&tab].layout.clone();
@@ -264,7 +353,9 @@ pub fn resize_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> 
                 .parse::<u32>()
                 .map(|pc| total * pc / 100)
                 .map_err(|_| Error::invalid_params(format!("bad size: {text}"))),
-            None => text.parse().map_err(|_| Error::invalid_params(format!("bad size: {text}"))),
+            None => text
+                .parse()
+                .map_err(|_| Error::invalid_params(format!("bad size: {text}"))),
         }
     };
     if let Some(width) = p.get('x') {
@@ -276,7 +367,10 @@ pub fn resize_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> 
     if let Some(side) = side_flag(p) {
         let by: i64 = p
             .arg(0)
-            .map(|a| a.parse().map_err(|_| Error::invalid_params(format!("adjustment {a} is invalid"))))
+            .map(|a| {
+                a.parse()
+                    .map_err(|_| Error::invalid_params(format!("adjustment {a} is invalid")))
+            })
             .transpose()?
             .unwrap_or(1);
         // tmux's -L grows the pane leftwards: the border on that side moves.
@@ -289,7 +383,9 @@ pub fn resize_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> 
 pub fn swap_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let destination = target_pane(cx, p.get('t'))?;
     let source = if p.has('D') || p.has('U') {
-        let tab = kernel(cx).tab_of_pane(destination).ok_or_else(|| Error::not_found("no tab"))?;
+        let tab = kernel(cx)
+            .tab_of_pane(destination)
+            .ok_or_else(|| Error::not_found("no tab"))?;
         let panes = kernel(cx).tabs[&tab].layout.panes();
         let at = panes.iter().position(|x| *x == destination).unwrap_or(0) as i64;
         let by = if p.has('D') { 1 } else { -1 };
@@ -311,7 +407,11 @@ pub fn swap_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     if source == destination {
         return Ok(Flow::Next);
     }
-    call(cx, "pumi_pane_set_place", json!([source, { "swap": destination }]))?;
+    call(
+        cx,
+        "pumi_pane_set_place",
+        json!([source, { "swap": destination }]),
+    )?;
     if !p.has('d') {
         call(cx, "pumi_set_current_pane", json!([source]))?;
     }
@@ -345,7 +445,9 @@ pub fn move_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     }
     let destination = target_pane(cx, p.get('t'))?;
     if source == destination {
-        return Err(Error::invalid_params("source and target panes must be different"));
+        return Err(Error::invalid_params(
+            "source and target panes must be different",
+        ));
     }
     let side = match (p.has('h'), p.has('b')) {
         (true, false) => "right",
@@ -353,7 +455,10 @@ pub fn move_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         (false, false) => "down",
         (false, true) => "up",
     };
-    let size = p.get('l').map(size).or_else(|| p.get('p').map(|pc| json!(format!("{pc}%"))));
+    let size = p
+        .get('l')
+        .map(size)
+        .or_else(|| p.get('p').map(|pc| json!(format!("{pc}%"))));
     let place = json!({ "beside": destination, "split": side, "size": size, "full": p.has('f'), "focus": !p.has('d') });
     call(cx, "pumi_pane_set_place", json!([source, place]))?;
     Ok(Flow::Next)
@@ -365,12 +470,21 @@ pub fn break_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let source = target_pane(cx, p.get('s'))?;
     let caller = cx.caller().clone();
     let found = crate::kernel::format::resolve_index(kernel(cx), &caller, p.get('t'))?;
-    let index = if p.get('t').is_some_and(|t| t.contains(':')) { found.index } else { None };
-    let place =
-        json!({ "kind": "tab", "session": found.session, "index": index, "name": p.get('n'), "focus": !p.has('d') });
+    let index = if p.get('t').is_some_and(|t| t.contains(':')) {
+        found.index
+    } else {
+        None
+    };
+    let place = json!({ "kind": "tab", "session": found.session, "index": index, "name": p.get('n'), "focus": !p.has('d') });
     call(cx, "pumi_pane_set_place", json!([source, place]))?;
     let row = pane_row(kernel(cx), source);
-    print_new(cx, queue, p, "#{session_name}:#{window_index}.#{pane_index}", row);
+    print_new(
+        cx,
+        queue,
+        p,
+        "#{session_name}:#{window_index}.#{pane_index}",
+        row,
+    );
     Ok(Flow::Next)
 }
 
@@ -393,7 +507,11 @@ pub fn list_panes(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         for s in k.sessions.values() {
             for (_, t) in &s.tabs {
                 for pane in k.tabs[t].layout.panes() {
-                    rows.push(Row { session: Some(s.id), tab: Some(*t), pane: Some(pane) });
+                    rows.push(Row {
+                        session: Some(s.id),
+                        tab: Some(*t),
+                        pane: Some(pane),
+                    });
                 }
             }
         }
@@ -420,11 +538,18 @@ pub fn list_panes(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         let k = kernel(cx);
         let mut panes = k.tabs[&tab].layout.panes();
         panes.extend(
-            k.panes.values().filter(|x| matches!(&x.place, Place::Float { tab: t, .. } if *t == tab)).map(|x| x.id),
+            k.panes
+                .values()
+                .filter(|x| matches!(&x.place, Place::Float { tab: t, .. } if *t == tab))
+                .map(|x| x.id),
         );
         let rows = panes
             .into_iter()
-            .map(|pane| Row { session: Some(found.session), tab: Some(tab), pane: Some(pane) })
+            .map(|pane| Row {
+                session: Some(found.session),
+                tab: Some(tab),
+                pane: Some(pane),
+            })
             .collect();
         (rows, LIST_PANES)
     };
@@ -445,18 +570,30 @@ pub fn capture_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
     if let Some(format) = p.long("format")
         && !["text", "ansi"].contains(&format)
     {
-        return Err(Error::invalid_params(format!("capture format is text or ansi, not {format}")));
+        return Err(Error::invalid_params(format!(
+            "capture format is text or ansi, not {format}"
+        )));
     }
-    let height = kernel(cx).pane_option(pane, "pane_height").as_i64().unwrap_or(24);
+    let height = kernel(cx)
+        .pane_option(pane, "pane_height")
+        .as_i64()
+        .unwrap_or(24);
     let start = p.get('S');
     let mut opts = json!({ "ansi": ansi });
     match start {
         Some("-") => {
-            opts["lines"] =
-                json!(kernel(cx).pane_option(pane, "history_limit").as_u64().unwrap_or(2000) + height as u64);
+            opts["lines"] = json!(
+                kernel(cx)
+                    .pane_option(pane, "history_limit")
+                    .as_u64()
+                    .unwrap_or(2000)
+                    + height as u64
+            );
         }
         Some(n) => {
-            let n: i64 = n.parse().map_err(|_| Error::invalid_params(format!("start line {n} is invalid")))?;
+            let n: i64 = n
+                .parse()
+                .map_err(|_| Error::invalid_params(format!("start line {n} is invalid")))?;
             if n < 0 {
                 opts["lines"] = json!(height - n);
             } else {
@@ -469,16 +606,29 @@ pub fn capture_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
         opts["source"] = json!("unwrapped");
     }
     let text = call(cx, "pumi_pane_call", json!([pane, "read", opts]))?;
-    let mut text = text.as_str().map(str::to_string).unwrap_or_else(|| text.to_string());
+    let mut text = text
+        .as_str()
+        .map(str::to_string)
+        .unwrap_or_else(|| text.to_string());
     if let Some(end) = p.get('E').and_then(|e| e.parse::<usize>().ok()) {
         let lines: Vec<&str> = text.lines().collect();
         let skip = start.and_then(|s| s.parse::<usize>().ok()).unwrap_or(0);
-        text = lines.iter().skip(skip).take(end.saturating_sub(skip) + 1).copied().collect::<Vec<_>>().join("\n");
+        text = lines
+            .iter()
+            .skip(skip)
+            .take(end.saturating_sub(skip) + 1)
+            .copied()
+            .collect::<Vec<_>>()
+            .join("\n");
     } else if let Some(skip) = start.and_then(|s| s.parse::<usize>().ok()) {
         text = text.lines().skip(skip).collect::<Vec<_>>().join("\n");
     }
     if !p.has('N') {
-        text = text.lines().map(str::trim_end).collect::<Vec<_>>().join("\n");
+        text = text
+            .lines()
+            .map(str::trim_end)
+            .collect::<Vec<_>>()
+            .join("\n");
     }
     if p.has('p') {
         queue.output.push_str(&text);
@@ -494,7 +644,11 @@ pub fn capture_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
 /// tmux's key names that pumi's key parser spells differently.
 fn tmux_key(name: &str) -> String {
     let (mods, key) = match name.rfind('-') {
-        Some(at) if at > 0 && at + 1 < name.len() && name[..at].split('-').all(|m| ["C", "M", "S"].contains(&m)) => {
+        Some(at)
+            if at > 0
+                && at + 1 < name.len()
+                && name[..at].split('-').all(|m| ["C", "M", "S"].contains(&m)) =>
+        {
             (&name[..=at], &name[at + 1..])
         }
         _ => ("", name),
@@ -516,14 +670,66 @@ fn tmux_key(name: &str) -> String {
 /// parser is libghostty's, not this guest's), modifiers joined with `-` or `+`.
 fn is_key(word: &str) -> bool {
     const MODIFIERS: &[&str] = &[
-        "ctrl", "control", "c", "alt", "meta", "option", "opt", "m", "shift", "s", "super", "cmd", "command", "win",
+        "ctrl", "control", "c", "alt", "meta", "option", "opt", "m", "shift", "s", "super", "cmd",
+        "command", "win",
     ];
     const NAMED: &[&str] = &[
-        "enter", "return", "cr", "tab", "backtab", "btab", "esc", "escape", "backspace", "bs", "bspace", "up", "down",
-        "left", "right", "home", "end", "pageup", "page_up", "pgup", "ppage", "pagedown", "page_down", "pgdn",
-        "npage", "insert", "ins", "ic", "delete", "del", "dc", "space", "minus", "plus", "equal", "equals", "comma",
-        "period", "dot", "slash", "backslash", "quote", "apostrophe", "doublequote", "semicolon", "colon", "percent",
-        "ampersand", "backtick", "grave", "tilde", "lbracket", "rbracket", "pipe", "lt", "gt",
+        "enter",
+        "return",
+        "cr",
+        "tab",
+        "backtab",
+        "btab",
+        "esc",
+        "escape",
+        "backspace",
+        "bs",
+        "bspace",
+        "up",
+        "down",
+        "left",
+        "right",
+        "home",
+        "end",
+        "pageup",
+        "page_up",
+        "pgup",
+        "ppage",
+        "pagedown",
+        "page_down",
+        "pgdn",
+        "npage",
+        "insert",
+        "ins",
+        "ic",
+        "delete",
+        "del",
+        "dc",
+        "space",
+        "minus",
+        "plus",
+        "equal",
+        "equals",
+        "comma",
+        "period",
+        "dot",
+        "slash",
+        "backslash",
+        "quote",
+        "apostrophe",
+        "doublequote",
+        "semicolon",
+        "colon",
+        "percent",
+        "ampersand",
+        "backtick",
+        "grave",
+        "tilde",
+        "lbracket",
+        "rbracket",
+        "pipe",
+        "lt",
+        "gt",
     ];
     if word.chars().count() <= 1 {
         return false;
@@ -531,7 +737,11 @@ fn is_key(word: &str) -> bool {
     let token = tmux_key(word);
     let mut rest = token.as_str();
     loop {
-        let cut = rest.char_indices().skip(1).find(|(_, c)| *c == '+' || *c == '-').map(|(i, _)| i);
+        let cut = rest
+            .char_indices()
+            .skip(1)
+            .find(|(_, c)| *c == '+' || *c == '-')
+            .map(|(i, _)| i);
         let Some(cut) = cut else { break };
         if !MODIFIERS.contains(&rest[..cut].to_ascii_lowercase().as_str()) {
             break;
@@ -542,7 +752,10 @@ fn is_key(word: &str) -> bool {
         }
     }
     let lower = rest.to_ascii_lowercase();
-    let function = lower.strip_prefix('f').and_then(|n| n.parse::<u8>().ok()).is_some_and(|n| (1..=12).contains(&n));
+    let function = lower
+        .strip_prefix('f')
+        .and_then(|n| n.parse::<u8>().ok())
+        .is_some_and(|n| (1..=12).contains(&n));
     rest.chars().count() == 1 || function || NAMED.contains(&lower.as_str())
 }
 
@@ -554,16 +767,26 @@ pub fn send_keys(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         return Err(Error::invalid_params("copy-mode commands need a client"));
     }
     if p.has('R') {
-        call(cx, "pumi_pane_call", json!([pane, "input", {"text": "\x1bc"}]))?;
+        call(
+            cx,
+            "pumi_pane_call",
+            json!([pane, "input", {"text": "\x1bc"}]),
+        )?;
     }
     let repeat = p
         .get('N')
-        .map(|n| n.parse::<usize>().map_err(|_| Error::invalid_params(format!("repeat count {n} is invalid"))))
+        .map(|n| {
+            n.parse::<usize>()
+                .map_err(|_| Error::invalid_params(format!("repeat count {n} is invalid")))
+        })
         .transpose()?
         .unwrap_or(1);
     let words: Vec<String> = if p.has('F') {
         let k = kernel(cx);
-        p.words().iter().map(|w| crate::cmd::expand(k, queue, None, None, Some(pane), w)).collect()
+        p.words()
+            .iter()
+            .map(|w| crate::cmd::expand(k, queue, None, None, Some(pane), w))
+            .collect()
     } else {
         p.words()
     };
@@ -592,8 +815,16 @@ pub fn send_prefix(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> 
     let pane = target_pane(cx, p.get('t'))?;
     let option = if p.has('2') { "prefix2" } else { "prefix" };
     let key = kernel(cx).pane_option(pane, option);
-    let key = key.as_str().filter(|k| *k != "None").unwrap_or("C-b").to_string();
-    call(cx, "pumi_pane_call", json!([pane, "input", {"keys": [tmux_key(&key)]}]))?;
+    let key = key
+        .as_str()
+        .filter(|k| *k != "None")
+        .unwrap_or("C-b")
+        .to_string();
+    call(
+        cx,
+        "pumi_pane_call",
+        json!([pane, "input", {"keys": [tmux_key(&key)]}]),
+    )?;
     Ok(Flow::Next)
 }
 
@@ -615,19 +846,32 @@ pub fn pipe_pane(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 
 /// `increase-font-size [-a] [-t pane] [N]` and friends: the pane option `font_size`.
 fn font(cx: &mut Cx, p: &Parsed, change: impl Fn(f64) -> Option<f64>) -> Result<Flow> {
-    let panes: Vec<u64> =
-        if p.has('a') { kernel(cx).panes.keys().copied().collect() } else { vec![target_pane(cx, p.get('t'))?] };
+    let panes: Vec<u64> = if p.has('a') {
+        kernel(cx).panes.keys().copied().collect()
+    } else {
+        vec![target_pane(cx, p.get('t'))?]
+    };
     for pane in panes {
-        let now = kernel(cx).pane_option(pane, "font_size").as_f64().unwrap_or(13.0);
+        let now = kernel(cx)
+            .pane_option(pane, "font_size")
+            .as_f64()
+            .unwrap_or(13.0);
         let value = change(now).map(|v| json!(v.clamp(4.0, 96.0)));
-        call(cx, "pumi_set_option_value", json!(["font_size", value, {"pane": pane}]))?;
+        call(
+            cx,
+            "pumi_set_option_value",
+            json!(["font_size", value, {"pane": pane}]),
+        )?;
     }
     Ok(Flow::Next)
 }
 
 fn step(p: &Parsed) -> Result<f64> {
     p.arg(0)
-        .map(|n| n.parse::<f64>().map_err(|_| Error::invalid_params(format!("not a size: {n}"))))
+        .map(|n| {
+            n.parse::<f64>()
+                .map_err(|_| Error::invalid_params(format!("not a size: {n}")))
+        })
         .transpose()
         .map(|n| n.unwrap_or(1.0))
 }
@@ -649,8 +893,9 @@ pub fn reset_font_size(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Fl
 /// Parses `10m`, `30s`, `2h`, `500ms` or seconds.
 pub fn duration(text: &str) -> Result<Duration> {
     let bad = || Error::invalid_params(format!("not a duration: {text}"));
-    let (number, unit) =
-        text.find(|c: char| !c.is_ascii_digit() && c != '.').map_or((text, ""), |at| text.split_at(at));
+    let (number, unit) = text
+        .find(|c: char| !c.is_ascii_digit() && c != '.')
+        .map_or((text, ""), |at| text.split_at(at));
     let n: f64 = number.parse().map_err(|_| bad())?;
     let seconds = match unit {
         "" | "s" => n,
@@ -668,18 +913,35 @@ pub fn wait_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let pane = target_pane(cx, p.get('t'))?;
     let k = kernel(cx);
     if let Some(after) = p.long("for") {
-        crate::cmd::deadline(k, queue, duration(after)?, format!("timed out waiting for %{pane}"));
+        crate::cmd::deadline(
+            k,
+            queue,
+            duration(after)?,
+            format!("timed out waiting for %{pane}"),
+        );
     }
     if let Some(until) = p.long("until") {
         let until = until.to_string();
-        if crate::cmd::truthy(&crate::cmd::expand(k, queue, None, None, Some(pane), &until)) {
+        if crate::cmd::truthy(&crate::cmd::expand(
+            k,
+            queue,
+            None,
+            None,
+            Some(pane),
+            &until,
+        )) {
             return Ok(Flow::Next);
         }
         let vars = queue.vars.clone();
-        let events: Vec<String> = crate::kernel::events::EVENTS.iter().map(|e| e.to_string()).collect();
+        let events: Vec<String> = crate::kernel::events::EVENTS
+            .iter()
+            .map(|e| e.to_string())
+            .collect();
         crate::cmd::wait_for_event(k, queue, events, move |cx, event| {
             let k = kernel(cx);
-            if event.event == "PaneClosed" && event.data.get("pane").and_then(Value::as_u64) == Some(pane) {
+            if event.event == "PaneClosed"
+                && event.data.get("pane").and_then(Value::as_u64) == Some(pane)
+            {
                 return Some(Outcome {
                     error: Some(Error::not_found(format!("pane %{pane} closed"))),
                     ..Outcome::default()
@@ -695,7 +957,11 @@ pub fn wait_pane(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         return Ok(Flow::Wait);
     }
     if k.pane_option(pane, "pane_dead") == json!(true) {
-        queue.status = k.pane_option(pane, "pane_dead_status").as_i64().map(|s| s as i32).or(Some(0));
+        queue.status = k
+            .pane_option(pane, "pane_dead_status")
+            .as_i64()
+            .map(|s| s as i32)
+            .or(Some(0));
         return Ok(Flow::Next);
     }
     Ok(wait_exit(k, queue, pane))

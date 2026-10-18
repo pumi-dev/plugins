@@ -24,7 +24,11 @@ pub struct Event {
 }
 
 const fn lifecycle(dotted: &'static str, snake: &'static str) -> Event {
-    Event { dotted, snake, delivery: Delivery::Lifecycle }
+    Event {
+        dotted,
+        snake,
+        delivery: Delivery::Lifecycle,
+    }
 }
 
 pub const EVENTS: &[Event] = &[
@@ -52,10 +56,26 @@ pub const EVENTS: &[Event] = &[
     lifecycle("pane.exited", "pane_exited"),
     lifecycle("pane.agent_detected", "pane_agent_detected"),
     lifecycle("layout.updated", "layout_updated"),
-    Event { dotted: "pane.output_changed", snake: "pane_output_changed", delivery: Delivery::WaitOnly },
-    Event { dotted: "pane.agent_status_changed", snake: "pane_agent_status_changed", delivery: Delivery::PerPane },
-    Event { dotted: "pane.output_matched", snake: "pane_output_matched", delivery: Delivery::PerPane },
-    Event { dotted: "pane.scroll_changed", snake: "pane_scroll_changed", delivery: Delivery::PerPane },
+    Event {
+        dotted: "pane.output_changed",
+        snake: "pane_output_changed",
+        delivery: Delivery::WaitOnly,
+    },
+    Event {
+        dotted: "pane.agent_status_changed",
+        snake: "pane_agent_status_changed",
+        delivery: Delivery::PerPane,
+    },
+    Event {
+        dotted: "pane.output_matched",
+        snake: "pane_output_matched",
+        delivery: Delivery::PerPane,
+    },
+    Event {
+        dotted: "pane.scroll_changed",
+        snake: "pane_scroll_changed",
+        delivery: Delivery::PerPane,
+    },
 ];
 
 pub fn by_dotted(name: &str) -> Option<&'static Event> {

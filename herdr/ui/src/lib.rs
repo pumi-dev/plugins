@@ -51,7 +51,9 @@ fn socket_path() -> PathBuf {
     if let Some(dir) = std::env::var_os("PUMI_DATA_DIR").filter(|dir| !dir.is_empty()) {
         return PathBuf::from(dir).join("herdr.sock");
     }
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/"));
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/"));
     let library = home.join("Library/Application Support");
     let data = if library.is_dir() {
         library
@@ -68,10 +70,16 @@ fn socket_path() -> PathBuf {
 /// above the one the app keeps its plugins under (it gave this plugin `<user data>/<name>/ui`),
 /// else `pumi`.
 fn appname() -> String {
-    if let Some(name) = std::env::var("PUMI_APPNAME").ok().filter(|name| !name.is_empty()) {
+    if let Some(name) = std::env::var("PUMI_APPNAME")
+        .ok()
+        .filter(|name| !name.is_empty())
+    {
         return name;
     }
-    let data = sdk::plugin()["data"].as_str().unwrap_or_default().to_string();
+    let data = sdk::plugin()["data"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
     let from_path = Path::new(&data)
         .parent()
         .and_then(Path::parent)
@@ -92,9 +100,11 @@ fn init(_plugin: &mut Plugin, _cx: &mut App) {
         // Another herdr may hold it; herdr's clients then talk to that one.
         Err(err) => log(&format!("{}: {err}", path.display())),
     }
-    let autocmds = sdk::autocmd(json!(EVENTS), json!({ "desc": "herdr's socket: the model changing" }), |event, _| {
-        socket::on_event(event)
-    });
+    let autocmds = sdk::autocmd(
+        json!(EVENTS),
+        json!({ "desc": "herdr's socket: the model changing" }),
+        |event, _| socket::on_event(event),
+    );
     if let Err(err) = autocmds {
         log(&format!("herdr's events: {err}"));
     }

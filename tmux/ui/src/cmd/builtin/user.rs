@@ -30,8 +30,7 @@ pub fn run(cx: &mut Cx, queue: &mut Queue, user: &UserCommand, args: &[Arg]) -> 
         return call_function(cx, queue, &user.name, function, &words);
     }
     if let Some(callback) = &user.callback {
-        let opts =
-            json!({ "name": user.name, "args": words.join(" "), "fargs": words, "bang": false, "nargs": user.nargs });
+        let opts = json!({ "name": user.name, "args": words.join(" "), "fargs": words, "bang": false, "nargs": user.nargs });
         let caller = queue.caller.clone();
         cx.as_caller(&caller, |cx| call(cx, callback, json!([opts])))?;
         return Ok(Flow::Next);
@@ -40,7 +39,10 @@ pub fn run(cx: &mut Cx, queue: &mut Queue, user: &UserCommand, args: &[Arg]) -> 
     let line = template
         .replace("<args>", &words.join(" "))
         .replace("<q-args>", &quote(&words.join(" ")))
-        .replace("<f-args>", &words.iter().map(|w| quote(w)).collect::<Vec<_>>().join(" "))
+        .replace(
+            "<f-args>",
+            &words.iter().map(|w| quote(w)).collect::<Vec<_>>().join(" "),
+        )
         .replace("<bang>", "");
     Ok(Flow::Insert(parse_text(cx, queue, &line)?))
 }
@@ -53,8 +55,8 @@ pub fn word_value(word: &str) -> Value {
 /// A function's arguments from words, by its parameters: `--name value`, `name=value`, or in
 /// order; one JSON array or object is the arguments themselves.
 pub fn function_args(cx: &mut Cx, function: &str, words: &[String]) -> Result<Value> {
-    let info =
-        crate::api::function_info(cx, function).ok_or_else(|| Error::not_found(format!("no function `{function}`")))?;
+    let info = crate::api::function_info(cx, function)
+        .ok_or_else(|| Error::not_found(format!("no function `{function}`")))?;
     if let [one] = words
         && let Ok(value @ (Value::Array(_) | Value::Object(_))) = serde_json::from_str::<Value>(one)
     {
@@ -81,11 +83,18 @@ pub fn function_args(cx: &mut Cx, function: &str, words: &[String]) -> Result<Va
                 }
             };
             named.insert(name.replace('-', "_"), value);
-        } else if let Some((name, value)) = word.split_once('=').filter(|(n, _)| names.iter().any(|x| x == n)) {
+        } else if let Some((name, value)) = word
+            .split_once('=')
+            .filter(|(n, _)| names.iter().any(|x| x == n))
+        {
             named.insert(name.to_string(), word_value(value));
         } else {
             let name = names.get(positional).ok_or_else(|| {
-                Error::invalid_params(format!("{function} takes {} arguments: {}", names.len(), names.join(", ")))
+                Error::invalid_params(format!(
+                    "{function} takes {} arguments: {}",
+                    names.len(),
+                    names.join(", ")
+                ))
             })?;
             named.insert(name.clone(), word_value(word));
             positional += 1;
@@ -95,9 +104,15 @@ pub fn function_args(cx: &mut Cx, function: &str, words: &[String]) -> Result<Va
     Ok(Value::Object(named))
 }
 
-fn call_function(cx: &mut Cx, queue: &mut Queue, name: &str, function: &str, words: &[String]) -> Result<Flow> {
-    let args =
-        function_args(cx, function, words).map_err(|err| Error::new(err.kind, format!("{name}: {}", err.message)))?;
+fn call_function(
+    cx: &mut Cx,
+    queue: &mut Queue,
+    name: &str,
+    function: &str,
+    words: &[String],
+) -> Result<Flow> {
+    let args = function_args(cx, function, words)
+        .map_err(|err| Error::new(err.kind, format!("{name}: {}", err.message)))?;
     let result = call(cx, function, args)?;
     print_result(queue, &result);
     Ok(Flow::Next)
@@ -124,24 +139,33 @@ pub fn command(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                 .map(str::to_string)
                 .or_else(|| user["call"].as_str().map(|f| format!("(calls {f})")))
                 .unwrap_or_default();
-            queue.print(format!("{name:<16} {:<3} {action}", user["nargs"].as_str().unwrap_or("0")));
+            queue.print(format!(
+                "{name:<16} {:<3} {action}",
+                user["nargs"].as_str().unwrap_or("0")
+            ));
         }
         return Ok(Flow::Next);
     }
     let mut opts = json!({});
     while let Some(Arg::String(word)) = words.first().cloned() {
-        let Some(attribute) = word.strip_prefix('-') else { break };
+        let Some(attribute) = word.strip_prefix('-') else {
+            break;
+        };
         words.remove(0);
         let (key, value) = attribute.split_once('=').unwrap_or((attribute, ""));
         match key {
             "nargs" => opts["nargs"] = json!(value),
             "desc" => opts["desc"] = json!(value),
             "call" => opts["call"] = json!(value),
-            "bang" | "bar" | "complete" | "range" | "count" | "register" | "buffer" | "keepscript" => {}
+            "bang" | "bar" | "complete" | "range" | "count" | "register" | "buffer"
+            | "keepscript" => {}
             other => return Err(Error::invalid_params(format!("unknown attribute -{other}"))),
         }
     }
-    let name = words.first().map(Arg::to_text).ok_or_else(|| Error::invalid_params("command needs a name"))?;
+    let name = words
+        .first()
+        .map(Arg::to_text)
+        .ok_or_else(|| Error::invalid_params("command needs a name"))?;
     let rest = &words[1..];
     let line = match rest {
         [] => None,

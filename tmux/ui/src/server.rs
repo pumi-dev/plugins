@@ -52,12 +52,17 @@ fn with<R>(f: impl FnOnce(&'static Registry, &mut Kernel) -> R) -> Option<R> {
 }
 
 fn server_caller() -> Caller {
-    Caller { channel: SERVER, ..Caller::default() }
+    Caller {
+        channel: SERVER,
+        ..Caller::default()
+    }
 }
 
 /// `$HOME`, as the app gave it.
 pub fn home_dir() -> PathBuf {
-    std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/"))
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/"))
 }
 
 /// Starts tmux: the mirror, the registry, the functions, the events, the timers, the defaults.
@@ -66,11 +71,16 @@ pub fn start(cx: &mut App) {
     let plugin = api::plugin();
     let mut kernel = Kernel::new(KernelConfig {
         name: "tmux".into(),
-        socket: std::env::var_os("PUMI").map(PathBuf::from).unwrap_or_default(),
+        socket: std::env::var_os("PUMI")
+            .map(PathBuf::from)
+            .unwrap_or_default(),
         // The app's environment is what its processes (the jobs) start with.
         base_env: std::env::vars().collect(),
         bin_dir: std::env::var_os("PUMI_BIN_DIR").map(PathBuf::from),
-        data: plugin["data"].as_str().map(PathBuf::from).unwrap_or_default(),
+        data: plugin["data"]
+            .as_str()
+            .map(PathBuf::from)
+            .unwrap_or_default(),
     });
     kernel.ext.insert(crate::cmd::State::default());
     kernel.core = Some(Arc::new(Core));
@@ -94,7 +104,9 @@ pub fn start(cx: &mut App) {
     STATE.set(Some((registry, kernel as *mut Kernel)));
 
     with(|_, kernel| introduce(kernel, &specs));
-    let subscribed = api::autocmd("*", json!({ "desc": SUBSCRIPTION }), |args, _cx| arrived(args));
+    let subscribed = api::autocmd("*", json!({ "desc": SUBSCRIPTION }), |args, _cx| {
+        arrived(args)
+    });
     if let Err(err) = subscribed {
         log(&format!("the core's events: {}", err.message));
     }
@@ -118,7 +130,9 @@ fn introduce(kernel: &mut Kernel, mine: &[pumi_api::FunctionInfo]) {
     kernel.stale = true;
     kernel.sync();
     let Ok(core) = kernel.core() else { return };
-    let theirs = core.call("pumi_get_api_info", json!([]), None).unwrap_or(Value::Null);
+    let theirs = core
+        .call("pumi_get_api_info", json!([]), None)
+        .unwrap_or(Value::Null);
     let read = |effect: &Value| effect == "read";
     kernel.reads = theirs["functions"]
         .as_array()
@@ -126,8 +140,15 @@ fn introduce(kernel: &mut Kernel, mine: &[pumi_api::FunctionInfo]) {
         .flatten()
         .filter(|f| read(&f["effect"]))
         .filter_map(|f| f["name"].as_str().map(str::to_string))
-        .chain(mine.iter().filter(|f| f.effect == pumi_api::Effect::Read).map(|f| f.name.clone()))
-        .chain(["pumi_get_api_info".to_string(), "pumi_call_atomic".to_string()])
+        .chain(
+            mine.iter()
+                .filter(|f| f.effect == pumi_api::Effect::Read)
+                .map(|f| f.name.clone()),
+        )
+        .chain([
+            "pumi_get_api_info".to_string(),
+            "pumi_call_atomic".to_string(),
+        ])
         .collect();
 }
 
@@ -139,7 +160,12 @@ fn caller_of(caller: Option<Value>) -> Caller {
         Value::String(s) => Some(s.clone()),
         _ => None,
     };
-    Caller { channel: c["chan"].as_u64().unwrap_or(SERVER), client, pane: c["pane"].as_u64(), source: None }
+    Caller {
+        channel: c["chan"].as_u64().unwrap_or(SERVER),
+        client,
+        pane: c["pane"].as_u64(),
+        source: None,
+    }
 }
 
 fn wire_error(err: pumi_api::Error) -> api::Error {
@@ -169,7 +195,10 @@ fn serve(name: &str, args: Value) -> Result<Value, api::Error> {
     DEPTH.set(depth);
     match result {
         Some(result) => result.map_err(wire_error),
-        None => Err(api::Error::new("provider_unavailable", "tmux has not started")),
+        None => Err(api::Error::new(
+            "provider_unavailable",
+            "tmux has not started",
+        )),
     }
 }
 
@@ -183,7 +212,11 @@ fn event_of(args: &Value) -> Option<Event> {
         seq: args["seq"].as_u64().unwrap_or(0),
         event: args["event"].as_str()?.to_string(),
         matched: args["match"].as_str().unwrap_or_default().to_string(),
-        about: About { session: id("session"), tab: id("tab"), pane: id("pane") },
+        about: About {
+            session: id("session"),
+            tab: id("tab"),
+            pane: id("pane"),
+        },
         data: args["data"].clone(),
     })
 }
@@ -219,7 +252,9 @@ fn turn(registry: &'static Registry, kernel: &mut Kernel) {
             for (chan, message) in out {
                 let parsed: Value = serde_json::from_str(&message).unwrap_or(Value::Null);
                 match parsed.get("method").and_then(Value::as_str) {
-                    Some(method) => core.notify("pumi_chan_notify", json!([chan, method, parsed["params"]])),
+                    Some(method) => {
+                        core.notify("pumi_chan_notify", json!([chan, method, parsed["params"]]))
+                    }
                     None => core.write(&message),
                 }
             }
@@ -241,10 +276,19 @@ fn command(job: &Job) -> system::Command {
     let mut command = if job.unset.is_empty() {
         system::Command::new(&job.shell)
     } else {
-        let unset = job.unset.iter().flat_map(|name| ["-u".to_string(), name.clone()]);
-        system::Command::new("/usr/bin/env").args(unset).arg(&job.shell)
+        let unset = job
+            .unset
+            .iter()
+            .flat_map(|name| ["-u".to_string(), name.clone()]);
+        system::Command::new("/usr/bin/env")
+            .args(unset)
+            .arg(&job.shell)
     };
-    command = command.arg("-c").arg(&job.command).cwd(&job.cwd).stdin(Vec::new());
+    command = command
+        .arg("-c")
+        .arg(&job.command)
+        .cwd(&job.cwd)
+        .stdin(Vec::new());
     for (name, value) in &job.env {
         command = command.env(name, value);
     }
@@ -280,7 +324,9 @@ fn spawn(registry: &'static Registry, kernel: &mut Kernel, job: Job) {
             let status = exit.as_i64().map(|s| s as i32);
             let text = std::mem::take(&mut *collected.borrow_mut());
             with(|registry, kernel| {
-                registry.with_cx(kernel, &server_caller(), |cx| crate::cmd::job_done(cx, id, status, text));
+                registry.with_cx(kernel, &server_caller(), |cx| {
+                    crate::cmd::job_done(cx, id, status, text)
+                });
                 if DEPTH.get() == 0 {
                     turn(registry, kernel);
                 }
@@ -290,7 +336,9 @@ fn spawn(registry: &'static Registry, kernel: &mut Kernel, job: Job) {
     if let Err(err) = started {
         drop(output);
         let text = format!("{}: {err}\n", job.shell);
-        registry.with_cx(kernel, &server_caller(), |cx| crate::cmd::job_done(cx, id, Some(127), text));
+        registry.with_cx(kernel, &server_caller(), |cx| {
+            crate::cmd::job_done(cx, id, Some(127), text)
+        });
     }
 }
 
@@ -301,11 +349,20 @@ fn spawn(registry: &'static Registry, kernel: &mut Kernel, job: Job) {
 fn timers(cx: &mut App) {
     cx.spawn(async move |cx| {
         loop {
-            let Some(next) = with(|_, kernel| kernel.cmd().next_deadline()) else { break };
-            let wait = next.map(|at| at.saturating_duration_since(Instant::now())).unwrap_or(IDLE).min(IDLE);
+            let Some(next) = with(|_, kernel| kernel.cmd().next_deadline()) else {
+                break;
+            };
+            let wait = next
+                .map(|at| at.saturating_duration_since(Instant::now()))
+                .unwrap_or(IDLE)
+                .min(IDLE);
             cx.background_executor().timer(wait).await;
             with(|registry, kernel| {
-                if kernel.cmd().next_deadline().is_some_and(|at| at <= Instant::now()) {
+                if kernel
+                    .cmd()
+                    .next_deadline()
+                    .is_some_and(|at| at <= Instant::now())
+                {
                     registry.with_cx(kernel, &server_caller(), crate::cmd::tick);
                     turn(registry, kernel);
                 }

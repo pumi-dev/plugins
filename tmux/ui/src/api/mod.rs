@@ -44,21 +44,27 @@ pub fn handler(name: &str) -> Option<DynHandler> {
     let h: DynHandler = match name {
         "pumi_cmd" => handler!(pumi_cmd, "pumi_cmd", [0 "cmd" false, 1 "opts" true]),
         "pumi_exec2" => handler!(pumi_exec2, "pumi_exec2", [0 "src" false, 1 "opts" true]),
-        "pumi_parse_cmd" => handler!(pumi_parse_cmd, "pumi_parse_cmd", [0 "str" false, 1 "opts" true]),
+        "pumi_parse_cmd" => {
+            handler!(pumi_parse_cmd, "pumi_parse_cmd", [0 "str" false, 1 "opts" true])
+        }
         "pumi_get_commands" => handler!(pumi_get_commands, "pumi_get_commands", [0 "opts" true]),
         "pumi_create_user_command" => handler!(
             pumi_create_user_command,
             "pumi_create_user_command",
             [0 "name" false, 1 "command" true, 2 "opts" true]
         ),
-        "pumi_del_user_command" => handler!(pumi_del_user_command, "pumi_del_user_command", [0 "name" false]),
+        "pumi_del_user_command" => {
+            handler!(pumi_del_user_command, "pumi_del_user_command", [0 "name" false])
+        }
         "pumi_list_buffers" => handler!(pumi_list_buffers, "pumi_list_buffers", []),
         "pumi_get_buffer" => handler!(pumi_get_buffer, "pumi_get_buffer", [0 "name" true]),
         "pumi_set_buffer" => {
             handler!(pumi_set_buffer, "pumi_set_buffer", [0 "name" true, 1 "data" false, 2 "opts" true])
         }
         "pumi_del_buffer" => handler!(pumi_del_buffer, "pumi_del_buffer", [0 "name" true]),
-        "pumi_get_environment" => handler!(pumi_get_environment, "pumi_get_environment", [0 "opts" true]),
+        "pumi_get_environment" => {
+            handler!(pumi_get_environment, "pumi_get_environment", [0 "opts" true])
+        }
         "pumi_set_environment" => handler!(
             pumi_set_environment,
             "pumi_set_environment",
@@ -75,17 +81,27 @@ pub fn handler(name: &str) -> Option<DynHandler> {
 struct Catalogue(Vec<FunctionInfo>);
 
 fn catalogue(cx: &mut Cx, refresh: bool) -> Vec<FunctionInfo> {
-    let Ok(k) = cx.host::<Kernel>() else { return Vec::new() };
+    let Ok(k) = cx.host::<Kernel>() else {
+        return Vec::new();
+    };
     if refresh || k.ext.get::<Catalogue>().is_none_or(|c| c.0.is_empty()) {
         let listed = k
             .core
             .clone()
-            .and_then(|core| core.call("pumi_get_api_info", serde_json::json!([]), None).ok())
-            .and_then(|info| serde_json::from_value::<Vec<FunctionInfo>>(info["functions"].clone()).ok())
+            .and_then(|core| {
+                core.call("pumi_get_api_info", serde_json::json!([]), None)
+                    .ok()
+            })
+            .and_then(|info| {
+                serde_json::from_value::<Vec<FunctionInfo>>(info["functions"].clone()).ok()
+            })
             .unwrap_or_default();
         k.ext.insert(Catalogue(listed));
     }
-    k.ext.get::<Catalogue>().map(|c| c.0.clone()).unwrap_or_default()
+    k.ext
+        .get::<Catalogue>()
+        .map(|c| c.0.clone())
+        .unwrap_or_default()
 }
 
 /// Every function: tmux's own, the core's, and every other plugin's.

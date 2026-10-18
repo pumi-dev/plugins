@@ -49,7 +49,10 @@ pub const PID: u32 = 0;
 
 /// What `#{version}` says: the package's version, as the app gives it.
 pub fn version() -> String {
-    pumi_plugin::api::plugin()["version"].as_str().unwrap_or(env!("CARGO_PKG_VERSION")).to_string()
+    pumi_plugin::api::plugin()["version"]
+        .as_str()
+        .unwrap_or(env!("CARGO_PKG_VERSION"))
+        .to_string()
 }
 
 static NAME: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
@@ -61,8 +64,14 @@ pub fn set_name(name: &'static str) {
 
 /// One line in the log (stderr, which the core points at its own log).
 pub fn log(message: &str) {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    eprintln!("[{now}] {}: {message}", NAME.get().copied().unwrap_or("pumi"));
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    eprintln!(
+        "[{now}] {}: {message}",
+        NAME.get().copied().unwrap_or("pumi")
+    );
 }
 
 /// A message for the user (`display-message`, an error in a hook): `show-messages` lists them.
@@ -282,8 +291,13 @@ pub mod anymap {
 
         /// The value of type `T`, made with its default the first time.
         pub fn get_or_default<T: Any + Default>(&mut self) -> &mut T {
-            let value = self.0.entry(TypeId::of::<T>()).or_insert_with(|| Box::new(T::default()));
-            value.downcast_mut().expect("an Ext entry has its key's type")
+            let value = self
+                .0
+                .entry(TypeId::of::<T>())
+                .or_insert_with(|| Box::new(T::default()));
+            value
+                .downcast_mut()
+                .expect("an Ext entry has its key's type")
         }
     }
 }
@@ -319,7 +333,11 @@ impl Kernel {
     }
 
     pub fn message(&mut self, level: &str, text: impl Into<String>) {
-        self.messages.push_back(Message { at: state::epoch(), level: level.into(), text: text.into() });
+        self.messages.push_back(Message {
+            at: state::epoch(),
+            level: level.into(),
+            text: text.into(),
+        });
         while self.messages.len() > MESSAGE_LIMIT {
             self.messages.pop_front();
         }
@@ -328,13 +346,16 @@ impl Kernel {
     // ---- the core
 
     pub fn core(&self) -> Result<Arc<core::Core>> {
-        self.core.clone().ok_or_else(|| Error::new(pumi_api::ErrorKind::ProviderUnavailable, "no core"))
+        self.core
+            .clone()
+            .ok_or_else(|| Error::new(pumi_api::ErrorKind::ProviderUnavailable, "no core"))
     }
 
     /// Who the host acts for in a call it passes to the core.
     pub fn on_behalf(&self, caller: &Caller) -> Option<Value> {
         let pane = caller.pane.or_else(|| self.current(caller).map(|c| c.pane));
-        let chan = (caller.channel != SERVER && caller.channel != crate::kernel::LUA).then_some(caller.channel);
+        let chan = (caller.channel != SERVER && caller.channel != crate::kernel::LUA)
+            .then_some(caller.channel);
         if chan.is_none() && pane.is_none() && caller.source.is_none() {
             return None;
         }
@@ -347,7 +368,9 @@ impl Kernel {
         let core = self.core()?;
         let behalf = self.on_behalf(caller);
         let result = match self.serve.clone() {
-            Some(serve) => core.call_serving(name, args.clone(), behalf, &mut |line| serve(self, line)),
+            Some(serve) => {
+                core.call_serving(name, args.clone(), behalf, &mut |line| serve(self, line))
+            }
             None => core.call(name, args.clone(), behalf),
         };
         if result.is_ok() && !self.reads.contains(name) {
@@ -364,14 +387,26 @@ impl Kernel {
 
     fn mirror_option_set(&mut self, caller: &Caller, args: &Value) {
         let (name, opts) = match args {
-            Value::Array(a) => (a.first().and_then(Value::as_str).map(str::to_string), a.get(2).cloned()),
-            Value::Object(o) => (o.get("name").and_then(Value::as_str).map(str::to_string), o.get("opts").cloned()),
+            Value::Array(a) => (
+                a.first().and_then(Value::as_str).map(str::to_string),
+                a.get(2).cloned(),
+            ),
+            Value::Object(o) => (
+                o.get("name").and_then(Value::as_str).map(str::to_string),
+                o.get("opts").cloned(),
+            ),
             _ => (None, None),
         };
         let Some(name) = name else { return };
-        let Some(core) = self.core.clone() else { return };
+        let Some(core) = self.core.clone() else {
+            return;
+        };
         let opts = opts.unwrap_or(json!({}));
-        let Ok(value) = core.call("pumi_get_option_value", json!([name, opts]), self.on_behalf(caller)) else {
+        let Ok(value) = core.call(
+            "pumi_get_option_value",
+            json!([name, opts]),
+            self.on_behalf(caller),
+        ) else {
             self.stale = true;
             return;
         };
@@ -380,7 +415,9 @@ impl Kernel {
             Some(key) if !value.is_null() || name.starts_with('@') => {
                 let local = !value.is_null();
                 if local {
-                    let _ = self.options.set(&name, key, value, &self.source(caller), true);
+                    let _ = self
+                        .options
+                        .set(&name, key, value, &self.source(caller), true);
                 } else {
                     self.options.unset(&name, key);
                 }
@@ -423,7 +460,9 @@ impl Kernel {
         if !self.stale {
             return;
         }
-        let Some(core) = self.core.clone() else { return };
+        let Some(core) = self.core.clone() else {
+            return;
+        };
         let (Ok(state), Ok(decls), Ok(chans)) = (
             core.call("pumi_get_state", json!([]), None),
             core.call("pumi_get_all_options_info", json!([]), None),
@@ -462,7 +501,9 @@ impl Kernel {
         let mut options = Options::from_decls(decls);
         self.panes = BTreeMap::new();
         for p in list("panes") {
-            let Ok(pane) = serde_json::from_value::<Pane>(p.clone()) else { continue };
+            let Ok(pane) = serde_json::from_value::<Pane>(p.clone()) else {
+                continue;
+            };
             for (name, value) in p["options"].as_object().into_iter().flatten() {
                 let _ = options.set(name, Key::Pane(pane.id), value.clone(), "core", true);
             }
@@ -481,9 +522,13 @@ impl Kernel {
             }
         }
         self.options = options;
-        self.last = state
-            .get("current")
-            .and_then(|c| Some(Current { session: u(&c["session"])?, tab: u(&c["tab"])?, pane: u(&c["pane"])? }));
+        self.last = state.get("current").and_then(|c| {
+            Some(Current {
+                session: u(&c["session"])?,
+                tab: u(&c["tab"])?,
+                pane: u(&c["pane"])?,
+            })
+        });
         let lua = self.chans.remove(&crate::kernel::LUA);
         self.chans = chans
             .as_array()
@@ -497,7 +542,15 @@ impl Kernel {
                     width: ui.get("width").and_then(u).unwrap_or(80) as u32,
                     height: ui.get("height").and_then(u).unwrap_or(24) as u32,
                 });
-                Some((id, Chan { id, info, pane: u(&c["pane"]), ui }))
+                Some((
+                    id,
+                    Chan {
+                        id,
+                        info,
+                        pane: u(&c["pane"]),
+                        ui,
+                    },
+                ))
             })
             .collect();
         if let Some(lua) = lua {
@@ -524,7 +577,11 @@ impl Kernel {
                 match key {
                     Some(key) if d["local"] == json!(true) => {
                         let source = d["source"].as_str().unwrap_or("core").to_string();
-                        if self.options.set(name, key, d["new"].clone(), &source, true).is_err() {
+                        if self
+                            .options
+                            .set(name, key, d["new"].clone(), &source, true)
+                            .is_err()
+                        {
                             self.stale = true;
                         }
                     }
@@ -560,12 +617,17 @@ impl Kernel {
     }
 
     fn caller_pane(&self, caller: &Caller) -> Option<PaneId> {
-        caller.pane.or_else(|| self.chans.get(&caller.channel)?.pane).filter(|p| self.panes.contains_key(p))
+        caller
+            .pane
+            .or_else(|| self.chans.get(&caller.channel)?.pane)
+            .filter(|p| self.panes.contains_key(p))
     }
 
     fn caller_session(&self, caller: &Caller) -> Option<SessionId> {
         let ui = self.chans.get(&caller.channel)?.ui.as_ref()?;
-        self.sessions.contains_key(&ui.session).then_some(ui.session)
+        self.sessions
+            .contains_key(&ui.session)
+            .then_some(ui.session)
     }
 
     /// The caller's session, tab and pane: its pane, else its client's session, else the
@@ -582,10 +644,24 @@ impl Kernel {
         }
         let session = self
             .caller_session(caller)
-            .or(self.last.map(|c| c.session).filter(|s| self.sessions.contains_key(s)))
-            .or_else(|| self.sessions.values().max_by_key(|s| s.activity).map(|s| s.id))?;
-        let tab = self.sessions[&session].current.or_else(|| self.sessions[&session].tabs.first().map(|(_, t)| *t))?;
-        Some(Current { session, tab, pane: self.tabs.get(&tab)?.active })
+            .or(self
+                .last
+                .map(|c| c.session)
+                .filter(|s| self.sessions.contains_key(s)))
+            .or_else(|| {
+                self.sessions
+                    .values()
+                    .max_by_key(|s| s.activity)
+                    .map(|s| s.id)
+            })?;
+        let tab = self.sessions[&session]
+            .current
+            .or_else(|| self.sessions[&session].tabs.first().map(|(_, t)| *t))?;
+        Some(Current {
+            session,
+            tab,
+            pane: self.tabs.get(&tab)?.active,
+        })
     }
 
     pub fn session_id(&self, caller: &Caller, id: SessionId) -> Result<SessionId> {
@@ -595,21 +671,36 @@ impl Kernel {
                 .map(|c| c.session)
                 .ok_or_else(|| Error::not_found("there is no current session"));
         }
-        self.sessions.contains_key(&id).then_some(id).ok_or_else(|| Error::not_found(format!("no session ${id}")))
+        self.sessions
+            .contains_key(&id)
+            .then_some(id)
+            .ok_or_else(|| Error::not_found(format!("no session ${id}")))
     }
 
     pub fn tab_id(&self, caller: &Caller, id: TabId) -> Result<TabId> {
         if id == 0 {
-            return self.current(caller).map(|c| c.tab).ok_or_else(|| Error::not_found("there is no current tab"));
+            return self
+                .current(caller)
+                .map(|c| c.tab)
+                .ok_or_else(|| Error::not_found("there is no current tab"));
         }
-        self.tabs.contains_key(&id).then_some(id).ok_or_else(|| Error::not_found(format!("no tab @{id}")))
+        self.tabs
+            .contains_key(&id)
+            .then_some(id)
+            .ok_or_else(|| Error::not_found(format!("no tab @{id}")))
     }
 
     pub fn pane_id(&self, caller: &Caller, id: PaneId) -> Result<PaneId> {
         if id == 0 {
-            return self.current(caller).map(|c| c.pane).ok_or_else(|| Error::not_found("there is no current pane"));
+            return self
+                .current(caller)
+                .map(|c| c.pane)
+                .ok_or_else(|| Error::not_found("there is no current pane"));
         }
-        self.panes.contains_key(&id).then_some(id).ok_or_else(|| Error::not_found(format!("no pane %{id}")))
+        self.panes
+            .contains_key(&id)
+            .then_some(id)
+            .ok_or_else(|| Error::not_found(format!("no pane %{id}")))
     }
 
     /// The session a tab is in; of several, the one used last.
@@ -626,7 +717,12 @@ impl Kernel {
     }
 
     /// The options a pane reads, narrowest first.
-    pub fn chain(&self, pane: Option<PaneId>, tab: Option<TabId>, session: Option<SessionId>) -> Vec<Key> {
+    pub fn chain(
+        &self,
+        pane: Option<PaneId>,
+        tab: Option<TabId>,
+        session: Option<SessionId>,
+    ) -> Vec<Key> {
         let tab = tab.or_else(|| pane.and_then(|p| self.tab_of_pane(p)));
         let session = session.or_else(|| tab.and_then(|t| self.session_of_tab(t)));
         let mut chain = Vec::with_capacity(4);
@@ -638,11 +734,17 @@ impl Kernel {
     }
 
     pub fn pane_option(&self, pane: PaneId, name: &str) -> Value {
-        self.options.get(name, &self.chain(Some(pane), None, None)).map(|(v, _)| v).unwrap_or(Value::Null)
+        self.options
+            .get(name, &self.chain(Some(pane), None, None))
+            .map(|(v, _)| v)
+            .unwrap_or(Value::Null)
     }
 
     pub fn global_option(&self, name: &str) -> Value {
-        self.options.get(name, &[Key::Global]).map(|(v, _)| v).unwrap_or(Value::Null)
+        self.options
+            .get(name, &[Key::Global])
+            .map(|(v, _)| v)
+            .unwrap_or(Value::Null)
     }
 
     /// The cells a tab is laid out in: the size of the client that used a session holding it
@@ -652,7 +754,11 @@ impl Kernel {
             .chans
             .values()
             .filter_map(|c| c.ui.as_ref())
-            .filter(|ui| self.sessions.get(&ui.session).is_some_and(|s| s.tabs.iter().any(|(_, t)| *t == tab)))
+            .filter(|ui| {
+                self.sessions
+                    .get(&ui.session)
+                    .is_some_and(|s| s.tabs.iter().any(|(_, t)| *t == tab))
+            })
             .max_by_key(|ui| self.sessions[&ui.session].activity);
         let parse = |text: &str| {
             let (w, h) = text.split_once('x')?;
@@ -660,9 +766,18 @@ impl Kernel {
         };
         let (width, height) = match client {
             Some(ui) => (ui.width, ui.height),
-            None => self.global_option("default_size").as_str().and_then(parse).unwrap_or((80, 24)),
+            None => self
+                .global_option("default_size")
+                .as_str()
+                .and_then(parse)
+                .unwrap_or((80, 24)),
         };
-        Rect { x: 0, y: 0, width: width.max(1), height: height.max(1) }
+        Rect {
+            x: 0,
+            y: 0,
+            width: width.max(1),
+            height: height.max(1),
+        }
     }
 
     // ---- changes, which are the core's
@@ -679,14 +794,30 @@ impl Kernel {
     }
 
     /// Sets an option through the core (the host as the caller).
-    pub fn set_option(&mut self, name: &str, key: Key, value: Value, source: &str, _internal: bool) -> Result<bool> {
+    pub fn set_option(
+        &mut self,
+        name: &str,
+        key: Key,
+        value: Value,
+        source: &str,
+        _internal: bool,
+    ) -> Result<bool> {
         let opts = key_opts(key);
-        let caller = Caller { channel: SERVER, source: Some(source.to_string()), ..Caller::default() };
+        let caller = Caller {
+            channel: SERVER,
+            source: Some(source.to_string()),
+            ..Caller::default()
+        };
         if self.core.is_none() {
             return Ok(self.options.set(name, key, value, source, true)?.is_some());
         }
         let value = self.options.coerce(name, value)?;
-        self.call_core(&caller, "pumi_core_set_option_value", json!([name, value, opts])).map(|_| true)
+        self.call_core(
+            &caller,
+            "pumi_core_set_option_value",
+            json!([name, value, opts]),
+        )
+        .map(|_| true)
     }
 
     pub fn unset_option(&mut self, name: &str, key: Key, source: &str) {
@@ -696,9 +827,15 @@ impl Kernel {
     /// Where each pane of a tab is in its area (`tab_area`): its layout's cells, the active pane
     /// alone when zoomed, and the floats over it.
     pub fn tab_rects(&self, tab: TabId) -> Vec<(PaneId, Rect)> {
-        let Some(t) = self.tabs.get(&tab) else { return Vec::new() };
+        let Some(t) = self.tabs.get(&tab) else {
+            return Vec::new();
+        };
         let area = self.tab_area(tab);
-        let mut rects = if t.zoomed { vec![(t.active, area)] } else { t.layout.rects(area) };
+        let mut rects = if t.zoomed {
+            vec![(t.active, area)]
+        } else {
+            t.layout.rects(area)
+        };
         rects.extend(self.panes.values().filter_map(|p| match &p.place {
             Place::Float { tab: ft, float } if *ft == tab => Some((
                 p.id,
@@ -717,7 +854,10 @@ impl Kernel {
     /// Where a pane is in its tab, in cells (tmux's `pane_left`, `pane_top`, …).
     pub fn pane_rect(&self, pane: PaneId) -> Option<Rect> {
         let tab = self.panes.get(&pane)?.place.tab()?;
-        self.tab_rects(tab).into_iter().find(|(p, _)| *p == pane).map(|(_, r)| r)
+        self.tab_rects(tab)
+            .into_iter()
+            .find(|(p, _)| *p == pane)
+            .map(|(_, r)| r)
     }
 
     /// Sends a message to a channel (through the core), or to Lua.
@@ -753,7 +893,11 @@ impl Kernel {
     }
 
     pub fn local_options(&self, key: Key) -> Map<String, Value> {
-        self.options.local(key).into_iter().map(|(name, set)| (name, set.value)).collect()
+        self.options
+            .local(key)
+            .into_iter()
+            .map(|(name, set)| (name, set.value))
+            .collect()
     }
 }
 
@@ -770,6 +914,9 @@ pub fn key_opts(key: Key) -> Value {
 
 impl std::fmt::Debug for Kernel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Kernel").field("sessions", &self.sessions).field("panes", &self.panes).finish()
+        f.debug_struct("Kernel")
+            .field("sessions", &self.sessions)
+            .field("panes", &self.panes)
+            .finish()
     }
 }

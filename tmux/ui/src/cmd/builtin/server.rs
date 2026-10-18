@@ -13,8 +13,7 @@ use crate::cmd::Cmd;
 use crate::cmd::{Flow, Queue, expand, target};
 use crate::kernel::ChanId;
 
-pub const LIST_CLIENTS: &str =
-    "#{client_name}: #{session_name} [#{client_width}x#{client_height} #{client_termname}] (#{client_flags})";
+pub const LIST_CLIENTS: &str = "#{client_name}: #{session_name} [#{client_width}x#{client_height} #{client_termname}] (#{client_flags})";
 
 pub fn start_server(_: &mut Cx, _: &mut Queue, _: &Parsed) -> Result<Flow> {
     Ok(Flow::Next)
@@ -30,7 +29,12 @@ pub fn kill_server(cx: &mut Cx, _: &mut Queue, _: &Parsed) -> Result<Flow> {
 fn client(cx: &mut Cx, flag: Option<&str>) -> Result<ChanId> {
     let caller = cx.caller().channel;
     let k = kernel(cx);
-    let uis: Vec<ChanId> = k.chans.values().filter(|c| c.ui.is_some()).map(|c| c.id).collect();
+    let uis: Vec<ChanId> = k
+        .chans
+        .values()
+        .filter(|c| c.ui.is_some())
+        .map(|c| c.id)
+        .collect();
     if let Some(name) = flag {
         let id = name.trim_start_matches("client").parse::<u64>().ok();
         return k
@@ -43,15 +47,21 @@ fn client(cx: &mut Cx, flag: Option<&str>) -> Result<ChanId> {
     if uis.contains(&caller) {
         return Ok(caller);
     }
-    let last = uis
-        .iter()
-        .copied()
-        .max_by_key(|c| k.chans[c].ui.as_ref().and_then(|u| k.sessions.get(&u.session)).map_or(0, |s| s.activity));
+    let last = uis.iter().copied().max_by_key(|c| {
+        k.chans[c]
+            .ui
+            .as_ref()
+            .and_then(|u| k.sessions.get(&u.session))
+            .map_or(0, |s| s.activity)
+    });
     last.ok_or_else(|| Error::not_found("no current client"))
 }
 
 fn as_client(cx: &mut Cx, client: ChanId, name: &str, args: Value) -> Result<Value> {
-    let caller = Caller { channel: client, ..Caller::default() };
+    let caller = Caller {
+        channel: client,
+        ..Caller::default()
+    };
     cx.as_caller(&caller, |cx| cx.call(name, args))
 }
 
@@ -59,30 +69,51 @@ fn as_client(cx: &mut Cx, client: ChanId, name: &str, args: Value) -> Result<Val
 /// a window; from a shell, the client used last switches to it.
 pub fn attach_session(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let session = target(cx, p.get('t'), Kind::Session)?.session;
-    let client =
-        client(cx, None).map_err(|_| Error::not_found("no client to attach: open pumi, or run new-session -d"))?;
+    let client = client(cx, None)
+        .map_err(|_| Error::not_found("no client to attach: open pumi, or run new-session -d"))?;
     as_client(cx, client, "pumi_set_current_session", json!([session]))?;
-    if let Some(pane) = p.get('t').and_then(|_| target(cx, p.get('t'), Kind::Pane).ok()).and_then(|f| f.pane) {
+    if let Some(pane) = p
+        .get('t')
+        .and_then(|_| target(cx, p.get('t'), Kind::Pane).ok())
+        .and_then(|f| f.pane)
+    {
         as_client(cx, client, "pumi_set_current_pane", json!([pane]))?;
     }
     let k = kernel(cx);
-    k.send(client, pumi_api::rpc::notification("pumi_attach", json!([session])));
+    k.send(
+        client,
+        pumi_api::rpc::notification("pumi_attach", json!([session])),
+    );
     Ok(Flow::Next)
 }
 
 /// `detach-client [-aP] [-E command] [-s session] [-t client]`.
 pub fn detach_client(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let k = kernel(cx);
-    let uis: Vec<(ChanId, u64)> = k.chans.values().filter_map(|c| c.ui.as_ref().map(|u| (c.id, u.session))).collect();
+    let uis: Vec<(ChanId, u64)> = k
+        .chans
+        .values()
+        .filter_map(|c| c.ui.as_ref().map(|u| (c.id, u.session)))
+        .collect();
     let doomed: Vec<ChanId> = if let Some(session) = p.get('s') {
         let session = target(cx, Some(session), Kind::Session)?.session;
-        uis.iter().filter(|(_, s)| *s == session).map(|(c, _)| *c).collect()
+        uis.iter()
+            .filter(|(_, s)| *s == session)
+            .map(|(c, _)| *c)
+            .collect()
     } else {
         let one = client(cx, p.get('t'))?;
-        if p.has('a') { uis.iter().map(|(c, _)| *c).filter(|c| *c != one).collect() } else { vec![one] }
+        if p.has('a') {
+            uis.iter().map(|(c, _)| *c).filter(|c| *c != one).collect()
+        } else {
+            vec![one]
+        }
     };
     for client in doomed {
-        kernel(cx).send(client, pumi_api::rpc::notification("pumi_detach", json!([])));
+        kernel(cx).send(
+            client,
+            pumi_api::rpc::notification("pumi_detach", json!([])),
+        );
         as_client(cx, client, "pumi_ui_detach", json!([]))?;
     }
     Ok(Flow::Next)
@@ -102,7 +133,11 @@ pub fn switch_client(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow
     }
     let k = kernel(cx);
     let current = k.chans[&client].ui.as_ref().map(|u| u.session).unwrap_or(0);
-    let mut order: Vec<(String, u64)> = k.sessions.values().map(|s| (s.name.clone(), s.id)).collect();
+    let mut order: Vec<(String, u64)> = k
+        .sessions
+        .values()
+        .map(|s| (s.name.clone(), s.id))
+        .collect();
     order.sort();
     let at = order.iter().position(|(_, id)| *id == current);
     let session = if p.has('n') || p.has('p') {
@@ -121,11 +156,19 @@ pub fn switch_client(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow
             .map(|s| s.id)
             .ok_or_else(|| Error::not_found("no last session"))?
     } else {
-        let found = target(cx, p.get('t'), Kind::Pane).or_else(|_| target(cx, p.get('t'), Kind::Session))?;
-        if let Some(pane) = found.pane.filter(|_| p.get('t').is_some_and(|t| t.contains(['.', '%', ':'])))
+        let found = target(cx, p.get('t'), Kind::Pane)
+            .or_else(|_| target(cx, p.get('t'), Kind::Session))?;
+        if let Some(pane) = found
+            .pane
+            .filter(|_| p.get('t').is_some_and(|t| t.contains(['.', '%', ':'])))
             && found.tab.is_some()
         {
-            as_client(cx, client, "pumi_set_current_session", json!([found.session]))?;
+            as_client(
+                cx,
+                client,
+                "pumi_set_current_session",
+                json!([found.session]),
+            )?;
             as_client(cx, client, "pumi_set_current_pane", json!([pane]))?;
             return Ok(Flow::Next);
         }
@@ -137,11 +180,18 @@ pub fn switch_client(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow
 
 /// `list-clients [-r] [-F format] [-f filter] [-t session] [--json]`.
 pub fn list_clients(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
-    let session = p.get('t').map(|t| target(cx, Some(t), Kind::Session)).transpose()?.map(|f| f.session);
+    let session = p
+        .get('t')
+        .map(|t| target(cx, Some(t), Kind::Session))
+        .transpose()?
+        .map(|f| f.session);
     let k = kernel(cx);
     let format = p.get('F').unwrap_or(LIST_CLIENTS).to_string();
-    let mut clients: Vec<(ChanId, u64)> =
-        k.chans.values().filter_map(|c| c.ui.as_ref().map(|u| (c.id, u.session))).collect();
+    let mut clients: Vec<(ChanId, u64)> = k
+        .chans
+        .values()
+        .filter_map(|c| c.ui.as_ref().map(|u| (c.id, u.session)))
+        .collect();
     if p.has('r') {
         clients.reverse();
     }
@@ -149,7 +199,12 @@ pub fn list_clients(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
         if session.is_some_and(|want| want != s) {
             continue;
         }
-        let mut fmt = crate::kernel::format::Fmt::new(k, Some(s).filter(|s| k.sessions.contains_key(s)), None, None);
+        let mut fmt = crate::kernel::format::Fmt::new(
+            k,
+            Some(s).filter(|s| k.sessions.contains_key(s)),
+            None,
+            None,
+        );
         fmt.client = Some(client);
         fmt.extra = Some(&queue.vars);
         if let Some(filter) = p.get('f')
@@ -172,8 +227,9 @@ pub fn list_clients(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> 
 pub fn refresh_client(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     if let Some(size) = p.get('C') {
         let client = client(cx, p.get('t'))?;
-        let (w, h) =
-            size.split_once(['x', ',']).ok_or_else(|| Error::invalid_params(format!("bad size argument: {size}")))?;
+        let (w, h) = size
+            .split_once(['x', ','])
+            .ok_or_else(|| Error::invalid_params(format!("bad size argument: {size}")))?;
         let (w, h): (u32, u32) = (
             w.parse().map_err(|_| Error::invalid_params("bad width"))?,
             h.parse().map_err(|_| Error::invalid_params("bad height"))?,
@@ -187,20 +243,29 @@ pub fn refresh_client(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flo
 pub fn show_messages(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     if p.has('J') || p.has('T') {
         let k = kernel(cx);
-        queue.print(format!("pumi {} (tmux runs in the app)", crate::kernel::version()));
+        queue.print(format!(
+            "pumi {} (tmux runs in the app)",
+            crate::kernel::version()
+        ));
         queue.print(format!("socket {}", k.config.socket.display()));
         return Ok(Flow::Next);
     }
     // The host's (notifications, Lua's errors) and pumi-tmux's own (errors in queues), in order.
-    let mut messages: Vec<crate::kernel::Message> =
-        call(cx, "pumi_list_messages", json!([])).ok().and_then(|v| serde_json::from_value(v).ok()).unwrap_or_default();
+    let mut messages: Vec<crate::kernel::Message> = call(cx, "pumi_list_messages", json!([]))
+        .ok()
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default();
     messages.extend(kernel(cx).messages.iter().cloned());
     messages.sort_by_key(|m| m.at);
     let lines: Vec<String> = messages
         .iter()
         .map(|m| {
             let at = local_time(m.at);
-            if m.level == "info" { format!("{at}: {}", m.text) } else { format!("{at}: [{}] {}", m.level, m.text) }
+            if m.level == "info" {
+                format!("{at}: {}", m.text)
+            } else {
+                format!("{at}: [{}] {}", m.level, m.text)
+            }
         })
         .collect();
     for line in lines {
@@ -222,20 +287,31 @@ pub fn list_commands(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow>
     let format = p.get('F').map(str::to_string);
     for (name, info) in commands.as_object().cloned().unwrap_or_default() {
         if p.arg(0).is_some_and(|want| {
-            want != name && !info["aliases"].as_array().is_some_and(|a| a.iter().any(|x| x == want))
+            want != name
+                && !info["aliases"]
+                    .as_array()
+                    .is_some_and(|a| a.iter().any(|x| x == want))
         }) {
             continue;
         }
-        let alias =
-            info["aliases"].as_array().and_then(|a| a.iter().filter_map(Value::as_str).next_back()).map(str::to_string);
+        let alias = info["aliases"]
+            .as_array()
+            .and_then(|a| a.iter().filter_map(Value::as_str).next_back())
+            .map(str::to_string);
         let usage = info["usage"].as_str().unwrap_or("").to_string();
         match &format {
             Some(format) => {
                 let mut vars = queue.vars.clone();
                 vars.insert("command_list_name".into(), name.clone());
-                vars.insert("command_list_alias".into(), alias.clone().unwrap_or_default());
+                vars.insert(
+                    "command_list_alias".into(),
+                    alias.clone().unwrap_or_default(),
+                );
                 vars.insert("command_list_usage".into(), usage.clone());
-                let shadow = Queue { vars, ..super::shell(queue) };
+                let shadow = Queue {
+                    vars,
+                    ..super::shell(queue)
+                };
                 let line = expand(kernel(cx), &shadow, None, None, None, format);
                 queue.print(line);
             }
@@ -280,7 +356,9 @@ pub fn packadd(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 /// `text` as a Lua long string, whatever it holds.
 pub(crate) fn lua_string(text: &str) -> String {
     let mut level = 0;
-    while text.contains(&format!("]{}]", "=".repeat(level))) || text.ends_with(&format!("]{}", "=".repeat(level))) {
+    while text.contains(&format!("]{}]", "=".repeat(level)))
+        || text.ends_with(&format!("]{}", "=".repeat(level)))
+    {
         level += 1;
     }
     let eq = "=".repeat(level);
@@ -290,7 +368,9 @@ pub(crate) fn lua_string(text: &str) -> String {
 }
 
 pub fn restart(_: &mut Cx, _: &mut Queue, _: &Parsed) -> Result<Flow> {
-    Err(Error::invalid_params("restart comes with the client rewrite (phase 4); kill-server stops the server"))
+    Err(Error::invalid_params(
+        "restart comes with the client rewrite (phase 4); kill-server stops the server",
+    ))
 }
 
 /// `checkhealth [section]` (Neovim's `:checkhealth`): what the server is, and what is wrong.
@@ -309,8 +389,19 @@ pub fn checkhealth(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         ),
     );
     ok(queue, format!("socket {}", k.config.socket.display()));
-    ok(queue, format!("the core's data in {}", k.config.data.display()));
-    ok(queue, format!("{} sessions, {} tabs, {} panes", k.sessions.len(), k.tabs.len(), k.panes.len()));
+    ok(
+        queue,
+        format!("the core's data in {}", k.config.data.display()),
+    );
+    ok(
+        queue,
+        format!(
+            "{} sessions, {} tabs, {} panes",
+            k.sessions.len(),
+            k.tabs.len(),
+            k.panes.len()
+        ),
+    );
     ok(
         queue,
         format!(
@@ -320,9 +411,20 @@ pub fn checkhealth(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         ),
     );
     match &k.config.bin_dir {
-        Some(dir) if dir.join("pumi").exists() => ok(queue, format!("the pumi CLI is in {}", dir.display())),
-        Some(dir) => warn(queue, format!("no pumi CLI in {}: panes cannot run pumi or tmux", dir.display())),
-        None => warn(queue, "no bin directory: panes cannot run pumi or tmux".into()),
+        Some(dir) if dir.join("pumi").exists() => {
+            ok(queue, format!("the pumi CLI is in {}", dir.display()))
+        }
+        Some(dir) => warn(
+            queue,
+            format!(
+                "no pumi CLI in {}: panes cannot run pumi or tmux",
+                dir.display()
+            ),
+        ),
+        None => warn(
+            queue,
+            "no bin directory: panes cannot run pumi or tmux".into(),
+        ),
     }
     let shell = k.global_option("default_shell");
     if let Some(shell) = shell.as_str().filter(|s| !s.is_empty())
@@ -330,8 +432,14 @@ pub fn checkhealth(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     {
         warn(queue, format!("default-shell {shell} does not exist"));
     }
-    let errors: Vec<String> =
-        k.messages.iter().rev().filter(|m| m.level == "error").take(5).map(|m| m.text.clone()).collect();
+    let errors: Vec<String> = k
+        .messages
+        .iter()
+        .rev()
+        .filter(|m| m.level == "error")
+        .take(5)
+        .map(|m| m.text.clone())
+        .collect();
     if errors.is_empty() {
         ok(queue, "no errors in show-messages".into());
     }

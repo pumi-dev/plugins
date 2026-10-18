@@ -24,8 +24,13 @@ pub enum AgentStatus {
 }
 
 impl AgentStatus {
-    pub const ALL: [AgentStatus; 5] =
-        [AgentStatus::Idle, AgentStatus::Working, AgentStatus::Blocked, AgentStatus::Done, AgentStatus::Unknown];
+    pub const ALL: [AgentStatus; 5] = [
+        AgentStatus::Idle,
+        AgentStatus::Working,
+        AgentStatus::Blocked,
+        AgentStatus::Done,
+        AgentStatus::Unknown,
+    ];
 
     pub fn as_str(self) -> &'static str {
         match self {
@@ -38,7 +43,9 @@ impl AgentStatus {
     }
 
     pub fn parse(value: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|status| status.as_str() == value)
+        Self::ALL
+            .into_iter()
+            .find(|status| status.as_str() == value)
     }
 }
 

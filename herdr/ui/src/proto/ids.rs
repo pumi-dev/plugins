@@ -25,8 +25,12 @@ pub fn decode(value: &str) -> Option<usize> {
     }
     let mut decoded = 0usize;
     for ch in value.chars() {
-        let digit = ALPHABET.iter().position(|candidate| *candidate as char == ch)?;
-        decoded = decoded.checked_mul(ALPHABET.len())?.checked_add(digit + 1)?;
+        let digit = ALPHABET
+            .iter()
+            .position(|candidate| *candidate as char == ch)?;
+        decoded = decoded
+            .checked_mul(ALPHABET.len())?
+            .checked_add(digit + 1)?;
     }
     Some(decoded)
 }

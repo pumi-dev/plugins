@@ -168,13 +168,22 @@ pub fn set_hook(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     if let Some(spec) = p.get('B') {
         return monitor(cx, p, spec);
     }
-    let name = p.arg(0).ok_or_else(|| Error::invalid_params("no hook"))?.to_string();
+    let name = p
+        .arg(0)
+        .ok_or_else(|| Error::invalid_params("no hook"))?
+        .to_string();
     if p.has('E') {
         if !name.starts_with('@') {
-            return Err(Error::invalid_params(format!("user events begin with @: {name}")));
+            return Err(Error::invalid_params(format!(
+                "user events begin with @: {name}"
+            )));
         }
         let pane = kernel(cx).current(&queue.caller).map(|c| c.pane);
-        call(cx, "pumi_exec_autocmds", json!(["User", {"pattern": name, "pane": pane, "data": {}}]))?;
+        call(
+            cx,
+            "pumi_exec_autocmds",
+            json!(["User", {"pattern": name, "pane": pane, "data": {}}]),
+        )?;
         return Ok(Flow::Next);
     }
     let group = group(&name);
@@ -202,7 +211,11 @@ pub fn set_hook(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     };
     // Checked now, so a hook that cannot parse fails here rather than each time it fires.
     crate::cmd::parse_text(cx, queue, &command)?;
-    call(cx, "pumi_create_augroup", json!([group, {"clear": !p.has('a')}]))?;
+    call(
+        cx,
+        "pumi_create_augroup",
+        json!([group, {"clear": !p.has('a')}]),
+    )?;
     let (event, pattern) = hook_event(cx, &name);
     let mut opts = json!({ "group": group, "command": command, "desc": name });
     if let Some(pattern) = pattern {
@@ -216,10 +229,14 @@ pub fn set_hook(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 fn monitor(cx: &mut Cx, p: &Parsed, spec: &str) -> Result<Flow> {
     let mut parts = spec.splitn(3, ':');
     let (Some(name), Some(what), Some(format)) = (parts.next(), parts.next(), parts.next()) else {
-        return Err(Error::invalid_params(format!("a monitor is name:what:format, not {spec}")));
+        return Err(Error::invalid_params(format!(
+            "a monitor is name:what:format, not {spec}"
+        )));
     };
     if !name.starts_with('@') {
-        return Err(Error::invalid_params(format!("monitor names begin with @: {name}")));
+        return Err(Error::invalid_params(format!(
+            "monitor names begin with @: {name}"
+        )));
     }
     let k = kernel(cx);
     k.cmd().monitors.retain(|m| m.name != name);
@@ -232,7 +249,9 @@ fn monitor(cx: &mut Cx, p: &Parsed, spec: &str) -> Result<Flow> {
         )));
     }
     let found = target(cx, p.get('t'), Kind::Pane).ok();
-    let anchor = found.map(|f| (Some(f.session), f.tab, f.pane)).unwrap_or((None, None, None));
+    let anchor = found
+        .map(|f| (Some(f.session), f.tab, f.pane))
+        .unwrap_or((None, None, None));
     let k = kernel(cx);
     k.cmd().monitors.push(Monitor {
         name: name.into(),
@@ -268,15 +287,23 @@ pub fn check_monitors(cx: &mut Cx) {
         for monitor in monitors {
             let (session, tab, pane) = monitor.anchor;
             let objects: Vec<Watched> = match monitor.what.as_str() {
-                "session" => session.map(|s| vec![(s, Some(s), None, None)]).unwrap_or_default(),
-                "window" => tab.map(|t| vec![(t, session, Some(t), None)]).unwrap_or_default(),
+                "session" => session
+                    .map(|s| vec![(s, Some(s), None, None)])
+                    .unwrap_or_default(),
+                "window" => tab
+                    .map(|t| vec![(t, session, Some(t), None)])
+                    .unwrap_or_default(),
                 "windows" => k.tabs.keys().map(|t| (*t, None, Some(*t), None)).collect(),
                 "panes" => k.panes.keys().map(|p| (*p, None, None, Some(*p))).collect(),
-                _ => pane.map(|p| vec![(p, None, None, Some(p))]).unwrap_or_default(),
+                _ => pane
+                    .map(|p| vec![(p, None, None, Some(p))])
+                    .unwrap_or_default(),
             };
             let mut monitor = monitor;
             for (id, s, t, p) in objects {
-                if p.is_some_and(|p| !k.panes.contains_key(&p)) || t.is_some_and(|t| !k.tabs.contains_key(&t)) {
+                if p.is_some_and(|p| !k.panes.contains_key(&p))
+                    || t.is_some_and(|t| !k.tabs.contains_key(&t))
+                {
                     continue;
                 }
                 let fmt = crate::kernel::format::Fmt::new(k, s, t, p);
@@ -301,7 +328,10 @@ pub fn check_monitors(cx: &mut Cx) {
         k.cmd().monitors = updated;
     }
     for (name, pane, data) in fired {
-        let about = About { pane, ..About::default() };
+        let about = About {
+            pane,
+            ..About::default()
+        };
         kernel(cx).emit("User", &name, about, data);
     }
 }
@@ -311,12 +341,20 @@ pub fn show_hooks(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let autocmds = call(cx, "pumi_get_autocmds", json!([{}]))?;
     let mut by_hook: std::collections::BTreeMap<String, Vec<String>> = Default::default();
     for autocmd in autocmds.as_array().cloned().unwrap_or_default() {
-        let Some(group) = autocmd["group_name"].as_str().and_then(|g| g.strip_prefix("hook:")) else { continue };
+        let Some(group) = autocmd["group_name"]
+            .as_str()
+            .and_then(|g| g.strip_prefix("hook:"))
+        else {
+            continue;
+        };
         if p.arg(0).is_some_and(|want| want != group) {
             continue;
         }
         if let Some(command) = autocmd["command"].as_str() {
-            by_hook.entry(group.to_string()).or_default().push(command.to_string());
+            by_hook
+                .entry(group.to_string())
+                .or_default()
+                .push(command.to_string());
         }
     }
     for (hook, commands) in by_hook {
@@ -326,7 +364,10 @@ pub fn show_hooks(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     }
     if p.has('B') {
         for monitor in &kernel(cx).cmd().monitors {
-            queue.print(format!("{}:{}:{}", monitor.name, monitor.what, monitor.format));
+            queue.print(format!(
+                "{}:{}:{}",
+                monitor.name, monitor.what, monitor.format
+            ));
         }
     }
     Ok(Flow::Next)
@@ -351,13 +392,19 @@ pub fn wait_for(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         return Ok(Flow::Next);
     }
     if let Some(waiter) = p.get('w') {
-        let id: u64 = waiter.parse().map_err(|_| Error::invalid_params(format!("no waiter {waiter}")))?;
+        let id: u64 = waiter
+            .parse()
+            .map_err(|_| Error::invalid_params(format!("no waiter {waiter}")))?;
         crate::cmd::resume(cx, id, Outcome::default());
         return Ok(Flow::Next);
     }
     if p.has('L') {
         let k = kernel(cx);
-        return Ok(if crate::cmd::channel_lock(k, queue, &name) { Flow::Wait } else { Flow::Next });
+        return Ok(if crate::cmd::channel_lock(k, queue, &name) {
+            Flow::Wait
+        } else {
+            Flow::Next
+        });
     }
     if p.has('E') {
         let (event, pattern) = hook_event(cx, &name);
@@ -365,7 +412,10 @@ pub fn wait_for(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         let verbose = p.has('v');
         let vars = queue.vars.clone();
         crate::cmd::wait_for_event(kernel(cx), queue, vec![event], move |cx, event| {
-            if pattern.as_ref().is_some_and(|want| !pumi_lang::format::fnmatch(want, &event.matched, false)) {
+            if pattern
+                .as_ref()
+                .is_some_and(|want| !pumi_lang::format::fnmatch(want, &event.matched, false))
+            {
                 return None;
             }
             let mut output = String::new();
@@ -389,12 +439,19 @@ pub fn wait_for(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                     return None;
                 }
             }
-            Some(Outcome { output, ..Outcome::default() })
+            Some(Outcome {
+                output,
+                ..Outcome::default()
+            })
         });
         return Ok(Flow::Wait);
     }
     let k = kernel(cx);
-    Ok(if crate::cmd::channel_wait(k, queue, &name) { Flow::Wait } else { Flow::Next })
+    Ok(if crate::cmd::channel_wait(k, queue, &name) {
+        Flow::Wait
+    } else {
+        Flow::Next
+    })
 }
 
 /// `autocmd [group] event[,event] pattern [++once] command…` (Neovim's `:autocmd`); alone, it
@@ -406,19 +463,36 @@ pub fn autocmd(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         for a in autocmds.as_array().cloned().unwrap_or_default() {
             let events: Vec<String> = a["event"]
                 .as_array()
-                .map(|e| e.iter().filter_map(Value::as_str).map(str::to_string).collect())
+                .map(|e| {
+                    e.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect()
+                })
                 .unwrap_or_default();
             let patterns: Vec<String> = a["pattern"]
                 .as_array()
-                .map(|e| e.iter().filter_map(Value::as_str).map(str::to_string).collect())
+                .map(|e| {
+                    e.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect()
+                })
                 .unwrap_or_default();
             let action = a["command"]
                 .as_str()
                 .map(str::to_string)
                 .or_else(|| a["chan"].as_u64().map(|c| format!("(chan {c})")))
                 .unwrap_or_else(|| "(callback)".into());
-            let group = a["group_name"].as_str().map(|g| format!("{g} ")).unwrap_or_default();
-            let patterns = if patterns.is_empty() { "*".to_string() } else { patterns.join(",") };
+            let group = a["group_name"]
+                .as_str()
+                .map(|g| format!("{g} "))
+                .unwrap_or_default();
+            let patterns = if patterns.is_empty() {
+                "*".to_string()
+            } else {
+                patterns.join(",")
+            };
             queue.print(format!("{group}{} {patterns} {action}", events.join(",")));
         }
         return Ok(Flow::Next);
@@ -429,7 +503,10 @@ pub fn autocmd(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         group = Some(first);
         words.remove(0);
     }
-    let events_word = words.first().map(Arg::to_text).ok_or_else(|| Error::invalid_params("autocmd needs an event"))?;
+    let events_word = words
+        .first()
+        .map(Arg::to_text)
+        .ok_or_else(|| Error::invalid_params("autocmd needs an event"))?;
     let mut events = Vec::new();
     let mut hook_pattern = None;
     for name in events_word.split(',') {
@@ -437,7 +514,10 @@ pub fn autocmd(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         events.push(event);
         hook_pattern = hook_pattern.or(pattern);
     }
-    let pattern = words.get(1).map(Arg::to_text).ok_or_else(|| Error::invalid_params("autocmd needs a pattern"))?;
+    let pattern = words
+        .get(1)
+        .map(Arg::to_text)
+        .ok_or_else(|| Error::invalid_params("autocmd needs a pattern"))?;
     let mut rest: Vec<Arg> = words[2..].to_vec();
     let once = rest.first().and_then(Arg::as_str) == Some("++once");
     if once {
@@ -447,10 +527,18 @@ pub fn autocmd(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
         [] => return Err(Error::invalid_params("autocmd needs a command")),
         [Arg::Commands(list)] => print_list(list),
         [Arg::String(one)] => one.clone(),
-        [first, others @ ..] => print(&Command { name: first.to_text(), args: others.to_vec(), line: 0 }),
+        [first, others @ ..] => print(&Command {
+            name: first.to_text(),
+            args: others.to_vec(),
+            line: 0,
+        }),
     };
     let mut opts = json!({ "command": command, "once": once });
-    let pattern = if pattern == "*" { hook_pattern } else { Some(pattern) };
+    let pattern = if pattern == "*" {
+        hook_pattern
+    } else {
+        Some(pattern)
+    };
     if let Some(pattern) = pattern {
         opts["pattern"] = json!(pattern);
     }
@@ -484,10 +572,16 @@ pub fn autocmd_clear(cx: &mut Cx, _queue: &mut Queue, p: &Parsed) -> Result<Flow
 /// `doautocmd [group] event [pattern]` (Neovim's `:doautocmd`; `doautocmd User Built`).
 pub fn doautocmd(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let mut words = p.words();
-    if words.first().is_some_and(|w| group_exists(cx, w) && !EVENTS.contains(&w.as_str())) {
+    if words
+        .first()
+        .is_some_and(|w| group_exists(cx, w) && !EVENTS.contains(&w.as_str()))
+    {
         words.remove(0);
     }
-    let event = words.first().ok_or_else(|| Error::invalid_params("doautocmd needs an event"))?.clone();
+    let event = words
+        .first()
+        .ok_or_else(|| Error::invalid_params("doautocmd needs an event"))?
+        .clone();
     let pane = kernel(cx).current(&queue.caller).map(|c| c.pane);
     let mut opts = json!({ "pane": pane, "data": {} });
     if let Some(pattern) = words.get(1) {

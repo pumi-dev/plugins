@@ -23,7 +23,10 @@ pub enum Want {
     /// Every event of this snake name.
     Lifecycle(&'static str),
     /// A pane's agent status changes, perhaps only to one status.
-    Status { pane_id: String, status: Option<String> },
+    Status {
+        pane_id: String,
+        status: Option<String>,
+    },
 }
 
 impl Want {
@@ -34,7 +37,9 @@ impl Want {
             Want::Status { pane_id, status } => {
                 name == "pane.agent_status_changed"
                     && envelope["data"]["pane_id"] == pane_id.as_str()
-                    && status.as_ref().is_none_or(|s| envelope["data"]["agent_status"] == s.as_str())
+                    && status
+                        .as_ref()
+                        .is_none_or(|s| envelope["data"]["agent_status"] == s.as_str())
             }
         }
     }
@@ -76,7 +81,9 @@ pub fn closed(conn: u64) {
 /// What a connection sent, as the complete lines it now holds.
 pub fn push(conn: u64, bytes: &[u8]) -> Vec<String> {
     with(|state| {
-        let Some(conn) = state.conns.get_mut(&conn) else { return Vec::new() };
+        let Some(conn) = state.conns.get_mut(&conn) else {
+            return Vec::new();
+        };
         conn.line.extend_from_slice(bytes);
         let mut lines = Vec::new();
         while let Some(at) = conn.line.iter().position(|byte| *byte == b'\n') {

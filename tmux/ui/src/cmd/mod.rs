@@ -67,8 +67,11 @@ pub struct Environment {
 impl Environment {
     /// What a pane in `session` starts with, over the server's environment: set, or removed.
     pub fn for_session(&self, session: Option<SessionId>) -> BTreeMap<String, Option<String>> {
-        let mut out: BTreeMap<String, Option<String>> =
-            self.global.iter().map(|(k, v)| (k.clone(), v.value.clone())).collect();
+        let mut out: BTreeMap<String, Option<String>> = self
+            .global
+            .iter()
+            .map(|(k, v)| (k.clone(), v.value.clone()))
+            .collect();
         if let Some(vars) = session.and_then(|s| self.sessions.get(&s)) {
             out.extend(vars.iter().map(|(k, v)| (k.clone(), v.value.clone())));
         }
@@ -221,7 +224,9 @@ impl Cmd for Kernel {
     }
 
     fn cmd_ref(&self) -> &State {
-        self.ext.get::<State>().expect("pumi-tmux keeps its command state beside the mirror")
+        self.ext
+            .get::<State>()
+            .expect("pumi-tmux keeps its command state beside the mirror")
     }
 }
 
@@ -271,7 +276,13 @@ impl State {
                     buffer.data = data;
                     buffer.order = order;
                 }
-                None => self.buffers.push(Buffer { name: name.clone(), data, created, automatic: false, order }),
+                None => self.buffers.push(Buffer {
+                    name: name.clone(),
+                    data,
+                    created,
+                    automatic: false,
+                    order,
+                }),
             }
             return name;
         }
@@ -280,11 +291,21 @@ impl State {
             n += 1;
         }
         let name = format!("buffer{n}");
-        self.buffers.push(Buffer { name: name.clone(), data, created, automatic: true, order });
+        self.buffers.push(Buffer {
+            name: name.clone(),
+            data,
+            created,
+            automatic: true,
+            order,
+        });
         let automatic = self.buffers.iter().filter(|b| b.automatic).count();
         if automatic > limit.max(1) {
-            let mut auto: Vec<(u64, String)> =
-                self.buffers.iter().filter(|b| b.automatic).map(|b| (b.order, b.name.clone())).collect();
+            let mut auto: Vec<(u64, String)> = self
+                .buffers
+                .iter()
+                .filter(|b| b.automatic)
+                .map(|b| (b.order, b.name.clone()))
+                .collect();
             auto.sort();
             for (_, old) in auto.into_iter().take(automatic - limit.max(1)) {
                 self.buffers.retain(|b| b.name != old);
@@ -296,7 +317,8 @@ impl State {
     /// When the server must look at commands next: a timer, or the monitors.
     pub fn next_deadline(&self) -> Option<Instant> {
         let timers = self.timers.iter().map(|(at, _)| *at).min();
-        let monitors = (!self.monitors.is_empty()).then(|| self.next_monitor.unwrap_or_else(Instant::now));
+        let monitors =
+            (!self.monitors.is_empty()).then(|| self.next_monitor.unwrap_or_else(Instant::now));
         timers.into_iter().chain(monitors).min()
     }
 }
@@ -377,7 +399,11 @@ fn finish(cx: &mut Cx, queue: Queue, outcome: Result<()>) -> Option<Value> {
         Ok(()) => Ok(json!({ "output": queue.output, "status": queue.status })),
         Err(mut err) => {
             if !queue.output.is_empty() {
-                let mut data = err.data.take().and_then(|d| d.as_object().cloned()).unwrap_or_default();
+                let mut data = err
+                    .data
+                    .take()
+                    .and_then(|d| d.as_object().cloned())
+                    .unwrap_or_default();
                 data.insert("output".into(), json!(queue.output));
                 err.data = Some(Value::Object(data));
             }
@@ -392,7 +418,9 @@ fn finish(cx: &mut Cx, queue: Queue, outcome: Result<()>) -> Option<Value> {
         Some((DRIVEN, _)) => {
             let value = match result {
                 Ok(value) => value,
-                Err(err) => json!({ "error": err.message, "kind": err.kind.name(), "data": err.data }),
+                Err(err) => {
+                    json!({ "error": err.message, "kind": err.kind.name(), "data": err.data })
+                }
             };
             k.cmd().finished.insert(queue.id, value);
             None
@@ -417,7 +445,10 @@ pub fn into_result(value: Option<Value>) -> Result<Value> {
         None => Ok(json!({ "output": "", "status": null, "waiting": true })),
         Some(value) if value.get("error").is_some() => {
             let message = value["error"].as_str().unwrap_or("failed").to_string();
-            let kind = value["kind"].as_str().and_then(ErrorKind::from_name).unwrap_or(ErrorKind::Exception);
+            let kind = value["kind"]
+                .as_str()
+                .and_then(ErrorKind::from_name)
+                .unwrap_or(ErrorKind::Exception);
             let mut err = Error::new(kind, message);
             if !value["data"].is_null() {
                 err.data = Some(value["data"].clone());
@@ -458,7 +489,9 @@ pub fn drive(cx: &mut Cx, queue: u64) -> Option<Value> {
 
 /// Wakes a waiting queue and runs it on.
 pub fn resume(cx: &mut Cx, id: u64, outcome: Outcome) {
-    let Some(mut queue) = kernel(cx).cmd().queues.remove(&id) else { return };
+    let Some(mut queue) = kernel(cx).cmd().queues.remove(&id) else {
+        return;
+    };
     queue.output.push_str(&outcome.output);
     if outcome.status.is_some() {
         queue.status = outcome.status;
@@ -493,7 +526,10 @@ pub fn find(k: &Kernel, name: &str) -> Result<Found2> {
     if let Some(user) = k.cmd_ref().user.get(name) {
         return Ok(Found2::User(user.clone()));
     }
-    if let Some(entry) = table::ENTRIES.iter().find(|e| e.name == name || e.aliases.contains(&name)) {
+    if let Some(entry) = table::ENTRIES
+        .iter()
+        .find(|e| e.name == name || e.aliases.contains(&name))
+    {
         return Ok(Found2::Builtin(entry));
     }
     if let Some(aliases) = k.global_option("command_alias").as_array() {
@@ -513,7 +549,12 @@ pub fn find(k: &Kernel, name: &str) -> Result<Found2> {
     match prefixed.as_slice() {
         [one] => Ok(Found2::Builtin(one)),
         [] => {
-            let user: Vec<&UserCommand> = k.cmd_ref().user.values().filter(|u| u.name.starts_with(name)).collect();
+            let user: Vec<&UserCommand> = k
+                .cmd_ref()
+                .user
+                .values()
+                .filter(|u| u.name.starts_with(name))
+                .collect();
             match user.as_slice() {
                 [one] => Ok(Found2::User((*one).clone())),
                 _ => Err(Error::not_found(format!("unknown command: {name}"))),
@@ -542,12 +583,22 @@ fn exec(cx: &mut Cx, queue: &mut Queue, command: &Command) -> Result<Flow> {
         }
     };
     let mut longs: Vec<(&str, pumi_lang::cmd::Long)> = entry.longs.to_vec();
-    longs.extend(pumi_lang::cmd::COMMON_LONGS.iter().filter(|(n, _)| !entry.longs.iter().any(|(m, _)| m == n)));
+    longs.extend(
+        pumi_lang::cmd::COMMON_LONGS
+            .iter()
+            .filter(|(n, _)| !entry.longs.iter().any(|(m, _)| m == n)),
+    );
     let parsed = if entry.raw {
-        Parsed { args: command.args.clone(), ..Parsed::default() }
+        Parsed {
+            args: command.args.clone(),
+            ..Parsed::default()
+        }
     } else {
         parse_args(entry.template, entry.min, entry.max, &longs, &command.args).map_err(|err| {
-            Error::invalid_params(format!("{}: {}; usage: {} {}", entry.name, err.message, entry.name, entry.usage))
+            Error::invalid_params(format!(
+                "{}: {}; usage: {} {}",
+                entry.name, err.message, entry.name, entry.usage
+            ))
         })?
     };
     if parsed.has_long("help") {
@@ -565,8 +616,16 @@ fn exec(cx: &mut Cx, queue: &mut Queue, command: &Command) -> Result<Flow> {
     })?;
     // Who hears it is the host's (its autocmds), so it always goes.
     let k = kernel(cx);
-    let about = About { pane: queue.caller.pane, ..About::default() };
-    k.emit("CommandPost", entry.name, about, json!({ "command": print(command) }));
+    let about = About {
+        pane: queue.caller.pane,
+        ..About::default()
+    };
+    k.emit(
+        "CommandPost",
+        entry.name,
+        about,
+        json!({ "command": print(command) }),
+    );
     Ok(flow)
 }
 
@@ -604,7 +663,8 @@ pub fn expand(
 ) -> String {
     let mut fmt = Fmt::new(k, session, tab, pane);
     fmt.extra = Some(&queue.vars);
-    fmt.client = Some(queue.caller.channel).filter(|c| k.chans.get(c).is_some_and(|c| c.ui.is_some()));
+    fmt.client =
+        Some(queue.caller.channel).filter(|c| k.chans.get(c).is_some_and(|c| c.ui.is_some()));
     pumi_lang::format::expand(&fmt, text)
 }
 
@@ -636,12 +696,24 @@ impl Env for ParseEnv<'_> {
     fn var(&self, name: &str) -> Option<String> {
         match self.kernel.cmd_ref().env.global.get(name) {
             Some(var) => var.value.clone(),
-            None => self.kernel.config.base_env.get(name).cloned().or_else(|| std::env::var(name).ok()),
+            None => self
+                .kernel
+                .config
+                .base_env
+                .get(name)
+                .cloned()
+                .or_else(|| std::env::var(name).ok()),
         }
     }
 
     fn set_var(&mut self, name: &str, value: &str, hidden: bool) {
-        self.kernel.cmd().env.global.insert(name.into(), Var { value: Some(value.into()), hidden });
+        self.kernel.cmd().env.global.insert(
+            name.into(),
+            Var {
+                value: Some(value.into()),
+                hidden,
+            },
+        );
     }
 
     fn condition(&mut self, format: &str) -> bool {
@@ -684,17 +756,23 @@ pub fn path(queue: &Queue, path: &str) -> PathBuf {
 
 /// Parks the queue until `seconds` pass, then resumes it with `outcome`.
 pub fn wait_for_time(k: &mut Kernel, queue: &Queue, after: Duration, outcome: Outcome) {
-    k.cmd().timers.push((Instant::now() + after, Timer::Resume(queue.id, outcome)));
+    k.cmd()
+        .timers
+        .push((Instant::now() + after, Timer::Resume(queue.id, outcome)));
 }
 
 /// Resumes a queue after a delay (one forked off with `-b`, which has no queue of its own here).
 pub fn resume_after(k: &mut Kernel, queue: u64, after: Duration, outcome: Outcome) {
-    k.cmd().timers.push((Instant::now() + after, Timer::Resume(queue, outcome)));
+    k.cmd()
+        .timers
+        .push((Instant::now() + after, Timer::Resume(queue, outcome)));
 }
 
 /// Fails the queue after `after` unless it was resumed first (`wait-pane --for`).
 pub fn deadline(k: &mut Kernel, queue: &Queue, after: Duration, message: String) {
-    k.cmd().timers.push((Instant::now() + after, Timer::Fail(queue.id, message)));
+    k.cmd()
+        .timers
+        .push((Instant::now() + after, Timer::Fail(queue.id, message)));
 }
 
 /// Parks the queue until an event: `check` says, for each event, whether it is the one and what
@@ -707,18 +785,19 @@ pub fn wait_for_event(
 ) -> u64 {
     let id = k.events.next_id();
     let queue_id = queue.id;
-    let callback: crate::kernel::events::Callback = Rc::new(move |cx: &mut Cx, event: &mut Event| {
-        if !waiting(kernel(cx), queue_id) {
-            return Ok(Value::Bool(true));
-        }
-        match check(cx, event) {
-            Some(outcome) => {
-                resume(cx, queue_id, outcome);
-                Ok(Value::Bool(true))
+    let callback: crate::kernel::events::Callback =
+        Rc::new(move |cx: &mut Cx, event: &mut Event| {
+            if !waiting(kernel(cx), queue_id) {
+                return Ok(Value::Bool(true));
             }
-            None => Ok(Value::Null),
-        }
-    });
+            match check(cx, event) {
+                Some(outcome) => {
+                    resume(cx, queue_id, outcome);
+                    Ok(Value::Bool(true))
+                }
+                None => Ok(Value::Null),
+            }
+        });
     k.events.autocmds.push(Autocmd {
         id,
         events,
@@ -782,11 +861,21 @@ pub fn channel_unlock(cx: &mut Cx, name: &str) -> Result<()> {
 }
 
 pub fn channel_waiters(k: &Kernel, name: &str) -> Vec<u64> {
-    k.cmd_ref().channels.get(name).map(|c| c.waiters.clone()).unwrap_or_default()
+    k.cmd_ref()
+        .channels
+        .get(name)
+        .map(|c| c.waiters.clone())
+        .unwrap_or_default()
 }
 
 /// Runs a shell command in the app (`system::Command`); the queue resumes when it exits.
-pub fn spawn_job(k: &mut Kernel, queue: &Queue, command: &str, cwd: Option<PathBuf>, kind: JobKind) -> Result<()> {
+pub fn spawn_job(
+    k: &mut Kernel,
+    queue: &Queue,
+    command: &str,
+    cwd: Option<PathBuf>,
+    kind: JobKind,
+) -> Result<()> {
     spawn_job_for(k, queue.id, &queue.caller, command, cwd, kind)
 }
 
@@ -841,20 +930,41 @@ pub fn spawn_job_for(
         env.insert("PUMI_PANE".into(), format!("%{pane}"));
     }
     if let Some(bin) = &k.config.bin_dir {
-        let path = env.get("PATH").or_else(|| k.config.base_env.get("PATH")).cloned().unwrap_or_default();
+        let path = env
+            .get("PATH")
+            .or_else(|| k.config.base_env.get("PATH"))
+            .cloned()
+            .unwrap_or_default();
         env.insert("PATH".into(), format!("{}:{path}", bin.display()));
     }
-    let shell = k.global_option("default_shell").as_str().filter(|s| !s.is_empty()).map(str::to_string);
+    let shell = k
+        .global_option("default_shell")
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
     let shell = shell.unwrap_or_else(|| "/bin/sh".into());
     // The program runs in the app, natively: its directory is not one this guest can look at.
-    let cwd = cwd.unwrap_or_else(crate::server::home_dir).display().to_string();
-    k.cmd().pending_jobs.push(Job { id: job, queue: queue_id, shell, command: command.to_string(), cwd, env, unset });
+    let cwd = cwd
+        .unwrap_or_else(crate::server::home_dir)
+        .display()
+        .to_string();
+    k.cmd().pending_jobs.push(Job {
+        id: job,
+        queue: queue_id,
+        shell,
+        command: command.to_string(),
+        cwd,
+        env,
+        unset,
+    });
     Ok(())
 }
 
 /// A job ended: its queue goes on.
 pub fn job_done(cx: &mut Cx, job: u64, status: Option<i32>, output: String) {
-    let Some((queue, kind)) = kernel(cx).cmd().jobs.remove(&job) else { return };
+    let Some((queue, kind)) = kernel(cx).cmd().jobs.remove(&job) else {
+        return;
+    };
     let outcome = match kind {
         JobKind::Run { command, show } => {
             let failed = status != Some(0);
@@ -869,10 +979,18 @@ pub fn job_done(cx: &mut Cx, job: u64, status: Option<i32>, output: String) {
             }
         }
         JobKind::If { then, otherwise } => {
-            let chosen = if status == Some(0) { Some(then) } else { otherwise };
+            let chosen = if status == Some(0) {
+                Some(then)
+            } else {
+                otherwise
+            };
             let insert = match chosen {
                 Some(arg) => {
-                    let parked = kernel(cx).cmd().queues.get(&queue).map(|q| (q.caller.clone(), q.vars.clone()));
+                    let parked = kernel(cx)
+                        .cmd()
+                        .queues
+                        .get(&queue)
+                        .map(|q| (q.caller.clone(), q.vars.clone()));
                     let Some((caller, vars)) = parked else { return };
                     let shadow = Queue {
                         id: 0,
@@ -888,14 +1006,24 @@ pub fn job_done(cx: &mut Cx, job: u64, status: Option<i32>, output: String) {
                     match arg_commands(cx, &shadow, &arg) {
                         Ok(list) => list,
                         Err(err) => {
-                            resume(cx, queue, Outcome { error: Some(err), ..Outcome::default() });
+                            resume(
+                                cx,
+                                queue,
+                                Outcome {
+                                    error: Some(err),
+                                    ..Outcome::default()
+                                },
+                            );
                             return;
                         }
                     }
                 }
                 None => Vec::new(),
             };
-            Outcome { insert, ..Outcome::default() }
+            Outcome {
+                insert,
+                ..Outcome::default()
+            }
         }
     };
     resume(cx, queue, outcome);
@@ -906,8 +1034,9 @@ pub fn tick(cx: &mut Cx) {
     let now = Instant::now();
     let due: Vec<Timer> = {
         let k = kernel(cx);
-        let (due, later): (Vec<_>, Vec<_>) =
-            std::mem::take(&mut k.cmd().timers).into_iter().partition(|(at, _)| *at <= now);
+        let (due, later): (Vec<_>, Vec<_>) = std::mem::take(&mut k.cmd().timers)
+            .into_iter()
+            .partition(|(at, _)| *at <= now);
         k.cmd().timers = later;
         due.into_iter().map(|(_, t)| t).collect()
     };
@@ -919,7 +1048,10 @@ pub fn tick(cx: &mut Cx) {
                     resume(
                         cx,
                         id,
-                        Outcome { error: Some(Error::new(ErrorKind::Exception, message)), ..Outcome::default() },
+                        Outcome {
+                            error: Some(Error::new(ErrorKind::Exception, message)),
+                            ..Outcome::default()
+                        },
                     );
                 }
             }
@@ -934,6 +1066,8 @@ pub fn tick(cx: &mut Cx) {
 
 /// A channel went away: its waiting queues are dropped, its recording forgotten.
 pub fn chan_closed(k: &mut Kernel, chan: ChanId) {
-    k.cmd().queues.retain(|_, q| q.reply.as_ref().is_none_or(|(c, _)| *c != chan));
+    k.cmd()
+        .queues
+        .retain(|_, q| q.reply.as_ref().is_none_or(|(c, _)| *c != chan));
     k.cmd().recording.remove(&chan);
 }

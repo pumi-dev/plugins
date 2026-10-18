@@ -13,7 +13,9 @@ use pumi_api::{Cx, Error, Result};
 use super::Kernel;
 
 /// What an event is about.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
 pub struct About {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session: Option<u64>,
@@ -25,15 +27,24 @@ pub struct About {
 
 impl About {
     pub fn session(id: u64) -> About {
-        About { session: Some(id), ..About::default() }
+        About {
+            session: Some(id),
+            ..About::default()
+        }
     }
 
     pub fn tab(id: u64) -> About {
-        About { tab: Some(id), ..About::default() }
+        About {
+            tab: Some(id),
+            ..About::default()
+        }
     }
 
     pub fn pane(id: u64) -> About {
-        About { pane: Some(id), ..About::default() }
+        About {
+            pane: Some(id),
+            ..About::default()
+        }
     }
 }
 
@@ -79,9 +90,14 @@ pub struct Autocmd {
 
 impl Autocmd {
     fn matches(&self, event: &Event) -> bool {
-        self.events.iter().any(|e| e == &event.event || (e == "*" && !event.event.ends_with("Pre")))
+        self.events
+            .iter()
+            .any(|e| e == &event.event || (e == "*" && !event.event.ends_with("Pre")))
             && (self.patterns.is_empty()
-                || self.patterns.iter().any(|p| pumi_lang::format::fnmatch(p, &event.matched, false)))
+                || self
+                    .patterns
+                    .iter()
+                    .any(|p| pumi_lang::format::fnmatch(p, &event.matched, false)))
     }
 
     pub fn info(&self, groups: &BTreeMap<u64, String>) -> Value {
@@ -196,7 +212,13 @@ impl Events {
             self.pending.remove(0);
             self.overflow += 1;
         }
-        self.pending.push(Event { seq: self.seq, event: event.into(), matched: matched.into(), about, data });
+        self.pending.push(Event {
+            seq: self.seq,
+            event: event.into(),
+            matched: matched.into(),
+            about,
+            data,
+        });
         self.seq
     }
 
@@ -211,11 +233,18 @@ impl Events {
     }
 
     pub fn group_id(&self, name: &str) -> Option<u64> {
-        self.groups.iter().find(|(_, n)| n.as_str() == name).map(|(id, _)| *id)
+        self.groups
+            .iter()
+            .find(|(_, n)| n.as_str() == name)
+            .map(|(id, _)| *id)
     }
 
     pub fn wants(&self, event: &str) -> bool {
-        self.autocmds.iter().any(|a| a.events.iter().any(|e| e == event || (e == "*" && !event.ends_with("Pre"))))
+        self.autocmds.iter().any(|a| {
+            a.events
+                .iter()
+                .any(|e| e == event || (e == "*" && !event.ends_with("Pre")))
+        })
     }
 }
 
@@ -252,8 +281,8 @@ pub fn hook_vars(event: &Event) -> BTreeMap<String, String> {
 pub fn check_event(name: &str) -> Result<()> {
     // `*` is every event but the `Pre` ones, which ask before acting: how `pumi events` listens.
     // The core's and other channels' events are theirs to name.
-    let word =
-        name.chars().next().is_some_and(|c| c.is_ascii_uppercase()) && name.chars().all(|c| c.is_ascii_alphanumeric());
+    let word = name.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+        && name.chars().all(|c| c.is_ascii_alphanumeric());
     if name == "*" || EVENTS.contains(&name) || word {
         Ok(())
     } else {
@@ -288,17 +317,32 @@ pub fn flush(cx: &mut Cx) -> Result<()> {
 
 /// Fires a cancellable (`Pre`) event now and returns its `data` as the handlers left it, or
 /// `cancelled` when one of them said so.
-pub fn fire_pre(cx: &mut Cx, event: &str, matched: &str, about: About, data: Value) -> Result<Value> {
+pub fn fire_pre(
+    cx: &mut Cx,
+    event: &str,
+    matched: &str,
+    about: About,
+    data: Value,
+) -> Result<Value> {
     let mut ev = {
         let kernel = cx.host::<Kernel>()?;
         if !kernel.events.wants(event) {
             return Ok(data);
         }
         kernel.events.seq += 1;
-        Event { seq: kernel.events.seq, event: event.into(), matched: matched.into(), about, data }
+        Event {
+            seq: kernel.events.seq,
+            event: event.into(),
+            matched: matched.into(),
+            about,
+            data,
+        }
     };
     if run(cx, &mut ev)? {
-        return Err(Error::new(pumi_api::ErrorKind::Cancelled, format!("{event} was cancelled by an autocmd")));
+        return Err(Error::new(
+            pumi_api::ErrorKind::Cancelled,
+            format!("{event} was cancelled by an autocmd"),
+        ));
     }
     Ok(ev.data)
 }
@@ -307,7 +351,13 @@ pub fn fire_pre(cx: &mut Cx, event: &str, matched: &str, about: About, data: Val
 fn run(cx: &mut Cx, event: &mut Event) -> Result<bool> {
     let matching: Vec<Autocmd> = {
         let kernel = cx.host::<Kernel>()?;
-        kernel.events.autocmds.iter().filter(|a| a.matches(event)).cloned().collect()
+        kernel
+            .events
+            .autocmds
+            .iter()
+            .filter(|a| a.matches(event))
+            .cloned()
+            .collect()
     };
     let mut cancelled = false;
     for autocmd in matching {
@@ -333,8 +383,16 @@ fn run(cx: &mut Cx, event: &mut Event) -> Result<bool> {
             }
             Action::Callback(callback) => match callback(cx, event) {
                 Ok(Value::Bool(true)) => delete = true,
-                Ok(verdict) => cancelled |= verdict.get("cancel").and_then(Value::as_bool).unwrap_or(false),
-                Err(err) => crate::kernel::log(&format!("autocmd {} ({}): {}", autocmd.id, event.event, err.message)),
+                Ok(verdict) => {
+                    cancelled |= verdict
+                        .get("cancel")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                }
+                Err(err) => crate::kernel::log(&format!(
+                    "autocmd {} ({}): {}",
+                    autocmd.id, event.event, err.message
+                )),
             },
         }
         if delete {

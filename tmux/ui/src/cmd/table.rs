@@ -5,8 +5,8 @@ use pumi_api::{Cx, Result};
 use pumi_lang::cmd::{Long, Parsed};
 
 use super::builtin::{
-    buffer, command_prompt, confirm_before, hook, key, needs_client, option, pane, pumi, script, server, session,
-    style, tab, user,
+    buffer, command_prompt, confirm_before, hook, key, needs_client, option, pane, pumi, script,
+    server, session, style, tab, user,
 };
 use super::{Flow, Queue};
 
@@ -39,7 +39,18 @@ const fn e(
     desc: &'static str,
     exec: Exec,
 ) -> Entry {
-    Entry { name, aliases, template, min, max, usage, desc, longs: &[], raw: false, exec }
+    Entry {
+        name,
+        aliases,
+        template,
+        min,
+        max,
+        usage,
+        desc,
+        longs: &[],
+        raw: false,
+        exec,
+    }
 }
 
 const TYPE: &[(&str, Long)] = &[("type", Long::Value)];
@@ -56,7 +67,16 @@ pub static ENTRIES: &[Entry] = &[
         "Start the server; the CLI starts it when there is none.",
         server::start_server,
     ),
-    e("kill-server", &[], "", 0, 0, "", "Stop the server, saving everything.", server::kill_server),
+    e(
+        "kill-server",
+        &[],
+        "",
+        0,
+        0,
+        "",
+        "Stop the server, saving everything.",
+        server::kill_server,
+    ),
     e(
         "attach-session",
         &["a", "at", "attach"],
@@ -131,7 +151,16 @@ pub static ENTRIES: &[Entry] = &[
             session::new_session,
         )
     },
-    e("kill-session", &[], "aCgf:t:", 0, 0, "[-aCg] [-t target-session]", "Close a session.", session::kill_session),
+    e(
+        "kill-session",
+        &[],
+        "aCgf:t:",
+        0,
+        0,
+        "[-aCg] [-t target-session]",
+        "Close a session.",
+        session::kill_session,
+    ),
     e(
         "rename-session",
         &["rename"],
@@ -176,7 +205,16 @@ pub static ENTRIES: &[Entry] = &[
             tab::new_tab,
         )
     },
-    e("kill-tab", &["kill-window", "killw"], "af:t:", 0, 0, "[-a] [-t target-window]", "Close a tab.", tab::kill_tab),
+    e(
+        "kill-tab",
+        &["kill-window", "killw"],
+        "af:t:",
+        0,
+        0,
+        "[-a] [-t target-window]",
+        "Close a tab.",
+        tab::kill_tab,
+    ),
     e(
         "rename-tab",
         &["rename-window", "renamew"],
@@ -197,7 +235,16 @@ pub static ENTRIES: &[Entry] = &[
         "Make a tab current.",
         tab::select_tab,
     ),
-    e("next-tab", &["next-window", "next"], "at:", 0, 0, "[-a] [-t target-session]", "The next tab.", tab::next_tab),
+    e(
+        "next-tab",
+        &["next-window", "next"],
+        "at:",
+        0,
+        0,
+        "[-a] [-t target-session]",
+        "The next tab.",
+        tab::next_tab,
+    ),
     e(
         "previous-tab",
         &["previous-window", "prev"],
@@ -208,7 +255,16 @@ pub static ENTRIES: &[Entry] = &[
         "The previous tab.",
         tab::previous_tab,
     ),
-    e("last-tab", &["last-window", "last"], "t:", 0, 0, "[-t target-session]", "The tab used last.", tab::last_tab),
+    e(
+        "last-tab",
+        &["last-window", "last"],
+        "t:",
+        0,
+        0,
+        "[-t target-session]",
+        "The tab used last.",
+        tab::last_tab,
+    ),
     e(
         "move-tab",
         &["move-window", "movew"],
@@ -269,7 +325,16 @@ pub static ENTRIES: &[Entry] = &[
         "Lay a tab out: a preset, a tmux layout string, or pumi's layout as JSON.",
         tab::select_layout,
     ),
-    e("next-layout", &["nextl"], "t:", 0, 0, "[-t target-window]", "The next preset layout.", tab::next_layout),
+    e(
+        "next-layout",
+        &["nextl"],
+        "t:",
+        0,
+        0,
+        "[-t target-window]",
+        "The next preset layout.",
+        tab::next_layout,
+    ),
     e(
         "previous-layout",
         &["prevl"],
@@ -350,7 +415,16 @@ pub static ENTRIES: &[Entry] = &[
             pane::display_popup,
         )
     },
-    e("kill-pane", &["killp"], "af:t:", 0, 0, "[-a] [-t target-pane]", "Close a pane.", pane::kill_pane),
+    e(
+        "kill-pane",
+        &["killp"],
+        "af:t:",
+        0,
+        0,
+        "[-a] [-t target-pane]",
+        "Close a pane.",
+        pane::kill_pane,
+    ),
     e(
         "select-pane",
         &["selectp"],
@@ -361,7 +435,16 @@ pub static ENTRIES: &[Entry] = &[
         "Make a pane current, mark it, or title it.",
         pane::select_pane,
     ),
-    e("last-pane", &["lastp"], "det:Z", 0, 0, "[-deZ] [-t target-window]", "The pane used last.", pane::last_pane),
+    e(
+        "last-pane",
+        &["lastp"],
+        "det:Z",
+        0,
+        0,
+        "[-deZ] [-t target-window]",
+        "The pane used last.",
+        pane::last_pane,
+    ),
     e(
         "resize-pane",
         &["resizep"],
@@ -455,7 +538,16 @@ pub static ENTRIES: &[Entry] = &[
         "Type keys or text into a pane.",
         pane::send_keys,
     ),
-    e("send-prefix", &[], "2t:", 0, 0, "[-2] [-t target-pane]", "Send the prefix key to a pane.", pane::send_prefix),
+    e(
+        "send-prefix",
+        &[],
+        "2t:",
+        0,
+        0,
+        "[-2] [-t target-pane]",
+        "Send the prefix key to a pane.",
+        pane::send_prefix,
+    ),
     e(
         "clear-history",
         &["clearhist"],
@@ -466,7 +558,16 @@ pub static ENTRIES: &[Entry] = &[
         "Forget a terminal's scrollback.",
         pane::clear_history,
     ),
-    e("pipe-pane", &["pipep"], "IOot:", 0, 1, "[-IOo] [-t target-pane] [shell-command]", "", pane::pipe_pane),
+    e(
+        "pipe-pane",
+        &["pipep"],
+        "IOot:",
+        0,
+        1,
+        "[-IOo] [-t target-pane] [shell-command]",
+        "",
+        pane::pipe_pane,
+    ),
     e(
         "display-panes",
         &["displayp"],
@@ -531,7 +632,16 @@ pub static ENTRIES: &[Entry] = &[
         "Set a paste buffer.",
         buffer::set_buffer,
     ),
-    e("show-buffer", &["showb"], "b:", 0, 0, "[-b buffer-name]", "Print a paste buffer.", buffer::show_buffer),
+    e(
+        "show-buffer",
+        &["showb"],
+        "b:",
+        0,
+        0,
+        "[-b buffer-name]",
+        "Print a paste buffer.",
+        buffer::show_buffer,
+    ),
     e(
         "paste-buffer",
         &["pasteb"],
@@ -552,7 +662,16 @@ pub static ENTRIES: &[Entry] = &[
         "List paste buffers.",
         buffer::list_buffers,
     ),
-    e("delete-buffer", &["deleteb"], "b:", 0, 0, "[-b buffer-name]", "Delete a paste buffer.", buffer::delete_buffer),
+    e(
+        "delete-buffer",
+        &["deleteb"],
+        "b:",
+        0,
+        0,
+        "[-b buffer-name]",
+        "Delete a paste buffer.",
+        buffer::delete_buffer,
+    ),
     e(
         "load-buffer",
         &["loadb"],
@@ -634,7 +753,16 @@ pub static ENTRIES: &[Entry] = &[
         "Show the environment new panes get.",
         option::show_environment,
     ),
-    e("colorscheme", &[], "", 0, 1, "[name]", "Set the colour scheme (Neovim's :colorscheme).", option::colorscheme),
+    e(
+        "colorscheme",
+        &[],
+        "",
+        0,
+        1,
+        "[name]",
+        "Set the colour scheme (Neovim's :colorscheme).",
+        option::colorscheme,
+    ),
     // ---- keys
     e(
         "bind-key",
@@ -646,7 +774,16 @@ pub static ENTRIES: &[Entry] = &[
         "Bind a key to a command.",
         key::bind_key,
     ),
-    e("unbind-key", &["unbind"], "anqT:", 0, 1, "[-anq] [-T key-table] key", "Unbind a key.", key::unbind_key),
+    e(
+        "unbind-key",
+        &["unbind"],
+        "anqT:",
+        0,
+        1,
+        "[-anq] [-T key-table] key",
+        "Unbind a key.",
+        key::unbind_key,
+    ),
     e(
         "list-keys",
         &["lsk"],
@@ -667,7 +804,16 @@ pub static ENTRIES: &[Entry] = &[
         "Neovim's :map: a binding in root unless a table is given.",
         key::map,
     ),
-    e("unmap", &[], "T:", 1, 1, "[-T key-table] lhs", "Neovim's :unmap.", key::unmap),
+    e(
+        "unmap",
+        &[],
+        "T:",
+        1,
+        1,
+        "[-T key-table] lhs",
+        "Neovim's :unmap.",
+        key::unmap,
+    ),
     // ---- style rules (06 §4)
     e(
         "set-style",
@@ -700,7 +846,16 @@ pub static ENTRIES: &[Entry] = &[
         "Run a command when something happens: an autocmd.",
         hook::set_hook,
     ),
-    e("show-hooks", &[], "BF:gpt:w", 0, 1, "[-Bgpw] [-t target-pane] [hook]", "Show hooks.", hook::show_hooks),
+    e(
+        "show-hooks",
+        &[],
+        "BF:gpt:w",
+        0,
+        1,
+        "[-Bgpw] [-t target-pane] [hook]",
+        "Show hooks.",
+        hook::show_hooks,
+    ),
     e(
         "wait-for",
         &["wait"],
@@ -852,10 +1007,46 @@ pub static ENTRIES: &[Entry] = &[
         "",
         needs_client,
     ),
-    e("customize-mode", &[], "F:f:kNt:yZ", 0, 0, "[-NZ] [-F format] [-f filter] [-t target-pane]", "", needs_client),
-    e("switch-mode", &[], "F:kst:wZ", 0, 1, "[-ksw] [-t target-pane]", "", needs_client),
-    e("copy-mode", &[], "dekHMqSs:t:u", 0, 0, "[-deHMqSu] [-s src-pane] [-t target-pane]", "", needs_client),
-    e("clock-mode", &[], "t:", 0, 0, "[-t target-pane]", "", needs_client),
+    e(
+        "customize-mode",
+        &[],
+        "F:f:kNt:yZ",
+        0,
+        0,
+        "[-NZ] [-F format] [-f filter] [-t target-pane]",
+        "",
+        needs_client,
+    ),
+    e(
+        "switch-mode",
+        &[],
+        "F:kst:wZ",
+        0,
+        1,
+        "[-ksw] [-t target-pane]",
+        "",
+        needs_client,
+    ),
+    e(
+        "copy-mode",
+        &[],
+        "dekHMqSs:t:u",
+        0,
+        0,
+        "[-deHMqSu] [-s src-pane] [-t target-pane]",
+        "",
+        needs_client,
+    ),
+    e(
+        "clock-mode",
+        &[],
+        "t:",
+        0,
+        0,
+        "[-t target-pane]",
+        "",
+        needs_client,
+    ),
     e(
         "inspect",
         &["Inspect"],
@@ -867,10 +1058,49 @@ pub static ENTRIES: &[Entry] = &[
         needs_client,
     ),
     // ---- introspection and Neovim's
-    e("list-commands", &["lscm"], "F:", 0, 1, "[-F format] [command]", "List the commands.", server::list_commands),
-    e("checkhealth", &["health"], "", 0, 1, "[section]", "Neovim's :checkhealth.", server::checkhealth),
-    e("help", &[], "", 0, 1, "[topic]", "Help on a command, function, option or event.", server::help),
-    Entry { raw: true, ..e("lua", &[], "", 0, -1, "[code]", "Run Lua (Neovim's :lua).", server::lua) },
+    e(
+        "list-commands",
+        &["lscm"],
+        "F:",
+        0,
+        1,
+        "[-F format] [command]",
+        "List the commands.",
+        server::list_commands,
+    ),
+    e(
+        "checkhealth",
+        &["health"],
+        "",
+        0,
+        1,
+        "[section]",
+        "Neovim's :checkhealth.",
+        server::checkhealth,
+    ),
+    e(
+        "help",
+        &[],
+        "",
+        0,
+        1,
+        "[topic]",
+        "Help on a command, function, option or event.",
+        server::help,
+    ),
+    Entry {
+        raw: true,
+        ..e(
+            "lua",
+            &[],
+            "",
+            0,
+            -1,
+            "[code]",
+            "Run Lua (Neovim's :lua).",
+            server::lua,
+        )
+    },
     Entry {
         raw: true,
         ..e(
@@ -884,8 +1114,26 @@ pub static ENTRIES: &[Entry] = &[
             server::pack,
         )
     },
-    e("packadd", &[], "", 1, 1, "name", "Load an optional package (Neovim's :packadd).", server::packadd),
-    e("restart", &[], "", 0, 0, "", "Neovim's :restart.", server::restart),
+    e(
+        "packadd",
+        &[],
+        "",
+        1,
+        1,
+        "name",
+        "Load an optional package (Neovim's :packadd).",
+        server::packadd,
+    ),
+    e(
+        "restart",
+        &[],
+        "",
+        0,
+        0,
+        "",
+        "Neovim's :restart.",
+        server::restart,
+    ),
     Entry {
         raw: true,
         ..e(
@@ -899,7 +1147,16 @@ pub static ENTRIES: &[Entry] = &[
             user::command,
         )
     },
-    e("delcommand", &["delc"], "", 1, 1, "Name", "Neovim's :delcommand.", user::delcommand),
+    e(
+        "delcommand",
+        &["delc"],
+        "",
+        1,
+        1,
+        "Name",
+        "Neovim's :delcommand.",
+        user::delcommand,
+    ),
     // ---- pumi's own
     Entry {
         raw: true,
@@ -972,7 +1229,16 @@ pub static ENTRIES: &[Entry] = &[
     ),
     Entry {
         longs: &[("here", Long::Switch)],
-        ..e("context", &[], "", 0, 0, "[--here]", "The map of panes agents read.", pumi::context)
+        ..e(
+            "context",
+            &[],
+            "",
+            0,
+            0,
+            "[--here]",
+            "The map of panes agents read.",
+            pumi::context,
+        )
     },
     Entry {
         raw: true,
@@ -989,7 +1255,16 @@ pub static ENTRIES: &[Entry] = &[
     },
     Entry {
         raw: true,
-        ..e("mcp", &[], "", 0, 0, "", "An MCP server on standard input and output (the CLI runs it).", pumi::cli_only)
+        ..e(
+            "mcp",
+            &[],
+            "",
+            0,
+            0,
+            "",
+            "An MCP server on standard input and output (the CLI runs it).",
+            pumi::cli_only,
+        )
     },
     Entry {
         raw: true,

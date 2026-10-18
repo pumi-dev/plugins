@@ -29,15 +29,27 @@ pub struct Method {
 }
 
 const fn served(name: &'static str) -> Method {
-    Method { name, support: Support::Served, shape: Shape::Unary }
+    Method {
+        name,
+        support: Support::Served,
+        shape: Shape::Unary,
+    }
 }
 
 const fn long(name: &'static str) -> Method {
-    Method { name, support: Support::Served, shape: Shape::Long }
+    Method {
+        name,
+        support: Support::Served,
+        shape: Shape::Long,
+    }
 }
 
 const fn unsupported(name: &'static str, why: &'static str) -> Method {
-    Method { name, support: Support::Unsupported(why), shape: Shape::Unary }
+    Method {
+        name,
+        support: Support::Unsupported(why),
+        shape: Shape::Unary,
+    }
 }
 
 const TUI: &str = "pumi has no herdr TUI";
@@ -49,7 +61,10 @@ const AGENTS: &str = "an agent says what it is doing over OSC 7501 (23 §6); pum
 pub const METHODS: &[Method] = &[
     served("ping"),
     served("server.stop"),
-    unsupported("server.live_handoff", "pumid restarts with `pumid --restart`"),
+    unsupported(
+        "server.live_handoff",
+        "pumid restarts with `pumid --restart`",
+    ),
     served("server.reload_config"),
     unsupported("server.ssh_agent.register", REMOTE),
     unsupported("server.agent_manifests", AGENTS),
@@ -172,5 +187,8 @@ pub const PUMI_METHODS: &[Method] = &[
 ];
 
 pub fn find(name: &str) -> Option<&'static Method> {
-    METHODS.iter().chain(PUMI_METHODS).find(|method| method.name == name)
+    METHODS
+        .iter()
+        .chain(PUMI_METHODS)
+        .find(|method| method.name == name)
 }

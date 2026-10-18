@@ -25,7 +25,9 @@ You are in a pane of pumi, a terminal workspace; `pumi context` maps every pane.
 /// `call FUNCTION [json | key=value… | value…]`: any function, its result as JSON.
 pub fn call_function(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let words = p.words();
-    let (name, rest) = words.split_first().ok_or_else(|| Error::invalid_params("call needs a function"))?;
+    let (name, rest) = words
+        .split_first()
+        .ok_or_else(|| Error::invalid_params("call needs a function"))?;
     let args = super::user::function_args(cx, name, rest)?;
     let result = call(cx, name, args)?;
     queue.print(result.to_string());
@@ -47,9 +49,18 @@ pub fn api(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                     .and_then(|t| t.iter().find(|t| t["name"] == json!(ty)))
                     .cloned()
                     .unwrap_or_default();
-                for method in ["read", "input", "selection"].iter().map(|m| m.to_string()).chain(
-                    info["methods"].as_array().into_iter().flatten().filter_map(Value::as_str).map(str::to_string),
-                ) {
+                for method in ["read", "input", "selection"]
+                    .iter()
+                    .map(|m| m.to_string())
+                    .chain(
+                        info["methods"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(Value::as_str)
+                            .map(str::to_string),
+                    )
+                {
                     queue.print(format!("{ty}.{method}"));
                 }
                 return Ok(Flow::Next);
@@ -60,16 +71,23 @@ pub fn api(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                 } else if p.has_long("json") {
                     queue.print(json!(info).to_string());
                 } else {
-                    let first = info.desc.split(". ").next().unwrap_or("").trim_end_matches('.');
+                    let first = info
+                        .desc
+                        .split(". ")
+                        .next()
+                        .unwrap_or("")
+                        .trim_end_matches('.');
                     queue.print(format!("{:<28} {first}", info.name));
                 }
             }
             Ok(Flow::Next)
         }
         Some("describe") => {
-            let name = words.get(1).ok_or_else(|| Error::invalid_params("api describe FUNCTION"))?;
-            let info =
-                crate::api::function_info(cx, name).ok_or_else(|| Error::not_found(format!("no function `{name}`")))?;
+            let name = words
+                .get(1)
+                .ok_or_else(|| Error::invalid_params("api describe FUNCTION"))?;
+            let info = crate::api::function_info(cx, name)
+                .ok_or_else(|| Error::not_found(format!("no function `{name}`")))?;
             queue.print(serde_json::to_string_pretty(&info).unwrap_or_default());
             Ok(Flow::Next)
         }
@@ -78,7 +96,9 @@ pub fn api(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
             queue.print(info.to_string());
             Ok(Flow::Next)
         }
-        Some(other) => Err(Error::invalid_params(format!("api list, describe or info, not {other}"))),
+        Some(other) => Err(Error::invalid_params(format!(
+            "api list, describe or info, not {other}"
+        ))),
     }
 }
 
@@ -123,11 +143,13 @@ pub fn lua_value(value: &Value, out: &mut String) {
 
 fn is_identifier(key: &str) -> bool {
     const RESERVED: &[&str] = &[
-        "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in", "local", "nil",
-        "not", "or", "repeat", "return", "then", "true", "until", "while",
+        "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if",
+        "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
     ];
     let mut chars = key.chars();
-    chars.next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
         && !RESERVED.contains(&key)
 }
@@ -161,8 +183,11 @@ pub fn record(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
             Ok(Flow::Next)
         }
         Some("stop") => {
-            let from =
-                kernel(cx).cmd().recording.remove(&chan).ok_or_else(|| Error::invalid_params("not recording"))?;
+            let from = kernel(cx)
+                .cmd()
+                .recording
+                .remove(&chan)
+                .ok_or_else(|| Error::invalid_params("not recording"))?;
             let lua = p.long("as") == Some("lua");
             let records: Vec<(String, Value)> = cx
                 .registry()
@@ -189,12 +214,17 @@ pub fn record(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                     line.push(')');
                     queue.print(line);
                 } else {
-                    queue.print(format!("call {function} {}", pumi_lang::cmd::quote(&args.to_string())));
+                    queue.print(format!(
+                        "call {function} {}",
+                        pumi_lang::cmd::quote(&args.to_string())
+                    ));
                 }
             }
             Ok(Flow::Next)
         }
-        _ => Err(Error::invalid_params("record start, or record stop [--as lua|commands]")),
+        _ => Err(Error::invalid_params(
+            "record start, or record stop [--as lua|commands]",
+        )),
     }
 }
 
@@ -202,12 +232,17 @@ pub fn record(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 /// `:mkview`).
 pub fn mkview(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let pane = target_pane(cx, p.get('t'))?;
-    let state = call(cx, "pumi_pane_get_state", json!([pane, {"blobs": "inline"}]))?;
+    let state = call(
+        cx,
+        "pumi_pane_get_state",
+        json!([pane, {"blobs": "inline"}]),
+    )?;
     let text = serde_json::to_string_pretty(&state).unwrap_or_default();
     match p.arg(0) {
         Some(file) => {
             let full = path(queue, file);
-            std::fs::write(&full, text + "\n").map_err(|err| Error::exception(format!("{}: {err}", full.display())))?;
+            std::fs::write(&full, text + "\n")
+                .map_err(|err| Error::exception(format!("{}: {err}", full.display())))?;
         }
         None => queue.print(text),
     }
@@ -219,9 +254,10 @@ pub fn mkview(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 pub fn loadview(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let pane = target_pane(cx, p.get('t'))?;
     let file = path(queue, p.arg(0).unwrap_or(""));
-    let text = std::fs::read_to_string(&file).map_err(|err| Error::not_found(format!("{}: {err}", file.display())))?;
-    let state: Value =
-        serde_json::from_str(&text).map_err(|err| Error::invalid_params(format!("{}: {err}", file.display())))?;
+    let text = std::fs::read_to_string(&file)
+        .map_err(|err| Error::not_found(format!("{}: {err}", file.display())))?;
+    let state: Value = serde_json::from_str(&text)
+        .map_err(|err| Error::invalid_params(format!("{}: {err}", file.display())))?;
     if p.has('n') {
         let ty = state["type"].clone();
         call(
@@ -240,9 +276,16 @@ pub fn loadview(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 pub fn mksession(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
     let file = path(queue, p.arg(0).unwrap_or("Session.lua"));
     if file.exists() && !p.has('f') {
-        return Err(Error::invalid_params(format!("{} exists (add -f to overwrite)", file.display())));
+        return Err(Error::invalid_params(format!(
+            "{} exists (add -f to overwrite)",
+            file.display()
+        )));
     }
-    let what = kernel(cx).global_option("sessionoptions").as_str().unwrap_or("").to_string();
+    let what = kernel(cx)
+        .global_option("sessionoptions")
+        .as_str()
+        .unwrap_or("")
+        .to_string();
     let wants = |w: &str| what.split(',').any(|x| x.trim() == w);
     let mut out = String::new();
     let _ = writeln!(
@@ -269,7 +312,11 @@ pub fn mksession(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                 .collect();
             for (i, pane) in panes.iter().enumerate() {
                 let ty = kernel(cx).panes[pane].ty.clone();
-                let state = call(cx, "pumi_pane_get_state", json!([pane, {"viewoptions": ""}]))?;
+                let state = call(
+                    cx,
+                    "pumi_pane_get_state",
+                    json!([pane, {"viewoptions": ""}]),
+                )?;
                 let mut state_lua = String::new();
                 lua_value(&json!({"state": state}), &mut state_lua);
                 if n == 0 && i == 0 {
@@ -280,7 +327,10 @@ pub fn mksession(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                         out,
                         "  local session = api.pumi_create_session({opts}, pane = {{type = \"{ty}\", args = {state_lua}}}}})"
                     );
-                    let _ = writeln!(out, "  ids[{pane}] = api.pumi_list_panes({{session = session}})[1]");
+                    let _ = writeln!(
+                        out,
+                        "  ids[{pane}] = api.pumi_list_panes({{session = session}})[1]"
+                    );
                     if let Some(name) = &t.name {
                         let mut quoted = String::new();
                         lua_value(&json!(name), &mut quoted);
@@ -291,7 +341,10 @@ pub fn mksession(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                     }
                 } else if i == 0 {
                     let mut place = String::new();
-                    lua_value(&json!({"kind": "tab", "index": index, "name": t.name, "focus": false}), &mut place);
+                    lua_value(
+                        &json!({"kind": "tab", "index": index, "name": t.name, "focus": false}),
+                        &mut place,
+                    );
                     let place = place.trim_end_matches('}').to_string();
                     let _ = writeln!(
                         out,
@@ -318,8 +371,14 @@ pub fn mksession(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                 for pane in floats {
                     let k = kernel(cx);
                     let (ty, place) = (k.panes[&pane].ty.clone(), k.panes[&pane].place.clone());
-                    let Place::Float { float, .. } = place else { continue };
-                    let state = call(cx, "pumi_pane_get_state", json!([pane, {"viewoptions": ""}]))?;
+                    let Place::Float { float, .. } = place else {
+                        continue;
+                    };
+                    let state = call(
+                        cx,
+                        "pumi_pane_get_state",
+                        json!([pane, {"viewoptions": ""}]),
+                    )?;
                     let mut state_lua = String::new();
                     lua_value(&json!({"state": state}), &mut state_lua);
                     let _ = writeln!(
@@ -344,13 +403,22 @@ pub fn mksession(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
             lua_value(&value, &mut v);
             let mut n = String::new();
             lua_value(&json!(name), &mut n);
-            let _ = writeln!(lines, "api.pumi_set_option_value({n}, {v}, {{scope = \"global\"}})");
+            let _ = writeln!(
+                lines,
+                "api.pumi_set_option_value({n}, {v}, {{scope = \"global\"}})"
+            );
         }
         out.push('\n');
         out.push_str(&lines);
     }
-    std::fs::write(&file, out).map_err(|err| Error::exception(format!("{}: {err}", file.display())))?;
-    kernel(cx).emit("SessionWritePost", &file.display().to_string(), Default::default(), json!({ "file": file }));
+    std::fs::write(&file, out)
+        .map_err(|err| Error::exception(format!("{}: {err}", file.display())))?;
+    kernel(cx).emit(
+        "SessionWritePost",
+        &file.display().to_string(),
+        Default::default(),
+        json!({ "file": file }),
+    );
     Ok(Flow::Next)
 }
 
@@ -374,7 +442,10 @@ pub fn context(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
             queue.print(format!("  Tab {index}: {name} (@{tab})"));
             let mut panes = k.tabs[tab].layout.panes();
             panes.extend(
-                k.panes.values().filter(|x| matches!(&x.place, Place::Float { tab: t, .. } if t == tab)).map(|x| x.id),
+                k.panes
+                    .values()
+                    .filter(|x| matches!(&x.place, Place::Float { tab: t, .. } if t == tab))
+                    .map(|x| x.id),
             );
             for pane in panes {
                 let fmt = crate::kernel::format::Fmt::new(k, Some(s.id), Some(*tab), Some(pane));
@@ -382,7 +453,11 @@ pub fn context(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
                     &fmt,
                     "#{pane_id} #{pane_type}#{?pane_current_command, #{pane_current_command},}#{?#{pane_title}, \"#{pane_title}\",}#{?#{url}, #{url},} in #{pane_current_path}#{?pane_active, (active),}",
                 );
-                let me = if here.is_some_and(|h| h.pane == pane) && caller.pane.is_some() { " ← you" } else { "" };
+                let me = if here.is_some_and(|h| h.pane == pane) && caller.pane.is_some() {
+                    " ← you"
+                } else {
+                    ""
+                };
                 queue.print(format!("    - {line}{me}"));
             }
         }
@@ -392,5 +467,7 @@ pub fn context(cx: &mut Cx, queue: &mut Queue, p: &Parsed) -> Result<Flow> {
 
 /// Commands only the CLI runs: they stream, or need the terminal they run in.
 pub fn cli_only(_: &mut Cx, _: &mut Queue, _: &Parsed) -> Result<Flow> {
-    Err(Error::invalid_params("this command runs in the pumi CLI: run it from a shell"))
+    Err(Error::invalid_params(
+        "this command runs in the pumi CLI: run it from a shell",
+    ))
 }

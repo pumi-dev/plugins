@@ -20,7 +20,10 @@ pub struct Fail {
 pub type Result<T = Value> = std::result::Result<T, Fail>;
 
 fn fail(code: &'static str, message: impl Into<String>) -> Fail {
-    Fail { code, message: message.into() }
+    Fail {
+        code,
+        message: message.into(),
+    }
 }
 
 impl From<sdk::Error> for Fail {
@@ -49,7 +52,8 @@ impl P<'_> {
     }
 
     fn str(&self, key: &str) -> Result<&str> {
-        self.opt_str(key).ok_or_else(|| fail(codes::INVALID_PARAMS, format!("missing `{key}`")))
+        self.opt_str(key)
+            .ok_or_else(|| fail(codes::INVALID_PARAMS, format!("missing `{key}`")))
     }
 
     fn bool(&self, key: &str, default: bool) -> bool {
@@ -95,16 +99,23 @@ impl Herdr {
 
     fn workspace(&self, view: &View, p: &P) -> Result<u64> {
         let id = p.str("workspace_id")?;
-        view.session(id).ok_or_else(|| fail(codes::WORKSPACE_NOT_FOUND, format!("workspace not found: {id}")))
+        view.session(id).ok_or_else(|| {
+            fail(
+                codes::WORKSPACE_NOT_FOUND,
+                format!("workspace not found: {id}"),
+            )
+        })
     }
 
     fn tab(&self, view: &View, p: &P) -> Result<u64> {
         let id = p.str("tab_id")?;
-        view.tab(id).ok_or_else(|| fail(codes::TAB_NOT_FOUND, format!("tab not found: {id}")))
+        view.tab(id)
+            .ok_or_else(|| fail(codes::TAB_NOT_FOUND, format!("tab not found: {id}")))
     }
 
     fn pane(&self, view: &View, id: &str) -> Result<u64> {
-        view.pane(id).ok_or_else(|| fail(codes::PANE_NOT_FOUND, format!("pane not found: {id}")))
+        view.pane(id)
+            .ok_or_else(|| fail(codes::PANE_NOT_FOUND, format!("pane not found: {id}")))
     }
 
     fn pane_info(&self, pane: u64) -> Result {
@@ -121,7 +132,12 @@ impl Herdr {
     pub fn read(&self, pane: u64, lines: Option<u32>) -> (String, bool) {
         let lines = lines.unwrap_or(80);
         let text = self.call("pumi_pane_call", json!([pane, "read", { "lines": lines }]));
-        (text.ok().and_then(|t| t.as_str().map(str::to_string)).unwrap_or_default(), false)
+        (
+            text.ok()
+                .and_then(|t| t.as_str().map(str::to_string))
+                .unwrap_or_default(),
+            false,
+        )
     }
 
     /// Keys by name, encoded for the modes the pane's program set (the host does that).
@@ -156,10 +172,16 @@ impl Herdr {
 /// Runs one request.
 pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
     let Some(spec) = methods::find(method) else {
-        return Err(fail(codes::UNKNOWN_METHOD, format!("unknown method: {method}")));
+        return Err(fail(
+            codes::UNKNOWN_METHOD,
+            format!("unknown method: {method}"),
+        ));
     };
     if let Support::Unsupported(why) = spec.support {
-        return Err(fail(codes::UNSUPPORTED, format!("{method} is not supported by pumi: {why}")));
+        return Err(fail(
+            codes::UNSUPPORTED,
+            format!("{method} is not supported by pumi: {why}"),
+        ));
     }
     let p = P(params);
     match method {
@@ -193,12 +215,19 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
         }
         "session.snapshot" => {
             let view = h.view()?;
-            Ok(result("session_snapshot", json!({ "snapshot": view.snapshot(|p| h.revision(p)) })))
+            Ok(result(
+                "session_snapshot",
+                json!({ "snapshot": view.snapshot(|p| h.revision(p)) }),
+            ))
         }
 
         "workspace.list" => {
             let view = h.view()?;
-            let list: Vec<_> = view.sessions.iter().filter_map(|s| view.workspace_info(s.id)).collect();
+            let list: Vec<_> = view
+                .sessions
+                .iter()
+                .filter_map(|s| view.workspace_info(s.id))
+                .collect();
             Ok(result("workspace_list", json!({ "workspaces": list })))
         }
         "workspace.get" | "workspace.focus" | "workspace.rename" => {
@@ -214,14 +243,23 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
                 _ => {}
             }
             let view = h.view()?;
-            Ok(result("workspace_info", json!({ "workspace": view.workspace_info(ws) })))
+            Ok(result(
+                "workspace_info",
+                json!({ "workspace": view.workspace_info(ws) }),
+            ))
         }
         "workspace.create" => {
             let mut place = json!({ "kind": "session", "focus": p.bool("focus", true) });
             if let Some(label) = p.opt_str("label") {
                 place["name"] = json!(label);
             }
-            let pane = h.call("pumi_open_pane", json!(["terminal", Herdr::launch(&p), place]))?.as_u64().unwrap_or(0);
+            let pane = h
+                .call(
+                    "pumi_open_pane",
+                    json!(["terminal", Herdr::launch(&p), place]),
+                )?
+                .as_u64()
+                .unwrap_or(0);
             let view = h.view()?;
             let tab = view.panes.get(&pane).and_then(|p| p.tab).unwrap_or(0);
             let ws = view.session_of_tab(tab).map(|s| s.id).unwrap_or(0);
@@ -260,7 +298,10 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
                 }
                 "tab.rename" => {
                     let label = p.str("label")?.trim();
-                    h.call("pumi_tab_set_name", json!([tab, (!label.is_empty()).then_some(label)]))?;
+                    h.call(
+                        "pumi_tab_set_name",
+                        json!([tab, (!label.is_empty()).then_some(label)]),
+                    )?;
                 }
                 _ => {}
             }
@@ -276,10 +317,19 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
             if let Some(label) = p.opt_str("label") {
                 place["name"] = json!(label);
             }
-            let pane = h.call("pumi_open_pane", json!(["terminal", Herdr::launch(&p), place]))?.as_u64().unwrap_or(0);
+            let pane = h
+                .call(
+                    "pumi_open_pane",
+                    json!(["terminal", Herdr::launch(&p), place]),
+                )?
+                .as_u64()
+                .unwrap_or(0);
             let view = h.view()?;
             let tab = view.panes.get(&pane).and_then(|p| p.tab).unwrap_or(0);
-            Ok(result("tab_created", json!({ "tab": view.tab_info(tab), "root_pane": view.pane_info(pane, 0) })))
+            Ok(result(
+                "tab_created",
+                json!({ "tab": view.tab_info(tab), "root_pane": view.pane_info(pane, 0) }),
+            ))
         }
         "tab.close" => {
             let view = h.view()?;
@@ -306,9 +356,15 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
             let view = h.view()?;
             let pane = match p.opt_str("caller_pane_id").and_then(|id| view.pane(id)) {
                 Some(pane) => pane,
-                None => view.current.map(|c| c.2).ok_or_else(|| fail(codes::PANE_NOT_FOUND, "no current pane"))?,
+                None => view
+                    .current
+                    .map(|c| c.2)
+                    .ok_or_else(|| fail(codes::PANE_NOT_FOUND, "no current pane"))?,
             };
-            Ok(result("pane_current", json!({ "pane": h.pane_info(pane)? })))
+            Ok(result(
+                "pane_current",
+                json!({ "pane": h.pane_info(pane)? }),
+            ))
         }
         "pane.get" | "pane.focus" | "pane.rename" | "pane.zoom" | "pane.clear" => {
             let view = h.view()?;
@@ -319,13 +375,25 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
                 }
                 "pane.rename" => {
                     let label = p.opt_str("label").map(str::trim).filter(|l| !l.is_empty());
-                    h.call("pumi_set_option_value", json!(["@label", label, { "pane": pane }]))?;
+                    h.call(
+                        "pumi_set_option_value",
+                        json!(["@label", label, { "pane": pane }]),
+                    )?;
                 }
                 "pane.zoom" => {
-                    let zoomed = view.panes[&pane].tab.and_then(|t| view.tabs.get(&t)).is_some_and(|t| t.zoomed);
-                    let want = p.0.get("zoomed").and_then(Value::as_bool).unwrap_or(!zoomed);
+                    let zoomed = view.panes[&pane]
+                        .tab
+                        .and_then(|t| view.tabs.get(&t))
+                        .is_some_and(|t| t.zoomed);
+                    let want =
+                        p.0.get("zoomed")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(!zoomed);
                     h.call("pumi_pane_set_zoom", json!([pane, want]))?;
-                    return Ok(result("pane_zoom", json!({ "pane_id": view.pane_id(pane), "zoomed": want })));
+                    return Ok(result(
+                        "pane_zoom",
+                        json!({ "pane_id": view.pane_id(pane), "zoomed": want }),
+                    ));
                 }
                 "pane.clear" => {
                     h.call("pumi_pane_call", json!([pane, "clear_history"]))?;
@@ -341,44 +409,67 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
                 (Some(id), _) => h.pane(&view, id)?,
                 (None, Some(_)) => {
                     let ws = h.workspace(&view, &p)?;
-                    let s = view.sessions.iter().find(|s| s.id == ws).and_then(|s| s.current);
+                    let s = view
+                        .sessions
+                        .iter()
+                        .find(|s| s.id == ws)
+                        .and_then(|s| s.current);
                     s.and_then(|t| view.tabs.get(&t))
                         .map(|t| t.active)
                         .ok_or_else(|| fail(codes::PANE_NOT_FOUND, "no pane"))?
                 }
-                (None, None) => {
-                    view.current.map(|c| c.2).ok_or_else(|| fail(codes::PANE_NOT_FOUND, "no current pane"))?
-                }
+                (None, None) => view
+                    .current
+                    .map(|c| c.2)
+                    .ok_or_else(|| fail(codes::PANE_NOT_FOUND, "no current pane"))?,
             };
             let direction: SplitDirection = p.opt_de("direction")?.unwrap_or(SplitDirection::Right);
             let split = match direction {
                 SplitDirection::Right => "right",
                 SplitDirection::Down => "down",
             };
-            let mut place = json!({ "beside": target, "split": split, "focus": p.bool("focus", false) });
+            let mut place =
+                json!({ "beside": target, "split": split, "focus": p.bool("focus", false) });
             if let Some(ratio) = p.0.get("ratio").and_then(Value::as_f64) {
                 place["size"] = json!(format!("{}%", ((1.0 - ratio) * 100.0).round()));
             }
             let mut args = Herdr::launch(&p);
             if args.get("cwd").is_none()
-                && let Some(cwd) = view.panes.get(&target).and_then(|t| t.options.get("pane_current_path")).cloned()
+                && let Some(cwd) = view
+                    .panes
+                    .get(&target)
+                    .and_then(|t| t.options.get("pane_current_path"))
+                    .cloned()
             {
                 args["cwd"] = cwd;
             }
-            let pane = h.call("pumi_open_pane", json!(["terminal", args, place]))?.as_u64().unwrap_or(0);
+            let pane = h
+                .call("pumi_open_pane", json!(["terminal", args, place]))?
+                .as_u64()
+                .unwrap_or(0);
             Ok(result("pane_info", json!({ "pane": h.pane_info(pane)? })))
         }
         "pane.process_info" => {
             let view = h.view()?;
             let pane = match p.opt_str("pane_id") {
                 Some(id) => h.pane(&view, id)?,
-                None => view.current.map(|c| c.2).ok_or_else(|| fail(codes::PANE_NOT_FOUND, "no current pane"))?,
+                None => view
+                    .current
+                    .map(|c| c.2)
+                    .ok_or_else(|| fail(codes::PANE_NOT_FOUND, "no current pane"))?,
             };
             let options = &view.panes[&pane].options;
             let info = crate::proto::types::PaneProcessInfo {
                 pane_id: view.pane_id(pane),
-                shell_pid: options.get("pane_pid").and_then(Value::as_u64).map(|p| p as u32),
-                tty: options.get("pane_tty").and_then(Value::as_str).filter(|t| !t.is_empty()).map(str::to_string),
+                shell_pid: options
+                    .get("pane_pid")
+                    .and_then(Value::as_u64)
+                    .map(|p| p as u32),
+                tty: options
+                    .get("pane_tty")
+                    .and_then(Value::as_str)
+                    .filter(|t| !t.is_empty())
+                    .map(str::to_string),
             };
             Ok(result("pane_process_info", json!({ "process_info": info })))
         }
@@ -390,7 +481,11 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
         }
         "pane.read" | "agent.read" => {
             let view = h.view()?;
-            let id = if method == "pane.read" { p.str("pane_id")? } else { p.str("target")? };
+            let id = if method == "pane.read" {
+                p.str("pane_id")?
+            } else {
+                p.str("target")?
+            };
             let pane = h.pane(&view, id)?;
             let source: ReadSource = p.opt_de("source")?.unwrap_or_default();
             let format: ReadFormat = p.opt_de("format")?.unwrap_or_default();
@@ -413,9 +508,16 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
         }
         "pane.send_text" | "pane.send_keys" | "pane.send_input" | "agent.send_keys" => {
             let view = h.view()?;
-            let id = if method == "agent.send_keys" { p.str("target")? } else { p.str("pane_id")? };
+            let id = if method == "agent.send_keys" {
+                p.str("target")?
+            } else {
+                p.str("pane_id")?
+            };
             let pane = h.pane(&view, id)?;
-            if let Some(text) = p.opt_str("text").filter(|_| method != "pane.send_keys" && method != "agent.send_keys") {
+            if let Some(text) = p
+                .opt_str("text")
+                .filter(|_| method != "pane.send_keys" && method != "agent.send_keys")
+            {
                 h.write(pane, text)?;
             }
             if method != "pane.send_text" {
@@ -426,7 +528,11 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
 
         "agent.list" => {
             let view = h.view()?;
-            let agents: Vec<_> = view.tiled().into_iter().filter_map(|pane| view.agent_info(pane)).collect();
+            let agents: Vec<_> = view
+                .tiled()
+                .into_iter()
+                .filter_map(|pane| view.agent_info(pane))
+                .collect();
             Ok(result("agent_list", json!({ "agents": agents })))
         }
         "agent.get" | "agent.focus" => {
@@ -435,21 +541,32 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
             if method == "agent.focus" {
                 h.call("pumi_set_current_pane", json!([pane]))?;
             }
-            let agent = view.agent_info(pane).ok_or_else(|| fail(codes::AGENT_NOT_FOUND, "no agent in that pane"))?;
+            let agent = view
+                .agent_info(pane)
+                .ok_or_else(|| fail(codes::AGENT_NOT_FOUND, "no agent in that pane"))?;
             Ok(result("agent_info", json!({ "agent": agent })))
         }
         "pane.report_agent" => {
             let view = h.view()?;
             let pane = h.pane(&view, p.str("pane_id")?)?;
             if let Some(agent) = p.opt_str("agent") {
-                h.call("pumi_set_option_value", json!(["@agent", agent, { "pane": pane }]))?;
+                h.call(
+                    "pumi_set_option_value",
+                    json!(["@agent", agent, { "pane": pane }]),
+                )?;
             }
             if let Some(state) = p.opt_str("state") {
-                h.call("pumi_set_option_value", json!(["@agent_status", state, { "pane": pane }]))?;
+                h.call(
+                    "pumi_set_option_value",
+                    json!(["@agent_status", state, { "pane": pane }]),
+                )?;
             }
             Ok(result("ok", json!({})))
         }
-        _ => Err(fail(codes::UNSUPPORTED, format!("{method} is not implemented by pumi yet"))),
+        _ => Err(fail(
+            codes::UNSUPPORTED,
+            format!("{method} is not implemented by pumi yet"),
+        )),
     }
 }
 
@@ -457,9 +574,10 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
 fn escape_len(seq: &str) -> usize {
     let mut chars = seq.char_indices().skip(1);
     match chars.next() {
-        Some((_, '[')) => {
-            chars.find(|(_, c)| ('@'..='~').contains(c)).map(|(i, c)| i + c.len_utf8()).unwrap_or(seq.len())
-        }
+        Some((_, '[')) => chars
+            .find(|(_, c)| ('@'..='~').contains(c))
+            .map(|(i, c)| i + c.len_utf8())
+            .unwrap_or(seq.len()),
         Some((_, ']' | 'P' | '_' | '^')) => {
             let mut prev_esc = false;
             for (i, c) in chars {
@@ -502,8 +620,10 @@ pub fn translate(h: &Herdr, now: &View, before: &View, event: &Value) -> Vec<Val
         json!({ "event": snake, "data": data })
     };
     let pane = event["pane"].as_u64();
-    let tab =
-        event["tab"].as_u64().or_else(|| event["data"]["tab"]["id"].as_u64()).or_else(|| event["data"]["tab"].as_u64());
+    let tab = event["tab"]
+        .as_u64()
+        .or_else(|| event["data"]["tab"]["id"].as_u64())
+        .or_else(|| event["data"]["tab"].as_u64());
     let session = event["session"]
         .as_u64()
         .or_else(|| event["data"]["session"]["id"].as_u64())
