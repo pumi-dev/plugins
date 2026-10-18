@@ -12,7 +12,9 @@ keys are `{"keys": […]}` on the same call, and what an agent is doing is the p
 `@agent`/`@agent_status` (OSC 7501). Methods herdr serves from its own TUI, plugins or remotes
 answer `unsupported`.
 
-The socket's path is the pumi data directory's `herdr.sock` — deliberately not herdr's own
-`~/.config/herdr/herdr.sock`, so a real herdr can run beside it.
+The socket is `herdr.sock` in pumi's data directory — `$PUMI_DATA_DIR`, else
+`~/Library/Application Support/pumi` (macOS) or `~/.local/share/pumi` — deliberately not herdr's
+own `~/.config/herdr/herdr.sock`, so a real herdr can run beside it. The package logs the path it
+serves when it starts; point herdr's client at it (`herdr --socket <path>`).
 
 Ported from `pumi/core/herdr` (herdr on pumi, docs/v2/23-client-plugins.md §3 and §6).
