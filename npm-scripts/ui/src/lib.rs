@@ -1,6 +1,9 @@
 //! `npm-scripts.scripts`: every `package.json` with scripts in the current pane's repository,
 //! each script run with the package's own manager: its `packageManager` field (corepack's
 //! `"pnpm@9.1.0"`), else the first lockfile from its directory up to the root, else npm.
+//!
+//! `init` is the rest of the package, which was its `plugin/*.lua`: the options it declares and
+//! its page in the left sidebar.
 
 use std::path::Path;
 
@@ -109,7 +112,41 @@ impl Finder for Packages {
     }
 }
 
+/// Declare one of its options, in its heading in Settings.
+fn declare_option(name: &str, mut spec: Value) {
+    spec["group"] = json!("NPM Scripts");
+    if let Err(err) = api::pumi_create_option(&format!("npm_scripts.{name}"), spec) {
+        eprintln!("npm-scripts: {err}");
+    }
+}
+
 fn init(plugin: &mut Plugin, _cx: &mut App) {
+    declare_option(
+        "show_command",
+        json!({ "type": "boolean", "default": true, "label": "Commands", "desc": "Show what each script runs, beside its name." }),
+    );
+    declare_option(
+        "sort",
+        json!({ "type": "string", "default": "path", "choices": ["path", "scripts"], "labels": ["Path", "Most scripts first"], "label": "Order packages by", "desc": "How the package.json files are listed." }),
+    );
+    declare_option(
+        "max_depth",
+        json!({ "type": "number", "default": 4, "min": 1, "max": 10, "step": 1, "label": "Depth", "desc": "How many directories below the repository root to look in." }),
+    );
+    // Its page in the left sidebar, unless a reload already left one there.
+    let missing = api::pumi_list_panes(json!({ "type": "npm-scripts.scripts" }))
+        .map(|panes| panes.as_array().is_none_or(|list| list.is_empty()))
+        .unwrap_or(false);
+    if missing {
+        let place = json!({ "kind": "slot", "slot": "sidebar.left", "order": 30, "focus": false });
+        match api::pumi_open_pane("npm-scripts.scripts", json!({}), place) {
+            Ok(pane) => {
+                let _ = api::set_option("title", json!("NPM Scripts"), json!({ "pane": pane }));
+                let _ = api::set_option("@icon", json!("package"), json!({ "pane": pane }));
+            }
+            Err(err) => eprintln!("npm-scripts: {err}"),
+        }
+    }
     plugin.view("scripts", |_open, _window, cx| {
         Panel::open(Packages::read(), "script", cx).into()
     });
