@@ -1,0 +1,13 @@
+[package]
+name = "herdr"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pumi-plugin = { workspace = true }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { workspace = true }
