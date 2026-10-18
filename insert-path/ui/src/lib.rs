@@ -639,8 +639,9 @@ fn bind() {
     if let Some(last) = BOUND.with(|bound| bound.borrow_mut().take()) {
         let _ = api::pumi_del_keymap("terminal", &last, json!({}));
     }
-    // The rhs is a channel ref: the app calls it with `{key, pane}` when the key is pressed.
-    let rhs = json!({ "chan": 0, "ref": api::callback(|event, _| { open(&event); }).get("ref").cloned().unwrap_or_default() });
+    // `{"ref": n}`, which the app binds to this plugin's channel: it calls it with
+    // `{key, pane}` when the key is pressed.
+    let rhs = api::callback(|event, _| { open(&event); });
     let opts = json!({ "desc": "Insert a path…" });
     match api::pumi_set_keymap("terminal", &key, rhs, opts) {
         Ok(()) => BOUND.with(|bound| *bound.borrow_mut() = Some(key)),
