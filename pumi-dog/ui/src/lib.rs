@@ -1,6 +1,6 @@
 //! pumi-dog: a little pumi in the status bar. It walks back and forth, stops to wag and blink,
-//! and barks when clicked or when `pumi_dog.bark` is called. `init` is the rest of the package,
-//! which was its `plugin/*.lua`: the options it declares and the `pumi-dog.dog` pane in the
+//! and barks when clicked or when `pumi_dog.bark` is called. `init` is the package's own half,
+//! with no Lua left in it: the options it declares and the `pumi-dog.dog` pane in the
 //! `statusline` slot, which `pumi_dog.toggle` takes away and brings back.
 
 mod sprite;

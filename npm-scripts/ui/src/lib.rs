@@ -2,8 +2,8 @@
 //! each script run with the package's own manager: its `packageManager` field (corepack's
 //! `"pnpm@9.1.0"`), else the first lockfile from its directory up to the root, else npm.
 //!
-//! `init` is the rest of the package, which was its `plugin/*.lua`: the options it declares and
-//! its page in the left sidebar.
+//! `init` is the package's own half, with no Lua left in it: the options it declares and its
+//! page in the left sidebar.
 
 use std::path::Path;
 

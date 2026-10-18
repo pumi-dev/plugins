@@ -1,8 +1,8 @@
 //! `insert-path.picker`: Rex's Insert Path…, floating over the tab.
 //!
-//! `init` is the rest of the package, which was its `plugin/*.lua`: it declares its options,
-//! binds the trigger key in a terminal's key table, and opens this pane there with
-//! `open.args` = `{ pane, cwd, trigger, quote, height, cancel }`. The view walks the pane's
+//! `init` is the package's own half, with no Lua left in it: it declares its options, binds
+//! the trigger key in a terminal's key table, and opens this pane there with `open.args` =
+//! `{ pane, cwd, trigger, quote, height, cancel }`. The view walks the pane's
 //! directory once, filters it as you type (a fuzzy subsequence over the file name, or over the
 //! whole path once the query has a `/` in it), and on Enter types the path into the terminal's
 //! program (`pumi_pane_call(pane, "input", {text}))` and closes.

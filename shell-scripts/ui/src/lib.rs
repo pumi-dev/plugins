@@ -4,8 +4,8 @@
 //! the shell its `#!` names (through `env` and its switches), else its extension's, else `sh`,
 //! named to the shell rather than run as `./x`, so a script without its executable bit runs.
 //!
-//! `init` is the rest of the package, which was its `plugin/*.lua`: the options it declares and
-//! its page in the left sidebar.
+//! `init` is the package's own half, with no Lua left in it: the options it declares and its
+//! page in the left sidebar.
 
 use std::collections::BTreeSet;
 use std::io::Read;
