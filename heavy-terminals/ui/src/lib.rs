@@ -101,15 +101,15 @@ fn processes() -> HashMap<u64, Proc> {
 /// A pane's processes together: its program's, and theirs, down the tree.
 fn usage(procs: &HashMap<u64, Proc>, root: u64) -> (f64, f64) {
     let mut children: HashMap<u64, Vec<u64>> = HashMap::new();
-    for (pid, proc_) in procs {
-        children.entry(proc_.ppid).or_default().push(*pid);
+    for (pid, process) in procs {
+        children.entry(process.ppid).or_default().push(*pid);
     }
     let (mut cpu, mut rss) = (0., 0.);
     let mut todo = vec![root];
     while let Some(pid) = todo.pop() {
-        if let Some(proc_) = procs.get(&pid) {
-            cpu += proc_.cpu;
-            rss += proc_.rss;
+        if let Some(process) = procs.get(&pid) {
+            cpu += process.cpu;
+            rss += process.rss;
         }
         if let Some(kids) = children.get(&pid) {
             todo.extend(kids);
@@ -207,7 +207,7 @@ fn pane_of(args: &Value) -> Option<u64> {
         .or_else(|| args.get("pane").and_then(Value::as_u64))
         .or_else(|| {
             let text = args.get("args").and_then(Value::as_str)?.trim().to_string();
-            text.trim_start_matches('%').parse().ok()
+            text.trim_start_matches('%').parse::<u64>().ok()
         })
         .or_else(|| api::pumi_get_current_pane().ok())
 }
