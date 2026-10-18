@@ -17,7 +17,7 @@ thread_local! {
 }
 
 /// Declare one of its options.
-fn option(name: &str, spec: Value) {
+fn declare_option(name: &str, spec: Value) {
     if let Err(err) = api::pumi_create_option(&format!("attention.{name}"), spec) {
         eprintln!("attention: {err}");
     }
@@ -66,7 +66,7 @@ fn update() {
 }
 
 fn init(_plugin: &mut Plugin, _cx: &mut App) {
-    option(
+    declare_option(
         "bounce",
         json!({
             "type": "string",
@@ -75,7 +75,7 @@ fn init(_plugin: &mut Plugin, _cx: &mut App) {
             "desc": "Bounce the Dock icon when an agent is blocked and the app is in the background.",
         }),
     );
-    option(
+    declare_option(
         "badge",
         json!({
             "type": "boolean",

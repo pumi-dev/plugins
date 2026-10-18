@@ -38,7 +38,7 @@ thread_local! {
 }
 
 /// Declare one of its options.
-fn option(name: &str, spec: Value) {
+fn declare_option(name: &str, spec: Value) {
     if let Err(err) = api::pumi_create_option(&format!("heavy_terminals.{name}"), spec) {
         eprintln!("heavy-terminals: {err}");
     }
@@ -213,11 +213,26 @@ fn pane_of(args: &Value) -> Option<u64> {
 }
 
 fn init(_plugin: &mut Plugin, cx: &mut App) {
-    option("interval", json!({ "type": "number", "default": 5, "desc": "How often every terminal is measured, in seconds." }));
-    option("cpu", json!({ "type": "number", "default": 150, "desc": "A terminal using more CPU than this (100 is one core) is heavy." }));
-    option("memory", json!({ "type": "number", "default": 4096, "desc": "A terminal holding more memory than this, in MB, is heavy." }));
-    option("sustain", json!({ "type": "number", "default": 3, "desc": "How many checks in a row it must be heavy for." }));
-    option("auto_sleep", json!({ "type": "boolean", "default": false, "desc": "Suspend its foreground job right away." }));
+    declare_option(
+        "interval",
+        json!({ "type": "number", "default": 5, "desc": "How often every terminal is measured, in seconds." }),
+    );
+    declare_option(
+        "cpu",
+        json!({ "type": "number", "default": 150, "desc": "A terminal using more CPU than this (100 is one core) is heavy." }),
+    );
+    declare_option(
+        "memory",
+        json!({ "type": "number", "default": 4096, "desc": "A terminal holding more memory than this, in MB, is heavy." }),
+    );
+    declare_option(
+        "sustain",
+        json!({ "type": "number", "default": 3, "desc": "How many checks in a row it must be heavy for." }),
+    );
+    declare_option(
+        "auto_sleep",
+        json!({ "type": "boolean", "default": false, "desc": "Suspend its foreground job right away." }),
+    );
     let sleep_spec = json!({
         "desc": "Suspend a terminal's foreground job, as ctrl+z would.",
         "parameters": [["number", "pane"]],
