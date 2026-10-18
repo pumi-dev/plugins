@@ -1,7 +1,11 @@
-//! `pi-session.strip`: the bar on a pi pane (its `winbar`, placed by `plugin/pi-session.lua`).
-//! Fork opens `pi --fork <session>` in a pane beside it, in the same directory; Copy puts the
-//! session's id, path and directory on the clipboard.
+//! `pi-session.strip`: the bar on a pi pane, in its `winbar`. Fork opens `pi --fork <session>`
+//! in a pane beside it, in the same directory; Copy puts the session's id, path and directory on
+//! the clipboard.
+//!
+//! `init` is the rest of the package, which was its `plugin/*.lua`: the options it declares, and
+//! the bar on every pane whose agent's hook said it is pi's (`@agent`, `@agent_session`).
 
+use std::collections::HashMap;
 use std::io::BufRead;
 
 use pumi_plugin::gpui::{ClickEvent, FontWeight};
@@ -164,11 +168,98 @@ impl Render for Strip {
     }
 }
 
+/// Declare one of its options, in its heading in Settings.
+fn declare_option(name: &str, mut spec: Value) {
+    spec["group"] = json!("Pi session");
+    if let Err(err) = api::pumi_create_option(&format!("pi_session.{name}"), spec) {
+        eprintln!("pi-session: {err}");
+    }
+}
+
+/// `pi_session.focused_only`: the bar on the focused pi pane alone.
+fn focused_only() -> bool {
+    api::option("pi_session.focused_only", json!({}))
+        .ok()
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false)
+}
+
+/// Whether `pane` runs pi in a conversation the hook named.
+fn is_pi(pane: u64) -> bool {
+    let text = |name: &str| {
+        api::option(name, json!({ "pane": pane }))
+            .ok()
+            .and_then(|value| value.as_str().map(str::to_string))
+    };
+    text("@agent").as_deref() == Some("pi")
+        && text("@agent_session").is_some_and(|session| !session.is_empty())
+}
+
+/// Every pi pane has its bar (or only the current one, with `focused_only`), and no other pane
+/// has one.
+fn sync() {
+    // Where the bars are: the pane each belongs to, and the bar itself.
+    let mut bars: HashMap<u64, u64> = HashMap::new();
+    let listed = api::pumi_list_panes(json!({ "type": "pi-session.strip" })).unwrap_or(Value::Null);
+    for bar in listed.as_array().into_iter().flatten().filter_map(Value::as_u64) {
+        let owner = api::pumi_pane_get_place(bar).ok().and_then(|place| place["owner"].as_u64());
+        if let Some(owner) = owner {
+            bars.insert(owner, bar);
+        }
+    }
+    let only = focused_only().then(|| api::pumi_get_current_pane().ok()).flatten();
+    let panes = api::pumi_list_panes(json!({ "type": "terminal" })).unwrap_or(Value::Null);
+    for pane in panes.as_array().into_iter().flatten().filter_map(Value::as_u64) {
+        let wanted = is_pi(pane) && only.is_none_or(|only| only == pane);
+        match bars.remove(&pane) {
+            Some(bar) if !wanted => {
+                let _ = api::pumi_pane_close(bar, Some(true));
+            }
+            None if wanted => {
+                let place = json!({ "kind": "slot", "slot": "winbar", "owner": pane, "focus": false });
+                let args = json!({ "pane": pane });
+                if let Err(err) = api::pumi_open_pane("pi-session.strip", args, place) {
+                    eprintln!("pi-session: {err}");
+                }
+            }
+            _ => {}
+        }
+    }
+    for bar in bars.into_values() {
+        let _ = api::pumi_pane_close(bar, Some(true));
+    }
+}
+
 fn init(plugin: &mut Plugin, _cx: &mut App) {
+    declare_option(
+        "side",
+        json!({ "type": "string", "default": "right", "choices": ["right", "down"], "labels": ["To the right", "Below"], "label": "Open the fork", "desc": "Where the new pane goes, beside the one forked." }),
+    );
+    declare_option(
+        "focused_only",
+        json!({ "type": "boolean", "default": false, "label": "Only on the focused pane", "desc": "Show the bar on the focused pi pane alone." }),
+    );
+    declare_option(
+        "command",
+        json!({ "type": "string", "default": "pi", "label": "pi command", "desc": "The program run with `--fork <session>`." }),
+    );
+    // A pane that becomes pi's (or stops being) gets its bar, or loses it.
+    let pattern = json!({ "pattern": ["@agent", "@agent_session", "pi_session.focused_only"], "desc": "pi panes get their bar" });
+    if let Err(err) = api::autocmd("OptionSet", pattern, |_, _| sync()) {
+        eprintln!("pi-session: {err}");
+    }
+    if let Err(err) = api::autocmd("PaneEnter", json!({ "desc": "the bar follows the focus" }), |_, _| {
+        if focused_only() {
+            sync();
+        }
+    }) {
+        eprintln!("pi-session: {err}");
+    }
     plugin.view("strip", |open, _window, cx| {
         let pane = open.args["pane"].as_u64().unwrap_or(open.pane);
         cx.new(|_| Strip { pane }).into()
     });
+    sync();
 }
 
 pumi_plugin::plugin!(init);
