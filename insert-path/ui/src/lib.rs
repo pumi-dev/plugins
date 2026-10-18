@@ -1,7 +1,8 @@
 //! `insert-path.picker`: Rex's Insert Path…, floating over the tab.
 //!
-//! `plugin/insert-path.lua` binds the trigger key in a terminal's key table and opens this pane
-//! there with `open.args` = `{ pane, cwd, trigger, quote, cancel }`. The view walks the pane's
+//! `init` is the rest of the package, which was its `plugin/*.lua`: it declares its options,
+//! binds the trigger key in a terminal's key table, and opens this pane there with
+//! `open.args` = `{ pane, cwd, trigger, quote, height, cancel }`. The view walks the pane's
 //! directory once, filters it as you type (a fuzzy subsequence over the file name, or over the
 //! whole path once the query has a `/` in it), and on Enter types the path into the terminal's
 //! program (`pumi_pane_call(pane, "input", {text}))` and closes.
@@ -9,6 +10,7 @@
 //! Escape, or Backspace on an empty query, closes without picking; when the opener was a bare
 //! key, `cancel` says which one, and it is typed back so `/` stays usable in a shell.
 
+use std::cell::RefCell;
 use std::path::Path;
 
 use pumi_plugin::gpui::{AnyElement, ClickEvent, FontWeight, KeyDownEvent, MouseDownEvent, ScrollHandle};
@@ -489,7 +491,127 @@ impl Render for Picker {
     }
 }
 
+/// Declare one of its options, in its heading in Settings.
+fn declare_option(name: &str, mut spec: Value) {
+    spec["group"] = json!("Insert path");
+    if let Err(err) = api::pumi_create_option(&format!("insert_path.{name}"), spec) {
+        eprintln!("insert-path: {err}");
+    }
+}
+
+thread_local! {
+    /// The key the trigger is bound to now, so the last one can be unbound.
+    static BOUND: RefCell<Option<String>> = RefCell::new(None);
+}
+
+/// `insert_path.trigger`: the key that opens the picker in a terminal.
+fn trigger() -> String {
+    api::option("insert_path.trigger", json!({}))
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_string))
+        .filter(|key| !key.is_empty())
+        .unwrap_or_else(|| "/".into())
+}
+
+/// Whether a trigger is a bare key, which a cancel types back.
+fn bare(key: &str) -> bool {
+    let mut chars = key.chars();
+    matches!((chars.next(), chars.next()), (Some(c), None) if !c.is_whitespace())
+}
+
+/// The picker's pane, if one is open.
+fn picker() -> Option<u64> {
+    let panes = api::pumi_list_panes(json!({ "type": "insert-path.picker" })).ok()?;
+    panes.as_array()?.first()?.as_u64()
+}
+
+/// Close the picker, wherever it is.
+fn close() {
+    if let Some(pane) = picker() {
+        let _ = api::pumi_pane_close(pane, Some(true));
+    }
+}
+
+/// Open the picker over the tab of a pane (the event's pane, or the current one).
+fn open(event: &Value) -> bool {
+    let pane = event
+        .get("pane")
+        .and_then(Value::as_u64)
+        .or_else(|| api::pumi_get_current_pane().ok());
+    let Some(pane) = pane else {
+        let _ = api::pumi_notify("insert-path: no pane to pick a path for", Some("error"), json!({}));
+        return false;
+    };
+    close();
+    let trigger = trigger();
+    // A bare key was typed to get here, so closing without a pick types it back. A chord was
+    // not, so there is nothing to type back.
+    let cancel = bare(&trigger).then(|| trigger.clone());
+    let quote = api::option("insert_path.quote", json!({}))
+        .ok()
+        .and_then(|value| value.as_bool())
+        .unwrap_or(true);
+    let height = height();
+    let mut args = json!({
+        "pane": pane,
+        "trigger": trigger,
+        "quote": quote,
+        "height": height,
+        "cancel": cancel,
+    });
+    let cwd = api::option("pane_current_path", json!({ "pane": pane }))
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_string));
+    if let Some(cwd) = cwd {
+        args["cwd"] = json!(cwd);
+    }
+    let place = json!({ "kind": "float", "width": "60%", "height": height, "zindex": 60, "focus": false });
+    match api::pumi_open_pane("insert-path.picker", args, place) {
+        Ok(_) => true,
+        Err(err) => {
+            let _ = api::pumi_notify(&format!("insert-path: {}", err.message), Some("error"), json!({}));
+            false
+        }
+    }
+}
+
+/// `insert_path.height`: how many terminal rows tall the picker is.
+fn height() -> f64 {
+    api::option("insert_path.height", json!({}))
+        .ok()
+        .and_then(|value| value.as_f64())
+        .unwrap_or(18.)
+}
+
+/// Bind `insert_path.trigger` in the terminal's key table, and unbind the last one.
+fn bind() {
+    let key = trigger();
+    if BOUND.with(|bound| bound.borrow().as_deref() == Some(key.as_str())) {
+        return;
+    }
+    if let Some(last) = BOUND.with(|bound| bound.borrow_mut().take()) {
+        let _ = api::pumi_del_keymap("terminal", &last, json!({}));
+    }
+    let opts = json!({ "desc": "Insert a path…", "callback": api::callback(|event, _| { open(&event); }) });
+    match api::pumi_set_keymap("terminal", &key, "", opts) {
+        Ok(()) => BOUND.with(|bound| *bound.borrow_mut() = Some(key)),
+        Err(err) => eprintln!("insert-path: {err}"),
+    }
+}
+
 fn init(plugin: &mut Plugin, _cx: &mut App) {
+    declare_option(
+        "trigger",
+        json!({ "type": "string", "default": "/", "label": "Trigger", "placeholder": "/", "desc": "The key that opens the picker in a terminal. A chord such as <D-/> or a sequence works too." }),
+    );
+    declare_option(
+        "quote",
+        json!({ "type": "boolean", "default": true, "label": "Quote paths", "desc": "Wrap a path in single quotes when the shell would split it, so it types as one argument." }),
+    );
+    declare_option(
+        "height",
+        json!({ "type": "number", "default": 18, "min": 6, "max": 40, "step": 1, "unit": "rows", "label": "Height", "desc": "How many terminal rows tall the picker is." }),
+    );
     plugin.view("picker", |open, window, cx| {
         let input = cx.new(|cx| ui::TextInput::new("", PLACEHOLDER, window, cx).search());
         let picker = cx.new(|cx| Picker::new(open, input, cx));
@@ -497,6 +619,19 @@ fn init(plugin: &mut Plugin, _cx: &mut App) {
         window.focus(&focus, cx);
         picker.into()
     });
+    bind();
+    if let Err(err) = api::autocmd(
+        "OptionSet",
+        json!({ "pattern": "insert_path.*", "desc": "insert-path follows its options" }),
+        |_, _| bind(),
+    ) {
+        eprintln!("insert-path: {err}");
+    }
+    // `pumi call insert_path.open`, from anywhere: opens the picker over the current tab.
+    let spec = json!({ "desc": "Open the path picker over the current tab.", "examples": [{ "args": [] }] });
+    if let Err(err) = api::provide("insert_path.open", spec, |args| Ok(json!(open(&args)))) {
+        eprintln!("insert-path: {err}");
+    }
 }
 
 pumi_plugin::plugin!(init);
