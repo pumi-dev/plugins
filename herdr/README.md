@@ -17,4 +17,10 @@ The socket is `herdr.sock` in pumi's data directory — `$PUMI_DATA_DIR`, else
 own `~/.config/herdr/herdr.sock`, so a real herdr can run beside it. The package logs the path it
 serves when it starts; point herdr's client at it (`herdr --socket <path>`).
 
+herdr's default keys come with it: while it runs, the prefix table (`C-b`, then the key) is
+herdr's — `v` and `-` split, `h` `j` `k` `l` move between panes, `H` `J` `K` `L` resize, `c`
+`n` `p` `X` and `1`–`9` for tabs, `N` `D` `[` `]` for workspaces, `x` and `z` for the pane.
+`herdr.default_keys` off leaves the prefix table as it was. herdr's keys for its own TUI (help,
+settings, detach, the agent list) have no counterpart in the API and are not bound.
+
 Ported from `pumi/core/herdr` (herdr on pumi, docs/v2/23-client-plugins.md §3 and §6).

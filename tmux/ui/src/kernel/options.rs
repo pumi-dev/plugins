@@ -618,14 +618,6 @@ fn builtin() -> Vec<Decl> {
         )
         .label("tmux"),
         Decl::new(
-            "herdr.enabled",
-            Boolean,
-            json!(true),
-            Global,
-            "herdr compatibility: use herdr's clients on your pumi terminals, and see which agent runs in each.",
-        )
-        .label("herdr"),
-        Decl::new(
             "viewoptions",
             String,
             json!("scrollback,history"),

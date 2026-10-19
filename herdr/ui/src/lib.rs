@@ -6,8 +6,11 @@
 //! `read`; its keys are `{"keys": […]}` on the same call, which the host encodes; and what an
 //! agent is doing is the pane's `@agent`/`@agent_status`, which the host keeps from the
 //! program's own reports (OSC 7501, 23 §6).
+//!
+//! It also binds herdr's default keys in the prefix table (`keys`), as herdr has them.
 
 mod api;
+mod keys;
 mod proto;
 mod socket;
 mod state;
@@ -94,6 +97,8 @@ fn log(message: &str) {
 }
 
 fn init(_plugin: &mut Plugin, _cx: &mut App) {
+    keys::declare_option();
+    keys::install();
     let path = socket_path();
     match socket::serve(&path.to_string_lossy()) {
         Ok(_) => log(&format!("serving {}", path.display())),
