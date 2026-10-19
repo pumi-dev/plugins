@@ -1,0 +1,65 @@
+// What an agent is doing, read the way the core does: `@agent.status` is one word, and
+// `@program_status` is every program's own report, of which the most urgent is the one that speaks
+// for the pane. All that is drawn of it is in the map, as a word after the pane's title.
+import type { Pane, Program } from "./snapshot.ts";
+
+/** The states, most urgent first, as pumi ranks them (`blocked`, `error`, `done`, `working`, `idle`). */
+export const STATES = ["blocked", "error", "done", "working", "idle", "unknown"] as const;
+export type State = (typeof STATES)[number];
+
+/** How urgent a state is: the order a list of panes sorts in. */
+function urgency(state: string): number {
+  switch (state) {
+    case "blocked":
+      return 4;
+    case "error":
+      return 3;
+    case "done":
+      return 2;
+    case "working":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * The program that speaks for a pane: the most urgent report, and between two the root's (`id` is
+ * empty), so a sub-agent's block does not hide its own.
+ */
+export function program(pane: Pane): Program | undefined {
+  let best: Program | undefined;
+  for (const record of pane.program) {
+    if (!best) {
+      best = record;
+      continue;
+    }
+    const [mine, theirs] = [urgency(record.state), urgency(best.state)];
+    if (mine > theirs || (mine === theirs && record.id === "" && best.id !== "")) best = record;
+  }
+  return best;
+}
+
+/** The word a pane goes by: `@agent.status`'s, with a `done` whose program failed read as `error`. */
+export function state(pane: Pane): State {
+  switch (pane.status) {
+    case "working":
+      return "working";
+    case "blocked":
+      return "blocked";
+    case "error":
+      return "error";
+    case "done":
+      return program(pane)?.state === "error" ? "error" : "done";
+    case "idle":
+      return "idle";
+    default:
+      return "unknown";
+  }
+}
+
+/** The state the map says after a pane: the quiet ones say nothing. */
+export function shown(pane: Pane): State | "" {
+  const word = state(pane);
+  return word === "idle" || word === "unknown" ? "" : word;
+}
