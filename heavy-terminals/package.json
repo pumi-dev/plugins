@@ -1,0 +1,52 @@
+{
+  "name": "pumi-heavy-terminals",
+  "version": "0.3.0",
+  "description": "Notice terminals whose processes eat the machine, and put them to sleep: the foreground job is suspended as ctrl+z would, and woken with fg.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "heavy-terminals",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": ["processes"],
+    "contributes": {
+      "options": {
+        "interval": {
+          "type": "number",
+          "default": 5,
+          "desc": "How often every terminal is measured, in seconds."
+        },
+        "cpu": {
+          "type": "number",
+          "default": 150,
+          "desc": "A terminal using more CPU than this (100 is one core) is heavy."
+        },
+        "memory": {
+          "type": "number",
+          "default": 4096,
+          "desc": "A terminal holding more memory than this, in MB, is heavy."
+        },
+        "sustain": {
+          "type": "number",
+          "default": 3,
+          "desc": "How many checks in a row it must be heavy for."
+        },
+        "auto_sleep": {
+          "type": "boolean",
+          "default": false,
+          "desc": "Suspend its foreground job right away."
+        }
+      }
+    },
+    "activation": ["onStartup"]
+  }
+}
