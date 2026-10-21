@@ -656,7 +656,7 @@ exports[`the picker lists the directory, and the header says how many match 1`] 
                   "children": [
                     {
                       "tag": "text",
-                      "text": "lib.rs",
+                      "text": "format.py",
                     },
                   ],
                   "style": {
@@ -735,7 +735,7 @@ exports[`the picker lists the directory, and the header says how many match 1`] 
                   "children": [
                     {
                       "tag": "text",
-                      "text": "lib.test.ts",
+                      "text": "lib.rs",
                     },
                   ],
                   "style": {
