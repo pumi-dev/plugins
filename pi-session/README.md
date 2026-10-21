@@ -1,8 +1,8 @@
 # pi-session
 
-Two buttons at the end of a [pi](https://github.com/) pane's strip, past its dot and title: **Fork**
-opens `pi --fork <session>` in a pane beside it, in the same directory; **Copy** puts the session's
-id, path and directory on the clipboard.
+Two buttons at the end of a pi pane's strip, past its dot and title: **Fork** opens
+`pi --fork <session>` in a pane beside it, in the same directory; **Copy** puts the session's id,
+path and directory on the clipboard.
 
 ```text
   ● pi  src/pumi                           ⌥ ⌘ ✕
@@ -32,13 +32,14 @@ The path is there when the hook reported one, the directory when the pane has on
 
 ## Options
 
-- `pi_session.side` — where the fork goes: `right` (default) or `down`.
-- `pi_session.command` — the program run with `--fork <session>` (default `pi`).
-- `pi_session.focused_only` — the buttons on the focused pi pane alone, not on every pi pane's strip
-  (default off; they are drawn with the pane's own strip buttons, so on a pane they show on the
-  focused or hovered one and hide with it).
+Its three options are under **Pi session** in Settings, and their full names start
+`amresyd.pi_session.`:
 
-All three are under **Pi session** in Settings.
+- `side` — where the fork goes: `right` (default) or `down`.
+- `command` — the program run with `--fork <session>` (default `pi`).
+- `focused_only` — the buttons on the focused pi pane alone, not on every pi pane's strip (default
+  off; they are drawn with the pane's own strip buttons, so on a pane they show on the focused or
+  hovered one and hide with them).
 
 ## What it touches
 
