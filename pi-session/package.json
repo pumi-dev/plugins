@@ -1,0 +1,51 @@
+{
+  "name": "pumi-pi-session",
+  "version": "0.2.0",
+  "description": "Fork a pi session in a pane beside its own, and copy its id, path and directory: two buttons at the end of a pi pane's strip.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "pi-session",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": ["files", "processes"],
+    "contributes": {
+      "options": {
+        "side": {
+          "type": "string",
+          "default": "right",
+          "choices": ["right", "down"],
+          "labels": ["To the right", "Below"],
+          "label": "Open the fork",
+          "desc": "Where the new pane goes, beside the one forked.",
+          "group": "Pi session"
+        },
+        "focused_only": {
+          "type": "boolean",
+          "default": false,
+          "label": "Only on the focused pane",
+          "desc": "Show the buttons on the focused pi pane alone, not on every pi pane's strip.",
+          "group": "Pi session"
+        },
+        "command": {
+          "type": "string",
+          "default": "pi",
+          "label": "pi command",
+          "desc": "The program run with `--fork <session>`.",
+          "group": "Pi session"
+        }
+      },
+      "views": [{ "id": "strip", "title": "Pi session", "icon": "git_branch" }]
+    },
+    "activation": ["onStartup"]
+  }
+}
