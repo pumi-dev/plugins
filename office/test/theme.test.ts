@@ -188,6 +188,15 @@ test("the plan: a pod for each session, a desk for each tab, and a free desk", a
   expect(within(t, "desk11", cls("desk-pane"))[0]!.props.key).toBe("panet:%1");
 });
 
+test("a window with no session is an empty floor, with you in the middle of it", async () => {
+  const t = await mount(office({ spaces: [], tabs: [], space: null, focused: null, agents: [] }));
+  expect(t.findAll(".pod").length).toBe(0);
+  expect(t.findAll(".desk").length).toBe(0);
+  expect(t.find("#you").style.transform).toBe("translate(628px, 56px)");
+  expect(t.text(cls("hud-space"))).toBe("No session");
+  expect(t.text(cls("hud-count", "rooms"))).toBe("0 sessions · 0 desks");
+});
+
 test("a desk dragged stays where you put it, and where you left it is kept", async () => {
   const t = await mount();
   const desk = (n: { props: { key?: string } }) => n.props.key === "desk11";
