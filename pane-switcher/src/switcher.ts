@@ -123,12 +123,13 @@ export class Switcher extends View {
     this.cx.notify();
   }
 
-  /** Scrolls the strip so the highlighted card is in sight. */
+  /** Scrolls the strip so the highlighted card is in sight: the fewest pixels that bring it there,
+   * the strip being as wide as the float less its padding until the app says otherwise. */
   private reveal(): void {
     const step = this.asked.cardWidth + GAP;
     const at = this.at * step;
     const seen = this.scroll.offset.x;
-    const room = this.scroll.size.width;
+    const room = this.scroll.size.width > 0 ? this.scroll.size.width : Math.max(0, this.cx.size.width - 2 * PAD);
     if (at < seen) this.scroll.scrollTo({ x: at });
     else if (room > 0 && at + this.asked.cardWidth > seen + room) {
       this.scroll.scrollTo({ x: at + this.asked.cardWidth - room });
