@@ -1,0 +1,51 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`it draws Fork and Copy at the end of the strip 1`] = `
+{
+  "children": [
+    {
+      "id": "fork",
+      "on": [
+        "click",
+      ],
+      "props": {
+        "component": "button",
+        "params": {
+          "icon": "git_branch",
+          "size": "small",
+          "tooltip": "Fork: open pi --fork <session> beside this pane",
+          "variant": "ghost",
+        },
+      },
+      "tag": "ui",
+    },
+    {
+      "id": "copy",
+      "on": [
+        "click",
+      ],
+      "props": {
+        "component": "button",
+        "params": {
+          "icon": "copy",
+          "size": "small",
+          "tooltip": "Copy the session's id, path and directory",
+          "variant": "ghost",
+        },
+      },
+      "tag": "ui",
+    },
+  ],
+  "class": "pi-session",
+  "id": "strip",
+  "style": {
+    "align-items": "center",
+    "display": "flex",
+    "gap": "4px",
+    "height": "100%",
+    "justify-content": "flex-end",
+    "width": "100%",
+  },
+  "tag": "div",
+}
+`;
