@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"],
+    "types": ["bun"],
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "pumi": ["./node_modules/@pumid/types/index.ts"],
+      "pumi/testing": ["./node_modules/@pumid/types/testing.ts"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,59 @@
+{
+  "name": "pumi-marmaide",
+  "version": "0.2.0",
+  "description": "Mermaid diagrams in a pane, drawn by Pele, with a tool an agent explains things with.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "marmaide",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": ["files"],
+    "contributes": {
+      "options": {
+        "font": {
+          "type": "string",
+          "default": "",
+          "label": "Font",
+          "placeholder": "the app's",
+          "desc": "The diagram's text, by family. Empty is the app's own font, which its renderer has."
+        },
+        "font_mono": {
+          "type": "string",
+          "default": "",
+          "label": "Monospace font",
+          "placeholder": "the app's",
+          "desc": "What a diagram's code and constants are set in. Empty is the app's monospace font."
+        },
+        "font_size": {
+          "type": "number",
+          "default": 16,
+          "min": 8,
+          "max": 32,
+          "step": 1,
+          "unit": "px",
+          "label": "Font size",
+          "desc": "Pele lays a diagram out at this size."
+        },
+        "source": {
+          "type": "string",
+          "default": "",
+          "scope": "pane",
+          "label": "Diagram source",
+          "desc": "The Mermaid text this diagram pane draws."
+        }
+      },
+      "views": [{ "id": "diagram", "title": "Diagram", "icon": "package" }]
+    },
+    "activation": ["onStartup"]
+  }
+}
