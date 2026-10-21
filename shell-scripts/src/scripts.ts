@@ -42,15 +42,15 @@ export function shellOf(line: string): string | null {
   const text = line.trim();
   if (!text.startsWith("#!")) return null;
   const words = text.slice(2).split(/\s+/).filter((word) => word.length > 0);
-  const first = words.length > 0 ? base(words[0]) : null;
+  const first = base(words[0]);
   if (first === null) return null;
-  const shell = first === "env" ? base(words.slice(1).find((word) => !word.startsWith("-")) ?? "") : first;
+  const shell = first === "env" ? base(words.slice(1).find((word) => !word.startsWith("-"))) : first;
   return shell !== null && SHELLS.includes(shell) ? shell : null;
 }
 
 /** The last part of `word`, lowercased: `/usr/bin/env` is `env`. */
-function base(word: string): string | null {
-  const trimmed = word.replace(/\/+$/, "");
+function base(word: string | undefined): string | null {
+  const trimmed = (word ?? "").replace(/\/+$/, "");
   const name = trimmed.slice(trimmed.lastIndexOf("/") + 1);
   return name === "" ? null : name.toLowerCase();
 }
@@ -121,13 +121,17 @@ export function finder(settings: Settings, optionMatch: string | string[]): Find
 export async function read(): Promise<Finder> {
   const extensions = await option.get("extensions");
   const depth = await option.get("max_depth");
-  const settings: Settings = {
-    depth: depthOf(depth),
-    extensions: parseExtensions(typeof extensions === "string" ? extensions : DEFAULT_EXTENSIONS),
-    shebang: (await option.get("shebang")) !== false,
-    showCommand: (await option.get("show_command")) !== false,
-  };
-  return finder(settings, pkg.prefixed("*"));
+  const shebang = await option.get("shebang");
+  const showCommand = await option.get("show_command");
+  return finder(
+    {
+      depth: depthOf(depth),
+      extensions: parseExtensions(typeof extensions === "string" ? extensions : DEFAULT_EXTENSIONS),
+      shebang: shebang !== false,
+      showCommand: showCommand !== false,
+    },
+    pkg.prefixed("*"),
+  );
 }
 
 /** The depth an option's value says: 4 when it is not a whole number of 0 or more, and 1 to 10. */
