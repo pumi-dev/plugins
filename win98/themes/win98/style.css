@@ -99,7 +99,7 @@
 .button:active { border-color: var(--dark) var(--white) var(--white) var(--dark); }
 
 /* -- menus -- */
-.menu { position: absolute; z-index: 100; }
+.menu { position: absolute; z-index: 100; min-width: 0; max-width: none; padding: 0; border-radius: 0; box-shadow: none; }
 .menu-in { padding: 1px; min-width: 150px; }
 .dropdown { left: -1px; top: 18px; }
 .submenu { left: 100%; top: -3px; margin-left: -3px; }
