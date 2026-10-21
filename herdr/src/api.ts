@@ -524,7 +524,8 @@ function idIn(value: Json | undefined): number | undefined {
 export function translate(now: View, before: View, event: CoreEvent): Envelope[] {
   const envelope = (snake: string, data: Record<string, Json>): Envelope => ({ event: snake, data: { ...data, type: snake } });
   const data = isObject(event.data) ? event.data : {};
-  const pane = event.pane;
+  // pumi puts the object an event is about beside it (`pane`, `tab`, `session`) and in its data.
+  const pane = event.pane ?? idIn(data.pane);
   const tab = event.tab ?? idIn(data.tab);
   const session = event.session ?? idIn(data.session);
   switch (event.event) {
