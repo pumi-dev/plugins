@@ -1,0 +1,21 @@
+{
+  "name": "pumi-office",
+  "version": "0.1.0",
+  "description": "A pixel office as a UI theme: a desk for each tab, and you walk over to sit at its computer.",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "office",
+    "owner": "amresyd",
+    "api": 1,
+    "themes": ["themes/office"]
+  }
+}
