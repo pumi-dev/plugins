@@ -1,0 +1,234 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the bar is a title and a row a job, and the app takes everything it sends 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "style": {
+            "color": "$muted",
+            "flex": "none",
+            "font-size": "10.5px",
+          },
+          "tag": "text",
+          "text": "queue",
+        },
+        {
+          "style": {
+            "color": "$muted/0.75",
+            "flex": "1 1 0%",
+            "font-size": "10.5px",
+          },
+          "tag": "text",
+          "text": "2 waiting",
+        },
+      ],
+      "id": "queue-title",
+      "style": {
+        "display": "flex",
+        "flex-direction": "row",
+        "gap": "8px",
+        "height": "24px",
+        "width": "100%",
+      },
+      "tag": "div",
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "style": {
+                "color": "$muted/0.5",
+                "font-size": "10.5px",
+              },
+              "tag": "text",
+              "text": "·",
+            },
+          ],
+          "style": {
+            "flex": "none",
+            "width": "12px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "style": {
+                "color": "$text",
+                "font-size": "11px",
+              },
+              "tag": "text",
+              "text": "cargo test",
+            },
+          ],
+          "style": {
+            "flex": "1 1 0%",
+          },
+          "tag": "div",
+        },
+        {
+          "style": {
+            "color": "$muted",
+            "flex": "none",
+            "font-size": "10px",
+          },
+          "tag": "text",
+          "text": "after %4 · done",
+        },
+        {
+          "children": [
+            {
+              "style": {
+                "color": "$muted",
+                "font-size": "10px",
+              },
+              "tag": "text",
+              "text": "✕",
+            },
+          ],
+          "id": "queue-cancel-1",
+          "on": [
+            "click",
+          ],
+          "style": {
+            "border-radius": "3px",
+            "flex": "none",
+            "hover": {
+              "background": "$border",
+            },
+            "padding-left": "4px",
+            "padding-right": "4px",
+          },
+          "tag": "div",
+        },
+      ],
+      "id": "queue-job-1",
+      "on": [
+        "click",
+      ],
+      "style": {
+        "border-radius": "4px",
+        "cursor": "pointer",
+        "display": "flex",
+        "flex-direction": "row",
+        "gap": "8px",
+        "height": "24px",
+        "hover": {
+          "background": "$hover",
+        },
+        "padding-left": "2px",
+        "padding-right": "2px",
+        "width": "100%",
+      },
+      "tag": "div",
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "style": {
+                "color": "$muted/0.5",
+                "font-size": "10.5px",
+              },
+              "tag": "text",
+              "text": "·",
+            },
+          ],
+          "style": {
+            "flex": "none",
+            "width": "12px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "style": {
+                "color": "$text",
+                "font-size": "11px",
+              },
+              "tag": "text",
+              "text": "deploy",
+            },
+          ],
+          "style": {
+            "flex": "1 1 0%",
+          },
+          "tag": "div",
+        },
+        {
+          "style": {
+            "color": "$muted",
+            "flex": "none",
+            "font-size": "10px",
+          },
+          "tag": "text",
+          "text": "after %4 · done",
+        },
+        {
+          "children": [
+            {
+              "style": {
+                "color": "$muted",
+                "font-size": "10px",
+              },
+              "tag": "text",
+              "text": "✕",
+            },
+          ],
+          "id": "queue-cancel-2",
+          "on": [
+            "click",
+          ],
+          "style": {
+            "border-radius": "3px",
+            "flex": "none",
+            "hover": {
+              "background": "$border",
+            },
+            "padding-left": "4px",
+            "padding-right": "4px",
+          },
+          "tag": "div",
+        },
+      ],
+      "id": "queue-job-2",
+      "on": [
+        "click",
+      ],
+      "style": {
+        "border-radius": "4px",
+        "cursor": "pointer",
+        "display": "flex",
+        "flex-direction": "row",
+        "gap": "8px",
+        "height": "24px",
+        "hover": {
+          "background": "$hover",
+        },
+        "padding-left": "2px",
+        "padding-right": "2px",
+        "width": "100%",
+      },
+      "tag": "div",
+    },
+  ],
+  "id": "queue-bar",
+  "style": {
+    "display": "flex",
+    "flex-direction": "column",
+    "height": "100%",
+    "overflow": "hidden",
+    "padding-bottom": "2px",
+    "padding-left": "10px",
+    "padding-right": "10px",
+    "padding-top": "2px",
+    "width": "100%",
+  },
+  "tag": "div",
+}
+`;
