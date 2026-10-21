@@ -268,6 +268,7 @@ export class Dashboard extends View {
   }
 
   private railView(): El {
+    const lines = this.lines();
     return div()
       .flex()
       .flexCol()
@@ -307,7 +308,7 @@ export class Dashboard extends View {
           ),
       )
       .child(
-        list({ rows: this.lines().length, rowHeight: ROW, render: (at) => this.railLine(this.lines()[at]!) })
+        list({ rows: lines.length, rowHeight: ROW, render: (at) => this.railLine(lines[at]!) })
           .id("agent-overview-rail")
           .flex1()
           .minH0()
