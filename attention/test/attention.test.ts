@@ -76,3 +76,14 @@ test("a closed pane is counted again", async () => {
   expect(app.options.get("@attention")).toBe(1);
   expect(app.notices).toHaveLength(1);
 });
+
+test("two agents blocked at once say it once", async () => {
+  const states: Record<number, string> = { 1: "working", 2: "working" };
+  await start(states);
+  // Both panes report in the same turn: two events before the first look is done.
+  states[1] = "blocked";
+  states[2] = "blocked";
+  await Promise.all([reported(1), reported(2)]);
+  expect(app.notices).toEqual([{ msg: "2 agents are waiting for you", level: "warn" }]);
+  expect(app.options.get("@attention")).toBe(2);
+});
