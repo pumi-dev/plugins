@@ -1,0 +1,3 @@
+name = "pane-switcher"
+version = "0.1.0"
+description = "Alt-Tab for panes: a row of cards, each showing what its pane holds, to pick one."

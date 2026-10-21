@@ -3,7 +3,7 @@
 //! answer `unsupported` at once, from [`methods::METHODS`].
 
 use crate::proto::methods::{self, Support};
-use crate::proto::types::{ReadFormat, ReadSource, SplitDirection};
+use crate::proto::types::{AgentStatus, ReadFormat, ReadSource, SplitDirection};
 use crate::proto::{HERDR_PROTOCOL, HERDR_VERSION, codes, result};
 use crate::view::View;
 use pumi_plugin::api as sdk;
@@ -555,11 +555,18 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
                     json!(["@agent", agent, { "pane": pane }]),
                 )?;
             }
+            // The state is the pane's program status, which the host keeps (OSC 7501): said
+            // as the program would, so it lives and goes as the program's own reports do.
             if let Some(state) = p.opt_str("state") {
-                h.call(
-                    "pumi_set_option_value",
-                    json!(["@agent_status", state, { "pane": pane }]),
-                )?;
+                let report = match AgentStatus::parse(state) {
+                    Some(AgentStatus::Unknown) => "state=clear".to_string(),
+                    Some(known) => match p.opt_str("agent").filter(|a| is_app(a)) {
+                        Some(app) => format!("state={}:app={app}", known.as_str()),
+                        None => format!("state={}", known.as_str()),
+                    },
+                    None => return Err(fail(codes::INVALID_PARAMS, format!("no agent state `{state}`"))),
+                };
+                h.call("pumi_pane_report", json!([pane, report]))?;
             }
             Ok(result("ok", json!({})))
         }
@@ -568,6 +575,12 @@ pub fn dispatch(h: &Herdr, method: &str, params: &Value) -> Result {
             format!("{method} is not implemented by pumi yet"),
         )),
     }
+}
+
+/// An OSC 7501 `app`: what a report may name its program.
+fn is_app(name: &str) -> bool {
+    (1..=32).contains(&name.len())
+        && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.+-".contains(&b))
 }
 
 /// The length in bytes of the escape sequence at the start of `seq`.

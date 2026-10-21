@@ -1,0 +1,3 @@
+name = "perf"
+version = "0.1.0"
+description = "How the app is doing, floating in a corner of the window: CPU, memory, frames, core plugins and the busiest threads."

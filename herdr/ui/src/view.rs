@@ -182,9 +182,11 @@ impl View {
             .map(str::to_string)
     }
 
+    /// The pane's `@agent_status`, which pumi's host decides (23 §6). herdr has no `error`:
+    /// a failed program is `done` to its clients, and its record (`program_status`) says so.
     pub fn status(&self, pane: u64) -> AgentStatus {
         self.text(pane, "@agent_status")
-            .and_then(|s| AgentStatus::parse(&s))
+            .and_then(|s| AgentStatus::parse(if s == "error" { "done" } else { &s }))
             .unwrap_or_default()
     }
 

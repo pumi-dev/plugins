@@ -120,7 +120,7 @@ pub fn start(cx: &mut App) {
     }
     crate::defaults::declare_options();
     crate::defaults::install();
-    with(|registry, kernel| turn(registry, kernel));
+    with(turn);
     timers(cx);
     log("serving tmux's functions");
 }
@@ -165,6 +165,7 @@ fn caller_of(caller: Option<Value>) -> Caller {
         client,
         pane: c["pane"].as_u64(),
         source: None,
+        api_level: None,
     }
 }
 

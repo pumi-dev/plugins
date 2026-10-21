@@ -1,3 +1,3 @@
 name = "herdr"
 version = "0.1.0"
-description = "herdr's API on pumi: its CLI and its mobile apps drive pumi's panes over herdr.sock."
+description = "herdr's API and terminal attach on pumi: its CLI and its mobile apps drive pumi's panes and show them live."

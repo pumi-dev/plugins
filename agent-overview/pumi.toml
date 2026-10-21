@@ -1,0 +1,3 @@
+name = "agent-overview"
+version = "0.1.0"
+description = "Every agent in this pumi in one pane: who is working, who is blocked, and where."

@@ -152,7 +152,7 @@ fn init(plugin: &mut Plugin, _cx: &mut App) {
     });
 }
 
-pumi_plugin::plugin!(init);
+pumi_plugin::plugin!(init, api = 1);
 
 #[cfg(test)]
 mod tests {

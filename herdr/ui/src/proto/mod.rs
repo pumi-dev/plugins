@@ -8,6 +8,7 @@ pub mod events;
 pub mod ids;
 pub mod methods;
 pub mod types;
+pub mod wire;
 
 /// The herdr version whose API pumi implements, and what `ping` reports.
 pub const HERDR_VERSION: &str = "0.9.4";

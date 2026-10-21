@@ -25,4 +25,4 @@ fn init(_plugin: &mut Plugin, cx: &mut App) {
     server::start(cx);
 }
 
-pumi_plugin::plugin!(init);
+pumi_plugin::plugin!(init, api = 1);

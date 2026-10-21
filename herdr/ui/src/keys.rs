@@ -47,7 +47,7 @@ pub fn bindings() -> Vec<(String, Value, &'static str)> {
         ("v".into(), split("right"), "Split right"),
         ("-".into(), split("down"), "Split down"),
         ("x".into(), call("pumi_pane_close", json!([0, false])), "Close the pane"),
-        ("z".into(), call("pumi_pane_toggle_zoom", json!([0])), "Zoom the pane"),
+        ("z".into(), call("pumi_pane_set_zoom", json!([0, "toggle"])), "Zoom the pane"),
         ("H".into(), resize("L"), "Resize left"),
         ("L".into(), resize("R"), "Resize right"),
         ("K".into(), resize("U"), "Resize up"),

@@ -1,0 +1,168 @@
+/* Windows 98. Bevels are two nested boxes with per-side border colours (`.raised` > `.raised-in`,
+   `.sunken` > `.sunken-in`); the font is Tahoma at 11px, as the system's was. */
+
+#desktop { width: 100%; height: 100%; background: $desktop; font-family: Tahoma; font-size: 11px; color: $ink; }
+.px { image-rendering: pixelated; flex-shrink: 0; }
+.spacer { flex-grow: 1; }
+.bold { font-weight: bold; }
+.dim { color: $shadow; }
+
+/* -- bevels -- */
+.raised { border-width: 1px; border-color: $light $dark $dark $light; background: $face; }
+.raised-in { border-width: 1px; border-color: $white $shadow $shadow $white; flex-grow: 1; min-height: 0; min-width: 0; }
+.sunken { border-width: 1px; border-color: $shadow $white $white $shadow; }
+.sunken-in { border-width: 1px; border-color: $dark $light $light $dark; flex-grow: 1; min-height: 0; min-width: 0; }
+
+/* -- buttons -- */
+.btn { border-width: 1px; border-color: $white $dark $dark $white; background: $face; flex-shrink: 0; }
+.btn-in { flex-direction: row; align-items: center; justify-content: center; gap: 4px; flex-grow: 1; min-width: 0;
+          border-width: 1px; border-color: $light $shadow $shadow $light; padding: 0 4px; }
+.btn:active, .btn.pressed { border-color: $dark $white $white $dark; }
+.btn:active > .btn-in, .btn.pressed > .btn-in { border-color: $shadow $light $light $shadow; padding: 1px 3px 0 5px; }
+.btn.pressed > .btn-in { background: $checker; }
+.btn.disabled { color: $shadow; }
+
+/* -- desktop icons -- */
+#icons { position: absolute; top: 8px; left: 8px; gap: 14px; }
+.desk-icon { width: 76px; align-items: center; gap: 4px; }
+.desk-glyph { width: 32px; height: 32px; }
+.desk-label { color: $white; padding: 1px 2px; text-align: center; }
+.desk-icon.selected .desk-label { background: $highlight; }
+.desk-icon.selected .desk-glyph { opacity: 0.7; }
+
+/* -- windows -- */
+#windows { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.window { position: absolute; pointer-events: auto; }
+.window-in { padding: 2px; gap: 1px; }
+.caption { flex-direction: row; align-items: center; height: 18px; flex-shrink: 0; padding: 0 2px; gap: 3px;
+           background: linear-gradient(to right, $inactive, $inactive2); cursor: default; }
+.window.active .caption { background: linear-gradient(to right, $title, $title2); }
+.dialog .caption { background: linear-gradient(to right, $title, $title2); }
+.caption-icon { width: 16px; height: 16px; }
+.caption-title { color: $light; font-weight: bold; white-space: nowrap; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.window.active .caption-title, .dialog .caption-title { color: $white; }
+.capbtn { width: 16px; height: 14px; }
+.capbtn > .btn-in { padding: 0; }
+.capbtn-label { font-size: 9px; font-weight: bold; color: $black; }
+.capgap { width: 2px; }
+.menubar { flex-direction: row; height: 19px; align-items: center; flex-shrink: 0; }
+.menubar-item { position: relative; padding: 2px 6px; }
+.menubar-item:hover { border-width: 1px; border-color: $white $shadow $shadow $white; padding: 1px 5px; }
+.menubar-item.open { border-width: 1px; border-color: $shadow $white $white $shadow; padding: 2px 4px 0 6px; }
+.client { flex-grow: 1; min-height: 0; }
+.client-in { background: $black; }
+.window-status { flex-direction: row; height: 20px; flex-shrink: 0; padding-top: 2px; }
+.status-field { flex-grow: 1; padding: 1px 4px; white-space: nowrap; text-overflow: ellipsis; }
+.grip { position: absolute; right: 1px; bottom: 1px; width: 13px; height: 13px; cursor: nwse-resize;
+        background: linear-gradient(135deg, transparent 50%, $shadow 50%, $shadow 60%, $white 60%, $white 70%,
+                    transparent 70%, transparent 80%, $shadow 80%, $shadow 90%, $white 90%); }
+.explorer { flex-grow: 1; min-height: 0; background: $white; }
+.explorer .section-header { flex-direction: row; align-items: center; gap: 4px; height: 20px; padding: 0 6px;
+                            background: $face; border-bottom: 1px solid $shadow; font-weight: bold; }
+.explorer .section-header icon { width: 10px; height: 10px; }
+.explorer .section.open { flex-grow: 1; flex-basis: 0; min-height: 0; }
+.explorer .section-body { flex-grow: 1; min-height: 0; }
+.explorer .page { flex-grow: 1; min-height: 0; }
+.explorer .page-empty { padding: 10px; }
+
+/* -- panes inside a window (the default theme's `C.Panes`) -- */
+.panes { position: relative; flex-grow: 1; min-height: 0; overflow: hidden; }
+.pane { position: absolute; }
+.pane-cell { flex-grow: 1; min-height: 0; overflow: hidden; background: $black; }
+.pane + .pane .pane-cell { }
+.pane-strip { flex-direction: row; align-items: center; gap: 4px; height: 16px; padding: 0 2px 0 4px; flex-shrink: 0;
+              background: $face; color: $shadow; }
+.pane.focused .pane-strip { color: $ink; font-weight: bold; }
+.pane-strip .dot { width: 6px; height: 6px; background: $shadow; }
+.pane-strip .dot.status-working { background: #ffc400; }
+.pane-strip .dot.status-blocked { background: #ff2a00; }
+.pane-strip .dot.status-done { background: #18b100; }
+.pane-title { white-space: nowrap; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.pane-buttons { flex-direction: row; gap: 0; }
+.pane-strip .icon-button { width: 14px; height: 14px; align-items: center; justify-content: center; }
+.pane-strip .icon-button icon { width: 10px; height: 10px; }
+.pane-strip .icon-button:hover { background: $light; }
+.pane-body { flex-grow: 1; min-height: 0; }
+.pane:drop-target .pane-cell { border-width: 2px; border-color: $highlight; }
+.divider { position: absolute; z-index: 5; background: $face; }
+.divider.vertical { width: 4px; margin-left: -2px; cursor: col-resize; border-left-width: 1px; border-right-width: 1px;
+                    border-color: $white $shadow $shadow $white; }
+.divider.horizontal { height: 4px; margin-top: -2px; cursor: row-resize; border-top-width: 1px; border-bottom-width: 1px;
+                      border-color: $white $shadow $shadow $white; }
+.empty { flex-grow: 1; align-items: center; justify-content: center; gap: 8px; background: $white; }
+.empty-icon { width: 32px; height: 32px; color: $shadow; }
+.empty-actions { flex-direction: row; gap: 6px; }
+.button { border-width: 1px; border-color: $white $dark $dark $white; background: $face; padding: 3px 10px; }
+.button:active { border-color: $dark $white $white $dark; }
+
+/* -- menus -- */
+.menu { position: absolute; z-index: 100; }
+.menu-in { padding: 1px; min-width: 150px; }
+.dropdown { left: -1px; top: 18px; }
+.submenu { left: 100%; top: -3px; margin-left: -3px; }
+.menu-item { position: relative; flex-direction: row; align-items: center; height: 20px; gap: 4px; padding: 0 6px 0 0; white-space: nowrap; }
+.menu-item:hover, .menu-item.open { background: $highlight; color: $white; }
+.menu-item.disabled { color: $shadow; }
+.menu-item.disabled:hover { background: transparent; color: $shadow; }
+.menu-check { width: 14px; align-items: center; justify-content: center; }
+.menu-icon { width: 16px; height: 16px; }
+.menu-label { flex-grow: 1; padding-right: 12px; }
+.menu-arrow { font-size: 7px; }
+.menu-sep { height: 2px; margin: 3px 2px; border-top: 1px solid $shadow; border-bottom: 1px solid $white; }
+
+/* -- the Start menu -- */
+#startmenu { position: absolute; left: 2px; bottom: 26px; z-index: 90; }
+.start-in { flex-direction: row; padding: 1px; }
+.banner { width: 21px; justify-content: flex-end; align-items: center; padding-bottom: 6px;
+          background: linear-gradient(to top, $title2, $title); }
+.banner text { writing-mode: sideways-lr; font-family: Verdana; font-size: 15px; color: $white; }
+.banner-bold { font-weight: bold; }
+.banner-thin { color: $light; }
+.start-items { position: relative; border-width: 0; }
+.start-items > .raised-in { border-width: 0; min-width: 170px; }
+.start-items > .raised-in > .menu-item { height: 32px; gap: 8px; }
+.start-items > .raised-in > .menu-item > .menu-icon { width: 24px; height: 24px; }
+.start-items > .raised-in > .menu-item > .menu-check { width: 0; }
+.start-items .submenu { top: -2px; }
+
+/* -- the taskbar -- */
+#taskbar { position: absolute; left: 0; bottom: 0; width: 100%; height: 28px; flex-direction: row; align-items: center;
+           gap: 3px; padding: 2px; background: $face; border-top: 1px solid $light; z-index: 80; }
+#start { height: 22px; width: 56px; }
+#start .btn-in { gap: 3px; padding: 0 3px; }
+.start-flag { width: 16px; height: 16px; }
+.start-label { font-weight: bold; }
+.bar-sep { width: 2px; height: 20px; border-left: 1px solid $shadow; border-right: 1px solid $white; margin: 0 1px; flex-shrink: 0; }
+#quick { flex-direction: row; gap: 1px; }
+.quick { width: 22px; height: 22px; border-color: transparent; }
+.quick > .btn-in { border-color: transparent; padding: 0; }
+.quick:hover { border-color: $white $dark $dark $white; }
+.quick-icon { width: 16px; height: 16px; }
+#tasks { flex-direction: row; gap: 3px; flex-grow: 1; min-width: 0; overflow: hidden; }
+.task { width: 160px; height: 22px; flex-shrink: 1; min-width: 36px; }
+.task > .btn-in { justify-content: flex-start; }
+.task.pressed .task-title { font-weight: bold; }
+.task-icon { width: 16px; height: 16px; }
+.task-title { white-space: nowrap; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.task.status-working .task-title { color: #806000; }
+.task.status-blocked .task-title { color: #c00000; }
+#tray { flex-direction: row; align-items: center; height: 22px; gap: 6px; padding: 0 8px; flex-shrink: 0; }
+.tray-view { height: 18px; }
+.tray-agent { width: 14px; height: 14px; align-items: center; justify-content: center; font-size: 9px; font-weight: bold;
+              border-width: 1px; border-color: $white $dark $dark $white; }
+.tray-agent.working { background: #ffc400; }
+.tray-agent.blocked { background: #ff2a00; color: $white; animation: pulse 1000ms ease-in-out infinite; }
+.clock { white-space: nowrap; }
+
+/* -- dialogs -- */
+#modal { position: absolute; left: 0; top: 0; width: 100%; height: 100%; align-items: center; justify-content: center; z-index: 200; }
+.dialog-body { flex-direction: row; padding: 12px; gap: 14px; align-items: flex-start; }
+.dialog-icon { width: 32px; height: 32px; }
+.dialog-text { gap: 6px; flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.dialog-buttons { flex-direction: row; justify-content: flex-end; gap: 6px; padding: 0 10px 10px; }
+.dialog-btn { width: 75px; height: 23px; }
+.dialog-btn.default { outline: 1px solid $black; }
+.run-row { flex-direction: row; align-items: center; gap: 8px; padding-top: 6px; }
+.run-input { flex-grow: 1; height: 21px; background: $white; }
+
+#tooltip { background: $tip; color: $ink; border: 1px solid $black; font-size: 11px; padding: 2px 4px; }

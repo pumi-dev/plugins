@@ -1,18 +1,20 @@
-//! `pi-session.strip`: the bar on a pi pane, in its `winbar`. Fork opens `pi --fork <session>`
-//! in a pane beside it, in the same directory; Copy puts the session's id, path and directory on
-//! the clipboard.
+//! `pi-session.strip`: the buttons at the end of a pi pane's strip, past its dot and title. Fork
+//! opens `pi --fork <session>` in a pane beside it, in the same directory; Copy puts the session's
+//! id, path and directory on the clipboard.
 //!
-//! `init` is the package's own half, with no Lua left in it: the options it declares, and the bar
-//! on every pane whose agent's hook said it is pi's (`@agent`, `@agent_session`).
+//! `init` is the package's own half, with no Lua left in it: the options it declares, and the
+//! buttons on every pane whose agent's hook said it is pi's (`@agent`, `@agent_session`). The view
+//! is placed in that pane's `PaneStrip` slot (06 §1½) at the row's end (`@start` off), so it rides
+//! the strip the pane already has rather than a bar of its own.
 
 use std::collections::HashMap;
 use std::io::BufRead;
 
-use pumi_plugin::gpui::{ClickEvent, FontWeight};
+use pumi_plugin::gpui::ClickEvent;
 use pumi_plugin::prelude::*;
-use pumi_plugin::ui::color;
+use pumi_plugin::ui::{self, Button};
 
-/// What the bar knows of its pane, read when it acts so it is never stale.
+/// What the strip knows of its pane, read when it acts so it is never stale.
 struct Session {
     /// What pi's hook reported: an id, or a session file's path.
     value: String,
@@ -121,23 +123,24 @@ fn notify(text: &str, level: &str) {
     let _ = api::pumi_notify(text, Some(level), json!({}));
 }
 
+/// How wide the buttons ask to be in the strip (its `@width`, in pixels): two of the app's
+/// square icon buttons side by side, and what is left over stays between them and the title.
+const WIDTH: f32 = 50.;
+
+/// Which end of the strip the buttons sit at (`@start`): the row's end, to the right of the title
+/// and beside the pane's own split and close buttons.
+const START: bool = false;
+
 struct Strip {
     pane: u64,
 }
 
-fn button(id: &'static str, label: &'static str) -> Stateful<Div> {
-    div()
-        .id(id)
-        .flex_none()
-        .px_2()
-        .rounded_sm()
-        .cursor_pointer()
-        .text_color(color::muted_foreground())
-        .hover(|s| s.bg(color::list_hover()).text_color(color::foreground()))
-        .child(label)
+/// One of the strip's buttons: one of the app's icons (the theme import has them, `branch`,
+/// `copy`), with what it does in the tooltip rather than a label.
+fn button(id: &'static str, icon: &str, tip: &'static str) -> Button {
+    let path = ui::theme::icon(icon).unwrap_or_else(|| SharedString::from("icons/circle.svg"));
+    Button::icon_only(id, path).tooltip(tip)
 }
-
-use pumi_plugin::gpui::{Div, Stateful};
 
 impl Render for Strip {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -147,24 +150,32 @@ impl Render for Strip {
             .size_full()
             .flex()
             .items_center()
+            .justify_end()
             .gap_1()
-            .px_2()
-            .text_xs()
-            .text_color(color::muted_foreground())
-            .child(div().flex_1().font_weight(FontWeight::MEDIUM).child("pi"))
-            .child(button("fork", "Fork").on_click(cx.listener(
-                |strip: &mut Strip, _: &ClickEvent, _, _| {
-                    if let Err(err) = fork(strip.pane) {
-                        notify(&format!("pi-session: {err}"), "error");
-                    }
-                },
-            )))
-            .child(button("copy", "Copy").on_click(cx.listener(
-                |strip: &mut Strip, _: &ClickEvent, _, _| match copy(strip.pane) {
-                    Ok(summary) => notify(&format!("Copied\n{summary}"), "info"),
-                    Err(err) => notify(&format!("pi-session: {err}"), "error"),
-                },
-            )))
+            .child(
+                button(
+                    "fork",
+                    "branch",
+                    "Fork: open pi --fork <session> beside this pane",
+                )
+                .on_click(cx.listener(
+                    |strip: &mut Strip, _: &ClickEvent, _, _| {
+                        if let Err(err) = fork(strip.pane) {
+                            notify(&format!("pi-session: {err}"), "error");
+                        }
+                    },
+                )),
+            )
+            .child(
+                button("copy", "copy", "Copy the session's id, path and directory").on_click(
+                    cx.listener(
+                        |strip: &mut Strip, _: &ClickEvent, _, _| match copy(strip.pane) {
+                            Ok(summary) => notify(&format!("Copied\n{summary}"), "info"),
+                            Err(err) => notify(&format!("pi-session: {err}"), "error"),
+                        },
+                    ),
+                ),
+            )
     }
 }
 
@@ -176,7 +187,9 @@ fn declare_option(name: &str, mut spec: Value) {
     }
 }
 
-/// `pi_session.focused_only`: the bar on the focused pi pane alone.
+/// `pi_session.focused_only`: the buttons on the focused pi pane alone (off, where they are by
+/// default, puts them on every one: they are drawn with that pane's own strip buttons, so they
+/// show on the focused or hovered pane and hide with them).
 fn focused_only() -> bool {
     api::option("pi_session.focused_only", json!({}))
         .ok()
@@ -195,10 +208,24 @@ fn is_pi(pane: u64) -> bool {
         && text("@agent_session").is_some_and(|session| !session.is_empty())
 }
 
-/// Every pi pane has its bar (or only the current one, with `focused_only`), and no other pane
-/// has one.
+/// Whether a strip view is dressed the way this version dresses one: at the row's end, and as
+/// wide as these buttons add up to. One an older version dressed (further along, another width)
+/// is made again.
+fn dressed(view: u64) -> bool {
+    let at = json!({ "pane": view });
+    let width = api::option("@width", at.clone())
+        .ok()
+        .and_then(|value| value.as_f64());
+    let start = api::option("@start", at)
+        .ok()
+        .and_then(|value| value.as_bool());
+    width == Some(WIDTH as f64) && start == Some(START)
+}
+
+/// Every pi pane has its buttons in its strip (or only the current one, with `focused_only`),
+/// and no other pane has them.
 fn sync() {
-    // Where the bars are: the pane each belongs to, and the bar itself.
+    // Where the buttons are: the pane each belongs to, and the view itself.
     let mut bars: HashMap<u64, u64> = HashMap::new();
     let listed = api::pumi_list_panes(json!({ "type": "pi-session.strip" })).unwrap_or(Value::Null);
     for bar in listed
@@ -207,10 +234,14 @@ fn sync() {
         .flatten()
         .filter_map(Value::as_u64)
     {
-        let owner = api::pumi_pane_get_place(bar)
-            .ok()
-            .and_then(|place| place["owner"].as_u64());
-        if let Some(owner) = owner {
+        let place = api::pumi_pane_get_place(bar).unwrap_or(Value::Null);
+        // One left elsewhere (an older version's bar), or not dressed for the strip yet: made
+        // again below, where it belongs.
+        if place["name"] != "PaneStrip" || !dressed(bar) {
+            let _ = api::pumi_pane_close(bar, Some(true));
+            continue;
+        }
+        if let Some(owner) = place["owner"].as_u64() {
             bars.insert(owner, bar);
         }
     }
@@ -230,11 +261,17 @@ fn sync() {
                 let _ = api::pumi_pane_close(bar, Some(true));
             }
             None if wanted => {
+                // At the end of the pane's own strip, past its dot and title.
                 let place =
-                    json!({ "kind": "slot", "slot": "winbar", "owner": pane, "focus": false });
+                    json!({ "kind": "slot", "slot": "PaneStrip", "owner": pane, "focus": false });
                 let args = json!({ "pane": pane });
-                if let Err(err) = api::pumi_open_pane("pi-session.strip", args, place) {
-                    eprintln!("pi-session: {err}");
+                match api::pumi_open_pane("pi-session.strip", args, place) {
+                    Ok(view) => {
+                        let at = json!({ "pane": view });
+                        let _ = api::set_option("@width", json!(WIDTH), at.clone());
+                        let _ = api::set_option("@start", json!(START), at);
+                    }
+                    Err(err) => eprintln!("pi-session: {err}"),
                 }
             }
             _ => {}
@@ -252,20 +289,20 @@ fn init(plugin: &mut Plugin, _cx: &mut App) {
     );
     declare_option(
         "focused_only",
-        json!({ "type": "boolean", "default": false, "label": "Only on the focused pane", "desc": "Show the bar on the focused pi pane alone." }),
+        json!({ "type": "boolean", "default": false, "label": "Only on the focused pane", "desc": "Show the buttons on the focused pi pane alone, not on every pi pane's strip." }),
     );
     declare_option(
         "command",
         json!({ "type": "string", "default": "pi", "label": "pi command", "desc": "The program run with `--fork <session>`." }),
     );
-    // A pane that becomes pi's (or stops being) gets its bar, or loses it.
-    let pattern = json!({ "pattern": ["@agent", "@agent_session", "pi_session.focused_only"], "desc": "pi panes get their bar" });
+    // A pane that becomes pi's (or stops being) gets its buttons, or loses them.
+    let pattern = json!({ "pattern": ["@agent", "@agent_session", "pi_session.focused_only"], "desc": "pi panes get their buttons" });
     if let Err(err) = api::autocmd("OptionSet", pattern, |_, _| sync()) {
         eprintln!("pi-session: {err}");
     }
     if let Err(err) = api::autocmd(
         "PaneEnter",
-        json!({ "desc": "the bar follows the focus" }),
+        json!({ "desc": "the buttons follow the focus" }),
         |_, _| {
             if focused_only() {
                 sync();
@@ -281,7 +318,7 @@ fn init(plugin: &mut Plugin, _cx: &mut App) {
     sync();
 }
 
-pumi_plugin::plugin!(init);
+pumi_plugin::plugin!(init, api = 1);
 
 #[cfg(test)]
 mod tests {

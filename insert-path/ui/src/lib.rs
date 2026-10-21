@@ -423,7 +423,7 @@ impl Render for Picker {
                     .h(px(ROW))
                     .px(px(8.))
                     .gap(px(8.))
-                    .rounded(px(ui::color::RADIUS_SM))
+                    .rounded(px(ui::color::radius_sm()))
                     .cursor_pointer()
                     .when(selected, |row| {
                         row.bg(color::primary())
@@ -572,6 +572,7 @@ fn close() {
 
 /// Open the picker over the tab of a pane (the event's pane, or the current one).
 fn open(event: &Value) -> bool {
+    eprintln!("insert-path: open {event}");
     let pane = event
         .get("pane")
         .and_then(Value::as_u64)
@@ -607,8 +608,8 @@ fn open(event: &Value) -> bool {
     if let Some(cwd) = cwd {
         args["cwd"] = json!(cwd);
     }
-    let place =
-        json!({ "kind": "float", "width": "60%", "height": height, "zindex": 60, "focus": false });
+    // `row` anchors it under the tabline; without it the host centers the float in the tab.
+    let place = json!({ "kind": "float", "width": "28%", "height": height, "row": 1, "zindex": 60, "focus": false });
     match api::pumi_open_pane("insert-path.picker", args, place) {
         Ok(_) => true,
         Err(err) => {
@@ -622,12 +623,14 @@ fn open(event: &Value) -> bool {
     }
 }
 
-/// `insert_path.height`: how many terminal rows tall the picker is.
-fn height() -> f64 {
+/// `insert_path.height`: how many terminal rows tall the picker is. A whole number: a size
+/// is cells (`18`) or a share (`"30%"`), and a float is neither.
+fn height() -> u64 {
     api::option("insert_path.height", json!({}))
         .ok()
         .and_then(|value| value.as_f64())
-        .unwrap_or(18.)
+        .map(|rows| rows.round().max(1.) as u64)
+        .unwrap_or(18)
 }
 
 /// Bind `insert_path.trigger` in the terminal's key table, and unbind the last one.
@@ -684,7 +687,7 @@ fn init(plugin: &mut Plugin, _cx: &mut App) {
     }
 }
 
-pumi_plugin::plugin!(init);
+pumi_plugin::plugin!(init, api = 1);
 
 #[cfg(test)]
 mod tests {

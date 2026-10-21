@@ -125,8 +125,8 @@ pub struct Decl {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step: Option<f64>,
     /// How Settings edits it when its type does not say: `toggle` (a number as on and off),
-    /// `slider`, `json`, or a control of the app's own (`theme`, `terminal_theme`, `font`,
-    /// `marks`, `keymap`, `agents`, `remotes`, `dock_page`); a boolean is a switch, an option
+    /// `slider`, `json`, or a control of the app's own (`ui_theme`, `terminal_theme`, `font`,
+    /// `keymap`, `agents`, `remotes`, `card`); a boolean is a switch, an option
     /// with choices a menu, a number a stepper, a string a text field.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub control: Option<String>,
@@ -774,10 +774,16 @@ fn builtin() -> Vec<Decl> {
     // The app's settings (08 §1). Settings draws them from these declarations, like any
     // package's: `label`, `group` and `control` are all it needs.
     decls.extend([
-        Decl::new("appearance", String, json!("system"), Global, "Light, dark, or follow the system.")
-            .label("Mode")
-            .labelled(&[("system", "System"), ("light", "Light"), ("dark", "Dark")])
-            .group("Appearance"),
+        Decl::new(
+            "appearance",
+            String,
+            json!("system"),
+            Global,
+            "Light, dark, or follow the system.",
+        )
+        .label("Mode")
+        .labelled(&[("system", "System"), ("light", "Light"), ("dark", "Dark")])
+        .group("Appearance"),
         Decl::new(
             "colors_name",
             String,
@@ -798,14 +804,26 @@ fn builtin() -> Vec<Decl> {
         .label("Terminal theme")
         .group("Terminal")
         .control("terminal_theme"),
-        Decl::new("guifont", String, json!(""), Global, "The typeface for terminal text.")
-            .label("Font")
-            .group("Terminal")
-            .control("font"),
-        Decl::new("linespace", Number, json!(1.25), Global, "Space between terminal lines, relative to the font size.")
-            .label("Line height")
-            .range(1.0, 2.0, Some(0.05))
-            .group("Terminal"),
+        Decl::new(
+            "guifont",
+            String,
+            json!(""),
+            Global,
+            "The typeface for terminal text.",
+        )
+        .label("Font")
+        .group("Terminal")
+        .control("font"),
+        Decl::new(
+            "linespace",
+            Number,
+            json!(1.25),
+            Global,
+            "Space between terminal lines, relative to the font size.",
+        )
+        .label("Line height")
+        .range(1.0, 2.0, Some(0.05))
+        .group("Terminal"),
         Decl::new(
             "macos_option_as_alt",
             Boolean,
@@ -815,9 +833,15 @@ fn builtin() -> Vec<Decl> {
         )
         .label("Option as Alt")
         .group("Keys"),
-        Decl::new("equalalways", Boolean, json!(true), Global, "Keep panes evenly sized when one opens or closes.")
-            .label("Equalize on open and close")
-            .group("Panes"),
+        Decl::new(
+            "equalalways",
+            Boolean,
+            json!(true),
+            Global,
+            "Keep panes evenly sized when one opens or closes.",
+        )
+        .label("Equalize on open and close")
+        .group("Panes"),
         Decl::new(
             "keymap_preset",
             String,
@@ -838,58 +862,16 @@ fn builtin() -> Vec<Decl> {
             ("none", "None"),
         ])
         .group("Keys"),
-        Decl::new("keymap_bindings", Table, json!({}), Global, "Your shortcuts that differ from the base keymap.")
-            .label("Key bindings")
-            .group("Keys")
-            .control("keymap"),
         Decl::new(
-            "dock.side",
-            String,
-            json!("left"),
+            "keymap_bindings",
+            Table,
+            json!({}),
             Global,
-            "Which side the main side bar sits on; the secondary one takes the other.",
+            "Your shortcuts that differ from the base keymap.",
         )
-        .label("Primary side bar")
-        .labelled(&[("left", "Left"), ("right", "Right")])
-        .group("Sidebar"),
-        Decl::new("dock.open", Boolean, json!(true), Global, "Open the side bar when the app starts.")
-            .label("Show on launch")
-            .group("Sidebar"),
-        Decl::new("dock.page", String, json!("agents"), Global, "The panel the side bar shows when the app starts.")
-            .label("Default panel")
-            .group("Sidebar")
-            .control("dock_page"),
-        Decl::new("dock.buttons", String, json!("side"), Global, "Where the buttons that switch side bar panels go.")
-            .label("Panel buttons")
-            .labelled(&[
-                ("side", "Side (the rail)"),
-                ("top", "Top of the side bar"),
-                ("tiles", "Tiles at the top of the side bar"),
-                ("bottom", "Bottom of the side bar"),
-                ("status_bar", "Status bar"),
-                ("hidden", "Hidden"),
-            ])
-            .group("Layout"),
-        Decl::new(
-            "agents.marks",
-            String,
-            json!("icons"),
-            Global,
-            "Show each agent's state as an icon or as a coloured dot.",
-        )
-        .label("Agent state marks")
-        .labelled(&[("icons", "Icons"), ("dots", "Dots")])
-        .group("Layout")
-        .control("marks"),
-        Decl::new(
-            "dock.compact",
-            Boolean,
-            json!(true),
-            Global,
-            "Keep panel buttons and agent status in a slim strip while the side bar is closed.",
-        )
-        .label("Compact side bar")
-        .group("Layout"),
+        .label("Key bindings")
+        .group("Keys")
+        .control("keymap"),
         Decl::new(
             "browser.open_links",
             String,
@@ -920,46 +902,15 @@ fn builtin() -> Vec<Decl> {
         .label("Home page")
         .placeholder("Empty: focus the address")
         .group("Browser"),
-        Decl::new("browser.devtools", Boolean, json!(true), Global, "Inspect and debug pages with alt+cmd+i.")
-            .label("Web Inspector")
-            .group("Browser"),
-        // The agent context core plugin's (core/context): its switch, then its page.
         Decl::new(
-            "context.enabled",
+            "browser.devtools",
             Boolean,
             json!(true),
             Global,
-            "Tell agents about your workspace. Off silences it for every agent.",
+            "Inspect and debug pages with alt+cmd+i.",
         )
-        .label("Agent context")
-        .package("context")
-        .group("Agent context"),
-        Decl::new(
-            "context.updates",
-            String,
-            json!("changes"),
-            Global,
-            "Keep agents up to date as panes open, close and move, or tell them only when they start.",
-        )
-        .label("Updates")
-        .labelled(&[("changes", "Session start and on changes"), ("start", "Session start only")])
-        .package("context")
-        .group("Agent context"),
-        Decl::new(
-            "context.other_sessions",
-            Boolean,
-            json!(true),
-            Global,
-            "Include panes from your other sessions, not only the current one.",
-        )
-        .label("Other sessions")
-        .package("context")
-        .group("Agent context"),
-        Decl::new("context.targets", Table, json!({}), Global, "Choose which agents are told about your workspace.")
-            .label("Agents")
-            .package("context")
-            .group("Agent context")
-            .control("agents"),
+        .label("Web Inspector")
+        .group("Browser"),
         Decl::new(
             "remotes",
             Table,
