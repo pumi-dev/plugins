@@ -153,6 +153,11 @@ function end(socket: Socket<undefined>, reason?: string): void {
       // It is gone already.
     }
   }
+  try {
+    socket.end();
+  } catch {
+    // It is gone already.
+  }
 }
 
 function send(socket: Socket<undefined>, bytes: Uint8Array): void {
