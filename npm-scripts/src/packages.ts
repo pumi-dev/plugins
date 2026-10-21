@@ -19,7 +19,7 @@ const LOCKFILES: readonly (readonly [file: string, manager: string])[] = [
 /** How many directories below the repository root to look in without an option saying. */
 const DEPTH = 4;
 
-/** The package in `dir`'s manager, by name: what runs its scripts. */
+/** The manager of the package in `dir`, by name: what runs its scripts. */
 export function manager(manifest: Record<string, unknown>, dir: string, root: string): string {
   const declared = typeof manifest.packageManager === "string" ? manifest.packageManager.split("@")[0] : "";
   if (declared !== "") return declared;
@@ -54,10 +54,10 @@ function manifest(dir: string): Record<string, unknown> | null {
 
 /** The scripts of the package in `dir`, under the label its `package.json` has in the repository. */
 export function packageGroup(dir: string, root: string): Group | null {
-  const read = manifest(dir);
-  const scripts = read?.scripts;
-  if (!read || scripts === null || typeof scripts !== "object" || Array.isArray(scripts)) return null;
-  const run = manager(read, dir, root);
+  const held = manifest(dir);
+  const scripts = held?.scripts;
+  if (!held || scripts === null || typeof scripts !== "object" || Array.isArray(scripts)) return null;
+  const run = manager(held, dir, root);
   const items: Item[] = Object.entries(scripts as Record<string, unknown>)
     .filter(([, command]) => typeof command === "string")
     .map(([name, command]) => ({ name, detail: command as string, command: `${run} run ${quote(name)}` }))
