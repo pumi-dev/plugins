@@ -25,11 +25,14 @@ async function blocked(): Promise<number> {
 /** Count them again: say so if more are waiting than before, and keep `@attention` the count. */
 async function update(): Promise<void> {
   const now = await blocked();
-  if (now > waiting && (await bounce()) !== "none") {
+  const more = now > waiting;
+  // Ahead of the notice: two agents blocked in the same turn fire two events, and the second look
+  // is then not of a count that went up.
+  waiting = now;
+  if (more && (await bounce()) !== "none") {
     const said = now === 1 ? "An agent is waiting for you" : `${now} agents are waiting for you`;
     await notify(said, "warn");
   }
-  waiting = now;
   await option.set("@attention", now > 0 ? now : null);
 }
 
