@@ -36,6 +36,8 @@ export interface OfficeState extends MenuState {
   typed: string | null;
   /** Where a desk was moved to, by key; its place in the rows without one. */
   desks: Record<string, Pt>;
+  /** A divider's ratio while it is dragged, by its path. */
+  ratios: Record<string, number>;
   /** The walk's timer, and the walk it belongs to (an older one's callback does nothing). */
   walk: ReturnType<typeof setTimeout> | null;
   walked: number;
@@ -54,6 +56,7 @@ export const fresh = (): OfficeState => ({
   moved: 0,
   typed: null,
   desks: {},
+  ratios: {},
   walk: null,
   walked: 0,
 });
