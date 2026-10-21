@@ -1,27 +1,26 @@
 # marmaide
 
 Mermaid diagrams in a pumi pane, drawn by [Pele](https://pele.run) — kepano's renderer, the
-small synchronous one Obsidian draws with. Made for explaining: an agent with the `marmaide`
-tool can put a flow, a state machine or a schema beside the sentence it is trying to make, and
+small synchronous one Obsidian draws with. Made for explaining: an agent with marmaide's `draw`
+function can put a flow, a state machine or a schema beside the sentence it is trying to make, and
 keep drawing on the same pane as the answer changes.
 
 ```sh
 pumi pack add ~/Kitchen/pumi-plugins/marmaide      # or a copy of this directory
 pumi plugin reload marmaide
 
-printf 'flowchart LR\n  ask --> draw --> look\n' | bin/marmaide draw
+pumi call local.marmaide.draw 'flowchart LR
+  ask --> draw --> look'
 ```
 
-`bin/marmaide` is the command line around the API (`marmaide draw | svg | save | size | types`);
-`AGENTS.md` is what tells an agent it is Marmaide and what it may draw with.
+(`local.marmaide.` while the package is linked from disk; `amresyd.marmaide.` once it is
+installed. `pumi call api.getInfo` lists what a package provides.)
 
 ## What it needs
 
-A JavaScript runtime — **`bun` or `node`** — because Pele is JavaScript and a pumi plugin is
-WASM. The plugin looks for one on `PATH` and then where they usually live (`~/.bun/bin`,
-`/opt/homebrew/bin`, `nvm`, …); the option `marmaide.runtime` names one outright. Nothing is
-installed at runtime and Pele is vendored (`vendor/pele.js`, 660 KB), so a diagram is drawn
-offline.
+Nothing but pumi and Bun, which pumi runs its packages on: Pele is vendored (`vendor/pele.js`, MIT)
+and the package's own worker runs it. The Rust package had to start `render.mjs` under a `bun` or
+`node` it found on the machine, one process per diagram; this one calls the renderer.
 
 ## The three functions
 
@@ -30,77 +29,81 @@ Any caller — an agent's `pumi call`, a script, another package, a JSON-RPC cli
 | Function | Answers |
 | --- | --- |
 | `marmaide.draw {source \| path, pane?, title?, place?}` | `{pane, type, width, height, opened}` — a tiled pane opens beside the current one, or `pane`'s diagram is replaced |
-| `marmaide.render {source \| path}` | `{svg, type, width, height}` — Pele's own SVG (CSS variables and all), nothing shown |
-| `marmaide.save {source \| path, path, scale?}` | `{path, type, width, height}` — writes `.svg` (Pele's own, themeable anywhere) or `.png` (the picture the pane draws, in the app's colours; `scale` is pixels to the point, 2 by default) |
+| `marmaide.render {source \| path}` | `{svg, type, width, height}` — Pele's own SVG (its `--pele-*` variables and all), nothing shown |
+| `marmaide.save {source \| path, out}` | `{path, type, width, height}` — writes `.svg`: Pele's own, themeable anywhere |
 
 ```sh
-pumi call marmaide.draw 'flowchart LR
+pumi call local.marmaide.draw 'flowchart LR
   a --> b'
-pumi call marmaide.draw '{"path": "figure.mmd", "pane": 12}'
-pumi call marmaide.render 'sequenceDiagram
+pumi call local.marmaide.draw '{"path": "figure.mmd", "pane": 12}'
+pumi call local.marmaide.render 'sequenceDiagram
   A->>B: hi' | jq -r .svg
 ```
 
 `place` is a pane place like any other (`{"kind": "float", "width": "60%"}`); the pane's title is
-the kind of diagram unless `title` says otherwise.
+the kind of diagram unless `title` says otherwise. `save`'s `out` is the file it writes; its older
+shape, `{source, path}`, writes `source` to `path` too.
 
 ## Options
 
-Settings → Packages → **marmaide** (all of them are also `pumi call pumi_set_option_value`):
+Settings → Packages → **marmaide** (all of them are also `pumi call option.set`):
 
 | Option | | |
 | --- | --- | --- |
-| `marmaide.runtime` | string | The program that runs Pele; empty finds `bun`, then `node`. |
-| `marmaide.font` | string | The diagram's face — `IBM Plex Sans` by default (shipped with the package). |
-| `marmaide.font_mono` | string | Code and constants — `IBM Plex Mono` by default. |
+| `marmaide.font` | string | The diagram's face. Empty is the app's own font, which its renderer has. |
+| `marmaide.font_mono` | string | Code and constants. Empty is the app's monospace font. |
 | `marmaide.font_size` | number | What Pele lays a diagram out at, 16 by default. |
 | `marmaide.source` | string, per pane | The Mermaid a diagram pane draws. Written by `marmaide.draw`; it is what makes a redraw a redraw, and what brings the diagram back with a restored layout. |
 
+A face named here must be one the machine has: a diagram is painted by the app's own SVG renderer,
+which has the system's fonts and none of a package's.
+
 ## How it works
 
-Pele renders Mermaid to SVG in about a millisecond, but it is JavaScript, and a component is
-WASM. So the work is split at the one place both sides understand — a pipe:
+Pele renders Mermaid to SVG in about a millisecond, and it is JavaScript: it runs in this package's
+worker, in the same file it is vendored as.
 
-1. `render.mjs` (this package, run by `bun`/`node`) imports the vendored Pele, reads one JSON
-   request on stdin and writes one JSON answer on stdout. It resolves the theme's colours into
-   the SVG (a rasteriser knows no CSS custom properties) and keeps Pele's own SVG for `render`
-   and `save`, where a browser's variables are wanted.
-2. The component (`ui/`) rasterises that SVG with `resvg` — the same one gpui paints SVG with —
-   at the pixels the pane wants, on the pane's own background, with the fonts Pele measured the
-   diagram in, and draws it as an image. Text is text: without those fonts a diagram is boxes.
-3. The pane's source lives in the option `marmaide.source` (pane-scoped), so `marmaide.draw` is
-   "set the option, show the pane": the view hears the change and paints again.
+1. `src/pele.ts` draws the source — Pele's own SVG, with Pele's defaults in it — and reads every
+   `var(--pele-*)` back out of it, so a renderer that knows no CSS custom properties gets the
+   colours written where it can see them.
+2. `src/palette.ts` says the app's theme the way Pele's SVG says it: `app.theme`'s tokens, as
+   `#rrggbb`, become `--pele-fg`, `--pele-bg`, `--pele-accent` and the rest, and the fills and lines
+   are mixed from the background and the text — a theme may paint a surface almost the colour of its
+   background, and a diagram of invisible boxes is no diagram.
+3. `src/picture.ts` writes the dressed SVG into the package's cache, named by what is in it, and the
+   pane draws it as an image (`img`): the app paints SVG with usvg, so the diagram is sharp at any
+   size.
+4. The pane's source lives in the option `marmaide.source` (pane-scoped), so `marmaide.draw` is
+   "set the option, show the pane": the view hears the change and draws again.
 
-Two things follow from WASI: a linked package's directory is a symlink and the sandbox will not
-follow one, so the fonts are copied by `render.mjs` (which runs natively) into the plugin's data
-directory (`~/.local/share/pumi/ui/marmaide/fonts`), and the rasteriser reads them there.
-
-Rendering costs one runtime start the first time (~150 ms for bun, ~40 ms for node); after that
-a diagram is cached by its source, so redrawing a pane is free and zooming re-paints the same
-SVG at more pixels.
+The Rust package rasterised the same SVG itself with resvg, inside the component, because gpui's
+renderer looked for the app's bundled faces where a package could not reach. The app's renderer now
+finds the system's, so the package ships no fonts and asks for none: `font` and `font_mono` name a
+face the machine has.
 
 ## The pane
 
-Fitted to itself, in the app's own colours — the theme's background and text are mixed for
-fills, lines and borders, so a diagram reads in any theme. It is a canvas, not a picture of one:
-**drag** it with the mouse, **zoom** with the wheel, a trackpad scroll or a two-finger pinch
-(pointer-anchored), and double-click or `fit` to put it back. Zooming re-paints the SVG at the
-new size rather than stretching pixels. `−` and `+` in the footer do the same from the keyboard's
-side.
+Fitted to itself, in the app's own colours. It is a canvas, not a picture of one: **drag** it with
+the mouse, **zoom** with the wheel (pointer-anchored, a trackpad's many small deltas adding up to
+the same), and double-click or `fit` to put it back. `−` and `+` in the footer do the same from the
+keyboard's side.
+
+**Click a node** and a note goes with it to an agent's inbox (the agents core plugin's
+`@agent_inbox`): the pane picks an agent running in a pane of this tab (marked `@agent`, and not a
+shell), and the note arrives with the user's next message, with the diagram's source and the node's
+id and label. `To … ⇄` cycles through the agents there are.
+
+A diagram that Pele cannot read is said in the pane, with the line it could not read, and again in
+the answer to whoever asked for it — so an agent reads it and fixes that line.
 
 ## Building it
 
 ```sh
-cd ~/Kitchen/pumi-plugins && cargo build --release -p marmaide   # wasm32-wasip2, the workspace's
-pumi plugin reload marmaide
-pumi plugin logs marmaide
+cd ~/Kitchen/pumi-plugins/marmaide
+bun test                     # against pumi/testing's fake app
+./node_modules/.bin/tsc --noEmit
 ```
-
-The crate's tests are the renderer's `render.mjs` one end and resvg the other; they need a native
-target (`cargo test -p marmaide --lib --target aarch64-apple-darwin`), which this SDK's
-`plugin!` macro does not build on macOS — the tests are there for a Linux checkout.
 
 ## Licences
 
-Pele is MIT (`vendor/pele.LICENSE`); IBM Plex Sans and Mono are OFL (`vendor/fonts/OFL.txt`).
-Mermaid's syntax is Pele's to draw; the diagrams are yours.
+Pele is MIT (`vendor/pele.LICENSE`). Mermaid's syntax is Pele's to draw; the diagrams are yours.
