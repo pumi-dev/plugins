@@ -50,25 +50,32 @@ export class ScriptPanel extends View {
   private readonly make: () => Finder | Promise<Finder>;
   /** What its items are (`script`): the page counts them. */
   private readonly noun: string;
+  /** Its pane closed: what it waited on draws nothing more. */
+  private ended = false;
 
   constructor(cx: ViewContext, make: () => Finder | Promise<Finder>, noun: string) {
     super(cx);
     this.make = make;
     this.noun = noun;
-    void this.start();
-  }
-
-  /** Reads the finder's options, follows the app, and draws what the repository holds. */
-  private async start(): Promise<void> {
-    const finder = await this.make();
-    this.finder = finder;
-    this.cx.own(
+    cx.own(
       on(
         ["pane.focused", "cwd.changed", "session.focused", "tab.focused"],
         { desc: "the scripts page follows the current pane" },
         () => this.follow(),
       ),
     );
+    void this.start();
+  }
+
+  closed(): void {
+    this.ended = true;
+  }
+
+  /** Reads the finder's options, follows its options, and draws what the repository holds. */
+  private async start(): Promise<void> {
+    const finder = await this.make();
+    if (this.ended) return;
+    this.finder = finder;
     this.cx.own(on("option.changed", { match: finder.optionMatch, desc: "the scripts page's options" }, () => this.reread()));
     if (await this.rescan(true)) this.cx.notify();
   }
