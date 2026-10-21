@@ -39,9 +39,14 @@ const PAGE = new Set(["url", "webloc"]);
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-/** Types `text` into pane `id`, saying so when it cannot. */
-function type(id: number, text: string): void {
-  pane.call(id, "input", { text }).catch((err) => notify(`insert-path: ${message(err)}`, "error"));
+/**
+ * Types `text` into pane `id`. `say` tells the user when it cannot: an insert does, a cancel does
+ * not (the terminal it was opened from may be gone by then).
+ */
+function type(id: number, text: string, say = true): void {
+  pane.call(id, "input", { text }).catch((err) => {
+    if (say) void notify(`insert-path: ${message(err)}`, "error");
+  });
 }
 
 /** The icon a row draws: the app's own by kind, otherwise the package's document. */
@@ -122,7 +127,7 @@ export class Picker extends View<PickerArgs> {
   closed(): void {
     if (this.done) return;
     this.done = true;
-    if (this.query === "" && this.cancel !== null) type(this.term, this.cancel);
+    if (this.query === "" && this.cancel !== null) type(this.term, this.cancel, false);
   }
 
   /** The directory, and how many paths match. */
@@ -262,7 +267,7 @@ export class Picker extends View<PickerArgs> {
   /** Closes without picking; a bare trigger key is typed back so what was typed still lands. */
   private dismiss(): void {
     this.done = true;
-    if (this.query === "" && this.cancel !== null) type(this.term, this.cancel);
+    if (this.query === "" && this.cancel !== null) type(this.term, this.cancel, false);
     void this.cx.pane.close();
   }
 
