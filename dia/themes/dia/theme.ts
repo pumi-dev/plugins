@@ -10,7 +10,7 @@ import { app, defineTheme, div, icon, input, px, text, type AppPage, type AppSpa
 import { bottom, handle, pageBody, secondary, size } from "../../src/docks.ts";
 import { overlays } from "../../src/overlays.ts";
 import { panes } from "../../src/panes.ts";
-import { activeTab, dot, fresh as freshWindow, iconButton, label, num, opt, pages, pointButtons, s, slot, spacer, truthy, type Cx, type State as WindowState } from "../../src/parts.ts";
+import { activeTab, dot, dragged, fresh as freshWindow, iconButton, label, num, opt, pages, pointButtons, s, slot, spacer, truthy, type Cx, type State as WindowState } from "../../src/parts.ts";
 
 /** What the theme keeps between renders: the default theme's (a drag under way, a dock's size, a
  * divider's ratio) and Dia's own, the page pinned in the sidebar. */
@@ -78,9 +78,9 @@ function tab(t: AppTab, state: AppState): El {
     .title(truthy(worktree) ? `Worktree ${worktree}` : t.title)
     .draggable({ tab: id })
     .onDrop((e) => {
-      const d = e.dragged as { tab?: number; pane?: string } | null;
-      if (truthy(d?.tab) && d!.tab !== id) app.moveTab(d!.tab!, id);
-      if (truthy(d?.pane)) app.movePaneToTab(d!.pane!, id);
+      const d = dragged(e);
+      if (truthy(d.tab) && d.tab !== id) app.moveTab(d.tab!, id);
+      if (truthy(d.pane)) app.movePaneToTab(d.pane!, id);
       return true;
     })
     .onClick(() => {
