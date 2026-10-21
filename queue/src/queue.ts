@@ -106,7 +106,7 @@ async function currentPane(): Promise<number> {
 // ---- options
 
 /** One of the package's flags, by its key. */
-export async function flag(name: string, otherwise: boolean): Promise<boolean> {
+async function flag(name: string, otherwise: boolean): Promise<boolean> {
   const value = await option.get(name);
   return typeof value === "boolean" ? value : otherwise;
 }
@@ -119,11 +119,6 @@ async function rowLimit(): Promise<number> {
 }
 
 // ---- the queue
-
-/** Every job, oldest first. */
-export function jobsInQueue(): Job[] {
-  return jobs;
-}
 
 function find(id: number): Job | undefined {
   return jobs.find((job) => job.id === id);
