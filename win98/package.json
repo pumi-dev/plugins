@@ -1,0 +1,21 @@
+{
+  "name": "pumi-win98",
+  "version": "0.1.0",
+  "description": "Windows 98 as a UI theme: a teal desktop, a window for each tab, a Start menu of your plugins.",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "win98",
+    "owner": "amresyd",
+    "api": 1,
+    "themes": ["themes/win98"]
+  }
+}
