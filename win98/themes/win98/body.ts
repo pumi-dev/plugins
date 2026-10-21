@@ -19,6 +19,7 @@ import {
   type AppDivider,
   type El,
   type ElementEvent,
+  type Side,
   type ThemeContext,
 } from "pumi";
 import type { State } from "./theme.ts";
@@ -99,6 +100,11 @@ function pane(p: AppPane, tab: AppTab, state: AppState): El {
       if (!p.focused) app.focusPane(p.key);
       return false;
     })
+    .onDrop((e) => {
+      const moved = (e.dragged as { pane?: string } | undefined)?.pane;
+      if (moved && moved !== p.key) app.movePane(moved, p.key, dropSide(e));
+      return true;
+    })
     .child(
       div()
         .class("pane-cell")
@@ -111,8 +117,28 @@ function pane(p: AppPane, tab: AppTab, state: AppState): El {
     );
 }
 
-/** A pane's strip: its title, its status and its buttons. A lone pane with nothing in its strip
- * has none — the window's caption names it. */
+/** Which edge of the pane under the pointer a dropped pane goes beside; none in its middle (the
+ * two swap). */
+function dropSide(e: ElementEvent): Side | null {
+  const under = e.data.current;
+  if (!under || under.width === 0) return null;
+  const fx = ((e.data.x ?? 0) - under.x) / under.width;
+  const fy = ((e.data.y ?? 0) - under.y) / under.height;
+  if (fx > 0.3 && fx < 0.7 && fy > 0.3 && fy < 0.7) return null;
+  let best: [number, Side | null] = [2, null];
+  for (const [side, edge] of [
+    ["left", fx],
+    ["right", 1 - fx],
+    ["up", fy],
+    ["down", 1 - fy],
+  ] as [Side, number][]) {
+    if (edge < best[0]) best = [edge, side];
+  }
+  return best[1];
+}
+
+/** A pane's strip: its title, its status and its buttons; dragged by it, a pane goes beside
+ * another. A lone pane with nothing in its strip has none — the window's caption names it. */
 function paneStrip(p: AppPane, tab: AppTab, state: AppState): El | null {
   if (tab.panes.length < 2 && p.strip.length === 0) return null;
   const renaming = state.renaming === `pane:${p.key}`;
@@ -122,6 +148,7 @@ function paneStrip(p: AppPane, tab: AppTab, state: AppState): El | null {
   return div()
     .class("pane-strip")
     .of(p.id)
+    .draggable({ pane: p.key })
     .onDoubleClick(() => {
       app.focusPane(p.key);
       app.zoom();

@@ -226,6 +226,17 @@ test("a task raises its window, and names its tab", async () => {
   expect(t.find("#desktop").props.class).toBe("active");
 });
 
+test("a pane dragged onto another is moved beside it", async () => {
+  const t = await mount();
+  await t.dispatch((n) => n.props.key === "t:%2", "drop", {
+    data: { pane: "t:%1" },
+    current: { id: "", class: "pane", of: "%2", key: "t:%2", x: 0, y: 0, width: 100, height: 100 },
+    x: 95,
+    y: 50,
+  });
+  expect(t.commands).toEqual([{ name: "move_pane", args: ["t:%1", "t:%2", "right"] }]);
+});
+
 test("a window's Close button closes its tab", async () => {
   const t = await mount();
   const closes = t.findAll((n) => hasClass(n, "capbtn") && n.props.title === "Close");
