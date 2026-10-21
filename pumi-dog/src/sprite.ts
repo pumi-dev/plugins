@@ -22,6 +22,11 @@ const PALETTE: Record<string, string> = {
   m: token("palette.overlay0"), // open mouth
 };
 
+/** The colour a character of the art is drawn in, or `undefined` for `.` (nothing). */
+export function colour(c: string): string | undefined {
+  return PALETTE[c];
+}
+
 /** The head, body and curled tail, rows 0..=10. */
 const BODY: string[] = [
   "............d...d.....",
@@ -125,9 +130,9 @@ export function runs(pose: Pose, left: boolean): Run[] {
 export function paint(pose: Pose, left: boolean, scale: number): PaintCommand[] {
   const out: PaintCommand[] = [];
   for (const run of runs(pose, left)) {
-    const color = PALETTE[run.c];
-    if (!color) continue;
-    out.push({ cmd: "fillRect", x: run.x * scale, y: run.y * scale, w: run.w * scale, h: scale, color });
+    const drawn = colour(run.c);
+    if (!drawn) continue;
+    out.push({ cmd: "fillRect", x: run.x * scale, y: run.y * scale, w: run.w * scale, h: scale, color: drawn });
   }
   return out;
 }
