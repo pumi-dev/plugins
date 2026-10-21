@@ -49,18 +49,18 @@ function type(id: number, text: string, say = true): void {
   });
 }
 
+/** The app's icon for a file's extension, when it has one. */
+function iconName(extension: string | null): string | null {
+  if (extension === null) return null;
+  if (CODE.has(extension)) return "code";
+  if (PICTURE.has(extension)) return "image";
+  if (PAGE.has(extension)) return "globe";
+  return null;
+}
+
 /** The icon a row draws: the app's own by kind, otherwise the package's document. */
 function rowIcon(entry: Entry): El {
-  const extension = entry.extension;
-  const named = entry.dir
-    ? "folder"
-    : extension !== null && CODE.has(extension)
-      ? "code"
-      : extension !== null && PICTURE.has(extension)
-        ? "image"
-        : extension !== null && PAGE.has(extension)
-          ? "globe"
-          : null;
+  const named = entry.dir ? "folder" : iconName(entry.extension);
   const drawn = named === null ? svg(join(pkg.dir, "icons/file.svg")) : icon(named);
   return drawn.flexNone().size(px(ICON)).textColor(theme.muted);
 }
