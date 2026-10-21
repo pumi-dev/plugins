@@ -37,7 +37,6 @@ the two cannot share state.
 | --- | --- |
 | `ping` | herdr 0.9.4, protocol 22, and what it can do (`live_handoff`, `health_check`) |
 | `server.stop` | stops pumi's core (`server.kill`) |
-| `server.reload_config` | reads the model again: every method does |
 | `notification.show` | a notice: `message.notify` |
 | `session.snapshot` | workspaces, tabs, panes, agents, and who has the focus |
 | `workspace.list`, `.get`, `.focus`, `.rename`, `.create`, `.close` | pumi's sessions (`session.*`) |
@@ -50,10 +49,11 @@ the two cannot share state.
 | `events.subscribe` | `subscription_started`, then herdr's event envelopes on the same connection |
 | `pumi.server.restart` | pumi's live handoff |
 
-Everything else in herdr's method list answers `unsupported`, saying why: herdr's TUI
+Everything else in herdr's method list answers `unsupported` too: with its reason for herdr's TUI
 (`command.invoke`, `popup.close`, the copy mode), its plugins (`plugin.*`), its remotes
-(`server.ssh_agent.register`), its agent manifests, and the worktrees, layouts and moves pumi has
-no call for.
+(`server.ssh_agent.register`) and its agent manifests; and `… is not implemented by pumi yet` for
+what pumi has no call for — the worktrees, layouts and moves, `agent.prompt`, `events.wait`,
+`server.reload_config`, and pumi's own `pumi.*` methods.
 
 ## Live terminals
 
