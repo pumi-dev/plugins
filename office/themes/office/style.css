@@ -4,8 +4,9 @@
    as they do there. */
 
 #office { position: relative; width: 100%; height: 100%; background: $floor; color: $ink; font-size: 12px; }
-/* Menus, pickers and popovers go over the room and its bar. */
-#office #overlays { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 100; }
+/* Menus, pickers and popovers go over the room and its bar; only what is drawn there takes a press. */
+#office #overlays { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 100;
+                    pointer-events: none; }
 .px { image-rendering: pixelated; flex-shrink: 0; }
 
 /* -- the room -- */
