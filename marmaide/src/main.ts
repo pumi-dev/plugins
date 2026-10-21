@@ -82,7 +82,11 @@ async function shown(first: unknown, second: unknown) {
   let id = target;
   if (id === null) {
     const beside = await here();
-    const place = args.place ?? { kind: "tiled", ...(beside === null ? {} : { beside }), split: "right", size: "45%" };
+    const asked = args.place;
+    const place =
+      asked !== null && typeof asked === "object" && !Array.isArray(asked)
+        ? asked
+        : { kind: "tiled", ...(beside === null ? {} : { beside }), split: "right", size: "45%" };
     const opened = await pane.open(pkg.prefixed("diagram"), { source }, place);
     id = opened.id;
     const title = typeof args.title === "string" && args.title !== "" ? args.title : drawn.kind;
