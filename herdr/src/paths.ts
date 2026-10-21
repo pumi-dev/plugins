@@ -6,7 +6,7 @@
 // PROVENANCE: herdr `src/config/io.rs` (`config_dir`) and `src/session.rs` (`data_dir_for`,
 // `DEFAULT_SESSION_NAME`, `validate_name`) @ v0.9.4 (Apache-2.0).
 
-import { existsSync, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
 /** What the environment says: the shell's, or a test's. */

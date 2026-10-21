@@ -12,7 +12,6 @@ import { find } from "./methods.ts";
 import { HERDR_PROTOCOL, HERDR_VERSION, codes, result, type Code } from "./protocol.ts";
 import { revision, type Envelope } from "./state.ts";
 import {
-  AGENT_STATUSES,
   READ_FORMATS,
   READ_SOURCES,
   parseAgentStatus,
@@ -330,8 +329,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
         await ask("pane.call", pane, "clear_history");
         return result("ok");
       }
-      v = await view();
-      return result("pane_info", { pane: v.paneInfo(pane, revision(pane)) ?? null });
+      return result("pane_info", { pane: await paneInfo(pane) });
     }
     case "pane.split": {
       let v = await view();
