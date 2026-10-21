@@ -141,7 +141,7 @@ export class Picker extends View<PickerArgs> {
       .textColor(theme.muted)
       .child(icon("search").flexNone().size(px(12)).textColor(theme.placeholder))
       .child(div().flex1().child(this.label))
-      .child(div().flexNone().textColor(theme.placeholder).child(String(this.found.length)));
+      .child(div().id("insert-path-count").flexNone().textColor(theme.placeholder).child(String(this.found.length)));
   }
 
   /** The matches, of which only those in sight are rendered; or that there are none. */

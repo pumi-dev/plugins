@@ -1,0 +1,943 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the picker lists the directory, and the header says how many match 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "props": {
+            "src": "search",
+          },
+          "style": {
+            "color": "$placeholder",
+            "flex": "none",
+            "height": "12px",
+            "width": "12px",
+          },
+          "tag": "icon",
+        },
+        {
+          "children": [
+            {
+              "tag": "text",
+              "text": "test/fixtures/tree",
+            },
+          ],
+          "style": {
+            "flex": "1 1 0%",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "tag": "text",
+              "text": "12",
+            },
+          ],
+          "id": "insert-path-count",
+          "style": {
+            "color": "$placeholder",
+            "flex": "none",
+          },
+          "tag": "div",
+        },
+      ],
+      "id": "insert-path-header",
+      "style": {
+        "align-items": "center",
+        "color": "$muted",
+        "display": "flex",
+        "flex": "none",
+        "flex-direction": "row",
+        "font-size": "12px",
+        "gap": "6px",
+        "padding-bottom": "4px",
+        "padding-left": "12px",
+        "padding-right": "12px",
+        "padding-top": "10px",
+      },
+      "tag": "div",
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "<pkg>/icons/file.svg",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "Cargo.lock",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-0",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "background": "$primary",
+                "border-radius": "4px",
+                "color": "$primary_foreground",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "0",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "code",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "Cargo.toml",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-1",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "1",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "<pkg>/icons/file.svg",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "Makefile",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-2",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "2",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "<pkg>/icons/file.svg",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "README.md",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-3",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "3",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "folder",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "assets",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-4",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "4",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "image",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "logo.png",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "assets",
+                    },
+                  ],
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "max-width": "45%",
+                    "overflow": "hidden",
+                    "text-overflow": "ellipsis",
+                    "white-space": "nowrap",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-5",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "5",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "<pkg>/icons/file.svg",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "go.mod",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-6",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "6",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "<pkg>/icons/file.svg",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "notes.txt",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-7",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "7",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "folder",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "src",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-8",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "8",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "code",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "lib.rs",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "src",
+                    },
+                  ],
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "max-width": "45%",
+                    "overflow": "hidden",
+                    "text-overflow": "ellipsis",
+                    "white-space": "nowrap",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-9",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "9",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "code",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "lib.test.ts",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "src",
+                    },
+                  ],
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "max-width": "45%",
+                    "overflow": "hidden",
+                    "text-overflow": "ellipsis",
+                    "white-space": "nowrap",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-10",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "10",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "code",
+                  },
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "height": "14px",
+                    "width": "14px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "main.rs",
+                    },
+                  ],
+                  "style": {
+                    "flex": "1 1 0%",
+                    "font-weight": "500",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "src",
+                    },
+                  ],
+                  "style": {
+                    "color": "$muted",
+                    "flex": "none",
+                    "max-width": "45%",
+                    "overflow": "hidden",
+                    "text-overflow": "ellipsis",
+                    "white-space": "nowrap",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "insert-path-row-11",
+              "on": [
+                "click",
+                "mouseEnter",
+              ],
+              "style": {
+                "align-items": "center",
+                "border-radius": "4px",
+                "cursor": "pointer",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "height": "26px",
+                "hover": {
+                  "background": "$hover",
+                },
+                "padding-left": "8px",
+                "padding-right": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "props": {
+            "key": "11",
+          },
+          "style": {
+            "flex-shrink": 0,
+            "height": 26,
+          },
+          "tag": "div",
+        },
+      ],
+      "id": "insert-path-list",
+      "on": [
+        "scroll",
+        "range",
+      ],
+      "props": {
+        "range": [
+          0,
+          12,
+        ],
+        "rowHeight": 26,
+        "rows": 12,
+      },
+      "style": {
+        "flex": "1 1 0%",
+        "min-height": "0px",
+        "padding-bottom": "2px",
+        "padding-left": "6px",
+        "padding-right": "6px",
+        "padding-top": "2px",
+      },
+      "tag": "list",
+    },
+    {
+      "props": {
+        "component": "divider",
+        "params": {},
+      },
+      "tag": "ui",
+    },
+    {
+      "children": [
+        {
+          "id": "insert-path-query",
+          "on": [
+            "input",
+          ],
+          "props": {
+            "autofocus": true,
+            "placeholder": "Filter files…",
+          },
+          "tag": "input",
+        },
+      ],
+      "style": {
+        "flex": "none",
+        "padding": "8px",
+      },
+      "tag": "div",
+    },
+  ],
+  "id": "insert-path",
+  "on": [
+    "key",
+  ],
+  "style": {
+    "background": "$surface",
+    "color": "$surface_text",
+    "display": "flex",
+    "flex-direction": "column",
+    "font-size": "13px",
+    "height": "100%",
+    "width": "100%",
+  },
+  "tag": "div",
+}
+`;
