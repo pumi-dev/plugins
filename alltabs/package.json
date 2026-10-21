@@ -1,0 +1,21 @@
+{
+  "name": "pumi-alltabs",
+  "version": "0.1.0",
+  "description": "All Tabs as a UI theme: pumi's own window, with every session's tabs in the header, one group a session and no names.",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "alltabs",
+    "owner": "amresyd",
+    "api": 1,
+    "themes": ["themes/alltabs"]
+  }
+}
