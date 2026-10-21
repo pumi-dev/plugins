@@ -2,14 +2,18 @@
 // answers on is left alone — herdr's clients then talk to that one — and a file a crash left behind
 // is taken over. The file is its owner's alone (0600), as the server's own sockets are.
 import { chmodSync, rmSync } from "node:fs";
-import type { Socket, SocketHandler, UnixSocketListener } from "bun";
+import type { SocketHandler, UnixSocketListener } from "bun";
 
 export type Handler = SocketHandler<undefined>;
 export type Listener = UnixSocketListener<undefined>;
 
 function serve(path: string, socket: Handler): Listener {
   const listener = Bun.listen<undefined>({ unix: path, socket });
-  chmodSync(path, 0o600);
+  try {
+    chmodSync(path, 0o600);
+  } catch {
+    // Somebody took it away already; the listener is still ours.
+  }
   return listener;
 }
 
@@ -34,9 +38,4 @@ export async function listen(path: string, socket: Handler): Promise<Listener> {
     rmSync(path, { force: true });
     return serve(path, socket);
   }
-}
-
-/** A socket to `path`, whose bytes come as they are. */
-export function connect(path: string, handler: SocketHandler<undefined>): Promise<Socket<undefined>> {
-  return Bun.connect<undefined>({ unix: path, socket: handler });
 }

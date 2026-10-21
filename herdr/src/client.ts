@@ -32,7 +32,7 @@ import {
   type Welcome,
 } from "./grid.ts";
 import { terminal as terminalId } from "./ids.ts";
-import { connect, listen, type Handler, type Listener } from "./listen.ts";
+import { listen, type Handler, type Listener } from "./listen.ts";
 import { log } from "./log.ts";
 import { HERDR_VERSION } from "./protocol.ts";
 import { strip } from "./queries.ts";
@@ -251,17 +251,20 @@ async function attach(socket: Socket<undefined>, target: string, mode: Mode): Pr
   if (found === undefined) return end(socket, `terminal attach failed: terminal ${target} not found`);
   let grid: Socket<undefined>;
   try {
-    grid = await connect(gridPath, {
-      data: (from, bytes) => fromGrid(from, bytes),
-      close: (from) => {
-        const socket = grids.get(from);
-        grids.delete(from);
-        if (socket) end(socket, "terminal attach ended: pumi closed the terminal");
-      },
-      error: (from, err) => {
-        const socket = grids.get(from);
-        grids.delete(from);
-        if (socket) end(socket, `terminal attach ended: pumi's grid socket: ${err.message}`);
+    grid = await Bun.connect<undefined>({
+      unix: gridPath,
+      socket: {
+        data: (from, bytes) => fromGrid(from, bytes),
+        close: (from) => {
+          const socket = grids.get(from);
+          grids.delete(from);
+          if (socket) end(socket, "terminal attach ended: pumi closed the terminal");
+        },
+        error: (from, err) => {
+          const socket = grids.get(from);
+          grids.delete(from);
+          if (socket) end(socket, `terminal attach ended: pumi's grid socket: ${err.message}`);
+        },
       },
     });
   } catch (err) {
