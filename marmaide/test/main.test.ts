@@ -141,3 +141,10 @@ test("the faces are the options', over the app's own", async () => {
   expect(svg).toContain("Lilex");
   expect(svg).toContain("24px");
 });
+
+test("a place that is not a place is the pane beside the caller", async () => {
+  await start();
+  app.answer("pane.current", 5);
+  await app.serve("local.marmaide.draw", { source: "flowchart LR\n  a --> b", place: "float" });
+  expect(app.called("pane.open").at(-1)![2]).toEqual({ kind: "tiled", beside: 5, split: "right", size: "45%" });
+});
