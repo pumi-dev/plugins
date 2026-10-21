@@ -341,7 +341,7 @@ export async function open(): Promise<boolean> {
  * from another tab still shows it; centred by its anchor, dimming what is under it by `backdrop`,
  * and closed by the app on Escape or a press outside it (`dismiss`). `focus: false`: the switcher
  * must not become the pane it is switching from. */
-export function place(asked: Settings): Record<string, unknown> {
+function place(asked: Settings): Record<string, unknown> {
   return {
     kind: "float",
     relative: "client",

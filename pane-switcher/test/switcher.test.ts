@@ -2,7 +2,7 @@
 // pane it picks, and the trigger that opens it.
 import { afterEach, expect, test } from "bun:test";
 
-import { RenderedView } from "pumi/testing";
+import type { RenderedView } from "pumi/testing";
 
 import { digit } from "../src/switcher.ts";
 import { fake, type Fake } from "./fake.ts";

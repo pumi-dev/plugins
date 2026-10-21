@@ -2,7 +2,7 @@
 // ask for, and what each card says of its pane.
 import { afterEach, expect, test } from "bun:test";
 
-import { cards, kindIcon, MAX_PREVIEWS, ordered, said, tilde } from "../src/panes.ts";
+import { cards, kindIcon, MAX_PREVIEWS, ordered, tilde } from "../src/panes.ts";
 import { DEFAULTS, settings } from "../src/settings.ts";
 import { fake, type Fake } from "./fake.ts";
 
@@ -96,7 +96,6 @@ test("only the first cards, and the first of those, have a screen", async () => 
 
 test("a pane that says nothing of itself is still a card: its type names it", async () => {
   made = await fake({ tabs: { 1: [7] }, said: { "pane_type@7": "terminal" } });
-  expect(await said(7, "title")).toBe("");
   const [only] = await cards({ ...DEFAULTS, scope: "tab" }, []);
   expect(only).toEqual({ pane: 7, kind: "terminal", title: "terminal", detail: "", status: "", preview: true });
 });

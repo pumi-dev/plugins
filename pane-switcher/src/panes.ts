@@ -27,7 +27,7 @@ export interface Card {
 }
 
 /** A pane's option `name` as text; empty when it is unset. */
-export async function said(at: number, name: string): Promise<string> {
+async function said(at: number, name: string): Promise<string> {
   const value = await option.get(name, { pane: at });
   return typeof value === "string" ? value : "";
 }
