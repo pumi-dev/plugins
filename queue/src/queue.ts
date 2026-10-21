@@ -326,7 +326,9 @@ async function readTail(stream: ReadableStream<Uint8Array>, id: number): Promise
 
 function tailOf(id: number, line: string) {
   const job = find(id);
-  if (job) job.tail = line;
+  if (!job || job.tail === line) return;
+  job.tail = line;
+  dirty = true;
 }
 
 /** A pane closed: the job that ran in it is over, whatever its status was. */
