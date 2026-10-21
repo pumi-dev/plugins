@@ -40,6 +40,7 @@ export class Watches {
       sustain: Math.max(Math.trunc(await number("sustain", 3)), 1),
       autoSleep: await flag("auto_sleep", false),
     };
+    // An answer with no list of panes (`null`) is no panes: this round measures nothing.
     const terminals = (await pane.list({ type: "terminal" })) ?? [];
     const seen = new Set<number>();
     for (const terminal of terminals) {
