@@ -1,0 +1,441 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`it draws a card per pane, the highlight on the one being switched from 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "props": {
+            "src": "blocks",
+          },
+          "style": {
+            "color": "$placeholder",
+            "flex": "none",
+            "height": "12px",
+            "width": "12px",
+          },
+          "tag": "icon",
+        },
+        {
+          "style": {
+            "color": "$text",
+            "flex": "none",
+            "font-weight": "500",
+          },
+          "tag": "text",
+          "text": "Switch pane",
+        },
+        {
+          "style": {
+            "color": "$placeholder",
+            "flex": "none",
+          },
+          "tag": "text",
+          "text": "3",
+        },
+        {
+          "style": {
+            "flex": "1 1 0%",
+          },
+          "tag": "div",
+        },
+        {
+          "style": {
+            "color": "$placeholder",
+            "flex": "none",
+          },
+          "tag": "text",
+          "text": "← → choose · enter go · esc close",
+        },
+      ],
+      "style": {
+        "align-items": "center",
+        "display": "flex",
+        "flex": "none",
+        "font-size": "12px",
+        "gap": "8px",
+        "padding-bottom": "6px",
+        "padding-left": "14px",
+        "padding-right": "14px",
+        "padding-top": "10px",
+      },
+      "tag": "div",
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "view": "preview:%10",
+                  },
+                  "style": {
+                    "height": "100%",
+                    "width": "100%",
+                  },
+                  "tag": "native",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "height": "196px",
+                "overflow": "hidden",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "props": {
+                        "src": "terminal",
+                      },
+                      "style": {
+                        "color": "$text",
+                        "flex": "none",
+                        "height": "12px",
+                        "width": "12px",
+                      },
+                      "tag": "icon",
+                    },
+                    {
+                      "style": {
+                        "color": "$text",
+                        "flex": "1 1 0%",
+                        "font-size": "12px",
+                        "font-weight": "500",
+                        "overflow": "hidden",
+                        "text-overflow": "ellipsis",
+                        "white-space": "nowrap",
+                      },
+                      "tag": "text",
+                      "text": "zsh",
+                    },
+                  ],
+                  "style": {
+                    "align-items": "center",
+                    "display": "flex",
+                    "flex": "none",
+                    "gap": "7px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "style": {
+                    "color": "$muted/0.85",
+                    "flex": "none",
+                    "font-size": "11px",
+                    "height": "13px",
+                    "overflow": "hidden",
+                    "text-overflow": "ellipsis",
+                    "white-space": "nowrap",
+                  },
+                  "tag": "text",
+                  "text": "1.0  ~/kitchen",
+                },
+              ],
+              "style": {
+                "border-color": "$border/0.55",
+                "border-top-width": "1px",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "column",
+                "gap": "1px",
+                "padding-bottom": "6px",
+                "padding-left": "10px",
+                "padding-right": "10px",
+                "padding-top": "5px",
+              },
+              "tag": "div",
+            },
+          ],
+          "class": "card",
+          "id": "card-0",
+          "on": [
+            "click",
+            "mouseEnter",
+          ],
+          "style": {
+            "background": "$hover",
+            "border-color": "$primary",
+            "border-radius": "8px",
+            "border-width": "1px",
+            "cursor": "pointer",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "column",
+            "overflow": "hidden",
+            "width": "220px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "view": "preview:%11",
+                  },
+                  "style": {
+                    "height": "100%",
+                    "width": "100%",
+                  },
+                  "tag": "native",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "height": "196px",
+                "overflow": "hidden",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "props": {
+                        "src": "terminal",
+                      },
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "height": "12px",
+                        "width": "12px",
+                      },
+                      "tag": "icon",
+                    },
+                    {
+                      "style": {
+                        "color": "$muted",
+                        "flex": "1 1 0%",
+                        "font-size": "12px",
+                        "font-weight": "500",
+                        "overflow": "hidden",
+                        "text-overflow": "ellipsis",
+                        "white-space": "nowrap",
+                      },
+                      "tag": "text",
+                      "text": "cargo test",
+                    },
+                  ],
+                  "style": {
+                    "align-items": "center",
+                    "display": "flex",
+                    "flex": "none",
+                    "gap": "7px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "style": {
+                    "color": "$muted/0.6",
+                    "flex": "none",
+                    "font-size": "11px",
+                    "height": "13px",
+                    "overflow": "hidden",
+                    "text-overflow": "ellipsis",
+                    "white-space": "nowrap",
+                  },
+                  "tag": "text",
+                  "text": "1.1",
+                },
+              ],
+              "style": {
+                "border-color": "$border/0.55",
+                "border-top-width": "1px",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "column",
+                "gap": "1px",
+                "padding-bottom": "6px",
+                "padding-left": "10px",
+                "padding-right": "10px",
+                "padding-top": "5px",
+              },
+              "tag": "div",
+            },
+          ],
+          "class": "card",
+          "id": "card-1",
+          "on": [
+            "click",
+            "mouseEnter",
+          ],
+          "style": {
+            "background": "$bg",
+            "border-color": "$border",
+            "border-radius": "8px",
+            "border-width": "1px",
+            "cursor": "pointer",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "column",
+            "hover": {
+              "background": "$accent",
+            },
+            "overflow": "hidden",
+            "width": "220px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "view": "preview:%12",
+                  },
+                  "style": {
+                    "height": "100%",
+                    "width": "100%",
+                  },
+                  "tag": "native",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "height": "196px",
+                "overflow": "hidden",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "props": {
+                        "src": "globe",
+                      },
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "height": "12px",
+                        "width": "12px",
+                      },
+                      "tag": "icon",
+                    },
+                    {
+                      "style": {
+                        "color": "$muted",
+                        "flex": "1 1 0%",
+                        "font-size": "12px",
+                        "font-weight": "500",
+                        "overflow": "hidden",
+                        "text-overflow": "ellipsis",
+                        "white-space": "nowrap",
+                      },
+                      "tag": "text",
+                      "text": "Docs",
+                    },
+                  ],
+                  "style": {
+                    "align-items": "center",
+                    "display": "flex",
+                    "flex": "none",
+                    "gap": "7px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "style": {
+                    "color": "$muted/0.6",
+                    "flex": "none",
+                    "font-size": "11px",
+                    "height": "13px",
+                    "overflow": "hidden",
+                    "text-overflow": "ellipsis",
+                    "white-space": "nowrap",
+                  },
+                  "tag": "text",
+                  "text": "1.0  ~/docs",
+                },
+              ],
+              "style": {
+                "border-color": "$border/0.55",
+                "border-top-width": "1px",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "column",
+                "gap": "1px",
+                "padding-bottom": "6px",
+                "padding-left": "10px",
+                "padding-right": "10px",
+                "padding-top": "5px",
+              },
+              "tag": "div",
+            },
+          ],
+          "class": "card",
+          "id": "card-2",
+          "on": [
+            "click",
+            "mouseEnter",
+          ],
+          "style": {
+            "background": "$bg",
+            "border-color": "$border",
+            "border-radius": "8px",
+            "border-width": "1px",
+            "cursor": "pointer",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "column",
+            "hover": {
+              "background": "$accent",
+            },
+            "overflow": "hidden",
+            "width": "220px",
+          },
+          "tag": "div",
+        },
+      ],
+      "id": "strip",
+      "on": [
+        "scroll",
+      ],
+      "style": {
+        "align-items": "center",
+        "display": "flex",
+        "flex": "1 1 0%",
+        "gap": "10px",
+        "justify-content": "center",
+        "min-height": "0px",
+        "overflow-x": "scroll",
+        "overflow-y": "hidden",
+        "padding-bottom": "12px",
+        "padding-left": "12px",
+        "padding-right": "12px",
+      },
+      "tag": "scroll",
+    },
+  ],
+  "class": "pane-switcher",
+  "id": "switcher",
+  "on": [
+    "key",
+    "focus",
+    "blur",
+  ],
+  "props": {
+    "autofocus": true,
+    "focusable": true,
+  },
+  "style": {
+    "background": "$surface",
+    "display": "flex",
+    "flex-direction": "column",
+    "height": "100%",
+    "width": "100%",
+  },
+  "tag": "div",
+}
+`;
