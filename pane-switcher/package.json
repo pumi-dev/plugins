@@ -1,0 +1,117 @@
+{
+  "name": "pumi-pane-switcher",
+  "version": "0.2.0",
+  "description": "Alt-Tab for panes: a row of cards, each showing what its pane holds, to pick one.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "pane-switcher",
+    "owner": "amresyd",
+    "api": 1,
+    "contributes": {
+      "options": {
+        "trigger": {
+          "type": "string",
+          "default": "<M-Tab>",
+          "label": "Trigger",
+          "placeholder": "<M-Tab>",
+          "desc": "The key that opens the switcher, from any pane. Option-Tab on a Mac; a chord such as <C-Space> works too.",
+          "group": "Pane switcher"
+        },
+        "scope": {
+          "type": "string",
+          "default": "session",
+          "choices": ["tab", "session", "all"],
+          "labels": ["This tab", "This session", "Every session"],
+          "label": "Which panes",
+          "desc": "The panes the switcher shows: the tab's, the session's (every tab), or every session's.",
+          "group": "Pane switcher"
+        },
+        "order": {
+          "type": "string",
+          "default": "recent",
+          "choices": ["recent", "layout"],
+          "labels": ["Most recently used", "Layout order"],
+          "label": "Order",
+          "desc": "How the cards are ordered. Recently used puts the last pane first, as a task switcher does.",
+          "group": "Pane switcher"
+        },
+        "width": {
+          "type": "number",
+          "default": 80,
+          "min": 20,
+          "max": 100,
+          "step": 5,
+          "unit": "%",
+          "label": "Width",
+          "desc": "How much of the window's width the switcher takes.",
+          "group": "Pane switcher"
+        },
+        "backdrop": {
+          "type": "number",
+          "default": 30,
+          "min": 0,
+          "max": 80,
+          "step": 5,
+          "unit": "%",
+          "control": "slider",
+          "label": "Dim behind it",
+          "desc": "How much the switcher dims the window under it, and takes the presses there: a press outside closes it.",
+          "group": "Pane switcher"
+        },
+        "height": {
+          "type": "number",
+          "default": 18,
+          "min": 8,
+          "max": 60,
+          "step": 1,
+          "unit": "rows",
+          "label": "Height",
+          "desc": "How many terminal rows tall the switcher is.",
+          "group": "Pane switcher"
+        },
+        "card_width": {
+          "type": "number",
+          "default": 220,
+          "min": 120,
+          "max": 600,
+          "step": 10,
+          "unit": "px",
+          "label": "Card width",
+          "desc": "How wide one pane's card is.",
+          "group": "Pane switcher"
+        },
+        "preview": {
+          "type": "boolean",
+          "default": true,
+          "label": "Show pane text",
+          "desc": "Draw each pane's screen in its card, as a task switcher shows a window. Off makes the cards just their titles.",
+          "group": "Pane switcher"
+        },
+        "preview_rows": {
+          "type": "number",
+          "default": 14,
+          "min": 1,
+          "max": 60,
+          "step": 1,
+          "unit": "lines",
+          "label": "Preview lines",
+          "desc": "How many lines tall the screen a card shows is. The app's own screen of the pane is drawn whole, scaled to that box.",
+          "group": "Pane switcher"
+        }
+      },
+      "commands": [{ "id": "switch", "title": "Switch pane" }],
+      "views": [{ "id": "switcher", "title": "Pane switcher", "icon": "blocks" }]
+    },
+    "activation": ["onStartup"]
+  }
+}
