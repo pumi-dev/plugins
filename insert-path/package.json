@@ -1,0 +1,54 @@
+{
+  "name": "pumi-insert-path",
+  "version": "0.2.0",
+  "description": "Type / in a terminal and pick a file: a floating fuzzy picker that types the path in.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "insert-path",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": ["files"],
+    "contributes": {
+      "options": {
+        "trigger": {
+          "type": "string",
+          "default": "/",
+          "label": "Trigger",
+          "placeholder": "/",
+          "group": "Insert path",
+          "desc": "The key that opens the picker in a terminal. A chord such as <D-/> or a sequence works too."
+        },
+        "quote": {
+          "type": "boolean",
+          "default": true,
+          "label": "Quote paths",
+          "group": "Insert path",
+          "desc": "Wrap a path in single quotes when the shell would split it, so it types as one argument."
+        },
+        "height": {
+          "type": "number",
+          "default": 18,
+          "min": 6,
+          "max": 40,
+          "step": 1,
+          "unit": "rows",
+          "label": "Height",
+          "group": "Insert path",
+          "desc": "How many terminal rows tall the picker is."
+        }
+      },
+      "views": [{ "id": "picker", "title": "Insert a path", "icon": "folder" }]
+    },
+    "activation": ["onStartup"]
+  }
+}
