@@ -44,7 +44,16 @@ function indexOf(scene: Scene, pane: number | null | undefined): string {
 /** Starts the package under a fake app whose scene is `scene`, with its options set as `options`. */
 export async function fake(scene: Partial<Scene> = {}, options: Record<string, unknown> = {}): Promise<Fake> {
   const app = new FakeApp({ dir, options });
-  const there: Scene = { session: [1], sessions: {}, tabs: {}, places: {}, said: {}, current: 0, ...scene };
+  // Its own copy: a test's scene is a literal it may share between tests, and closing a pane takes
+  // it out of its tab.
+  const there: Scene = {
+    session: [...(scene.session ?? [1])],
+    sessions: Object.fromEntries(Object.entries(scene.sessions ?? {}).map(([one, tabs]) => [one, [...tabs]])),
+    tabs: Object.fromEntries(Object.entries(scene.tabs ?? {}).map(([one, panes]) => [one, [...panes]])),
+    places: { ...scene.places },
+    said: { ...scene.said },
+    current: scene.current ?? 0,
+  };
   // Every session's tabs, unless the test said: the current session has the ones it named.
   if (Object.keys(there.sessions).length === 0) there.sessions = { 1: there.session };
   const said = (name: string, at?: { pane?: number | null } | null) => `${name}@${at?.pane ?? ""}`;
