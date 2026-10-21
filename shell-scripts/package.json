@@ -1,0 +1,62 @@
+{
+  "name": "pumi-shell-scripts",
+  "version": "0.2.0",
+  "description": "Every shell script in the current pane's repository, grouped by directory, each run in a terminal with the shell its `#!` names.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "script-panel": "file:../lib/script-panel"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "shell-scripts",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": ["files", "processes"],
+    "contributes": {
+      "options": {
+        "show_command": {
+          "type": "boolean",
+          "default": true,
+          "label": "Commands",
+          "group": "Shell Scripts",
+          "desc": "Show how each script runs, beside its name."
+        },
+        "max_depth": {
+          "type": "number",
+          "default": 4,
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "label": "Depth",
+          "group": "Shell Scripts",
+          "desc": "How many directories below the repository root to look in."
+        },
+        "extensions": {
+          "type": "string",
+          "default": "sh, bash, zsh, ksh, fish",
+          "label": "Extensions",
+          "group": "Shell Scripts",
+          "desc": "Which file extensions are scripts, separated by commas."
+        },
+        "shebang": {
+          "type": "boolean",
+          "default": true,
+          "label": "#! files",
+          "group": "Shell Scripts",
+          "desc": "Also list files with no extension whose first line names a shell."
+        }
+      },
+      "views": [{ "id": "scripts", "title": "Shell Scripts", "icon": "terminal" }]
+    },
+    "activation": ["onStartup"]
+  }
+}
