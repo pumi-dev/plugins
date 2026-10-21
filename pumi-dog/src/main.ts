@@ -31,7 +31,7 @@ async function show(): Promise<void> {
 }
 
 /** Takes the dog away, or brings it back. */
-export async function toggle(): Promise<void> {
+async function toggle(): Promise<void> {
   const dog = await shown();
   if (!dog) return show();
   try {
