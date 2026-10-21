@@ -2,7 +2,7 @@
 // ask for, and what each card says of its pane.
 import { afterEach, expect, test } from "bun:test";
 
-import { cards, kindIcon, MAX_PREVIEWS, ordered, tilde } from "../src/panes.ts";
+import { cards, kindIcon, MAX_CARDS, MAX_PREVIEWS, ordered, tilde } from "../src/panes.ts";
 import { DEFAULTS, settings } from "../src/settings.ts";
 import { fake, type Fake } from "./fake.ts";
 
@@ -88,7 +88,7 @@ test("only the first cards, and the first of those, have a screen", async () => 
     many[`title@${at}`] = `pane ${at}`;
   }
   const drawn = await same({ scope: "tab" }, { tabs, said: many });
-  expect(drawn.length).toBe(40);
+  expect(drawn.length).toBe(MAX_CARDS);
   expect(drawn.filter((card) => card.preview).length).toBe(MAX_PREVIEWS);
   made.app.stop();
   expect((await same({ scope: "tab", preview: false }, { tabs: { 1: [1] }, said: { "title@1": "zsh" } }))[0].preview).toBe(false);

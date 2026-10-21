@@ -71,7 +71,7 @@ async function tabs(settings: Settings): Promise<number[]> {
 
 /** The panes the settings ask for: laid out in a tab or floating over it, never its chrome (a slot)
  * or a detached pane, and never one of ours. */
-export async function panes(settings: Settings): Promise<number[]> {
+async function panes(settings: Settings): Promise<number[]> {
   const found: number[] = [];
   const own = pkg.prefixed("switcher");
   for (const at of await tabs(settings)) {
@@ -86,7 +86,7 @@ export async function panes(settings: Settings): Promise<number[]> {
 }
 
 /** A pane's card, or `null` when it cannot be shown (a pane closed between the listing and now). */
-export async function card(at: number, settings: Settings, numbered: boolean, preview: boolean): Promise<Card | null> {
+async function card(at: number, numbered: boolean, preview: boolean): Promise<Card | null> {
   const kind = await said(at, "pane_type");
   const title = [await said(at, "title"), await said(at, "pane_current_command"), kind].find((text) => text !== "");
   if (title === undefined) return null;
@@ -101,9 +101,9 @@ export async function card(at: number, settings: Settings, numbered: boolean, pr
 export async function cards(settings: Settings, recent: number[]): Promise<Card[]> {
   const listed = ordered((await panes(settings)).map((at) => ({ pane: at })), recent, settings.order === "recent");
   const made = await Promise.all(
-    listed.slice(0, MAX_CARDS).map(({ pane: at }, i) =>
-      card(at, settings, settings.scope !== "tab", settings.preview && i < MAX_PREVIEWS),
-    ),
+    listed
+      .slice(0, MAX_CARDS)
+      .map(({ pane: at }, i) => card(at, settings.scope !== "tab", settings.preview && i < MAX_PREVIEWS)),
   );
   return made.filter((made): made is Card => made !== null);
 }
