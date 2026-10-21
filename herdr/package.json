@@ -1,0 +1,42 @@
+{
+  "name": "pumi-herdr",
+  "version": "0.2.0",
+  "description": "herdr's API and terminal attach on pumi: its CLI and its mobile apps drive pumi's panes and show them live.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@pumid/types": "1.0.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "herdr",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": ["network", "processes"],
+    "contributes": {
+      "options": {
+        "session": {
+          "type": "string",
+          "default": "pumi",
+          "label": "herdr session",
+          "group": "herdr",
+          "placeholder": "pumi",
+          "desc": "The name pumi answers as among herdr's sessions (`~/.config/herdr/sessions/<name>/`), so herdr's CLI and its mobile apps (Heeler: the Host's session name) reach it. `default`: herdr's own default session (`~/.config/herdr`), where a running herdr server keeps it unless it has stopped. Empty: only pumi's data directory."
+        },
+        "default_keys": {
+          "type": "boolean",
+          "default": true,
+          "label": "herdr's keys",
+          "group": "herdr",
+          "desc": "While herdr runs, bind the prefix table (`C-b` then a key) herdr's way: `v` and `-` split, `h` `j` `k` `l` move, `1`–`9` pick a tab."
+        }
+      }
+    },
+    "activation": ["onStartup"]
+  }
+}
