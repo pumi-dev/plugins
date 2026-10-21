@@ -1,0 +1,2909 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the dashboard as it opens 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "props": {
+                    "src": "blocks",
+                  },
+                  "style": {
+                    "color": "$surface_text",
+                    "flex": "none",
+                    "height": "16px",
+                    "width": "16px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "Agent overview",
+                    },
+                  ],
+                  "style": {
+                    "color": "$surface_text",
+                    "flex": "1 1 0%",
+                    "font-size": "13px",
+                    "font-weight": "600",
+                    "overflow": "hidden",
+                    "text-overflow": "ellipsis",
+                    "white-space": "nowrap",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "style": {
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "8px",
+                "padding-bottom": "10px",
+                "padding-left": "14px",
+                "padding-right": "14px",
+                "padding-top": "14px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "props": {
+                        "src": "blocks",
+                      },
+                      "style": {
+                        "color": "$surface_text",
+                        "flex": "none",
+                        "height": "12px",
+                        "width": "12px",
+                      },
+                      "tag": "icon",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "Overview",
+                        },
+                      ],
+                      "style": {
+                        "color": "$surface_text",
+                        "flex": "1 1 0%",
+                        "font-size": "12px",
+                        "overflow": "hidden",
+                        "text-overflow": "ellipsis",
+                        "white-space": "nowrap",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "3",
+                        },
+                      ],
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "font-size": "10.5px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "agent-overview-nav",
+                  "id": "agent-overview-nav-all",
+                  "on": [
+                    "click",
+                  ],
+                  "style": {
+                    "background": "$hover",
+                    "border-radius": "6px",
+                    "cursor": "pointer",
+                    "display": "flex",
+                    "flex": "none",
+                    "flex-direction": "row",
+                    "gap": "8px",
+                    "height": "28px",
+                    "padding-left": "8px",
+                    "padding-right": "8px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "props": {
+                        "src": "status-alert",
+                      },
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "height": "12px",
+                        "width": "12px",
+                      },
+                      "tag": "icon",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "Needs you",
+                        },
+                      ],
+                      "style": {
+                        "color": "$muted",
+                        "flex": "1 1 0%",
+                        "font-size": "12px",
+                        "overflow": "hidden",
+                        "text-overflow": "ellipsis",
+                        "white-space": "nowrap",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "2",
+                        },
+                      ],
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "font-size": "10.5px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "agent-overview-nav",
+                  "id": "agent-overview-nav-needs-you",
+                  "on": [
+                    "click",
+                  ],
+                  "style": {
+                    "border-radius": "6px",
+                    "cursor": "pointer",
+                    "display": "flex",
+                    "flex": "none",
+                    "flex-direction": "row",
+                    "gap": "8px",
+                    "height": "28px",
+                    "hover": {
+                      "background": "$hover/0.5",
+                    },
+                    "padding-left": "8px",
+                    "padding-right": "8px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "props": {
+                        "src": "status-spinner",
+                      },
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "height": "12px",
+                        "width": "12px",
+                      },
+                      "tag": "icon",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "Working",
+                        },
+                      ],
+                      "style": {
+                        "color": "$muted",
+                        "flex": "1 1 0%",
+                        "font-size": "12px",
+                        "overflow": "hidden",
+                        "text-overflow": "ellipsis",
+                        "white-space": "nowrap",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "0",
+                        },
+                      ],
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "font-size": "10.5px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "agent-overview-nav",
+                  "id": "agent-overview-nav-working",
+                  "on": [
+                    "click",
+                  ],
+                  "style": {
+                    "border-radius": "6px",
+                    "cursor": "pointer",
+                    "display": "flex",
+                    "flex": "none",
+                    "flex-direction": "row",
+                    "gap": "8px",
+                    "height": "28px",
+                    "hover": {
+                      "background": "$hover/0.5",
+                    },
+                    "padding-left": "8px",
+                    "padding-right": "8px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "props": {
+                        "src": "status-ring",
+                      },
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "height": "12px",
+                        "width": "12px",
+                      },
+                      "tag": "icon",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "Idle",
+                        },
+                      ],
+                      "style": {
+                        "color": "$muted",
+                        "flex": "1 1 0%",
+                        "font-size": "12px",
+                        "overflow": "hidden",
+                        "text-overflow": "ellipsis",
+                        "white-space": "nowrap",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "1",
+                        },
+                      ],
+                      "style": {
+                        "color": "$muted",
+                        "flex": "none",
+                        "font-size": "10.5px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "agent-overview-nav",
+                  "id": "agent-overview-nav-idle",
+                  "on": [
+                    "click",
+                  ],
+                  "style": {
+                    "border-radius": "6px",
+                    "cursor": "pointer",
+                    "display": "flex",
+                    "flex": "none",
+                    "flex-direction": "row",
+                    "gap": "8px",
+                    "height": "28px",
+                    "hover": {
+                      "background": "$hover/0.5",
+                    },
+                    "padding-left": "8px",
+                    "padding-right": "8px",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "style": {
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "column",
+                "gap": "4px",
+                "padding-left": "6px",
+                "padding-right": "6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "id": "agent-overview-search",
+                  "on": [
+                    "input",
+                  ],
+                  "props": {
+                    "autofocus": true,
+                    "placeholder": "Filter agents",
+                  },
+                  "tag": "input",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "padding-bottom": "4px",
+                "padding-left": "8px",
+                "padding-right": "8px",
+                "padding-top": "8px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "MAIN",
+                            },
+                          ],
+                          "style": {
+                            "flex": "1 1 0%",
+                            "overflow": "hidden",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "2",
+                            },
+                          ],
+                          "style": {
+                            "flex": "none",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "id": "agent-overview-session-1",
+                      "style": {
+                        "color": "$muted",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "row",
+                        "font-size": "10.5px",
+                        "font-weight": "500",
+                        "gap": "6px",
+                        "height": "26px",
+                        "padding-left": "10px",
+                        "padding-right": "10px",
+                        "padding-top": "6px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "props": {
+                    "key": "0",
+                  },
+                  "style": {
+                    "flex-shrink": 0,
+                    "height": 26,
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "id": "agent-overview-rail-100-dot",
+                          "props": {
+                            "component": "stateMark",
+                            "params": {
+                              "marks": "dots",
+                              "size": 8,
+                              "status": "blocked",
+                            },
+                          },
+                          "tag": "ui",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "claude",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "flex": "none",
+                            "font-size": "11.5px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "pumi",
+                            },
+                          ],
+                          "style": {
+                            "color": "$placeholder",
+                            "flex": "1 1 0%",
+                            "font-size": "10.5px",
+                            "overflow": "hidden",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "you",
+                            },
+                          ],
+                          "style": {
+                            "color": "$placeholder",
+                            "flex": "none",
+                            "font-size": "9.5px",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "agent-overview-agent",
+                      "id": "agent-overview-rail-100",
+                      "on": [
+                        "click",
+                      ],
+                      "style": {
+                        "border-radius": "6px",
+                        "cursor": "pointer",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "row",
+                        "gap": "7px",
+                        "height": "26px",
+                        "hover": {
+                          "background": "$hover/0.45",
+                        },
+                        "padding-left": "18px",
+                        "padding-right": "10px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "props": {
+                    "key": "1",
+                  },
+                  "style": {
+                    "flex-shrink": 0,
+                    "height": 26,
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "id": "agent-overview-rail-101-dot",
+                          "props": {
+                            "component": "stateMark",
+                            "params": {
+                              "marks": "dots",
+                              "size": 8,
+                              "status": "error",
+                            },
+                          },
+                          "tag": "ui",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "make",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "flex": "none",
+                            "font-size": "11.5px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "pumi",
+                            },
+                          ],
+                          "style": {
+                            "color": "$placeholder",
+                            "flex": "1 1 0%",
+                            "font-size": "10.5px",
+                            "overflow": "hidden",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "agent-overview-agent",
+                      "id": "agent-overview-rail-101",
+                      "on": [
+                        "click",
+                      ],
+                      "style": {
+                        "border-radius": "6px",
+                        "cursor": "pointer",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "row",
+                        "gap": "7px",
+                        "height": "26px",
+                        "hover": {
+                          "background": "$hover/0.45",
+                        },
+                        "padding-left": "18px",
+                        "padding-right": "10px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "props": {
+                    "key": "2",
+                  },
+                  "style": {
+                    "flex-shrink": 0,
+                    "height": 26,
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "WORK",
+                            },
+                          ],
+                          "style": {
+                            "flex": "1 1 0%",
+                            "overflow": "hidden",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "1",
+                            },
+                          ],
+                          "style": {
+                            "flex": "none",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "id": "agent-overview-session-2",
+                      "style": {
+                        "color": "$muted",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "row",
+                        "font-size": "10.5px",
+                        "font-weight": "500",
+                        "gap": "6px",
+                        "height": "26px",
+                        "padding-left": "10px",
+                        "padding-right": "10px",
+                        "padding-top": "6px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "props": {
+                    "key": "3",
+                  },
+                  "style": {
+                    "flex-shrink": 0,
+                    "height": 26,
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "id": "agent-overview-rail-200-dot",
+                          "props": {
+                            "component": "stateMark",
+                            "params": {
+                              "marks": "dots",
+                              "size": 8,
+                              "status": "idle",
+                            },
+                          },
+                          "tag": "ui",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "pi",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "flex": "none",
+                            "font-size": "11.5px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "other",
+                            },
+                          ],
+                          "style": {
+                            "color": "$placeholder",
+                            "flex": "1 1 0%",
+                            "font-size": "10.5px",
+                            "overflow": "hidden",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "agent-overview-agent",
+                      "id": "agent-overview-rail-200",
+                      "on": [
+                        "click",
+                      ],
+                      "style": {
+                        "border-radius": "6px",
+                        "cursor": "pointer",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "row",
+                        "gap": "7px",
+                        "height": "26px",
+                        "hover": {
+                          "background": "$hover/0.45",
+                        },
+                        "padding-left": "18px",
+                        "padding-right": "10px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "props": {
+                    "key": "4",
+                  },
+                  "style": {
+                    "flex-shrink": 0,
+                    "height": 26,
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "agent-overview-rail",
+              "on": [
+                "scroll",
+                "range",
+              ],
+              "props": {
+                "range": [
+                  0,
+                  5,
+                ],
+                "rowHeight": 26,
+                "rows": 5,
+              },
+              "style": {
+                "flex": "1 1 0%",
+                "min-height": "0px",
+                "padding-bottom": "8px",
+              },
+              "tag": "list",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "3 agents · 2 sessions",
+                },
+              ],
+              "style": {
+                "border-color": "$border/0.55",
+                "border-top-width": "1px",
+                "color": "$muted",
+                "flex": "none",
+                "font-size": "10.5px",
+                "padding-bottom": "8px",
+                "padding-left": "12px",
+                "padding-right": "12px",
+                "padding-top": "8px",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "border-color": "$border/0.55",
+            "border-right-width": "1px",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "column",
+            "height": "100%",
+            "width": "248px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "Agents",
+                    },
+                  ],
+                  "style": {
+                    "color": "$muted",
+                    "font-size": "11.5px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "props": {
+                    "src": "chevron-right",
+                  },
+                  "style": {
+                    "color": "$placeholder",
+                    "flex": "none",
+                    "height": "10px",
+                    "width": "10px",
+                  },
+                  "tag": "icon",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "Overview",
+                    },
+                  ],
+                  "style": {
+                    "color": "$surface_text",
+                    "font-size": "11.5px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "style": {
+                    "flex": "1 1 0%",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "tag": "text",
+                      "text": "updated just now",
+                    },
+                  ],
+                  "style": {
+                    "color": "$muted",
+                    "font-size": "11px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "id": "agent-overview-refresh",
+                  "on": [
+                    "click",
+                  ],
+                  "props": {
+                    "component": "button",
+                    "params": {
+                      "label": "Refresh",
+                      "variant": "primary",
+                    },
+                  },
+                  "tag": "ui",
+                },
+              ],
+              "style": {
+                "border-bottom-width": "1px",
+                "border-color": "$border/0.55",
+                "display": "flex",
+                "flex": "none",
+                "flex-direction": "row",
+                "gap": "6px",
+                "height": "42px",
+                "padding-left": "16px",
+                "padding-right": "16px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "Agent overview",
+                        },
+                      ],
+                      "style": {
+                        "color": "$surface_text",
+                        "font-size": "20px",
+                        "font-weight": "600",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "3 of 3 agents · 2 sessions · 2 need you",
+                        },
+                      ],
+                      "style": {
+                        "color": "$muted",
+                        "font-size": "11.5px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "style": {
+                    "display": "flex",
+                    "flex": "none",
+                    "flex-direction": "column",
+                    "gap": "3px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "id": "agent-overview-card-working",
+                              "props": {
+                                "component": "stateMark",
+                                "params": {
+                                  "marks": "dots",
+                                  "size": 8,
+                                  "status": "working",
+                                },
+                              },
+                              "tag": "ui",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "Working",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "11px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "display": "flex",
+                            "flex-direction": "row",
+                            "gap": "6px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "0",
+                            },
+                          ],
+                          "style": {
+                            "color": "$surface_text",
+                            "font-size": "24px",
+                            "font-weight": "600",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "style": {
+                                "background": "$primary",
+                                "border-radius": "9999px",
+                                "height": "100%",
+                                "width": "0%",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "background": "$element",
+                            "border-radius": "9999px",
+                            "height": "3px",
+                            "width": "100%",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "running now",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "font-size": "10.5px",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "border-color": "$border/0.7",
+                        "border-radius": "8px",
+                        "border-width": "1px",
+                        "display": "flex",
+                        "flex": "1 1 0%",
+                        "flex-direction": "column",
+                        "gap": "6px",
+                        "min-width": "120px",
+                        "padding": "12px",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "id": "agent-overview-card-needs-you",
+                              "props": {
+                                "component": "stateMark",
+                                "params": {
+                                  "marks": "dots",
+                                  "size": 8,
+                                  "status": "blocked",
+                                },
+                              },
+                              "tag": "ui",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "Needs you",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "11px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "display": "flex",
+                            "flex-direction": "row",
+                            "gap": "6px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "2",
+                            },
+                          ],
+                          "style": {
+                            "color": "$surface_text",
+                            "font-size": "24px",
+                            "font-weight": "600",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "style": {
+                                "background": "$warning",
+                                "border-radius": "9999px",
+                                "height": "100%",
+                                "width": "66.66666666666666%",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "background": "$element",
+                            "border-radius": "9999px",
+                            "height": "3px",
+                            "width": "100%",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "blocked or failed",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "font-size": "10.5px",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "border-color": "$border/0.7",
+                        "border-radius": "8px",
+                        "border-width": "1px",
+                        "display": "flex",
+                        "flex": "1 1 0%",
+                        "flex-direction": "column",
+                        "gap": "6px",
+                        "min-width": "120px",
+                        "padding": "12px",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "id": "agent-overview-card-done",
+                              "props": {
+                                "component": "stateMark",
+                                "params": {
+                                  "marks": "dots",
+                                  "size": 8,
+                                  "status": "done",
+                                },
+                              },
+                              "tag": "ui",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "Done",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "11px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "display": "flex",
+                            "flex-direction": "row",
+                            "gap": "6px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "0",
+                            },
+                          ],
+                          "style": {
+                            "color": "$surface_text",
+                            "font-size": "24px",
+                            "font-weight": "600",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "style": {
+                                "background": "$success",
+                                "border-radius": "9999px",
+                                "height": "100%",
+                                "width": "0%",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "background": "$element",
+                            "border-radius": "9999px",
+                            "height": "3px",
+                            "width": "100%",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "finished, not yet seen",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "font-size": "10.5px",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "border-color": "$border/0.7",
+                        "border-radius": "8px",
+                        "border-width": "1px",
+                        "display": "flex",
+                        "flex": "1 1 0%",
+                        "flex-direction": "column",
+                        "gap": "6px",
+                        "min-width": "120px",
+                        "padding": "12px",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "id": "agent-overview-card-idle",
+                              "props": {
+                                "component": "stateMark",
+                                "params": {
+                                  "marks": "dots",
+                                  "size": 8,
+                                  "status": "idle",
+                                },
+                              },
+                              "tag": "ui",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "Idle",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "11px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "display": "flex",
+                            "flex-direction": "row",
+                            "gap": "6px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "1",
+                            },
+                          ],
+                          "style": {
+                            "color": "$surface_text",
+                            "font-size": "24px",
+                            "font-weight": "600",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "style": {
+                                "background": "$muted/0.55",
+                                "border-radius": "9999px",
+                                "height": "100%",
+                                "width": "33.33333333333333%",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "background": "$element",
+                            "border-radius": "9999px",
+                            "height": "3px",
+                            "width": "100%",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "waiting for a prompt",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "font-size": "10.5px",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "border-color": "$border/0.7",
+                        "border-radius": "8px",
+                        "border-width": "1px",
+                        "display": "flex",
+                        "flex": "1 1 0%",
+                        "flex-direction": "column",
+                        "gap": "6px",
+                        "min-width": "120px",
+                        "padding": "12px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "style": {
+                    "align-items": "stretch",
+                    "display": "flex",
+                    "flex-direction": "row",
+                    "gap": "10px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "Needs you",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "2",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "font-size": "11px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "style": {
+                            "flex": "1 1 0%",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "color": "$surface_text",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "row",
+                        "font-size": "12px",
+                        "font-weight": "600",
+                        "gap": "8px",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "props": {
+                                "src": "warning",
+                              },
+                              "style": {
+                                "color": "$warning",
+                                "flex": "none",
+                                "height": "12px",
+                                "width": "12px",
+                              },
+                              "tag": "icon",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "claude needs permission",
+                                },
+                              ],
+                              "style": {
+                                "color": "$surface_text",
+                                "font-size": "12px",
+                                "font-weight": "500",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "style": {
+                                "flex": "1 1 0%",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "main › agents",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "10.5px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "display": "flex",
+                            "flex-direction": "row",
+                            "gap": "7px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "Bash(rm -rf build)?",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "font-size": "11px",
+                            "overflow": "hidden",
+                            "padding-left": "21px",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "agent-overview-alert",
+                      "id": "agent-overview-alert-100",
+                      "style": {
+                        "background": "$warning/0.06",
+                        "border-color": "$warning/0.4",
+                        "border-radius": "6px",
+                        "border-width": "1px",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "column",
+                        "gap": "3px",
+                        "padding-bottom": "9px",
+                        "padding-left": "12px",
+                        "padding-right": "12px",
+                        "padding-top": "9px",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "props": {
+                                "src": "status-x",
+                              },
+                              "style": {
+                                "color": "$error",
+                                "flex": "none",
+                                "height": "12px",
+                                "width": "12px",
+                              },
+                              "tag": "icon",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "make failed",
+                                },
+                              ],
+                              "style": {
+                                "color": "$surface_text",
+                                "font-size": "12px",
+                                "font-weight": "500",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "style": {
+                                "flex": "1 1 0%",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "main › build",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "10.5px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "display": "flex",
+                            "flex-direction": "row",
+                            "gap": "7px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "recipe failed",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "font-size": "11px",
+                            "overflow": "hidden",
+                            "padding-left": "21px",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "agent-overview-alert",
+                      "id": "agent-overview-alert-101",
+                      "style": {
+                        "background": "$error/0.06",
+                        "border-color": "$error/0.4",
+                        "border-radius": "6px",
+                        "border-width": "1px",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "column",
+                        "gap": "3px",
+                        "padding-bottom": "9px",
+                        "padding-left": "12px",
+                        "padding-right": "12px",
+                        "padding-top": "9px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "style": {
+                    "display": "flex",
+                    "flex": "none",
+                    "flex-direction": "column",
+                    "gap": "6px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "Working now",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "0",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "11px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "style": {
+                                "flex": "1 1 0%",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "color": "$surface_text",
+                            "display": "flex",
+                            "flex": "none",
+                            "flex-direction": "row",
+                            "font-size": "12px",
+                            "font-weight": "600",
+                            "gap": "8px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "Nothing is working right now.",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "11px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "border-color": "$border/0.7",
+                            "border-radius": "8px",
+                            "border-width": "1px",
+                            "display": "flex",
+                            "flex-direction": "column",
+                            "padding-bottom": "12px",
+                            "padding-left": "12px",
+                            "padding-right": "12px",
+                            "padding-top": "12px",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "display": "flex",
+                        "flex": "1 1 0%",
+                        "flex-direction": "column",
+                        "gap": "6px",
+                        "min-width": "180px",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "Waiting on you",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "2",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted",
+                                "font-size": "11px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "style": {
+                                "flex": "1 1 0%",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "color": "$surface_text",
+                            "display": "flex",
+                            "flex": "none",
+                            "flex-direction": "row",
+                            "font-size": "12px",
+                            "font-weight": "600",
+                            "gap": "8px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-brief-100-dot",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 7,
+                                      "status": "blocked",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "claude",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$surface_text",
+                                    "flex": "none",
+                                    "font-size": "11.5px",
+                                  },
+                                  "tag": "div",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "Bash(rm -rf build)?",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "pumi",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$placeholder",
+                                    "flex": "none",
+                                    "font-size": "10.5px",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "id": "agent-overview-brief-100",
+                              "style": {
+                                "border-color": "$border/0.4",
+                                "border-top-width": "1px",
+                                "display": "flex",
+                                "flex": "none",
+                                "flex-direction": "row",
+                                "gap": "8px",
+                                "height": "28px",
+                                "padding-left": "10px",
+                                "padding-right": "10px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-brief-101-dot",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 7,
+                                      "status": "error",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "make",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$surface_text",
+                                    "flex": "none",
+                                    "font-size": "11.5px",
+                                  },
+                                  "tag": "div",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "recipe failed",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "pumi",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$placeholder",
+                                    "flex": "none",
+                                    "font-size": "10.5px",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "id": "agent-overview-brief-101",
+                              "style": {
+                                "border-color": "$border/0.4",
+                                "border-top-width": "1px",
+                                "display": "flex",
+                                "flex": "none",
+                                "flex-direction": "row",
+                                "gap": "8px",
+                                "height": "28px",
+                                "padding-left": "10px",
+                                "padding-right": "10px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "border-color": "$border/0.7",
+                            "border-radius": "8px",
+                            "border-width": "1px",
+                            "display": "flex",
+                            "flex-direction": "column",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "display": "flex",
+                        "flex": "1 1 0%",
+                        "flex-direction": "column",
+                        "gap": "6px",
+                        "min-width": "180px",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "style": {
+                    "align-items": "flex-start",
+                    "display": "flex",
+                    "flex-direction": "row",
+                    "gap": "16px",
+                  },
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "children": [
+                        {
+                          "tag": "text",
+                          "text": "Agents",
+                        },
+                        {
+                          "children": [
+                            {
+                              "tag": "text",
+                              "text": "3",
+                            },
+                          ],
+                          "style": {
+                            "color": "$muted",
+                            "font-size": "11px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-legend-working",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 6,
+                                      "status": "working",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "Working",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "display": "flex",
+                                "flex-direction": "row",
+                                "gap": "4px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-legend-blocked",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 6,
+                                      "status": "blocked",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "Blocked",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "display": "flex",
+                                "flex-direction": "row",
+                                "gap": "4px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-legend-error",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 6,
+                                      "status": "error",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "Failed",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "display": "flex",
+                                "flex-direction": "row",
+                                "gap": "4px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-legend-done",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 6,
+                                      "status": "done",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "Done",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "display": "flex",
+                                "flex-direction": "row",
+                                "gap": "4px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-legend-idle",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 6,
+                                      "status": "idle",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "Idle",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "display": "flex",
+                                "flex-direction": "row",
+                                "gap": "4px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "display": "flex",
+                            "flex": "none",
+                            "flex-direction": "row",
+                            "gap": "10px",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "color": "$surface_text",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "row",
+                        "font-size": "12px",
+                        "font-weight": "600",
+                        "gap": "8px",
+                      },
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "style": {
+                                "flex": "none",
+                                "width": "10px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "AGENT",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                    "font-weight": "500",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "120px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "STATUS",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                    "font-weight": "500",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "74px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "SESSION",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                    "font-weight": "500",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "150px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "DIRECTORY",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                    "font-weight": "500",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "1 1 0%",
+                                "min-width": "80px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "PROGRAM",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "font-size": "10px",
+                                    "font-weight": "500",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "110px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "style": {
+                                "flex": "none",
+                                "width": "16px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "style": {
+                            "background": "$surface/0.35",
+                            "display": "flex",
+                            "flex": "none",
+                            "flex-direction": "row",
+                            "gap": "8px",
+                            "height": "28px",
+                            "padding-left": "10px",
+                            "padding-right": "10px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-row-100-dot",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 8,
+                                      "status": "blocked",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "10px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "props": {
+                                    "src": "agent",
+                                  },
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "none",
+                                    "height": "12px",
+                                    "width": "12px",
+                                  },
+                                  "tag": "icon",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "claude",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$surface_text",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11.5px",
+                                    "font-weight": "500",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "display": "flex",
+                                "flex": "none",
+                                "flex-direction": "row",
+                                "gap": "6px",
+                                "width": "120px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "needs permission",
+                                },
+                              ],
+                              "style": {
+                                "color": "$warning",
+                                "flex": "none",
+                                "font-size": "11px",
+                                "width": "74px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "main › agents",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "150px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "/Users/me/Kitchen/pumi",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "1 1 0%",
+                                "min-width": "80px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "claude",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "110px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "props": {
+                                    "src": "chevron-right",
+                                  },
+                                  "style": {
+                                    "color": "$placeholder",
+                                    "flex": "none",
+                                    "height": "12px",
+                                    "width": "12px",
+                                  },
+                                  "tag": "icon",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "16px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "agent-overview-row",
+                          "id": "agent-overview-row-100",
+                          "on": [
+                            "click",
+                          ],
+                          "style": {
+                            "border-color": "$border/0.4",
+                            "border-top-width": "1px",
+                            "cursor": "pointer",
+                            "display": "flex",
+                            "flex": "none",
+                            "flex-direction": "row",
+                            "gap": "8px",
+                            "height": "32px",
+                            "hover": {
+                              "background": "$hover/0.45",
+                            },
+                            "padding-left": "10px",
+                            "padding-right": "10px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-row-101-dot",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 8,
+                                      "status": "error",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "10px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "props": {
+                                    "src": "agent",
+                                  },
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "none",
+                                    "height": "12px",
+                                    "width": "12px",
+                                  },
+                                  "tag": "icon",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "make",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$surface_text",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11.5px",
+                                    "font-weight": "500",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "display": "flex",
+                                "flex": "none",
+                                "flex-direction": "row",
+                                "gap": "6px",
+                                "width": "120px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "failed",
+                                },
+                              ],
+                              "style": {
+                                "color": "$error",
+                                "flex": "none",
+                                "font-size": "11px",
+                                "width": "74px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "main › build",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "150px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "/Users/me/Kitchen/pumi",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "1 1 0%",
+                                "min-width": "80px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "make",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "110px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "props": {
+                                    "src": "chevron-right",
+                                  },
+                                  "style": {
+                                    "color": "$placeholder",
+                                    "flex": "none",
+                                    "height": "12px",
+                                    "width": "12px",
+                                  },
+                                  "tag": "icon",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "16px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "agent-overview-row",
+                          "id": "agent-overview-row-101",
+                          "on": [
+                            "click",
+                          ],
+                          "style": {
+                            "border-color": "$border/0.4",
+                            "border-top-width": "1px",
+                            "cursor": "pointer",
+                            "display": "flex",
+                            "flex": "none",
+                            "flex-direction": "row",
+                            "gap": "8px",
+                            "height": "32px",
+                            "hover": {
+                              "background": "$hover/0.45",
+                            },
+                            "padding-left": "10px",
+                            "padding-right": "10px",
+                          },
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "children": [
+                                {
+                                  "id": "agent-overview-row-200-dot",
+                                  "props": {
+                                    "component": "stateMark",
+                                    "params": {
+                                      "marks": "dots",
+                                      "size": 8,
+                                      "status": "idle",
+                                    },
+                                  },
+                                  "tag": "ui",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "10px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "props": {
+                                    "src": "agent",
+                                  },
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "none",
+                                    "height": "12px",
+                                    "width": "12px",
+                                  },
+                                  "tag": "icon",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "pi",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$surface_text",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11.5px",
+                                    "font-weight": "500",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "display": "flex",
+                                "flex": "none",
+                                "flex-direction": "row",
+                                "gap": "6px",
+                                "width": "120px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "tag": "text",
+                                  "text": "Idle",
+                                },
+                              ],
+                              "style": {
+                                "color": "$muted/0.55",
+                                "flex": "none",
+                                "font-size": "11px",
+                                "width": "74px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "work › review",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "150px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "/Users/me/other",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "1 1 0%",
+                                "min-width": "80px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "tag": "text",
+                                      "text": "",
+                                    },
+                                  ],
+                                  "style": {
+                                    "color": "$muted",
+                                    "flex": "1 1 0%",
+                                    "font-size": "11px",
+                                    "overflow": "hidden",
+                                    "text-overflow": "ellipsis",
+                                    "white-space": "nowrap",
+                                  },
+                                  "tag": "div",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "110px",
+                              },
+                              "tag": "div",
+                            },
+                            {
+                              "children": [
+                                {
+                                  "props": {
+                                    "src": "chevron-right",
+                                  },
+                                  "style": {
+                                    "color": "$placeholder",
+                                    "flex": "none",
+                                    "height": "12px",
+                                    "width": "12px",
+                                  },
+                                  "tag": "icon",
+                                },
+                              ],
+                              "style": {
+                                "flex": "none",
+                                "width": "16px",
+                              },
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "agent-overview-row",
+                          "id": "agent-overview-row-200",
+                          "on": [
+                            "click",
+                          ],
+                          "style": {
+                            "border-color": "$border/0.4",
+                            "border-top-width": "1px",
+                            "cursor": "pointer",
+                            "display": "flex",
+                            "flex": "none",
+                            "flex-direction": "row",
+                            "gap": "8px",
+                            "height": "32px",
+                            "hover": {
+                              "background": "$hover/0.45",
+                            },
+                            "padding-left": "10px",
+                            "padding-right": "10px",
+                          },
+                          "tag": "div",
+                        },
+                      ],
+                      "style": {
+                        "border-color": "$border/0.7",
+                        "border-radius": "8px",
+                        "border-width": "1px",
+                        "display": "flex",
+                        "flex": "none",
+                        "flex-direction": "column",
+                        "overflow": "hidden",
+                      },
+                      "tag": "div",
+                    },
+                  ],
+                  "style": {
+                    "display": "flex",
+                    "flex": "none",
+                    "flex-direction": "column",
+                    "gap": "6px",
+                  },
+                  "tag": "div",
+                },
+              ],
+              "id": "agent-overview-main",
+              "on": [
+                "scroll",
+              ],
+              "style": {
+                "display": "flex",
+                "flex": "1 1 0%",
+                "flex-direction": "column",
+                "gap": "16px",
+                "min-height": "0px",
+                "padding-bottom": "16px",
+                "padding-left": "20px",
+                "padding-right": "20px",
+                "padding-top": "16px",
+              },
+              "tag": "scroll",
+            },
+          ],
+          "style": {
+            "display": "flex",
+            "flex": "1 1 0%",
+            "flex-direction": "column",
+            "height": "100%",
+            "min-width": "0px",
+          },
+          "tag": "div",
+        },
+      ],
+      "style": {
+        "display": "flex",
+        "flex": "1 1 0%",
+        "flex-direction": "row",
+        "min-height": "0px",
+      },
+      "tag": "div",
+    },
+  ],
+  "class": "agent-overview",
+  "id": "agent-overview",
+  "on": [
+    "key",
+    "focus",
+    "blur",
+  ],
+  "props": {
+    "focusable": true,
+  },
+  "style": {
+    "color": "$surface_text",
+    "display": "flex",
+    "flex-direction": "column",
+    "font-size": "12px",
+    "height": "100%",
+    "overflow": "hidden",
+    "width": "100%",
+  },
+  "tag": "div",
+}
+`;
