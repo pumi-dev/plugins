@@ -308,7 +308,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "pane.rename":
     case "pane.zoom":
     case "pane.clear": {
-      let v = await view();
+      const v = await view();
       const pane = paneOf(v, p.str("pane_id"));
       if (method === "pane.focus") {
         await ask("pane.select", { to: pane });
@@ -332,7 +332,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       return result("pane_info", { pane: await paneInfo(pane) });
     }
     case "pane.split": {
-      let v = await view();
+      const v = await view();
       let target: number;
       const named = p.optStr("target_pane_id");
       if (named !== undefined) {
