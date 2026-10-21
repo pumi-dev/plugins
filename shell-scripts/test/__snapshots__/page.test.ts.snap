@@ -1,0 +1,346 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the page lists the repository's scripts, grouped and counting them 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "tag": "text",
+              "text": "3 scripts · 2 places",
+            },
+          ],
+          "style": {
+            "flex": "1 1 0%",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "tag": "text",
+              "text": "Rescan",
+            },
+          ],
+          "id": "rescan",
+          "on": [
+            "click",
+          ],
+          "style": {
+            "border-radius": "4px",
+            "cursor": "pointer",
+            "hover": {
+              "background": "$hover",
+              "color": "$text",
+            },
+            "padding-left": "4px",
+            "padding-right": "4px",
+          },
+          "tag": "div",
+        },
+      ],
+      "style": {
+        "align-items": "center",
+        "color": "$muted",
+        "display": "flex",
+        "flex": "none",
+        "font-size": "12px",
+        "gap": "8px",
+        "padding-bottom": "4px",
+        "padding-left": "8px",
+        "padding-right": "8px",
+        "padding-top": "4px",
+      },
+      "tag": "div",
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "tag": "text",
+              "text": "▾",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": ".",
+                },
+              ],
+              "style": {
+                "flex": "1 1 0%",
+                "overflow": "hidden",
+                "text-overflow": "ellipsis",
+                "white-space": "nowrap",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1",
+                },
+              ],
+              "style": {
+                "color": "$muted",
+              },
+              "tag": "div",
+            },
+          ],
+          "id": "group-0",
+          "on": [
+            "click",
+          ],
+          "style": {
+            "align-items": "center",
+            "color": "$text",
+            "cursor": "pointer",
+            "display": "flex",
+            "font-size": "12px",
+            "font-weight": "600",
+            "gap": "4px",
+            "height": "22px",
+            "hover": {
+              "background": "$hover",
+            },
+            "padding-left": "8px",
+            "padding-right": "8px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "top.sh",
+                },
+              ],
+              "style": {
+                "flex": "none",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "sh top.sh",
+                },
+              ],
+              "style": {
+                "color": "$muted",
+                "flex": "1 1 0%",
+                "min-width": "0px",
+                "overflow": "hidden",
+                "text-overflow": "ellipsis",
+                "white-space": "nowrap",
+              },
+              "tag": "div",
+            },
+          ],
+          "id": "item-0-0",
+          "on": [
+            "click",
+          ],
+          "style": {
+            "align-items": "center",
+            "color": "$text",
+            "cursor": "pointer",
+            "display": "flex",
+            "font-size": "12px",
+            "gap": "8px",
+            "height": "22px",
+            "hover": {
+              "background": "$hover",
+            },
+            "padding-left": "22px",
+            "padding-right": "8px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "tag": "text",
+              "text": "▾",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "scripts",
+                },
+              ],
+              "style": {
+                "flex": "1 1 0%",
+                "overflow": "hidden",
+                "text-overflow": "ellipsis",
+                "white-space": "nowrap",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "2",
+                },
+              ],
+              "style": {
+                "color": "$muted",
+              },
+              "tag": "div",
+            },
+          ],
+          "id": "group-1",
+          "on": [
+            "click",
+          ],
+          "style": {
+            "align-items": "center",
+            "color": "$text",
+            "cursor": "pointer",
+            "display": "flex",
+            "font-size": "12px",
+            "font-weight": "600",
+            "gap": "4px",
+            "height": "22px",
+            "hover": {
+              "background": "$hover",
+            },
+            "padding-left": "8px",
+            "padding-right": "8px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "build.sh",
+                },
+              ],
+              "style": {
+                "flex": "none",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "bash build.sh",
+                },
+              ],
+              "style": {
+                "color": "$muted",
+                "flex": "1 1 0%",
+                "min-width": "0px",
+                "overflow": "hidden",
+                "text-overflow": "ellipsis",
+                "white-space": "nowrap",
+              },
+              "tag": "div",
+            },
+          ],
+          "id": "item-1-0",
+          "on": [
+            "click",
+          ],
+          "style": {
+            "align-items": "center",
+            "color": "$text",
+            "cursor": "pointer",
+            "display": "flex",
+            "font-size": "12px",
+            "gap": "8px",
+            "height": "22px",
+            "hover": {
+              "background": "$hover",
+            },
+            "padding-left": "22px",
+            "padding-right": "8px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "deploy",
+                },
+              ],
+              "style": {
+                "flex": "none",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "zsh deploy",
+                },
+              ],
+              "style": {
+                "color": "$muted",
+                "flex": "1 1 0%",
+                "min-width": "0px",
+                "overflow": "hidden",
+                "text-overflow": "ellipsis",
+                "white-space": "nowrap",
+              },
+              "tag": "div",
+            },
+          ],
+          "id": "item-1-1",
+          "on": [
+            "click",
+          ],
+          "style": {
+            "align-items": "center",
+            "color": "$text",
+            "cursor": "pointer",
+            "display": "flex",
+            "font-size": "12px",
+            "gap": "8px",
+            "height": "22px",
+            "hover": {
+              "background": "$hover",
+            },
+            "padding-left": "22px",
+            "padding-right": "8px",
+          },
+          "tag": "div",
+        },
+      ],
+      "id": "scripts",
+      "style": {
+        "display": "flex",
+        "flex": "1 1 0%",
+        "flex-direction": "column",
+        "min-height": "0px",
+      },
+      "tag": "scroll",
+    },
+  ],
+  "class": "script-panel",
+  "style": {
+    "display": "flex",
+    "flex-direction": "column",
+    "height": "100%",
+    "width": "100%",
+  },
+  "tag": "div",
+}
+`;
