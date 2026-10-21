@@ -33,3 +33,9 @@ test("a run, a word start and lowercase letters score higher", () => {
   expect(score("main.rs", "m")!).toBeGreaterThan(score("MAIN.RS", "m")!);
   expect(score("Main.rs", "m")).toBe(score("Main.rs", "M"));
 });
+
+test("a query keeps at most two hundred matches", () => {
+  const entries = Array.from({ length: 300 }, (_, i) => new Entry(`f${i}.rs`, false));
+  expect(hits(entries, "")).toHaveLength(200);
+  expect(hits(entries, "f")).toHaveLength(200);
+});

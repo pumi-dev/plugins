@@ -172,3 +172,14 @@ test("a press outside the float (the app closing it) types the trigger back too"
   await app.settle();
   expect(typed()).toEqual([{ text: "/" }]);
 });
+
+test("a path the terminal refuses is said so", async () => {
+  await start();
+  app.answer("pane.call", () => {
+    throw new Error("no such pane");
+  });
+  const view = open();
+  await view.type("#insert-path-query", "main");
+  await view.key("#insert-path", "enter");
+  expect(app.notices).toEqual([{ msg: "insert-path: no such pane", level: "error" }]);
+});
