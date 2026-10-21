@@ -144,3 +144,17 @@ test("the dashboard as it opens", async () => {
   const view = await opened();
   expect(view.snapshot()).toMatchSnapshot();
 });
+
+test("the rail is as wide as its option says", async () => {
+  const view = await opened({ options: { rail_width: 300 } });
+  expect(view.find("#agent-overview-rail").parent?.style).toMatchObject({ width: "300px" });
+});
+
+test("it reads its options when it opens", async () => {
+  const view = await opened();
+  const asked = app.called("option.get").map(([name]) => name);
+  expect(asked).toContain("local.agent_overview.poll_secs");
+  expect(asked).toContain("local.agent_overview.hide_idle");
+  expect(asked).toContain("local.agent_overview.rail_width");
+  expect(view.find("#agent-overview-rail").parent?.style).toMatchObject({ width: "248px" });
+});
