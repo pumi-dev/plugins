@@ -1,8 +1,9 @@
-// attention: tell the user when an agent is blocked and they are looking elsewhere (05 §5).
-// An agent's state is its pane's `@agent_status` (what agents' hooks set: `pumi set -p
-// @agent_status blocked`). While any is blocked, `@attention` is how many, and a notice says so
-// once each time the count goes up. The Dock bounce and the badge come with the system mod
-// (phase 4); until then they are `@attention` and the notice.
+// attention: tell the user when an agent is blocked and they are looking elsewhere.
+// An agent's state is its pane's `@agent_status` (one word: `working`, `blocked`, `done`, `idle`,
+// `error`), which agents' hooks report (`pumi skill setup` installs them). While any is blocked,
+// `@attention` is how many, and a notice says so once each time the count goes up. The Dock
+// bounce and the badge come with the system mod (phase 4); until then they are `@attention` and
+// the notice.
 //
 // No view: what it makes is options, events and the global `@attention`.
 import { notify, on, option, pane, pkg } from "pumi";
