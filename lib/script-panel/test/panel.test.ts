@@ -135,3 +135,14 @@ test("an option that changed is read again, and the page scanned again", async (
   await app.settle();
   expect(page.text()).toBe("1 script · 1 placeRescan▾.1top.runsh top.run");
 });
+
+test("a closed page looks no more", async () => {
+  await start({ tools: ["one.run"] });
+  const page = app.open("scripts");
+  await app.settle();
+  const looked = app.called("format.eval").length;
+  page.close();
+  await app.fire("cwd.changed", { cwd: repo }, { match: repo });
+  await app.fire("option.changed", { name: "local.script_panel.depth" }, { match: "local.script_panel.depth" });
+  expect(app.called("format.eval").length).toBe(looked);
+});
