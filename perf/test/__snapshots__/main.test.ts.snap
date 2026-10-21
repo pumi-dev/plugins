@@ -1,0 +1,944 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the overlay draws what the app says of itself 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "tag": "text",
+              "text": "performance",
+            },
+          ],
+          "style": {
+            "color": "$surface_text",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "font-weight": "600",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "app    cpu   14% now   14% 10s   14% 60s  peak   14%  ",
+                },
+              ],
+              "style": {
+                "color": "$muted",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "                            ▂▂",
+                },
+              ],
+              "style": {
+                "color": "$primary",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "tag": "text",
+              "text": "       rss 300.0 MB  threads 40  up 12s  samples 12",
+            },
+          ],
+          "style": {
+            "color": "$muted",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "ui     thread    5% 10s    5% 60s  60 frames/s  avg 2.5ms  max 16.2ms  slow 1  ",
+                },
+              ],
+              "style": {
+                "color": "$muted",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "                            ▁▁",
+                },
+              ],
+              "style": {
+                "color": "$primary",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "style": {
+            "flex": "none",
+            "height": "4px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "ext",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "72px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "busy 10s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "64.8px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "cpu 10s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "cpu 60s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "call/s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "50.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "queue",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "43.2px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "ui/s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "mem",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "64.8px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "call",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "158.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "cpu, last 60s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "223.20000000000002px",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "color": "$placeholder",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "git",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "72px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "60%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "64.8px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "3%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "3%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1.0",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "50.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "0",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "43.2px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "0.0ms",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "2 KB",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "64.8px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "max refresh 31.5ms",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "158.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "                            ▁▁",
+                },
+              ],
+              "style": {
+                "color": "$primary",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "color": "$error",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "files",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "72px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "64.8px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1.0",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "50.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "0",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "43.2px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "0.0ms",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "0 B",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "64.8px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "▶ refresh 900.0ms",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "158.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "                            ▁▁",
+                },
+              ],
+              "style": {
+                "color": "$primary",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "color": "$muted",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "style": {
+            "flex": "none",
+            "height": "4px",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "thread",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "194.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "now",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "10s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "60s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "peak",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "129.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "cpu, last 60s",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "223.20000000000002px",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "color": "$placeholder",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "plugin perf",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "194.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "2%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "2%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "2%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "2%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "129.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "                            ▁▁",
+                },
+              ],
+              "style": {
+                "color": "$primary",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "color": "$muted",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "exited threads",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "194.4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "1%",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "57.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "since gone",
+                },
+              ],
+              "style": {
+                "flex": "none",
+                "overflow": "hidden",
+                "width": "129.6px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "                            ▁▁",
+                },
+              ],
+              "style": {
+                "color": "$primary",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "color": "$muted",
+            "display": "flex",
+            "flex": "none",
+            "flex-direction": "row",
+            "height": "16px",
+            "line-height": "16px",
+            "white-space": "nowrap",
+          },
+          "tag": "div",
+        },
+      ],
+      "style": {
+        "display": "flex",
+        "flex-direction": "column",
+        "gap": "2px",
+      },
+      "tag": "div",
+    },
+  ],
+  "class": "perf",
+  "style": {
+    "background": "$surface/0.92",
+    "font-family": "monospace",
+    "font-size": "12px",
+    "height": "100%",
+    "overflow": "hidden",
+    "padding": "8px",
+    "width": "100%",
+  },
+  "tag": "div",
+}
+`;
