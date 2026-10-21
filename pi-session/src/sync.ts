@@ -15,10 +15,10 @@ const WIDTH = 50;
  * and beside the pane's own split and close buttons. */
 const START = false;
 
-/** Whether `pane` runs pi in a conversation the hook named. */
-async function isPi(pane: number): Promise<boolean> {
+/** Whether the pane `at` runs pi in a conversation the hook named. */
+async function isPi(at: number): Promise<boolean> {
   const text = async (name: string) => {
-    const value = await option.get(name, { pane });
+    const value = await option.get(name, { pane: at });
     return typeof value === "string" ? value : null;
   };
   const agent = await text("@agent");
@@ -26,9 +26,9 @@ async function isPi(pane: number): Promise<boolean> {
   return agent === "pi" && session !== null && session !== "";
 }
 
-/** Whether a strip view is dressed the way this version dresses one: at the row's end, and as wide
- * as these buttons add up to. One an older version dressed (further along, another width) is made
- * again. */
+/** Whether the strip view `view` is dressed the way this version dresses one: at the row's end, and
+ * as wide as these buttons add up to. One an older version dressed (further along, another width)
+ * is made again. */
 async function dressed(view: number): Promise<boolean> {
   const width = await option.get("@width", { pane: view });
   const start = await option.get("@start", { pane: view });
@@ -46,38 +46,38 @@ async function put(owner: number): Promise<void> {
   }
 }
 
-/** Where the buttons are now: the pane each belongs to, and the view itself. */
+/** Where the buttons are now: the pane each view belongs to, and the view itself. */
 async function places(): Promise<Map<number, Pane>> {
-  const bars = new Map<number, Pane>();
-  for (const bar of await pane.list({ type: STRIP })) {
-    const place = await bar.getPlace();
+  const views = new Map<number, Pane>();
+  for (const view of await pane.list({ type: STRIP })) {
+    const place = await view.getPlace();
     // One left elsewhere (an older version's bar), or not dressed for the strip yet: made again
     // below, where it belongs.
-    if (place.kind !== "slot" || place.name !== "PaneStrip" || !(await dressed(bar.id))) {
-      await bar.close(true);
+    if (place.kind !== "slot" || place.name !== "PaneStrip" || !(await dressed(view.id))) {
+      await view.close(true);
       continue;
     }
-    if (typeof place.owner === "number") bars.set(place.owner, bar);
+    if (typeof place.owner === "number") views.set(place.owner, view);
   }
-  return bars;
+  return views;
 }
 
 /** Puts the buttons on every pi pane, and takes them off everything else. */
 async function place(): Promise<void> {
-  const bars = await places();
+  const views = await places();
   const only = (await focusedOnly()) ? (await pane.current()).id : null;
   for (const terminal of await pane.list({ type: "terminal" })) {
     const wanted = (await isPi(terminal.id)) && (only === null || only === terminal.id);
-    const bar = bars.get(terminal.id);
-    if (bar !== undefined) {
-      bars.delete(terminal.id);
-      if (!wanted) await bar.close(true);
+    const view = views.get(terminal.id);
+    if (view !== undefined) {
+      views.delete(terminal.id);
+      if (!wanted) await view.close(true);
     } else if (wanted) {
       await put(terminal.id);
     }
   }
-  // A pane that stopped being a terminal's (or pi's) has no buttons.
-  for (const bar of bars.values()) await bar.close(true);
+  // A pane that is no longer a terminal's (or no longer pi's) has no buttons.
+  for (const view of views.values()) await view.close(true);
 }
 
 let running: Promise<void> = Promise.resolve();
