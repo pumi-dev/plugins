@@ -45,18 +45,35 @@ export function monitor(cx: ThemeContext<OfficeState>): El | null {
     .child(div().class("monitor-stand"));
 }
 
-/** A tab's panes, laid out as the tab is, each with its strip and its live body. */
+/** A tab's panes, laid out as the tab is, each with its strip and its live body; or a note that the
+ * tab holds nothing. */
 function panes(cx: ThemeContext<OfficeState>, tab: AppTab): El {
+  if (tab.panes.length === 0) {
+    return div().id("panes").child(
+      div()
+        .class("empty")
+        .child(label("empty-title", "This view is empty"))
+        .child(
+          div()
+            .class("button")
+            .onClick(() => {
+              app.run("split_vertical");
+              return true;
+            })
+            .child(text("New Terminal")),
+        ),
+    );
+  }
   return div()
     .id("panes")
     .class("panes")
     .class("panes-office")
     .of(tab.of)
-    .children(tab.panes.filter((p) => !p.hidden).map((p) => pane(p, tab, cx)))
+    .children(tab.panes.filter((p) => !p.hidden).map((p) => pane(p, tab)))
     .children(tab.dividers.map((d) => divider(cx, d, tab)));
 }
 
-function pane(p: AppPane, tab: AppTab, cx: ThemeContext<OfficeState>): El {
+function pane(p: AppPane, tab: AppTab): El {
   const key = p.key;
   const focused = p.focused;
   return div()
