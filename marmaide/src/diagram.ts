@@ -92,6 +92,8 @@ export class Diagram extends View<{ source?: string }> {
     if (source === this.source && (this.file !== null || this.error !== null)) return;
     const drawing = ++this.drawing;
     this.source = source;
+    this.kind = "";
+    this.size = [0, 0];
     this.error = null;
     this.zoom = 1;
     this.nodes = [];
@@ -251,6 +253,8 @@ export class Diagram extends View<{ source?: string }> {
       .onMouseDown((e) => {
         this.drag = [e.x, e.y];
         this.down = [e.x, e.y];
+        // The cursor says it is being dragged from the press, not from the first move.
+        this.cx.notify();
       })
       .onMouseMove((e) => {
         if (this.drag === null) return;
