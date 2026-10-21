@@ -1,6 +1,7 @@
-// Copied from pumi's default theme (`runtime/bun/examples/default-theme/themes/classic/parts.ts`):
-// alltabs is the default theme with its tab row's grouping changed, and draws every other part as
-// the default does. A stopgap until the SDK grows `extends` or a shared default window.
+// Copied from pumi's default theme (`runtime/bun/examples/default-theme/themes/classic/parts.ts`),
+// unedited: alltabs is the default theme with its tab row's grouping changed (`header.ts`), and
+// draws every other part as the default does. A stopgap until the SDK grows `extends` or a shared
+// default window.
 //
 // What every region of the window uses: `app` read as the Rust default theme reads it (a missing
 // field is nothing, and `null` and `false` are false), and the parts it draws everywhere.
