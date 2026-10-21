@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test";
 
 import { RenderedView } from "pumi/testing";
 
+import { digit } from "../src/switcher.ts";
 import { fake, type Fake } from "./fake.ts";
 
 let made: Fake;
@@ -184,6 +185,56 @@ test("the options place the float, and choose what the cards show", async () => 
   // No preview: the card is its title and where it is, without the app's screen of the pane.
   expect(view.findAll((node) => node.tag === "native")).toEqual([]);
   expect(view.find("#card-0").style.width).toBe("300px");
+});
+
+test("its options are held to what the switcher can draw", async () => {
+  made = await fake(three, { width: 200, height: 1, backdrop: 100, card_width: 20 });
+  await made.app.serve("local.pane_switcher.open");
+  const place = made.app.called("pane.open").at(-1)![2] as Record<string, unknown>;
+  expect([place.width, place.height, place.backdrop]).toEqual(["100%", 8, 80]);
+});
+
+test("the cards are centred while they fit, and scroll from the left edge when they do not", async () => {
+  // Six cards of 220px in a 1000px float: more than fit, so the strip starts at its left edge.
+  const many: Record<string, unknown> = {};
+  const tabs: Record<number, number[]> = { 1: [] };
+  for (let at = 10; at < 16; at++) {
+    tabs[1].push(at);
+    many[`title@${at}`] = `pane ${at}`;
+  }
+  const view = await shown({ session: [1], tabs, current: 10, said: many }, { scope: "tab" });
+  expect(drawn(view)).toHaveLength(6);
+  expect(view.find("#strip").style["justify-content"]).toBeUndefined();
+  // `end` scrolls the last card into sight: the fewest pixels that bring it there, the strip being
+  // the 1000px float less its padding.
+  await view.key("#switcher", "end");
+  expect(view.find("#strip").scroll!.x).toBe(5 * 230 + 220 - (1000 - 2 * 12));
+  made.app.stop();
+  // Three cards in the same float fit: they sit in the middle of it.
+  const few = await shown({ session: [1], tabs: { 1: [10, 11, 12] }, current: 10, said: many });
+  expect(few.find("#strip").style["justify-content"]).toBe("center");
+});
+
+test("a digit chord picks its card, and nothing else does", () => {
+  expect(digit("1")).toBe(0);
+  expect(digit("9")).toBe(8);
+  expect(digit("0")).toBeUndefined();
+  expect(digit("10")).toBeUndefined();
+  expect(digit("alt+1")).toBeUndefined();
+  expect(digit("escape")).toBeUndefined();
+});
+
+test("the panes used lately come first, as a task switcher's do", async () => {
+  made = await fake(three);
+  await made.app.fire("pane.focused", { pane: 11, tab: 1 }, { match: "terminal" });
+  const view = made.app.open("switcher", { pane: 90, size: { width: 1000, height: 400 } });
+  views.push(view);
+  await made.app.settle();
+  // 11 is where you were, 10 where you were before it, and 12 has not been visited.
+  expect(drawn(view)).toEqual(["card-0", "card-1", "card-2"]);
+  expect(view.text("#card-0")).toBe("cargo test1.1");
+  expect(view.text("#card-1")).toBe("zsh1.0  ~/kitchen");
+  expect(view.text("#card-2")).toBe("Docs1.0  ~/docs");
 });
 
 test("a card draws its pane's screen, in a box as tall as the lines it was asked for", async () => {
