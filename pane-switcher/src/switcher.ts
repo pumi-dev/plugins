@@ -55,7 +55,7 @@ export function digit(picked: string): number | undefined {
   return Number.isInteger(n) && n >= 1 && n <= 9 ? n - 1 : undefined;
 }
 
-/** What a card says of its pane, with what an error says. */
+/** What an error says, for a notice. */
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -325,9 +325,7 @@ export class Switcher extends View {
  * open it. Any switcher already up is replaced, not moved on (that is the trigger's doing). */
 export async function open(): Promise<boolean> {
   try {
-    for (const others of (await pane.list({ type: pkg.prefixed("switcher") })) as { close(force?: boolean): Promise<null> }[]) {
-      await others.close(true);
-    }
+    for (const other of await pane.list({ type: pkg.prefixed("switcher") })) await other.close(true);
     const asked = await settings();
     await pane.open(pkg.prefixed("switcher"), {}, place(asked));
     return true;

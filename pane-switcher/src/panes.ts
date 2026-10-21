@@ -1,7 +1,7 @@
 // The cards the switcher shows: which panes its scope and order ask for, and what each pane says of
 // itself — its type (which picks the card's icon), its title or the program in it, its `tab.pane`
 // number and directory, its agent's state, and whether its screen is drawn.
-import { format, option, pane, pkg, session, tab, type Pane } from "pumi";
+import { format, option, pane, pkg, session, tab } from "pumi";
 
 import type { Settings } from "./settings.ts";
 
@@ -75,7 +75,7 @@ export async function panes(settings: Settings): Promise<number[]> {
   const found: number[] = [];
   const own = pkg.prefixed("switcher");
   for (const at of await tabs(settings)) {
-    for (const each of (await pane.list({ tab: at })) as Pane[]) {
+    for (const each of await pane.list({ tab: at })) {
       const place = await each.getPlace();
       if (place.kind !== "tiled" && place.kind !== "float") continue;
       if ((await said(each.id, "pane_type")) === own) continue;
