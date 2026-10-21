@@ -2,7 +2,7 @@
 // Links the pumi checkout's SDK into every package as `@pumid/types`, so each package's
 // `bun test` and `tsc` reach `pumi` and `pumi/testing` without npm (`@pumid/types` is not
 // published yet). Re-run after adding a package.
-import { existsSync, mkdirSync, readdirSync, symlinkSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, unlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
@@ -26,6 +26,15 @@ for (const p of packages) {
     symlinkSync(from, to);
   };
   link(sdk, join(dir, "@pumid", "types"));
+  // A dependency on another package in this repository (`file:`-like), e.g. "script-panel".
+  const manifest = JSON.parse(readFileSync(join(root, p, "package.json"), "utf8"));
+  for (const dep of Object.keys(manifest.dependencies ?? {})) {
+    const local = packages.find((q) => {
+      const file = join(root, q, "package.json");
+      return existsSync(file) && JSON.parse(readFileSync(file, "utf8")).name === dep;
+    });
+    if (local) link(join(root, local), join(dir, dep));
+  }
   mkdirSync(join(dir, ".bin"), { recursive: true });
   if (existsSync(join(types, "typescript/bin/tsc"))) link(join(types, "typescript/bin/tsc"), join(dir, ".bin", "tsc"));
   for (const dep of ["@types", "bun-types", "typescript", "undici-types"]) {
