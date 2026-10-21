@@ -71,7 +71,7 @@ export class ScriptPanel extends View {
     this.ended = true;
   }
 
-  /** Reads the finder's options, follows its options, and draws what the repository holds. */
+  /** Reads the finder's options, follows them and the current pane, and draws what is there. */
   private async start(): Promise<void> {
     const finder = await this.make();
     if (this.ended) return;
