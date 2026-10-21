@@ -1,7 +1,7 @@
 /* Office. Sprites are pixel art drawn at one unit per pixel and shown at twice that, nearest
    neighbour; everything in the room is placed by the theme (`left`/`top` from its plan). The
-   default theme's rules are underneath, so the monitor's panes and the bookshelf's pages look
-   as they do there. */
+   default theme's rules are underneath (base.css, which goes away when themes can extend it), so
+   the monitor's panes and the bookshelf's pages look as they do there. */
 
 #office { position: relative; width: 100%; height: 100%; background: $floor; color: $ink; font-size: 12px; }
 /* Menus, pickers and popovers go over the room and its bar; only what is drawn there takes a press. */
