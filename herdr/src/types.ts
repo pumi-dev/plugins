@@ -14,7 +14,7 @@ export const AGENT_STATUSES: AgentStatus[] = ["idle", "working", "blocked", "don
 /** The status `value` names, or nothing. */
 export function parseAgentStatus(value: string): AgentStatus | undefined {
   return AGENT_STATUSES.find((status) => status === value);
-}
+};
 
 export type SplitDirection = "right" | "down";
 
@@ -24,7 +24,7 @@ export const READ_SOURCES: ReadSource[] = ["visible", "recent", "recent_unwrappe
 export type ReadFormat = "text" | "ansi";
 export const READ_FORMATS: ReadFormat[] = ["text", "ansi"];
 
-export interface WorkspaceInfo {
+export type WorkspaceInfo = {
   workspace_id: string;
   number: number;
   label: string;
@@ -35,17 +35,17 @@ export interface WorkspaceInfo {
   agent_status: AgentStatus;
   tokens?: Record<string, string>;
   worktree?: WorkspaceWorktreeInfo;
-}
+};
 
-export interface WorkspaceWorktreeInfo {
+export type WorkspaceWorktreeInfo = {
   repo_key: string;
   repo_name: string;
   repo_root: string;
   checkout_path: string;
   is_linked_worktree: boolean;
-}
+};
 
-export interface TabInfo {
+export type TabInfo = {
   tab_id: string;
   workspace_id: string;
   number: number;
@@ -53,23 +53,23 @@ export interface TabInfo {
   focused: boolean;
   pane_count: number;
   agent_status: AgentStatus;
-}
+};
 
-export interface AgentSessionInfo {
+export type AgentSessionInfo = {
   source: string;
   agent: string;
   /** `id` or `path`. */
   kind: string;
   value: string;
-}
+};
 
-export interface PaneScrollInfo {
+export type PaneScrollInfo = {
   offset_from_bottom: number;
   max_offset_from_bottom: number;
   viewport_rows: number;
-}
+};
 
-export interface PaneInfo {
+export type PaneInfo = {
   pane_id: string;
   terminal_id: string;
   workspace_id: string;
@@ -93,9 +93,9 @@ export interface PaneInfo {
   /** pumi's: what the program says it is doing (OSC 7501), every record, as the pane's
    * `@program_status` has them. Not herdr's; absent when there is none. */
   program_status?: Json[];
-}
+};
 
-export interface AgentInfo {
+export type AgentInfo = {
   terminal_id: string;
   name?: string;
   agent?: string;
@@ -119,23 +119,23 @@ export interface AgentInfo {
   cwd?: string;
   foreground_cwd?: string;
   revision: number;
-}
+};
 
 /** What a pane is without inspecting its processes: its shell and its tty. */
-export interface PaneProcessInfo {
+export type PaneProcessInfo = {
   pane_id: string;
   shell_pid?: number;
   tty?: string;
-}
+};
 
-export interface Rect {
+export type Rect = {
   x: number;
   y: number;
   width: number;
   height: number;
-}
+};
 
-export interface PaneLayoutSnapshot {
+export type PaneLayoutSnapshot = {
   workspace_id: string;
   tab_id: string;
   zoomed: boolean;
@@ -143,22 +143,22 @@ export interface PaneLayoutSnapshot {
   focused_pane_id: string;
   panes: PaneLayoutPane[];
   splits: PaneLayoutSplit[];
-}
+};
 
-export interface PaneLayoutPane {
+export type PaneLayoutPane = {
   pane_id: string;
   focused: boolean;
   rect: Rect;
-}
+};
 
-export interface PaneLayoutSplit {
+export type PaneLayoutSplit = {
   id: string;
   direction: SplitDirection;
   ratio: number;
   rect: Rect;
-}
+};
 
-export interface SessionSnapshot {
+export type SessionSnapshot = {
   version: string;
   protocol: number;
   focused_workspace_id?: string;
@@ -169,4 +169,4 @@ export interface SessionSnapshot {
   panes: PaneInfo[];
   layouts: PaneLayoutSnapshot[];
   agents: AgentInfo[];
-}
+};
