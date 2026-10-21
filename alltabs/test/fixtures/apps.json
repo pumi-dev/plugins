@@ -1,0 +1,712 @@
+[
+ {
+  "name": "two sessions, four tabs",
+  "app": {
+   "window": {
+    "id": 1,
+    "width": 1280,
+    "height": 800,
+    "sidebar": true,
+    "sidebar_width": 260,
+    "page": "agents",
+    "secondary": true,
+    "secondary_width": 300,
+    "secondary_page": null,
+    "bottom": true,
+    "bottom_height": 220,
+    "bottom_page": null,
+    "bottom_leaf": null,
+    "fullscreen": false,
+    "active": true
+   },
+   "appearance": "dark",
+   "ui_theme": "alltabs",
+   "space": {
+    "id": 3,
+    "label": "pumi",
+    "server": null
+   },
+   "spaces": [
+    {
+     "id": 3,
+     "index": 1,
+     "label": "pumi",
+     "active": true,
+     "server": null,
+     "status": "working",
+     "tabs": 2,
+     "tab_list": [
+      {
+       "id": 11,
+       "index": 1,
+       "of": "tab11",
+       "title": "build",
+       "label": null,
+       "active": true,
+       "status": "working",
+       "worktree": null,
+       "zoomed": false,
+       "panes": [
+        {
+         "key": "t:%1",
+         "id": "%1",
+         "view": "pane:t:%1",
+         "kind": "terminal",
+         "title": "zsh",
+         "status": "working",
+         "cwd": "/src/pumi",
+         "command": "cargo",
+         "focused": true,
+         "zoomed": false,
+         "hidden": false,
+         "x": 0,
+         "y": 0,
+         "w": 0.5,
+         "h": 1,
+         "options": {
+          "pane_current_command": "cargo"
+         },
+         "strip": [],
+         "winbar": [],
+         "winbar_bottom": []
+        },
+        {
+         "key": "t:%2",
+         "id": "%2",
+         "view": "pane:t:%2",
+         "kind": "terminal",
+         "title": "",
+         "status": "",
+         "cwd": "/src/pumi",
+         "command": "",
+         "focused": false,
+         "zoomed": false,
+         "hidden": false,
+         "x": 0.5,
+         "y": 0,
+         "w": 0.5,
+         "h": 1,
+         "options": {},
+         "strip": [
+          {
+           "pane": "%9",
+           "kind": "local.queue.badge",
+           "view": "view:%9",
+           "width": 40,
+           "start": false
+          }
+         ],
+         "winbar": [],
+         "winbar_bottom": []
+        }
+       ],
+       "dividers": [
+        {
+         "path": "",
+         "axis": "row",
+         "ratio": 0.5,
+         "x": 0,
+         "y": 0,
+         "w": 1,
+         "h": 1
+        }
+       ]
+      },
+      {
+       "id": 12,
+       "index": 2,
+       "of": "tab12",
+       "title": "notes",
+       "label": "notes",
+       "active": false,
+       "status": "blocked",
+       "worktree": "feature-x",
+       "zoomed": false,
+       "panes": [
+        {
+         "key": "t:%3",
+         "id": "%3",
+         "view": "pane:t:%3",
+         "kind": "terminal",
+         "title": "vim",
+         "status": "blocked",
+         "cwd": "/src/pumi",
+         "command": "cargo",
+         "focused": true,
+         "zoomed": false,
+         "hidden": false,
+         "x": 0,
+         "y": 0,
+         "w": 1,
+         "h": 1,
+         "options": {
+          "pane_current_command": "cargo"
+         },
+         "strip": [],
+         "winbar": [],
+         "winbar_bottom": []
+        }
+       ],
+       "dividers": []
+      }
+     ]
+    },
+    {
+     "id": 4,
+     "index": 2,
+     "label": "site",
+     "active": false,
+     "server": "box",
+     "status": "",
+     "tabs": 2,
+     "tab_list": [
+      {
+       "id": 21,
+       "index": 1,
+       "of": "tab21",
+       "title": "deploy",
+       "label": null,
+       "active": false,
+       "status": "",
+       "worktree": null,
+       "zoomed": false,
+       "panes": [
+        {
+         "key": "t:%5",
+         "id": "%5",
+         "view": "pane:t:%5",
+         "kind": "terminal",
+         "title": "zsh",
+         "status": "",
+         "cwd": "/srv/site",
+         "command": "",
+         "focused": true,
+         "zoomed": false,
+         "hidden": false,
+         "x": 0,
+         "y": 0,
+         "w": 1,
+         "h": 1,
+         "options": {},
+         "strip": [],
+         "winbar": [],
+         "winbar_bottom": []
+        }
+       ],
+       "dividers": []
+      },
+      {
+       "id": 22,
+       "index": 2,
+       "of": "tab22",
+       "title": "logs",
+       "label": null,
+       "active": false,
+       "status": "idle",
+       "worktree": null,
+       "zoomed": false,
+       "panes": [
+        {
+         "key": "t:%6",
+         "id": "%6",
+         "view": "pane:t:%6",
+         "kind": "terminal",
+         "title": "zsh",
+         "status": "idle",
+         "cwd": "/srv/site",
+         "command": "",
+         "focused": true,
+         "zoomed": false,
+         "hidden": false,
+         "x": 0,
+         "y": 0,
+         "w": 1,
+         "h": 1,
+         "options": {},
+         "strip": [],
+         "winbar": [],
+         "winbar_bottom": []
+        }
+       ],
+       "dividers": []
+      }
+     ]
+    }
+   ],
+   "tabs": [
+    {
+     "id": 11,
+     "index": 1,
+     "of": "tab11",
+     "title": "build",
+     "label": null,
+     "active": true,
+     "status": "working",
+     "worktree": null,
+     "zoomed": false,
+     "panes": [
+      {
+       "key": "t:%1",
+       "id": "%1",
+       "view": "pane:t:%1",
+       "kind": "terminal",
+       "title": "zsh",
+       "status": "working",
+       "cwd": "/src/pumi",
+       "command": "cargo",
+       "focused": true,
+       "zoomed": false,
+       "hidden": false,
+       "x": 0,
+       "y": 0,
+       "w": 0.5,
+       "h": 1,
+       "options": {
+        "pane_current_command": "cargo"
+       },
+       "strip": [],
+       "winbar": [],
+       "winbar_bottom": []
+      },
+      {
+       "key": "t:%2",
+       "id": "%2",
+       "view": "pane:t:%2",
+       "kind": "terminal",
+       "title": "",
+       "status": "",
+       "cwd": "/src/pumi",
+       "command": "",
+       "focused": false,
+       "zoomed": false,
+       "hidden": false,
+       "x": 0.5,
+       "y": 0,
+       "w": 0.5,
+       "h": 1,
+       "options": {},
+       "strip": [
+        {
+         "pane": "%9",
+         "kind": "local.queue.badge",
+         "view": "view:%9",
+         "width": 40,
+         "start": false
+        }
+       ],
+       "winbar": [],
+       "winbar_bottom": []
+      }
+     ],
+     "dividers": [
+      {
+       "path": "",
+       "axis": "row",
+       "ratio": 0.5,
+       "x": 0,
+       "y": 0,
+       "w": 1,
+       "h": 1
+      }
+     ]
+    },
+    {
+     "id": 12,
+     "index": 2,
+     "of": "tab12",
+     "title": "notes",
+     "label": "notes",
+     "active": false,
+     "status": "blocked",
+     "worktree": "feature-x",
+     "zoomed": false,
+     "panes": [
+      {
+       "key": "t:%3",
+       "id": "%3",
+       "view": "pane:t:%3",
+       "kind": "terminal",
+       "title": "vim",
+       "status": "blocked",
+       "cwd": "/src/pumi",
+       "command": "cargo",
+       "focused": true,
+       "zoomed": false,
+       "hidden": false,
+       "x": 0,
+       "y": 0,
+       "w": 1,
+       "h": 1,
+       "options": {
+        "pane_current_command": "cargo"
+       },
+       "strip": [],
+       "winbar": [],
+       "winbar_bottom": []
+      }
+     ],
+     "dividers": []
+    }
+   ],
+   "focused": "t:%1",
+   "pages": [
+    {
+     "id": "agents",
+     "label": "Agents",
+     "icon": "sparkle",
+     "dock": "primary",
+     "sections": [
+      {
+       "key": "agents.list",
+       "label": "Agents",
+       "view": "section:agents.list",
+       "collapsed": false,
+       "size": 1
+      },
+      {
+       "key": "git.changes",
+       "label": "Changes",
+       "view": "section:git.changes",
+       "collapsed": false,
+       "size": 2
+      }
+     ]
+    },
+    {
+     "id": "files",
+     "label": "Files",
+     "icon": "folder",
+     "dock": "primary",
+     "sections": [
+      {
+       "key": "files.tree",
+       "label": "Files",
+       "view": "section:files.tree",
+       "collapsed": false,
+       "size": 1
+      }
+     ]
+    },
+    {
+     "id": "outline",
+     "label": "Outline",
+     "icon": null,
+     "dock": "secondary",
+     "sections": [
+      {
+       "key": "files.outline",
+       "label": "Outline",
+       "view": "section:files.outline",
+       "collapsed": false,
+       "size": 1
+      },
+      {
+       "key": "git.log",
+       "label": "History",
+       "view": "section:git.log",
+       "collapsed": true,
+       "size": 1
+      }
+     ]
+    },
+    {
+     "id": "problems",
+     "label": "Problems",
+     "icon": "warning",
+     "dock": "panel",
+     "sections": [
+      {
+       "key": "lang.problems",
+       "label": "Problems",
+       "view": "section:lang.problems",
+       "collapsed": false,
+       "size": 1
+      }
+     ]
+    }
+   ],
+   "panel_leaves": [
+    {
+     "key": "t:%5",
+     "id": "%5",
+     "view": "pane:t:%5",
+     "kind": "terminal",
+     "title": "server",
+     "status": "done"
+    }
+   ],
+   "slots": {
+    "statusline": [
+     {
+      "pane": "%7",
+      "kind": "local.perf.meter",
+      "title": "Perf",
+      "icon": "",
+      "width": 80,
+      "view": "view:%7"
+     }
+    ],
+    "titlebar.right": []
+   },
+   "menus": {
+    "ToolBar": [
+     {
+      "name": "Run",
+      "path": "ToolBar.Run",
+      "label": "Run",
+      "icon": "play",
+      "desc": "Run the project",
+      "keys": null,
+      "enabled": true,
+      "checked": null,
+      "start": true,
+      "separator": false,
+      "opens": null,
+      "children": []
+     },
+     {
+      "name": "-1",
+      "path": "ToolBar.-1",
+      "label": "",
+      "icon": null,
+      "desc": null,
+      "keys": null,
+      "enabled": true,
+      "checked": null,
+      "start": false,
+      "separator": true,
+      "opens": null,
+      "children": []
+     },
+     {
+      "name": "Copy",
+      "path": "ToolBar.Copy",
+      "label": "Copy Path",
+      "icon": null,
+      "desc": null,
+      "keys": null,
+      "enabled": false,
+      "checked": null,
+      "start": false,
+      "separator": false,
+      "opens": null,
+      "children": []
+     }
+    ],
+    "PaneStrip": [
+     {
+      "name": "Copy Path",
+      "path": "PaneStrip.Copy Path",
+      "label": "Copy Path",
+      "icon": "copy",
+      "desc": null,
+      "keys": null,
+      "enabled": true,
+      "checked": true,
+      "start": false,
+      "separator": false,
+      "opens": null,
+      "children": []
+     }
+    ],
+    "New": [],
+    "PopUp.Tab": [],
+    "PopUp.Pane": []
+   },
+   "plugins": [
+    {
+     "name": "agents",
+     "label": "Agents",
+     "icon": "sparkle",
+     "description": "The agents.",
+     "running": true,
+     "views": [
+      {
+       "id": "list",
+       "label": "Agents"
+      }
+     ],
+     "commands": []
+    }
+   ],
+   "packages": [],
+   "themes": [
+    "default",
+    "plain"
+   ],
+   "agents": [
+    {
+     "pane": "%1",
+     "key": "t:%1",
+     "status": "working",
+     "agent": "claude",
+     "title": "build",
+     "name": null,
+     "cwd": "/src/pumi",
+     "space": "pumi",
+     "tab": "build"
+    },
+    {
+     "pane": "%3",
+     "key": "t:%3",
+     "status": "blocked",
+     "agent": "codex",
+     "title": null,
+     "name": "notes",
+     "cwd": null,
+     "space": "pumi",
+     "tab": "notes"
+    },
+    {
+     "pane": "%4",
+     "key": "t:%4",
+     "status": "blocked",
+     "agent": "pi",
+     "title": null,
+     "name": null,
+     "cwd": null,
+     "space": "site",
+     "tab": null
+    }
+   ],
+   "notice": "Saved",
+   "error": null,
+   "safe": false,
+   "platform": "macos",
+   "menu": null,
+   "picker": null,
+   "renaming": null,
+   "popover": null,
+   "clock": "9:41 AM",
+   "settings": {}
+  }
+ },
+ {
+  "name": "no session",
+  "app": {
+   "window": {
+    "id": 1,
+    "width": 1280,
+    "height": 800,
+    "sidebar": true,
+    "sidebar_width": 260,
+    "page": "agents",
+    "secondary": true,
+    "secondary_width": 300,
+    "secondary_page": null,
+    "bottom": false,
+    "bottom_height": 220,
+    "bottom_page": null,
+    "bottom_leaf": null,
+    "fullscreen": false,
+    "active": true
+   },
+   "appearance": "light",
+   "ui_theme": "alltabs",
+   "space": null,
+   "spaces": [],
+   "tabs": [],
+   "focused": null,
+   "pages": [],
+   "panel_leaves": [],
+   "slots": {},
+   "menus": {
+    "ToolBar": [
+     {
+      "name": "Run",
+      "path": "ToolBar.Run",
+      "label": "Run",
+      "icon": "play",
+      "desc": "Run the project",
+      "keys": null,
+      "enabled": true,
+      "checked": null,
+      "start": true,
+      "separator": false,
+      "opens": null,
+      "children": []
+     },
+     {
+      "name": "-1",
+      "path": "ToolBar.-1",
+      "label": "",
+      "icon": null,
+      "desc": null,
+      "keys": null,
+      "enabled": true,
+      "checked": null,
+      "start": false,
+      "separator": true,
+      "opens": null,
+      "children": []
+     },
+     {
+      "name": "Copy",
+      "path": "ToolBar.Copy",
+      "label": "Copy Path",
+      "icon": null,
+      "desc": null,
+      "keys": null,
+      "enabled": false,
+      "checked": null,
+      "start": false,
+      "separator": false,
+      "opens": null,
+      "children": []
+     }
+    ],
+    "PaneStrip": [
+     {
+      "name": "Copy Path",
+      "path": "PaneStrip.Copy Path",
+      "label": "Copy Path",
+      "icon": "copy",
+      "desc": null,
+      "keys": null,
+      "enabled": true,
+      "checked": true,
+      "start": false,
+      "separator": false,
+      "opens": null,
+      "children": []
+     }
+    ],
+    "New": [],
+    "PopUp.Tab": [],
+    "PopUp.Pane": []
+   },
+   "plugins": [
+    {
+     "name": "agents",
+     "label": "Agents",
+     "icon": "sparkle",
+     "description": "The agents.",
+     "running": true,
+     "views": [
+      {
+       "id": "list",
+       "label": "Agents"
+      }
+     ],
+     "commands": []
+    }
+   ],
+   "packages": [],
+   "themes": [
+    "default",
+    "plain"
+   ],
+   "agents": [],
+   "notice": null,
+   "error": null,
+   "safe": false,
+   "platform": "linux",
+   "menu": null,
+   "picker": null,
+   "renaming": null,
+   "popover": null,
+   "clock": "9:41 AM",
+   "settings": {}
+  }
+ }
+]
