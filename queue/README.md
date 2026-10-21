@@ -67,12 +67,21 @@ is one row and draws the queue as a single line — it still works.
   the job's record: `queue.clear` closes it.
 - `queue.notify` — say when a job is over, as the OS says it (default true).
 
-## Limits
+## How it runs
 
-The queue lives in the app (a package's component, 23), so it is while the app is open; a
-component that traps and restarts loses what it held. Waiting is event-driven: a plugin's
-`api::call` blocks its only thread, so there is no `await` here — `OptionSet`, `TermClose` and
-`PaneClosed` end a wait, and a half-second look covers the rest while there is work.
+A TypeScript package: pumi's Bun host runs it in a worker of its own while the app is open, so the
+queue is while the app is open too, and a worker that is restarted loses what it held (a job's pane
+is its record). Waiting is event-driven — `option.changed` on `@agent_status`,
+`pane_foreground_pgid`, `pane_current_command` and `pane_dead`, `terminal.closed` and
+`pane.closed` end a wait — and a bar looks at the panes it waits for twice a second while it has
+work, now and then when it has none, for the ones that never fired an event. A job that runs in the
+app is `sh -c` through `Bun.spawn`; one in a pane of its own is a `terminal` pane opened with its
+command; one typed into a terminal is `pane.call(pane, "input", …)`.
+
+```sh
+bun test                    # its tests, against pumi/testing's fake app: no pumi running
+bunx tsc --noEmit           # the types
+```
 
 `pumi wait-pane` (the tmux package) is the same idea on the command line, for a shell that can
 block: `pumi wait-pane -t %3 --until '#{==:#{@agent_status},done}' && ./next`.
