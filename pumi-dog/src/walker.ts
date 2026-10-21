@@ -6,6 +6,9 @@ import { scale, width, type Settings } from "./settings.ts";
 /** How far the dog moves per step, in art pixels. */
 const STEP = 1;
 
+/** 64 bits, which is what the xorshift shifts within. */
+const MASK = 0xffffffffffffffffn;
+
 /** What the dog is doing. */
 export type Mode =
   | { kind: "walk" }
@@ -30,14 +33,13 @@ export class Rng {
   private state: bigint;
 
   constructor(seed: number | bigint) {
-    this.state = BigInt(seed) & 0xffffffffffffffffn;
+    this.state = BigInt(seed) & MASK;
   }
 
   private next(): bigint {
-    const mask = 0xffffffffffffffffn;
-    this.state ^= (this.state << 13n) & mask;
+    this.state ^= (this.state << 13n) & MASK;
     this.state ^= this.state >> 7n;
-    this.state ^= (this.state << 17n) & mask;
+    this.state ^= (this.state << 17n) & MASK;
     return this.state;
   }
 
