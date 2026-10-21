@@ -1,7 +1,7 @@
 // The bar a pane shows: what it draws, a row a job, and what its rows do.
 import { afterEach, expect, test } from "bun:test";
 import type { RenderedView } from "pumi/testing";
-import { start, type Fake } from "./fake.ts";
+import { ORIGIN, start, type Fake } from "./fake.ts";
 
 let fake: Fake;
 afterEach(() => fake?.app.stop());
@@ -26,7 +26,7 @@ test("the bar is a title and a row a job, and the app takes everything it sends"
   await waiting();
   const v = await bar();
   expect(v.text("#queue-title")).toBe("queue2 waiting");
-  expect(v.findAll((node) => node.props.id?.startsWith("queue-job-")).map((node) => v.text((each) => each === node))).toEqual([
+  expect(v.findAll((node) => (node.props.id?.startsWith("queue-job-") ?? false)).map((node) => v.text((each) => each === node))).toEqual([
     "·cargo testafter %4 · done✕",
     "·deployafter %4 · done✕",
   ]);
@@ -65,4 +65,15 @@ test("✕ cancels a job that has not started", async () => {
   // The row says so, and the press did not go on to the row (which would select its pane).
   expect(v.text("#queue-job-2")).toBe("×deploycancelled");
   expect(fake.app.called("pane.select")).toEqual([]);
+});
+
+test("the bar ticks: a running job's clock keeps up", async () => {
+  fake = await start({ [ORIGIN]: {}, 5: { foreground: 51, pid: 50 } });
+  await fake.app.serve("queue.add", { command: "cargo test", run: "pane:%5" });
+  const v = await bar(ORIGIN);
+  const clock = v.text("#queue-job-1");
+  expect(clock.startsWith("▶cargo testin %5 · 0:0")).toBe(true);
+  await Bun.sleep(1_100);
+  await fake.app.settle();
+  expect(v.text("#queue-job-1")).not.toBe(clock);
 });

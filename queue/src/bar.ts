@@ -3,7 +3,7 @@
 // queue in a line, more is the list (`@rows`, the app sizes a winbar by what its views ask for).
 import { div, pane, text, theme, token, View, type Color, type El, type ViewContext } from "pumi";
 import { detail, isRunning, type Job } from "./job.ts";
-import { busy, cancelJob, jobsOf, pulse, watchBars } from "./queue.ts";
+import { advance, busy, cancelJob, jobsOf, watchBars } from "./queue.ts";
 
 /** A row of the bar, in pixels: a winbar's row is 24. */
 const ROW = 24;
@@ -23,7 +23,8 @@ export class Bar extends View<{ pane?: number }> {
     // when it has none: the clock on a running job, and the panes that never fired an event.
     let timer: ReturnType<typeof setTimeout>;
     const tick = () => {
-      void pulse();
+      // Always draws again: the clock on a running job moves whether or not the queue did.
+      void advance().then(() => cx.notify());
       timer = setTimeout(tick, busy() ? 500 : 2_000);
     };
     timer = setTimeout(tick, busy() ? 500 : 2_000);
