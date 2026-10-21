@@ -294,15 +294,17 @@ function shell(job: Job, now: number): void {
   job.state = { kind: "running", pane: null, at: now };
   void readTail(child.stdout, job.id);
   void readTail(child.stderr, job.id);
-  void child.exited.then(async (status) => {
-    const at = Date.now();
-    const ended = find(job.id);
-    if (ended && ended.state.kind === "running") {
-      settle(ended, { kind: "done", status, took: at - ended.state.at }, at);
-      await say(ended);
-    }
-    await advance();
-  });
+  void child.exited
+    .then(async (status) => {
+      const at = Date.now();
+      const ended = find(job.id);
+      if (ended && ended.state.kind === "running") {
+        settle(ended, { kind: "done", status, took: at - ended.state.at }, at);
+        await say(ended);
+      }
+      await advance();
+    })
+    .catch((err) => console.error(`${pkg.prefix}: ${message(err)}`));
 }
 
 /** Keep the last line a headless job printed, for its bar. */
