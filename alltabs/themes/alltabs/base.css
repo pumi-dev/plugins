@@ -1,0 +1,180 @@
+/* The default theme's stylesheet, copied from pumi (`runtime/themes/default/style.css`): alltabs'
+   theme.lua extended the default and its rules came before this theme's. This file goes away
+   when a theme can extend one here (a TS theme draws the whole window, so it carries the base's
+   rules today). Name order puts it first: `base.css`, then `style.css`. */
+
+#window { width: 100%; height: 100%; background: $window; color: $text; font-size: var(--font_size); }
+.spacer { flex-grow: 1; }
+.icon-button { width: 24px; height: 24px; flex-shrink: 0; align-items: center; justify-content: center;
+               border-radius: var(--radius_sm); color: $chrome_muted; cursor: pointer; }
+.icon-button icon { width: 14px; height: 14px; }
+.icon-button:hover { background: $hover; color: $text; }
+.icon-button:active { background: $active; }
+.icon-button.active { color: $text; }
+.dot { width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: $chrome_muted/0.5; }
+.dot.status-working { background: $agent.working; animation: pulse 1400ms ease-in-out infinite; }
+.dot.status-blocked { background: $agent.blocked; }
+.dot.status-done { background: $agent.done; }
+.dot.status-error { background: $agent.error; }
+.dot.status-idle { background: $agent.idle; }
+#header { flex-direction: row; align-items: center; height: 36px; flex-shrink: 0; gap: 6px; padding: 0 8px;
+          background: $surface; border-bottom: 1px solid $border; }
+.traffic-lights { width: 64px; flex-shrink: 0; }
+#space { flex-direction: row; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: var(--radius);
+         cursor: pointer; flex-shrink: 0; max-width: 220px; }
+#space:hover { background: $hover; }
+.space-label { font-weight: 600; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.space-chevron { width: 12px; height: 12px; color: $chrome_muted; }
+.header-sep { width: 1px; height: 16px; background: $chrome_border; flex-shrink: 0; }
+#tabs { flex-direction: row; align-items: stretch; align-self: stretch; gap: 0; min-width: 0; flex-shrink: 1; overflow-x: auto; }
+.tab { flex-direction: row; align-items: center; gap: 6px; padding: 0 6px 0 10px; max-width: 220px; min-width: 64px;
+       flex-shrink: 1; border-radius: 0; border-left: 1px solid $border; background: $tab_inactive; color: $muted;
+       cursor: pointer; overflow: hidden; }
+.tab:hover { background: $tab_hover; color: $surface_text; }
+.tab.active, .tab.active:hover { background: $editor; color: $surface_text; }
+.tab:dragging { opacity: 0.4; }
+.tab:drop-target { border-color: $accent; }
+.tab-title { font-size: 12px; white-space: nowrap; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+.tab-icon { width: 12px; height: 12px; }
+.tab-close { width: 18px; height: 18px; opacity: 0; }
+.tab-close icon { width: 11px; height: 11px; }
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+.tab-rename { width: 140px; }
+.pane-rename { width: 180px; }
+#new-tab { width: 30px; height: auto; border-radius: 0; border-left: 1px solid $border; }
+#toolbar { flex-direction: row; align-items: center; gap: 2px; flex-shrink: 0; }
+#new-menu { width: 18px; height: 22px; align-self: center; }
+#new-menu icon { width: 11px; height: 11px; }
+.point-button.checked { color: $accent; }
+.point-button.disabled { opacity: 0.4; cursor: default; }
+.point-label { font-size: 12px; padding: 0 4px; white-space: nowrap; }
+.point-sep { width: 1px; height: 14px; background: $border; margin: 0 3px; flex-shrink: 0; }
+.strip-view { height: 100%; flex-shrink: 0; }
+.winbar { flex-shrink: 0; height: 22px; }
+#workspace { flex-direction: row; flex-grow: 1; min-height: 0; }
+#sidebar, #secondary-sidebar { position: relative; flex-shrink: 0; background: $surface; min-width: 0; }
+#sidebar { border-right: 1px solid $border; }
+#secondary-sidebar { border-left: 1px solid $border; }
+.page { flex-grow: 1; min-height: 0; }
+.page-empty { padding: 12px; color: $muted; font-size: 12px; }
+.section { min-height: 0; }
+.section.open { flex-grow: 1; flex-basis: 0; }
+.section + .section { border-top: 1px solid $border; }
+.section-header { flex-direction: row; align-items: center; gap: 4px; height: 24px; padding: 0 8px; flex-shrink: 0;
+                  font-size: 11px; font-weight: 600; text-transform: uppercase; color: $muted; cursor: pointer; }
+.section-header:hover { background: $hover; }
+.section-header .chevron { width: 12px; height: 12px; }
+.section-body { flex-grow: 1; min-height: 0; }
+.section-header:dragging { opacity: 0.5; }
+.section-drop { position: absolute; left: 0; width: 100%; height: 50%; z-index: 20; }
+.section-drop.before { top: 0; }
+.section-drop.after { top: 50%; }
+.section-drop.before:drop-target { border-top: 2px solid $accent; }
+.section-drop.after:drop-target { border-bottom: 2px solid $accent; }
+.section-split { z-index: 15; }
+.handle { position: absolute; z-index: 10; }
+.handle-right { top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; }
+.handle-left { top: 0; left: -3px; width: 6px; height: 100%; cursor: col-resize; }
+.handle-top { left: 0; top: -3px; height: 6px; width: 100%; cursor: row-resize; }
+.handle:hover, .handle:active { background: $accent/0.4; }
+#main { flex-grow: 1; min-width: 0; }
+#bottom-panel { position: relative; flex-shrink: 0; background: $surface; border-top: 1px solid $border; }
+.panel-tabs { flex-direction: row; align-items: center; gap: 2px; height: 30px; padding: 0 6px; flex-shrink: 0; }
+.panel-tab { flex-direction: row; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: var(--radius_sm);
+             font-size: 12px; color: $muted; cursor: pointer; }
+.panel-tab icon { width: 13px; height: 13px; }
+.panel-tab:hover { background: $hover; }
+.panel-tab.active { background: $chrome_selected; color: $text; }
+.panel-tab:drop-target { background: $accent/0.25; }
+.panel-tab-title { white-space: nowrap; text-overflow: ellipsis; min-width: 0; max-width: 200px; }
+.panel-tab-close { width: 16px; height: 16px; opacity: 0; }
+.panel-tab:hover .panel-tab-close, .panel-tab.active .panel-tab-close { opacity: 1; }
+.panel-leaf-body { flex-grow: 1; min-height: 0; background: $terminal.background; }
+#bottom-panel:drop-target { border-top: 1px solid $accent; }
+.panes, #panes { position: relative; flex-grow: 1; min-height: 0; overflow: hidden; }
+.pane { position: absolute; }
+.pane-cell { flex-grow: 1; min-height: 0; overflow: hidden; background: $terminal.background; }
+.pane-cell.has-left { border-left: 1px solid $border; }
+.pane-cell.has-top { border-top: 1px solid $border; }
+.pane:drop-target .pane-cell { border: 1px solid $accent; }
+.pane-strip { flex-direction: row; align-items: center; gap: 6px; height: 32px; padding: 0 4px 0 10px; flex-shrink: 0;
+              background: $chrome_surface; border-bottom: 1px solid $border; cursor: grab; }
+.pane.focused .pane-strip { background: $tab_active; }
+.pane-title { font-size: 12px; color: $chrome_muted; white-space: nowrap; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.pane.focused .pane-title { color: $text; }
+.pane-buttons { flex-direction: row; gap: 1px; opacity: 0; }
+.pane:hover .pane-buttons, .pane.focused .pane-buttons { opacity: 1; }
+.pane-body { flex-grow: 1; min-height: 0; }
+.kind-document .pane-cell, .kind-browser .pane-cell { background: $editor; }
+.divider { position: absolute; z-index: 5; }
+.divider.vertical { width: 8px; margin-left: -4px; cursor: col-resize; }
+.divider.horizontal { height: 8px; margin-top: -4px; cursor: row-resize; }
+.divider:hover, .divider:active { background: $accent/0.2; }
+.empty { flex-grow: 1; align-items: center; justify-content: center; gap: 10px; color: $muted; }
+.empty-icon { width: 40px; height: 40px; color: $faint; }
+.empty-title { font-size: 14px; }
+.empty-actions { flex-direction: row; gap: 8px; }
+.button { padding: 5px 12px; border-radius: var(--radius); border: 1px solid $border; background: $element; color: $text;
+          font-size: 12px; cursor: pointer; }
+.button:hover { background: $hover; }
+.button:active { background: $active; }
+#status-bar { flex-direction: row; align-items: center; gap: 12px; height: 28px; padding: 0 6px; flex-shrink: 0;
+              background: $tab_bar; border-top: 1px solid $chrome_border; font-size: 11px; color: $chrome_muted; }
+.dock-buttons { flex-direction: row; align-items: center; gap: 2px; flex-shrink: 0; }
+.dock-button { width: 24px; height: 24px; }
+.dock-button icon { width: 15px; height: 15px; }
+.status-sep { width: 1px; height: 16px; background: $chrome_border; flex-shrink: 0; margin: 0 -4px; }
+.dock-button.active, .dock-button.active:hover { color: $accent; }
+.dock-button:drop-target { background: $accent/0.25; }
+.dock-button:dragging { opacity: 0.5; }
+.dock-drop { width: 24px; height: 24px; align-items: center; justify-content: center; border: 1px dashed $chrome_border;
+             border-radius: var(--radius_sm); }
+.dock-drop icon { width: 15px; height: 15px; }
+.dock-drop:drop-target { border-color: $accent; color: $accent; }
+.status-item { white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+.status-item.notice { color: $warning; }
+#agents-summary { flex-direction: row; gap: 10px; }
+.agent-count { flex-direction: row; align-items: center; gap: 4px; cursor: pointer; }
+.slot-view { height: 100%; }
+.status-view { min-width: 40px; }
+#tooltip { background: $overlay; color: $text; font-size: 11px; border-radius: var(--radius_sm); }
+#overlays { width: 100%; height: 100%; }
+.menu-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.backdrop { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: auto; }
+.menu { position: absolute; min-width: 200px; max-width: 360px; padding: 4px; gap: 0; pointer-events: auto;
+        background: $surface; color: $surface_text; border: var(--border) solid $border; border-radius: var(--radius_lg);
+        box-shadow: 0 8px 24px #00000040; }
+.menu-item { flex-direction: row; align-items: center; gap: 6px; height: 26px; padding: 0 6px; flex-shrink: 0;
+             border-radius: var(--radius_sm); cursor: pointer; font-size: var(--font_size); }
+.menu-item.highlighted, .menu-item:hover { background: $hover; }
+.menu-item.disabled { opacity: 0.45; cursor: default; }
+.menu-item.disabled:hover { background: transparent; }
+.menu-check { width: 14px; height: 14px; flex-shrink: 0; align-items: center; justify-content: center; color: $focus_ring; }
+.menu-check icon, .menu-icon, .menu-opens { width: 14px; height: 14px; flex-shrink: 0; }
+.menu-icon { color: $muted; }
+.menu-label { white-space: nowrap; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.menu-keys { color: $placeholder; font-size: var(--font_size_sm); white-space: nowrap; padding-left: 16px; }
+.menu-opens { color: $placeholder; }
+.menu-sep { height: 1px; margin: 4px -4px; flex-shrink: 0; background: $border; }
+.menu-heading { height: 24px; padding: 0 8px; justify-content: center; flex-shrink: 0; }
+.menu-heading text { font-size: var(--font_size_sm); color: $placeholder; }
+.picker { width: 320px; max-width: 320px; max-height: 70%; }
+.picker-field { padding: 2px; flex-shrink: 0; }
+.picker-input { width: 100%; }
+.picker-list { flex-shrink: 1; min-height: 0; overflow-y: auto; }
+.picker-row { flex-direction: row; align-items: center; gap: 6px; height: 28px; padding: 0 8px; flex-shrink: 0;
+              border-radius: var(--radius_sm); cursor: pointer; }
+.picker-row.highlighted { background: $active; }
+.picker-icon { width: 14px; height: 14px; color: $muted; }
+.picker-label { white-space: nowrap; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.picker-check { width: 13px; height: 13px; color: $focus_ring; }
+.picker-remove { opacity: 0; width: 20px; height: 20px; }
+.picker-row:hover .picker-remove, .picker-row.highlighted .picker-remove { opacity: 1; }
+.picker-empty { height: 28px; padding: 0 8px; justify-content: center; }
+.picker-empty text { color: $placeholder; }
+.popover { position: absolute; pointer-events: auto; overflow: hidden; background: $surface;
+           border: var(--border) solid $border; border-radius: var(--radius_lg); box-shadow: 0 8px 24px #00000040; }
+.popover.overlay { left: 0; top: 0; width: 100%; height: 100%; border: none; border-radius: 0; background: $bg; }
+.popover-view { width: 100%; height: 100%; }
+.popover-waiting { width: 100%; height: 100%; align-items: center; justify-content: center; }
+.popover-waiting text { color: $faint; font-size: var(--font_size_sm); }
