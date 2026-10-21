@@ -8,9 +8,9 @@
 // are `{"keys": […]}` on the same call, which the host encodes; and what an agent is doing is the
 // pane's `@agent`/`@agent_status`, which the host keeps from the program's own reports (OSC 7501).
 //
-// Both are served in pumi's data directory and, under the name `herdr.session`, where herdr keeps a
-// named session (`~/.config/herdr/sessions/<name>/`), so herdr's CLI and its apps find pumi as one
-// of herdr's sessions.
+// Both are served in pumi's data directory and, under the name the `session` option gives, where
+// herdr keeps a named session (`~/.config/herdr/sessions/<name>/`), so herdr's CLI and its apps find
+// pumi as one of herdr's sessions.
 //
 // It also binds herdr's default keys in the prefix table (keys.ts), as herdr has them.
 import { mkdirSync } from "node:fs";
