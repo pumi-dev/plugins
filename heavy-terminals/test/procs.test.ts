@@ -1,5 +1,5 @@
 // The machine's processes: what the API lists, and what a pane's tree of them costs.
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import { join } from "node:path";
 import { FakeApp } from "pumi/testing";
 import { processes, usage, type Procs } from "../src/procs.ts";
@@ -43,6 +43,7 @@ test("the processes are the ones the API lists", async () => {
 });
 
 test("a machine that cannot be measured is empty, not an error", async () => {
+  const said = spyOn(console, "error").mockImplementation(() => {});
   app = await FakeApp.start({
     dir,
     answers: {
@@ -52,4 +53,6 @@ test("a machine that cannot be measured is empty, not an error", async () => {
     },
   });
   expect((await processes()).size).toBe(0);
+  expect(said).toHaveBeenCalled();
+  said.mockRestore();
 });
