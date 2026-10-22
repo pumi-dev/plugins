@@ -1,5 +1,6 @@
 // Pele — kepano's Mermaid renderer, the small synchronous one Obsidian draws with — from npm
-// (`pele`), run by this package's own worker. The Rust package could not run it: a component was
+// (`pele`), written into `pele.vendor.js` by `bun scripts/vendor-pele.mjs` because the app's workers
+// are a compiled bundle and resolve a package's own files, not its node_modules. The Rust package could not run it: a component was
 // wasm, so it started `render.mjs` under a `bun` or `node` it had to find on the machine, one
 // process per drawing. Bun runs Pele itself, in the same worker.
 //
@@ -7,7 +8,7 @@
 // and the generic family names, which is what `render` and `save` hand out (a page, a browser or
 // any theme resolves them); and `themed()`, the same SVG with every `var()` written out as a
 // colour, which is what the app's own SVG renderer paints — usvg knows no CSS custom properties.
-import { render } from "pele";
+import { render } from "./pele.vendor.js";
 import { fail, message } from "./errors.ts";
 
 /** The families a diagram is set in when none is named: Pele's own generic ones. */
