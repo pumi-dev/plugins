@@ -1,0 +1,115 @@
+{
+  "name": "pumi-kanban",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A board of cards for pumi: write a brief, drag the card to start a coding agent on it in a pane of its own, and the board follows it — queued, in progress, needs you, done.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "kanban",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "files"
+    ],
+    "contributes": {
+      "options": {
+        "agent": {
+          "type": "string",
+          "default": "pi",
+          "label": "Agent command",
+          "group": "Kanban",
+          "placeholder": "pi  ·  claude  ·  codex exec",
+          "desc": "The command line a card's agent starts with, when the card has none of its own. It runs in a terminal pane, in the card's folder."
+        },
+        "open": {
+          "type": "string",
+          "default": "beside",
+          "choices": [
+            "beside",
+            "tab"
+          ],
+          "label": "Where an agent opens",
+          "group": "Kanban",
+          "desc": "`beside` puts the agent's pane to the right of the board, so both stay in view; `tab` gives it a tab of its own."
+        },
+        "close_on_land": {
+          "type": "boolean",
+          "default": true,
+          "label": "Close the agent when a card is done",
+          "group": "Kanban",
+          "desc": "Finishing a card closes its pane. Off, the pane stays open and the card is still filed as done."
+        },
+        "notify": {
+          "type": "boolean",
+          "default": true,
+          "label": "Say when a card needs you",
+          "group": "Kanban",
+          "desc": "A notification when an agent blocks, fails or finishes its turn — a card coming to rest in Needs you while you were looking elsewhere."
+        },
+        "keep_landed": {
+          "type": "number",
+          "default": 24,
+          "min": 0,
+          "max": 200,
+          "step": 1,
+          "label": "Finished cards kept",
+          "group": "Kanban",
+          "desc": "How many finished cards the board keeps. The oldest go when a new one is finished."
+        },
+        "key": {
+          "type": "string",
+          "default": "",
+          "label": "Key",
+          "placeholder": "<M-f>",
+          "group": "Kanban",
+          "desc": "A chord that opens the board from anywhere (the root key table). Empty for none."
+        }
+      },
+      "commands": [
+        {
+          "id": "open",
+          "title": "Kanban: open the board"
+        },
+        {
+          "id": "new",
+          "title": "Kanban: add a card"
+        },
+        {
+          "id": "clear",
+          "title": "Kanban: clear the finished cards"
+        },
+        {
+          "id": "list",
+          "title": "Kanban: list the cards"
+        }
+      ],
+      "slots": {
+        "window.overlay": {
+          "view": "Board"
+        },
+        "sidebar.footer": {
+          "actions": [
+            {
+              "id": "open",
+              "title": "Kanban",
+              "icon": "blocks",
+              "command": "open"
+            }
+          ]
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
