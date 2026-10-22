@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -17,7 +16,10 @@
     "name": "perf",
     "owner": "amresyd",
     "api": 1,
-    "uses": ["processes", "files"],
+    "uses": [
+      "processes",
+      "files"
+    ],
     "contributes": {
       "options": {
         "trigger": {
@@ -31,16 +33,39 @@
         "corner": {
           "type": "string",
           "default": "NE",
-          "choices": ["NE", "NW", "SE", "SW"],
-          "labels": ["Top right", "Top left", "Bottom right", "Bottom left"],
+          "choices": [
+            "NE",
+            "NW",
+            "SE",
+            "SW"
+          ],
+          "labels": [
+            "Top right",
+            "Top left",
+            "Bottom right",
+            "Bottom left"
+          ],
           "label": "Corner",
           "group": "Performance overlay",
           "desc": "The corner of the window it floats in."
         }
       },
-      "commands": [{ "id": "toggle", "title": "Toggle the performance overlay" }],
-      "views": [{ "id": "overlay", "title": "Performance Overlay", "icon": "zap" }]
+      "commands": [
+        {
+          "id": "toggle",
+          "title": "Toggle the performance overlay"
+        }
+      ],
+      "views": [
+        {
+          "id": "overlay",
+          "title": "Performance Overlay",
+          "icon": "zap"
+        }
+      ]
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
   }
 }

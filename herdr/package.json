@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -17,7 +16,10 @@
     "name": "herdr",
     "owner": "amresyd",
     "api": 1,
-    "uses": ["network", "processes"],
+    "uses": [
+      "network",
+      "processes"
+    ],
     "contributes": {
       "options": {
         "session": {
@@ -33,10 +35,12 @@
           "default": true,
           "label": "herdr's keys",
           "group": "herdr",
-          "desc": "While herdr runs, bind the prefix table (`C-b` then a key) herdr's way: `v` and `-` split, `h` `j` `k` `l` move, `1`–`9` pick a tab."
+          "desc": "While herdr runs, bind the prefix table (`C-b` then a key) herdr's way: `v` and `-` split, `h` `j` `k` `l` move, `1`\u2013`9` pick a tab."
         }
       }
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
   }
 }

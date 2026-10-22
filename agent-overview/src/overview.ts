@@ -1,11 +1,12 @@
-// The model behind the dashboard: every agent pane in this pumi, read from one `server.getState`
-// (the whole model as an attaching client is first sent it).
+// The model behind the dashboard: every agent pane in this pumi, built from the window's own
+// snapshot (the app has the panes and what each says of itself) or from the server's model, as a
+// test gives it.
 //
 // An agent says what it is doing itself (OSC 7501, docs/v2/23 §6): the host keeps a pane's records
 // as `@program_status` and the most demanding state among them as `@agent_status`. Who the agent is
 // (`@agent`: `pi`, `claude`, …) and which conversation it is in (`@agent_session`) the agent's hook
 // writes. Nothing here reads a screen or a process.
-import { server } from "pumi";
+import type { Snapshot as Window } from "pumi";
 
 import {
   filterMatches,
@@ -84,70 +85,57 @@ export class Overview {
     readonly currentPane: number | null = null,
   ) {}
 
-  /** The model as `server.getState` answers it: `{seq, state}`, or the state alone. */
-  static parse(reply: unknown): Overview {
-    const outer = obj(reply);
-    const state = "state" in outer ? obj(outer.state) : outer;
-
-    // Where a tab sits: its session, its index in it, and its name.
-    const places = new Map<number, { session: number; sessionName: string; tabName: string }>();
-    for (const session of list(state.sessions)) {
-      const sessionId = id(obj(session).id);
-      if (sessionId === null) continue;
-      const sessionName = str(obj(session).name);
-      for (const pair of list(obj(session).tabs)) {
-        const tab = id(list(pair)[1]);
-        if (tab === null) continue;
-        places.set(tab, { session: sessionId, sessionName, tabName: "" });
-      }
+  /**
+   * The window's own snapshot, as the dashboard reads it: the app has the panes and what they say of
+   * themselves, so nothing is read from the server here.
+   */
+  static fromWindow(app: Window | undefined): Overview {
+    if (!app) return new Overview([], null);
+    /** A tab's place: its session, the session's name, and its own. */
+    const places = new Map<string, { session: number; sessionName: string; tabName: string }>();
+    const nameOf = new Map(app.workspaces.map((each) => [each.workspace_id, each.label ?? ""]));
+    for (const tab of app.tabs) {
+      places.set(tab.tab_id, {
+        session: id(tab.workspace_id) ?? 0,
+        sessionName: nameOf.get(tab.workspace_id) ?? "",
+        tabName: tab.label ?? "",
+      });
     }
-    for (const tab of list(state.tabs)) {
-      const place = places.get(id(obj(tab).id) ?? -1);
-      if (place) place.tabName = str(obj(tab).name);
-    }
-
-    const currentPane = id(obj(state.current).pane);
-
+    const currentPane = id(app.focused_pane_id ?? "");
     const agents: Agent[] = [];
-    for (const pane of list(state.panes)) {
-      const paneId = id(obj(pane).id);
-      if (paneId === null) continue;
-      // Agents live in terminals placed in a tab; floats, slots and detached panes are the
-      // chrome's and other views' business.
-      if (str(obj(pane).type) !== "terminal") continue;
-      const at = obj(obj(pane).place);
-      if (str(at.kind) !== "tiled") continue;
-      const tab = id(at.tab);
-      if (tab === null) continue;
-      const site = places.get(tab);
+    for (const pane of app.panes) {
+      // Agents live in terminals placed in a tab; floats, slots and detached panes are the chrome's
+      // and other views' business.
+      if (pane.kind !== "terminal" && pane.kind !== "web") continue;
+      const site = places.get(pane.tab_id);
       if (!site) continue;
-
-      const options = obj(obj(pane).options);
+      const options = obj(pane.options);
       const option = (key: string) => str(options[key]).trim();
       const records = Array.isArray(options["@program_status"]) ? (options["@program_status"] as unknown[]) : undefined;
-      const { status, why } = statusOf(option("@agent_status"), records);
-      const agent = option("@agent");
-      // A shell nobody has reported on is not an agent; a program that said what it is doing is
-      // one even when it never named itself.
+      const { status, why } = statusOf(pane.agent_status ?? "", records);
+      const agent = (pane.agent ?? "").trim() || option("@agent");
+      // A shell nobody has reported on is not an agent; a program that said what it is doing is one
+      // even when it never named itself.
       if (agent === "" && (status === "idle" || status === "unknown")) continue;
       const record = worst(records);
       const message = record ? str(obj(record).msg) : "";
       const kind = agent !== "" ? agent : str(record ? obj(record).app : "") || option("pane_current_command");
+      const paneId = id(pane.pane_id) ?? 0;
       agents.push({
         pane: paneId,
         session: site.session,
         sessionName: site.sessionName,
-        tab,
+        tab: id(pane.tab_id) ?? 0,
         tabName: site.tabName,
         kind,
         status,
         why,
         message,
         conversation: option("@agent_session"),
-        cwd: option("pane_current_path"),
+        cwd: pane.cwd ?? option("pane_current_path"),
         command: option("pane_current_command"),
-        title: stripTitle(option("title")),
-        here: paneId === currentPane,
+        title: stripTitle(pane.terminal_title ?? ""),
+        here: pane.pane_id === app.focused_pane_id,
       });
     }
     agents.sort(
@@ -160,6 +148,7 @@ export class Overview {
     );
     return new Overview(agents, currentPane);
   }
+
 
   total(): number {
     return this.agents.length;
@@ -245,61 +234,43 @@ export function stripTitle(title: string): string {
   return title.trim().replace(/^[^\p{L}\p{N}/~.]+/u, "").trimStart();
 }
 
+
+/** A JSON object's fields, an object when it is not one. */
+function obj(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+/** A string field, empty when it is not one. */
+function str(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+/** A number field, `null` when it is not one: the ids come as `"$1"` in an app's snapshot and as
+ * numbers in the server's model, and both are read here. */
+function id(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value !== "") {
+    const at = Number(value.replace(/^[%@$]/, ""));
+    return Number.isFinite(at) ? at : null;
+  }
+  return null;
+}
+
+/** An array, empty when it is not one. */
+function list(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+/** Two names in the order the table shows them, the unnamed last. */
+function compare(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a === "") return 1;
+  if (b === "") return -1;
+  return a < b ? -1 : 1;
+}
+
 /** `/Users/me/x` as `~/x`. */
 export function tilde(path: string): string {
   const home = process.env.HOME ?? "";
   return home !== "" && path.startsWith(home) ? `~${path.slice(home.length)}` : path;
-}
-
-/** Read the model: one call. */
-export async function read(): Promise<Overview> {
-  return Overview.parse(await server.getState());
-}
-
-/** Every agent and what it is doing, as `pumi call amresyd.agent_overview.list` answers. */
-export async function listed(): Promise<Record<string, unknown>> {
-  const overview = await read();
-  return {
-    agents: overview.agents.map((agent) => ({
-      pane: agent.pane,
-      session: agent.session,
-      session_name: agent.sessionName,
-      tab: agent.tab,
-      tab_name: agent.tabName,
-      agent: agent.kind,
-      status: agent.status,
-      why: agent.why,
-      message: agent.message,
-      conversation: agent.conversation,
-      cwd: agent.cwd,
-      command: agent.command,
-      title: agent.title,
-    })),
-    counts: {
-      blocked: overview.count("blocked"),
-      error: overview.count("error"),
-      working: overview.count("working"),
-      done: overview.count("done"),
-      idle: overview.count("idle"),
-    },
-    sessions: overview.sessions(),
-  };
-}
-
-// The model as JSON says it: an object, a list, a string and an id, or nothing.
-
-function obj(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
-}
-function list(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-function str(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-function id(value: unknown): number | null {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
-}
-function compare(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
 }

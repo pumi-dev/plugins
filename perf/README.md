@@ -50,7 +50,7 @@ they line up only in a font whose glyphs all take the same width. The float itse
 ## Build
 
 ```sh
-bun test                          # the report's numbers and rows, and the overlay on pumi/testing's fake app
+bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit  # the types
 pumi pack add ~/Kitchen/pumi-plugins/perf
 ```

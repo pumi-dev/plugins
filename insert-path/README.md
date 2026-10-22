@@ -67,7 +67,7 @@ quotes a path and writes it with `~`. `icons/file.svg` is the document a row dra
 not one it knows.
 
 ```sh
-bun test               # against pumi/testing, with no pumi running
+bun test                       # the pure logic: no pumi running
 bunx tsc --noEmit      # the types
 pumi pack dev .        # links it into the running app and reloads it on every save
 ```

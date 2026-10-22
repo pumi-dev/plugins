@@ -15,7 +15,7 @@ over the window, dimming what is under them, one per pane, as a task switcher sh
 ```
 
 Each card is drawn from what the pane itself says: the app's own screen of the pane above
-(`preview(pane)`, the grid it parsed from the pane's bytes, scaled to the card — nothing is
+(`<preview>`, the grid the app parsed from the pane's bytes, scaled to the card — nothing is
 attached and nothing is resized to take it), then the pane's title or the program in it, its
 `tab.pane` number and directory, and the agent's state when one reported it (`@agent_status`).
 The highlight starts on the pane you are in; the cards are in most-recently-used order, so the
@@ -43,8 +43,8 @@ outside the cards, closes the switcher and changes nothing. `x` closes the highl
 | `preview_rows` | `14` | how many lines tall the screen a card shows is |
 
 The palette's `Switch pane` command and `pumi call amresyd.pane_switcher.open` open it from
-anywhere — a key, a script, a menu; the command moves a switcher already up on, as the trigger
-does, and the function opens a fresh one.
+anywhere — a key, a script, a menu; the command replaces a switcher already up, and the trigger
+pressed while it is up moves its highlight on instead (`src/keys.ts`).
 
 The float is `relative: "client"`: over the whole window rather than just its tab, so a switch
 from any tab of the session still shows it, and `anchor: "center"` keeps it in the middle as the
@@ -55,9 +55,10 @@ pane it is switching from: the tab's own state is untouched until a card is pick
 
 The trigger is mapped in the global key table as its option says, and follows `trigger` when it
 changes. The cards are read as the switcher opens: a switcher is momentary, so nothing of it is
-kept. Work on it:
+kept. Its logic is `src/main.ts` (the worker: the trigger, the cards, the float) and what it draws
+is `src/ui.tsx` (React: the row, the highlight, the keys). Work on it:
 
 ```sh
-bun test                     # the view, its keys and its cards, against pumi/testing
-./node_modules/.bin/tsc --noEmit
+bun test                     # the cards and the keys, on their own
+./node_modules/.bin/tsc --noEmit   # types, both halves
 ```

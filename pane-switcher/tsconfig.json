@@ -5,7 +5,12 @@
     "moduleResolution": "bundler",
     "lib": ["ESNext"],
     "types": ["bun"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "pumi",
     "strict": true,
+    // The SDK is the app's own sources, checked with this off (their napi callbacks are untyped);
+    // a package that reads them with it on reports the app's callbacks, not its own.
+    "noImplicitAny": false,
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
@@ -13,7 +18,7 @@
     "resolveJsonModule": true,
     "paths": {
       "pumi": ["./node_modules/@pumid/types/index.ts"],
-      "pumi/testing": ["./node_modules/@pumid/types/testing.ts"]
+      "pumi/*": ["./node_modules/@pumid/types/*"]
     }
   },
   "exclude": ["node_modules"]

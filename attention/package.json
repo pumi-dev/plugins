@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -17,12 +16,17 @@
     "name": "attention",
     "owner": "amresyd",
     "api": 1,
+    "main": "src/main.ts",
     "contributes": {
       "options": {
         "bounce": {
           "type": "string",
           "default": "once",
-          "choices": ["none", "once", "until_focus"],
+          "choices": [
+            "none",
+            "once",
+            "until_focus"
+          ],
           "desc": "Bounce the Dock icon when an agent is blocked and the app is in the background."
         },
         "badge": {
@@ -32,6 +36,8 @@
         }
       }
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
   }
 }

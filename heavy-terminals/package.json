@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -17,7 +16,9 @@
     "name": "heavy-terminals",
     "owner": "amresyd",
     "api": 1,
-    "uses": ["processes"],
+    "uses": [
+      "processes"
+    ],
     "contributes": {
       "options": {
         "interval": {
@@ -47,6 +48,8 @@
         }
       }
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
   }
 }

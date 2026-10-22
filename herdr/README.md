@@ -104,7 +104,7 @@ it — that code is in `herdr/ui/` in this repository's history. The sockets are
 crash left behind is taken over.
 
 ```sh
-bun test                           # the JSON API and the attach over real unix sockets, with pumi/testing's fake app
+bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit   # the types
 ```
 

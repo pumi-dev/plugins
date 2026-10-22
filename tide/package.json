@@ -1,0 +1,23 @@
+{
+  "name": "pumi-tide",
+  "version": "0.1.0",
+  "description": "Tide as a UI theme: a deep-sea glass window, lavender moonlight, and panes that float on the water.",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3",
+    "@types/react": "19.2.2"
+  },
+  "pumi": {
+    "name": "tide",
+    "owner": "amresyd",
+    "api": 1,
+    "themes": [
+      "themes/tide"
+    ]
+  }
+}

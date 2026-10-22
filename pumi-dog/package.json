@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -54,8 +53,20 @@
           "desc": "The dog's height."
         }
       },
-      "views": [{ "id": "dog", "title": "Pumi dog", "icon": "pumi" }]
+      "commands": [
+        {
+          "id": "toggle",
+          "title": "Pumi dog: take it away, or bring it back"
+        }
+      ],
+      "points": {
+        "status": {
+          "view": "Dog"
+        }
+      }
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
   }
 }

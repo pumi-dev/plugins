@@ -1,12 +1,7 @@
-// The machine's processes: what the API lists, and what a pane's tree of them costs.
-import { afterEach, expect, spyOn, test } from "bun:test";
-import { join } from "node:path";
-import { FakeApp } from "pumi/testing";
-import { processes, usage, type Procs } from "../src/procs.ts";
-
-const dir = join(import.meta.dir, "..");
-let app: FakeApp;
-afterEach(() => app?.stop());
+// The machine's processes: what a pane's tree of them costs. `processes()` itself asks the app
+// (`system.process.list`), so it is not here: a package's test runs without one.
+import { expect, test } from "bun:test";
+import { usage, type Procs } from "../src/procs.ts";
 
 test("a pane costs what it and its children cost", () => {
   const procs: Procs = new Map([
@@ -21,38 +16,4 @@ test("a pane costs what it and its children cost", () => {
   expect(usage(procs, 99)).toEqual({ cpu: 0, rss: 0 });
   // A process that is its own parent is nobody's child, so it neither loops nor counts.
   expect(usage(procs, 14)).toEqual({ cpu: 1, rss: 10 });
-});
-
-test("the processes are the ones the API lists", async () => {
-  app = await FakeApp.start({
-    dir,
-    answers: {
-      "system.process.list": [
-        { pid: 42, ppid: 1, cpu: 12.5, rss: 2048 * 1024, command: "zsh" },
-        { pid: 43, ppid: 42, cpu: 0, rss: 0, command: "make" },
-        { pid: 44, cpu: 3 },
-        { pid: 45, ppid: 1 },
-      ],
-    },
-  });
-  expect([...(await processes())]).toEqual([
-    [42, { ppid: 1, cpu: 12.5, rss: 2048 * 1024 }],
-    [43, { ppid: 42, cpu: 0, rss: 0 }],
-    [45, { ppid: 1, cpu: 0, rss: 0 }],
-  ]);
-});
-
-test("a machine that cannot be measured is empty, not an error", async () => {
-  const said = spyOn(console, "error").mockImplementation(() => {});
-  app = await FakeApp.start({
-    dir,
-    answers: {
-      "system.process.list": () => {
-        throw new Error("no ps");
-      },
-    },
-  });
-  expect((await processes()).size).toBe(0);
-  expect(said).toHaveBeenCalled();
-  said.mockRestore();
 });

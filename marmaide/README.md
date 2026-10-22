@@ -18,7 +18,7 @@ installed. `pumi call api.getInfo` lists what a package provides.)
 
 ## What it needs
 
-Nothing but pumi and Bun, which pumi runs its packages on: Pele is vendored (`vendor/pele.js`, MIT)
+Nothing but pumi and Bun, which pumi runs its packages on: Pele is a dependency (`pele` on npm, MIT)
 and the package's own worker runs it. The Rust package had to start `render.mjs` under a `bun` or
 `node` it found on the machine, one process per diagram; this one calls the renderer.
 
@@ -100,10 +100,11 @@ the answer to whoever asked for it — so an agent reads it and fixes that line.
 
 ```sh
 cd ~/Kitchen/pumi-plugins/marmaide
-bun test                     # against pumi/testing's fake app
+bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit
 ```
 
 ## Licences
 
-Pele is MIT (`vendor/pele.LICENSE`). Mermaid's syntax is Pele's to draw; the diagrams are yours.
+Pele is MIT (`pele` on npm, its licence in `node_modules/pele`). Mermaid's syntax is Pele's to
+draw; the diagrams are yours.

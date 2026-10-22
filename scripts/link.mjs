@@ -1,14 +1,17 @@
 #!/usr/bin/env bun
 // Links the pumi checkout's SDK into every package as `@pumid/types`, so each package's
-// `bun test` and `tsc` reach `pumi` and `pumi/testing` without npm (`@pumid/types` is not
-// published yet). Re-run after adding a package.
+// `tsc` reaches `pumi` without npm (`@pumid/types` is not published yet). Re-run after adding a
+// package.
 import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, unlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
 const pumi = resolve(process.env.PUMI_SRC ?? join(root, "..", "pumi"));
-const sdk = join(pumi, "runtime/bun/sdk");
-const types = join(pumi, "runtime/bun/node_modules");
+// The SDK's types: the app's two halves as one module (`runtime/app/types`). A package's
+// `main.ts` and `ui.tsx` are given the two halves by the app at run time.
+const sdk = join(pumi, "runtime/app/types");
+// The dependencies a package's tsconfig names, from the app's own install.
+const deps = join(pumi, "runtime/app/node_modules");
 if (!existsSync(sdk)) {
   console.error(`no SDK at ${sdk}: is pumi checked out beside this one? (or set PUMI_SRC)`);
   process.exit(1);
@@ -22,7 +25,10 @@ for (const p of packages) {
   const dir = join(root, p, "node_modules");
   mkdirSync(join(dir, "@pumid"), { recursive: true });
   const link = (from, to) => {
-    if (existsSync(to)) unlinkSync(to);
+    // A link whose target is gone still exists (`existsSync` follows it): check the link itself.
+    try {
+      unlinkSync(to);
+    } catch {}
     symlinkSync(from, to);
   };
   link(sdk, join(dir, "@pumid", "types"));
@@ -36,11 +42,11 @@ for (const p of packages) {
     if (local) link(join(root, local), join(dir, dep));
   }
   mkdirSync(join(dir, ".bin"), { recursive: true });
-  if (existsSync(join(types, "typescript/bin/tsc"))) link(join(types, "typescript/bin/tsc"), join(dir, ".bin", "tsc"));
+  if (existsSync(join(deps, "typescript/bin/tsc"))) link(join(deps, "typescript/bin/tsc"), join(dir, ".bin", "tsc"));
   for (const dep of ["@types", "bun-types", "typescript", "undici-types"]) {
-    if (!existsSync(join(types, dep))) continue;
+    if (!existsSync(join(deps, dep))) continue;
     mkdirSync(dirname(join(dir, dep)), { recursive: true });
-    link(join(types, dep), join(dir, dep));
+    link(join(deps, dep), join(dir, dep));
   }
 }
 console.log(`linked @pumid/types into ${packages.length} package(s)`);

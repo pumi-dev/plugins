@@ -9,8 +9,9 @@ path and directory on the clipboard.
                                    ⑂  ⧉
 ```
 
-They are drawn in the pane's own `PaneStrip` slot, at the row's end, so they ride the strip the pane
-already has rather than a bar of its own: they show with the pane's own split and close buttons.
+They are the manifest's `contributes.points["pane.strip"]` view (`ui.tsx`'s `Strip`), at the row's
+end, so they ride the strip the pane already has rather than a bar of its own: they show with the
+pane's own split and close buttons, and the view draws nothing for a pane that is not pi's.
 
 A pane is pi's when its agent's hook said so: `@agent` is `pi` and `@agent_session` is set — what
 `pumi skill setup pi` writes. A pane that stops being pi's loses its buttons, and one that becomes
@@ -51,7 +52,7 @@ with their sessions.
 ## Working on it
 
 ```sh
-bun test                          # the package against pumi/testing's fake app
+bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit  # the types
 ```
 

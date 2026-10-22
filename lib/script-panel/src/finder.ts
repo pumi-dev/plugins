@@ -46,11 +46,6 @@ export interface Finder {
   showDetail: boolean;
   /** What the page says when nothing was found. */
   empty: string;
-  /**
-   * The options that re-read the finder when one changes: globs of their full names, tested as an
-   * event's `match` is (`pkg.prefixed("*")` for the package's own).
-   */
-  optionMatch: string | string[];
   /** The items `dir` holds, if any; `root` is the repository's top. */
   group(dir: string, root: string): Group | null;
   /** The groups in the order shown; by label without one. */

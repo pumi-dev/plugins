@@ -1,6 +1,7 @@
 // The dog's art: every frame is the same size, every pixel is a colour or nothing, a frame paints
 // as runs of one colour inside its box, and a left-facing frame is the right-facing one reversed.
 import { expect, test } from "bun:test";
+import { DARK } from "pumi";
 import { colour, grid, H, paint, POSES, runs, W } from "../src/sprite.ts";
 
 test("every frame is the same size", () => {
@@ -14,7 +15,7 @@ test("every frame is the same size", () => {
 test("every pixel has a colour", () => {
   for (const pose of POSES) {
     for (const row of grid(pose)) {
-      for (const c of row) expect(c === "." || colour(c) !== undefined).toBe(true);
+      for (const c of row) expect(c === "." || colour(c, DARK) !== undefined).toBe(true);
     }
   }
 });
@@ -39,22 +40,20 @@ test("a left-facing frame is the right-facing one mirrored", () => {
 test("a painted frame stays in the dog's box, at its scale", () => {
   const scale = 2;
   for (const pose of POSES) {
-    for (const command of paint(pose, false, scale)) {
-      expect(command.cmd).toBe("fillRect");
-      if (command.cmd !== "fillRect") continue;
+    for (const command of paint(pose, false, scale, DARK)) {
       expect(command.x).toBeGreaterThanOrEqual(0);
       expect(command.y).toBeGreaterThanOrEqual(0);
       expect(command.x + command.w).toBeLessThanOrEqual(W * scale);
       expect(command.y + command.h).toBeLessThanOrEqual(H * scale);
-      expect(command.color.startsWith("$")).toBe(true);
+      expect(typeof command.color).toBe("string");
     }
   }
 });
 
 test("nothing is painted where the art is transparent", () => {
-  const painted = paint("walk-a", false, 1);
+  const painted = paint("walk-a", false, 1, DARK);
   expect(painted.length).toBeLessThan(runs("walk-a", false).length);
-  for (const command of painted) expect(command.cmd === "fillRect" && command.color !== undefined).toBe(true);
+  for (const command of painted) expect(command.color).not.toBe("");
 });
 
 test("the bark frame has the tongue out, and the blink's eye is shut", () => {

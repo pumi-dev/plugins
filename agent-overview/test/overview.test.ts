@@ -1,16 +1,12 @@
 // The model: which panes are agents, what each is doing, where it is, and the order they sort in.
-import { afterEach, expect, test } from "bun:test";
-import type { FakeApp } from "pumi/testing";
+import { expect, test } from "bun:test";
 
-import { folder, listed, place, read, statusOf, stripTitle, tilde, Overview } from "../src/overview.ts";
-import { machine, state } from "./fake.ts";
-
-let app: FakeApp;
-afterEach(() => app?.stop());
+import { folder, place, statusOf, stripTitle, tilde, Overview } from "../src/overview.ts";
+import { snapshot } from "./window.ts";
 
 /** The model the fixture describes, as the view reads it. */
 function overview(): Overview {
-  return Overview.parse(state());
+  return Overview.fromWindow(snapshot());
 }
 
 const panes = (agents: { pane: number }[]) => agents.map((agent) => agent.pane);
@@ -92,29 +88,4 @@ test("a directory under the home directory is written with a tilde", () => {
   const home = process.env.HOME ?? "";
   expect(tilde(`${home}/Kitchen/pumi`)).toBe("~/Kitchen/pumi");
   expect(tilde("/elsewhere/x")).toBe("/elsewhere/x");
-});
-
-test("the model is read with one call", async () => {
-  app = await machine();
-  const all = await read();
-  expect(app.called("server.getState")).toEqual([[]]);
-  expect(panes(all.agents)).toEqual([100, 101, 200]);
-});
-
-test("list answers every agent, its counts and its sessions", async () => {
-  app = await machine();
-  const answered = (await listed()) as {
-    agents: { pane: number; agent: string; status: string; why: string; session_name: string }[];
-    counts: Record<string, number>;
-    sessions: number;
-  };
-  expect(answered.agents.map((agent) => [agent.pane, agent.agent, agent.status])).toEqual([
-    [100, "claude", "blocked"],
-    [101, "make", "error"],
-    [200, "pi", "idle"],
-  ]);
-  expect(answered.agents[0]!.why).toBe("needs permission");
-  expect(answered.agents[0]!.session_name).toBe("main");
-  expect(answered.counts).toEqual({ blocked: 1, error: 1, working: 0, done: 0, idle: 1 });
-  expect(answered.sessions).toBe(2);
 });

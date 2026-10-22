@@ -1,0 +1,51 @@
+{
+  "name": "pumi-browser",
+  "version": "0.1.0",
+  "description": "A page in a pane: a webview filling it, the app browser's toolbar over it \u2014 back, forward, reload and an address \u2014 and the pane's own protocol answered for it.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "browser",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [],
+    "contributes": {
+      "options": {
+        "url": {
+          "type": "string",
+          "scope": "pane",
+          "default": "about:blank",
+          "label": "Page",
+          "group": "Page",
+          "desc": "The page's address in this pane. Setting it navigates, as the app's own browser does."
+        }
+      },
+      "commands": [
+        {
+          "id": "open",
+          "title": "Browser: open a page"
+        },
+        {
+          "id": "openTab",
+          "title": "Browser: open a page in a new view"
+        }
+      ],
+      "views": [
+        {
+          "id": "page",
+          "title": "Browser",
+          "icon": "globe"
+        }
+      ]
+    },
+    "activation": []
+  }
+}

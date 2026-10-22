@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -17,7 +16,9 @@
     "name": "marmaide",
     "owner": "amresyd",
     "api": 1,
-    "uses": ["files"],
+    "uses": [
+      "files"
+    ],
     "contributes": {
       "options": {
         "font": {
@@ -52,8 +53,19 @@
           "desc": "The Mermaid text this diagram pane draws."
         }
       },
-      "views": [{ "id": "diagram", "title": "Diagram", "icon": "package" }]
+      "views": [
+        {
+          "id": "diagram",
+          "title": "Diagram",
+          "icon": "package"
+        }
+      ]
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
+  },
+  "dependencies": {
+    "pele": "^1.7.0"
   }
 }

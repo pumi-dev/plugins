@@ -21,11 +21,11 @@ test("its three options are declared for Settings, each with what it says", () =
   expect(options.max_depth).toEqual(expect.objectContaining({ default: 4, min: 1, max: 10, step: 1 }));
 });
 
-test("it contributes its page, and starts with the app", () => {
+test("it contributes its page to the side bar, and no pane of its own", () => {
   expect(pumi.name).toBe("npm-scripts");
   expect(pumi.owner).toBe("amresyd");
   expect(pumi.api).toBe(1);
   expect(pumi.uses).toEqual(["files", "processes"]);
-  expect(pumi.contributes.views).toEqual([{ id: "scripts", title: "NPM Scripts", icon: "package" }]);
-  expect(pumi.activation).toEqual(["onStartup"]);
+  expect(pumi.contributes.points).toEqual({ panel: { view: "Scripts", title: "NPM Scripts", icon: "package" } });
+  expect(pumi.contributes.views).toBeUndefined();
 });

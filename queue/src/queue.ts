@@ -452,53 +452,11 @@ async function fit(bar: number, count: number): Promise<void> {
 
 /** Keep a bar for every pane that has work, and none for the rest. */
 export async function syncViews(): Promise<void> {
-  if (syncing) return;
-  syncing = true;
-  try {
-    const now = Date.now();
-    const wanted = new Map<number, number>();
-    for (const job of jobs) {
-      if (shown(job, now)) wanted.set(home(job), (wanted.get(home(job)) ?? 0) + 1);
-    }
-    // The bars there are: which pane each is on.
-    const bars: [number, number][] = [];
-    const type = pkg.prefixed(VIEW);
-    for (const bar of await panesNow(type)) {
-      let place: { kind?: string; name?: string; owner?: number | null } | null = null;
-      try {
-        place = await pane.getPlace(bar);
-      } catch {
-        place = null;
-      }
-      if (place?.kind === "slot" && place.name === "winbar.bottom" && typeof place.owner === "number") {
-        bars.push([bar, place.owner]);
-      } else {
-        // One left somewhere else (an older version's bar) is nobody's now.
-        await pane.close(bar, true).catch(() => undefined);
-      }
-    }
-    for (const [bar, owner] of bars) {
-      const count = wanted.get(owner);
-      if (count === undefined) {
-        await pane.close(bar, true).catch(() => undefined);
-      } else {
-        wanted.delete(owner);
-        await fit(bar, count);
-      }
-    }
-    for (const [owner, count] of wanted) {
-      if (!(await present(owner))) continue;
-      const place = { kind: "slot" as const, slot: "winbar.bottom", owner, order: 10, focus: false };
-      try {
-        const bar = await pane.open(type, { pane: owner }, place);
-        await fit(bar.id, count);
-      } catch (err) {
-        console.error(`${pkg.prefix}: %${owner}: ${message(err)}`);
-      }
-    }
-  } finally {
-    syncing = false;
-  }
+  // The bar is a `pane.strip` view now (`ui.tsx`), which the app draws on every pane that has a
+  // contribution: there is no pane to open or close, and nothing to size. The bars read the queue
+  // themselves, on their own clock.
+  for (const fn of watchers) fn();
+
 }
 
 function message(err: unknown): string {

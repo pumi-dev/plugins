@@ -3,10 +3,23 @@
 // terminal, its directory, whether to quote it, and — when the trigger was a bare key — what to
 // type back if the picker is dismissed.
 //
-// The picker itself is `picker.ts`; the walk, the matching and the quoting are `entries.ts`,
-// `match.ts` and `path.ts`.
-import { key, notify, on, option, pane, pkg, provide, view, type Disposer, type Pane } from "pumi";
-import { Picker, type PickerArgs } from "./picker.ts";
+// What is here is the logic: the key that opens it, the float it opens, and what it is opened with.
+// `ui.tsx` draws the picker; the walk, the matching and the quoting are `entries.ts`, `match.ts` and
+// `path.ts`.
+import { key, notify, on, option, pane, pkg, provide, type Disposer, type Pane } from "pumi";
+
+/** What the picker's float is opened with. */
+export interface PickerArgs {
+  /** The terminal pane the path is typed into. */
+  pane?: number;
+  /** The directory it lists; the package's own working directory without. */
+  cwd?: string;
+  /** Wrap the path in quotes when a shell would split it (`true` without). */
+  quote?: boolean;
+  /** Typed back when the picker is dismissed before anything was typed: the bare key that opened
+   * it. */
+  cancel?: string | null;
+}
 
 /** The trigger last bound in the terminal's key table, so the next one can unbind it. */
 let bound: { key: string; mapping: Disposer } | null = null;
@@ -50,6 +63,14 @@ async function picker(): Promise<Pane | undefined> {
   }
 }
 
+/** The args the picker open now was opened with: the view asks for them as it starts. */
+let opened: PickerArgs | null = null;
+
+/** What the picker open now is about. */
+export function args(): PickerArgs {
+  return opened ?? {};
+}
+
 /** Close the picker, wherever it is. */
 async function close(): Promise<void> {
   const open = await picker();
@@ -74,6 +95,7 @@ async function open(event: { pane?: number } = {}): Promise<boolean> {
   };
   const cwd = await option.get("pane_current_path", { pane: term });
   if (typeof cwd === "string" && cwd !== "") args.cwd = cwd;
+  opened = args;
   // `row` anchors it under the tabline; without it the host centers the float in the tab, and a
   // press outside it dismisses it.
   try {
@@ -106,7 +128,6 @@ async function bind(): Promise<void> {
   bound = { key: pressed, mapping };
 }
 
-view<PickerArgs>("picker", Picker);
 void bind();
 on("option.changed", { match: pkg.prefixed("trigger"), desc: "insert-path follows its trigger" }, () => bind());
 provide(

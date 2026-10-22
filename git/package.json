@@ -1,0 +1,69 @@
+{
+  "name": "pumi-git",
+  "version": "0.1.0",
+  "description": "The repository in the sidebar: the changes as a path tree \u2014 stage, unstage, discard, commit \u2014 and the history, for whichever repository the current pane is in.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "git",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "files",
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "date_format": {
+          "type": "string",
+          "default": "relative",
+          "choices": [
+            "relative",
+            "absolute"
+          ],
+          "labels": [
+            "How long ago",
+            "Date and time"
+          ],
+          "label": "Dates",
+          "group": "Git",
+          "desc": "How the history dates a commit: how long ago it was, or the day and minute it was."
+        },
+        "show_author": {
+          "type": "boolean",
+          "default": true,
+          "label": "Authors",
+          "group": "Git",
+          "desc": "Show each commit's author in the history."
+        }
+      },
+      "commands": [
+        {
+          "id": "toggle",
+          "title": "Git: show the changes and the history"
+        }
+      ],
+      "keys": [
+        {
+          "key": "<C-S-g>",
+          "command": "toggle"
+        }
+      ],
+      "points": {
+        "panel": {
+          "view": "Git",
+          "title": "Git",
+          "icon": "git_branch"
+        }
+      }
+    }
+  }
+}

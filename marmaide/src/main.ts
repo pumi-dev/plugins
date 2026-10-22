@@ -15,9 +15,10 @@
 // - `save {source | path, out}` writes that SVG to a file and answers its path.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { option, pane, pkg, provide, view } from "pumi";
-import { Diagram } from "./diagram.ts";
+import { option, pane, pkg, provide } from "pumi";
+import { agents as agentsOf, attach, type About, type Agent } from "./agents.ts";
 import { fail, message } from "./errors.ts";
+import type { Node } from "./nodes.ts";
 import { picture } from "./picture.ts";
 
 /** What a call is about: a diagram, and what to do with it. */
@@ -134,7 +135,52 @@ async function saved(first: unknown, second: unknown) {
   return { path: out, type: drawn.kind, width: drawn.width, height: drawn.height };
 }
 
-view("diagram", Diagram);
+// ---- what the view draws
+//
+// The pane's Mermaid source lives in the option `marmaide.source` (pane-scoped), so it is what
+// `marmaide.draw` writes, what the view reads when it starts, and what brings a diagram back with a
+// restored layout. A redraw is a new value of it: the view hears the change and draws again.
+
+/** A diagram as `ui.tsx` draws it: the file the app paints, its size, and where its nodes are. */
+export interface Shown {
+  /** The Mermaid text it was drawn from. */
+  source: string;
+  /** Mermaid's own name for the kind of diagram. */
+  kind: string;
+  width: number;
+  height: number;
+  /** The themed SVG, a file of the package's cache. */
+  file: string;
+  nodes: Node[];
+}
+
+/** The diagram pane `id` shows, drawn from the source on its options; or why it could not be. */
+export async function drawn(id: number): Promise<Shown | { error: string }> {
+  let source = "";
+  try {
+    const value = await option.get("source", { pane: id });
+    source = typeof value === "string" ? value : "";
+  } catch (err) {
+    return { error: message(err) };
+  }
+  if (source.trim() === "") return { error: "no diagram: `pumi call amresyd.marmaide.draw 'flowchart LR\n  a --> b'`" };
+  try {
+    const made = await picture(source);
+    return { source, kind: made.kind, width: made.width, height: made.height, file: made.file, nodes: made.nodes };
+  } catch (err) {
+    return { error: message(err) };
+  }
+}
+
+/** The agents a node clicked in the pane `here` can be sent to. */
+export function agents(here: number): Promise<Agent[]> {
+  return agentsOf(here);
+}
+
+/** The note about a clicked node, into an agent's inbox; answers what to tell the user. */
+export function note(agent: Agent, about: About): Promise<string> {
+  return attach(agent, about);
+}
 
 provide(
   pkg.prefixed("draw"),

@@ -66,7 +66,7 @@ there as seen (`pane.markSeen`), so it stops asking.
 ## Working on it
 
 ```sh
-bun test                          # the package against pumi/testing's fake app
+bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit  # the types
 ```
 

@@ -9,12 +9,16 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
   "pumi": {
     "name": "script-panel",
     "api": 1
+  },
+  "exports": {
+    "./main.ts": "./src/main.ts",
+    "./ui.tsx": "./src/ui.tsx",
+    "./finder.ts": "./src/finder.ts"
   }
 }

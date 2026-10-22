@@ -1,30 +1,31 @@
 // The dog, as pixel art. Each frame is a grid of characters, one per pixel, drawn facing right;
-// left-facing frames are the same rows reversed. The view paints the grid on a canvas, one rect per
-// run of a colour.
-import { token, type PaintCommand } from "pumi";
+// left-facing frames are the same rows reversed. The view draws the grid as divs, one per run of a
+// colour, in the theme's colours.
+import type { Tokens } from "pumi";
 
 /** Width and height of every frame, in art pixels. */
 export const W = 22;
 export const H = 15;
 
-/** A character's colour, as the theme's token: the art was drawn in Catppuccin Mocha's, and these
- * are the palette's own names for them, so it is the same dog in every appearance. `.` is
- * transparent. */
+/** A character's colour, as the name of one of the theme's tokens: the art was drawn in Catppuccin
+ * Mocha's, and these are the nearest the theme has, so it is the same dog in every appearance. `.`
+ * is transparent. */
 const PALETTE: Record<string, string> = {
-  o: token("palette.surface1"), // outline, the darkest fur
-  d: token("palette.overlay1"), // shaded fur, the ears
-  g: token("palette.subtext0"), // fur
-  l: token("palette.text"), // light fur: muzzle, brows, chest
-  e: token("bg"), // eye
-  w: token("primary_foreground"), // the eye's glint
-  n: token("bg"), // nose
-  t: token("palette.red"), // tongue
-  m: token("palette.overlay0"), // open mouth
+  o: "editor", // outline, the darkest fur
+  d: "border", // shaded fur, the ears
+  g: "muted", // fur
+  l: "text", // light fur: muzzle, brows, chest
+  e: "surface", // eye
+  w: "accentText", // the eye's glint
+  n: "surface", // nose
+  t: "error", // tongue
+  m: "active", // open mouth
 };
 
 /** The colour a character of the art is drawn in, or `undefined` for `.` (nothing). */
-export function colour(c: string): string | undefined {
-  return PALETTE[c];
+export function colour(c: string, t: Tokens): string | undefined {
+  const token = PALETTE[c];
+  return token === undefined ? undefined : t[token];
 }
 
 /** The head, body and curled tail, rows 0..=10. */
@@ -125,14 +126,23 @@ export function runs(pose: Pose, left: boolean): Run[] {
   return out;
 }
 
-/** The frame as canvas commands, `scale` screen pixels per art pixel. Runs of one colour are one
- * rect, which keeps the canvas small; `.` runs are left out. */
-export function paint(pose: Pose, left: boolean, scale: number): PaintCommand[] {
-  const out: PaintCommand[] = [];
+/** A rect of one colour, in screen pixels. */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+}
+
+/** The frame as rects, `scale` screen pixels per art pixel. Runs of one colour are one rect, which
+ * keeps the drawing small; `.` runs are left out. */
+export function paint(pose: Pose, left: boolean, scale: number, t: Tokens): Rect[] {
+  const out: Rect[] = [];
   for (const run of runs(pose, left)) {
-    const drawn = colour(run.c);
+    const drawn = colour(run.c, t);
     if (!drawn) continue;
-    out.push({ cmd: "fillRect", x: run.x * scale, y: run.y * scale, w: run.w * scale, h: scale, color: drawn });
+    out.push({ x: run.x * scale, y: run.y * scale, w: run.w * scale, h: scale, color: drawn });
   }
   return out;
 }

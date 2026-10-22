@@ -1,4 +1,0 @@
-/* A session's tabs, one group a session, in the header. */
-.tab-group { flex-direction: row; align-items: stretch; gap: 0; min-width: 0; flex-shrink: 1; overflow: hidden; }
-.tab-group .tab { max-width: 160px; }
-.tab-group-sep { width: 1px; height: 16px; align-self: center; margin: 0 4px; background: $chrome_border; flex-shrink: 0; }

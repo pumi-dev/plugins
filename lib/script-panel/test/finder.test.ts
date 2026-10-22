@@ -4,7 +4,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { groupScripts, label, quote, repoRoot, SKIP, type Group } from "../src/index.ts";
+import { groupScripts, label, quote, repoRoot, SKIP, type Group } from "../src/finder.ts";
 import { runs } from "./runs.ts";
 
 let made: string[] = [];

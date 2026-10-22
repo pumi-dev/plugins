@@ -28,15 +28,19 @@ the window is drawn with it.
 
 ```sh
 bun scripts/link.mjs               # at the repository's root, once: links @pumid/types
-bun test                           # against pumi/testing, no pumi needed
 ./node_modules/.bin/tsc --noEmit   # the types
 ```
 
-`themes/alltabs/theme.ts` is the whole window; `src/` is the default theme's parts, copied
-(see the header of each file), until a theme can `extend` one. `themes/alltabs/base.css` is the
-default theme's stylesheet for the same reason, and `themes/alltabs/style.css` is this theme's own
-rules: the tab groups, and nothing else.
+`themes/alltabs/theme.tsx` is the whole theme: it replaces `TabBar` and inherits every other part
+from the app's default. `themes/alltabs/tabbar.tsx` is the grouped bar: every session's tabs, one
+group a session, a hairline between groups, no names. Only the session in front gives its selected
+tab the `active` look; pressing a tab of another session moves the window there first.
+
+The setting is the package's own option (`all_sessions` in `package.json`'s `contributes.options`,
+`on` by default), so Settings → Appearance shows it under All Tabs; `useThemeOption("all_sessions")`
+reads it.
 
 This theme was a Lua theme in `~/.config/pumi/themes/alltabs`, which extended the default one; this
-package draws what it drew. The port is the default theme plus that grouping, because a TS theme
-draws the whole window and cannot extend another yet.
+package draws what it drew. The `src/` copies of the default theme's parts, the stylesheets and the
+old test harness went with the CSS renderer: a `theme.tsx` replaces parts by name now, so nothing
+needs extending.

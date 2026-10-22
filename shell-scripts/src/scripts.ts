@@ -5,8 +5,8 @@
 // executable bit runs.
 import { closeSync, openSync, readdirSync, readSync } from "node:fs";
 import { join } from "node:path";
-import { option, pkg } from "pumi";
-import { label, quote, type Finder, type Group, type Item } from "script-panel";
+import { option } from "pumi";
+import { label, quote, type Finder, type Group, type Item } from "script-panel/finder.ts";
 
 /** The shells a `#!` line names, and the ones an extension falls back to. */
 const SHELLS: readonly string[] = ["sh", "bash", "zsh", "ksh", "dash", "ash", "fish"];
@@ -94,16 +94,12 @@ function firstLine(path: string): string | null {
   }
 }
 
-/**
- * The finder of the scripts `settings` says are: each file in a directory, under its label.
- * `optionMatch` is the glob of the options whose change reads the finder again.
- */
-export function finder(settings: Settings, optionMatch: string | string[]): Finder {
+/** The finder of the scripts `settings` says are: each file in a directory, under its label. */
+export function finder(settings: Settings): Finder {
   return {
     depth: settings.depth,
     showDetail: settings.showCommand,
     empty: "No shell scripts found",
-    optionMatch,
     group(dir: string, root: string): Group | null {
       const items: Item[] = [];
       for (const name of files(dir)) {
@@ -123,15 +119,12 @@ export async function read(): Promise<Finder> {
   const depth = await option.get("max_depth");
   const shebang = await option.get("shebang");
   const showCommand = await option.get("show_command");
-  return finder(
-    {
-      depth: depthOf(depth),
-      extensions: parseExtensions(typeof extensions === "string" ? extensions : DEFAULT_EXTENSIONS),
-      shebang: shebang !== false,
-      showCommand: showCommand !== false,
-    },
-    pkg.prefixed("*"),
-  );
+  return finder({
+    depth: depthOf(depth),
+    extensions: parseExtensions(typeof extensions === "string" ? extensions : DEFAULT_EXTENSIONS),
+    shebang: shebang !== false,
+    showCommand: showCommand !== false,
+  });
 }
 
 /** The depth an option's value says: 4 when it is not a whole number of 0 or more, and 1 to 10. */

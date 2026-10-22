@@ -4,8 +4,8 @@
 // to the root, else npm.
 import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { option, pkg } from "pumi";
-import { label, quote, type Finder, type Group, type Item } from "script-panel";
+import { option } from "pumi";
+import { label, quote, type Finder, type Group, type Item } from "script-panel/finder.ts";
 
 /** The lockfiles that say which manager a directory uses; the first found wins. */
 const LOCKFILES: readonly (readonly [file: string, manager: string])[] = [
@@ -69,19 +69,23 @@ export function packageGroup(dir: string, root: string): Group | null {
 /** The page's finder, its options read now: how deep to look, in what order, and with what detail. */
 export async function read(): Promise<Finder> {
   const depth = await whole("max_depth", DEPTH);
-  const order = await option.get("sort");
+  const how = await option.get("sort");
   return {
     depth: Math.min(Math.max(depth, 1), 10),
     showDetail: (await option.get("show_command")) !== false,
     empty: "No package.json with scripts found",
-    optionMatch: pkg.prefixed("*"),
     group: packageGroup,
     sort(groups: Group[]): void {
-      groups.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
-      // A stable sort: the packages with as many scripts stay in path order.
-      if (order === "scripts") groups.sort((a, b) => b.items.length - a.items.length);
+      order(groups, how === "scripts" ? "scripts" : "path");
     },
   };
+}
+
+/** Orders the page's groups: by path, or the packages with most scripts first. */
+export function order(groups: Group[], by: "path" | "scripts"): void {
+  groups.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
+  // A stable sort: the packages with as many scripts stay in path order.
+  if (by === "scripts") groups.sort((a, b) => b.items.length - a.items.length);
 }
 
 /** The whole number the option `name` holds, or `fallback` when it holds something else. */

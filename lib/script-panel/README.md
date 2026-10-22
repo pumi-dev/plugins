@@ -34,13 +34,21 @@ async function read(): Promise<Finder> {
   };
 }
 
-// Its page, in its manifest's `pumi.contributes.views`.
-view("scripts", scriptPanel(read, "script"));
+// Its page, in its manifest's `pumi.contributes.points.panel`.
+// src/main.ts
+export function load(cwd: string): Promise<Page> {
+  return page(read, cwd);
+}
+
+// src/ui.tsx
+export function Scripts() {
+  return <ScriptPage load={load} options={["show_command", "max_depth"]} noun="script" />;
+}
 ```
 
-`read` is called for each pane (so each page has its own finder) and again when an option
-`optionMatch` names changes — read them again there. The page rescans when the current pane or its
-directory changes, and on **Rescan**.
+`read` is called each time the page is read, so it reads the options as they are now; `ScriptPage`'s
+`options` are the keys it reads again on, and it reads them from the app's own state. The page
+rescans when the pane in front moves, on a slow clock, and on **Rescan**.
 
 The page counts what it lists: `"2 scripts · 1 place"` — `scriptPanel`'s second argument is what an
 item is called, with the plural's `s` added.
@@ -70,7 +78,7 @@ and types the item's `command` and `\r` there.
 
 ```sh
 bun scripts/link.mjs     # at the repository's root: links the SDK, and this into its dependents
-bun test                 # test/, against pumi/testing's fake app
+bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit
 ```
 

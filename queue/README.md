@@ -51,8 +51,9 @@ seen busy, or 2 s have passed with it at rest (a command too quick to see, `true
 
 ## The bar
 
-One under each pane that has work, in its `winbar.bottom`: the jobs waiting for that pane, the
-one running in it, and a job that is over for ten seconds after. A row goes to the pane it is
+One under each pane that has work — the manifest's `contributes.points["pane.strip"]` view, which
+draws nothing for a pane the queue has no job for: the jobs waiting for that pane, the one running
+in it, and a job that is over for ten seconds after. A row goes to the pane it is
 about — the one it waits for, or the one it was added from — so a click focuses it; `✕` cancels
 a job that has not started.
 
@@ -79,7 +80,7 @@ app is `sh -c` through `Bun.spawn`; one in a pane of its own is a `terminal` pan
 command; one typed into a terminal is `pane.call(pane, "input", …)`.
 
 ```sh
-bun test                    # its tests, against pumi/testing's fake app: no pumi running
+bun test                       # the pure logic: no pumi running
 bunx tsc --noEmit           # the types
 ```
 

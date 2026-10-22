@@ -7,19 +7,20 @@ panes and registers its autocmds from its plugin's `init`.
 
 | Package | What it does | What it draws |
 | --- | --- | --- |
-| `attention` | Says so when an agent is blocked and you are looking elsewhere; `@attention` counts them | nothing: `@attention` and a notice |
+| `attention` | Says so when an agent is blocked and you are looking elsewhere; `@attention` counts them | nothing: `@attention` and a notice (no `ui.tsx`) |
 | `heavy-terminals` | Finds terminals using too much CPU or memory and suspends their job (`HeavyWake` resumes it) | nothing: `@heavy`, a notice, `HeavySleep`/`HeavyWake` |
-| `npm-scripts` | A sidebar page of every `package.json` script in the current repository; click to run | a page in the left sidebar |
-| `shell-scripts` | A sidebar page of every shell script in the current repository; click to run | a page in the left sidebar |
-| `pi-session` | Buttons on every pi pane's strip: Fork opens `pi --fork <session>` beside it, Copy copies the session | buttons in the strip (a `PaneStrip` slot view) on pi panes |
-| `pumi-dog` | A little dog walking along the status bar | a dog in the status bar |
-| `insert-path` | Type `/` in a terminal and pick a file: a floating fuzzy picker types the path in | a floating picker over the tab |
-| `pane-switcher` | Alt-Tab for panes: a row of cards showing what each pane holds, to pick one | a floating switcher over the tab |
+| `npm-scripts` | Every `package.json` script in the current repository, workspaces included; click to run | a section of the side bar (`panel`) |
+| `shell-scripts` | Every shell script in the current repository; click to run | a section of the side bar (`panel`) |
+| `pi-session` | Buttons on every pi pane's strip: Fork opens `pi --fork <session>` beside it, Copy copies the session | buttons in the strip (`pane.strip`) on pi panes |
+| `pumi-dog` | A little dog walking along the status bar | a dog in the status bar (`status`) |
+| `insert-path` | Type `/` in a terminal and pick a file: a floating fuzzy picker types the path in | a float over the tab (a `views` pane) |
+| `pane-switcher` | Alt-Tab for panes: a row of cards showing what each pane holds, to pick one | a float over the window (a `views` pane) |
 | `agent-overview` | Every agent in this pumi in one place: who is working, who is blocked, and where; click a row to go to its pane | a tab of its own |
-| `queue` | Commands that run one at a time, each after the pane it waits for is done; one bar under each pane with its jobs | a bar (`winbar.bottom`) on the panes that have work |
+| `queue` | Commands that run one at a time, each after the pane it waits for is done; one bar under each pane with its jobs | a bar (`pane.strip`) on the panes that have work |
 | `perf` | How the app is doing: CPU, memory, frames, core plugins and the busiest threads, from `app.perf` (Cmd-Alt-P) | a float over the whole window, in a corner |
 | `dia` | A UI theme after the Dia browser: pinned tiles, sessions as folders and tabs as rows in one frosted sidebar; the panes on a card | the whole window (`themes/dia`) |
 | `win98` | A UI theme: Windows 98, with a window for each tab and a Start menu of your plugins | the whole window (`themes/win98`) |
+| `win7` | A UI theme: Windows 7, with Aero glass around a window for each tab, a Superbar with the Start orb, and a Start menu with its search box | the whole window (`themes/win7`) |
 | `office` | A UI theme: a pixel office with a desk for each tab; drag desks around, and they stay | the whole window (`themes/office`) |
 
 `lib/script-panel` is what the two script pages share: the walk, the grouped list, running a

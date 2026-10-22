@@ -5,7 +5,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { groupScripts } from "script-panel";
+import { groupScripts } from "script-panel/finder.ts";
 
 import { finder, interpreter, parseExtensions, shellOf, type Settings } from "../src/scripts.ts";
 
@@ -43,7 +43,7 @@ function write(path: string, text = "", executable = false): void {
 
 /** Every script found below `root`, as `label: command`. */
 function found(root: string, settings = defaults()): string[] {
-  return groupScripts(finder(settings, "*"), root).flatMap((group) =>
+  return groupScripts(finder(settings), root).flatMap((group) =>
     group.items.map((item) => `${group.label}: ${item.command}`),
   );
 }
@@ -109,7 +109,7 @@ test("hidden files, directories and the options' depth are respected", () => {
 });
 
 test("the finder says what to call what it lists, and what to say when there is nothing", () => {
-  const find = finder(defaults({ depth: 2, showCommand: false }), "*");
+  const find = finder(defaults({ depth: 2, showCommand: false }));
   expect(find.depth).toBe(2);
   expect(find.showDetail).toBe(false);
   expect(find.empty).toBe("No shell scripts found");

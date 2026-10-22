@@ -1,23 +1,17 @@
 // The package's own half of the page: the manager that runs a package's scripts, the group its
-// `package.json` makes, and the finder its options say — the repository walked by `script-panel`.
+// `package.json` makes, and the order the page lists them in. The walk itself is `script-panel`'s;
+// `read()` asks the app for the options, so it is not here — a test runs without one.
 import { afterEach, expect, test } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { FakeApp } from "pumi/testing";
-import { groupScripts, type Finder } from "script-panel";
+import { groupScripts, type Finder, type Group } from "script-panel/finder.ts";
 
-import { manager, packageGroup, read } from "../src/packages.ts";
+import { manager, order, packageGroup } from "../src/packages.ts";
 import { manifest, temp, write } from "./files.ts";
 
-/** The package's directory: its package.json is the manifest the fake reads its options from. */
-const dir = join(import.meta.dir, "..");
-
-let app: FakeApp | undefined;
 let repo = "";
 
 afterEach(() => {
-  app?.stop();
-  app = undefined;
   if (repo) rmSync(repo, { recursive: true, force: true });
   repo = "";
 });
@@ -29,11 +23,9 @@ function repository(): string {
   return repo;
 }
 
-/** The finder the page reads, its options set as `options`. */
-async function finder(options: Record<string, unknown> = {}): Promise<Finder> {
-  app = new FakeApp({ dir, options });
-  await app.connect();
-  return read();
+/** The finder of a page that looks `depth` directories down, its groups the packages' own. */
+function finder(depth = 4): Finder {
+  return { depth, showDetail: true, empty: "No package.json with scripts found", group: packageGroup };
 }
 
 test("a package's manager is the one its packageManager field names", () => {
@@ -103,46 +95,36 @@ test("a directory without scripts is no group", () => {
   expect(packageGroup(root, root)).toBeNull();
 });
 
-test("the walk finds every package with scripts, node_modules left out", async () => {
+test("the walk finds every package with scripts, node_modules left out", () => {
   const root = repository();
   write(root, "package.json", manifest({ build: "tsc -p ." }, { workspaces: ["packages/*"] }));
   write(root, "packages/ui/package.json", manifest({ test: "vitest" }));
   write(root, "packages/ui/node_modules/x/package.json", manifest({ x: "x" }));
   write(root, "packages/empty/package.json", JSON.stringify({ name: "no scripts" }));
-  const found: [string, number][] = groupScripts(await finder(), root).map((group) => [group.label, group.items.length]);
+  const found: [string, number][] = groupScripts(finder(), root).map((group) => [group.label, group.items.length]);
   expect(found).toEqual([
     ["package.json", 1],
     ["packages/ui/package.json", 1],
   ]);
 });
 
-test("the depth option says how far below the repository to look", async () => {
+test("the depth says how far below the repository to look", () => {
   const root = repository();
   write(root, "package.json", manifest({ build: "tsc -p ." }));
   write(root, "packages/ui/package.json", manifest({ test: "vitest" }));
-  expect(groupScripts(await finder({ max_depth: 1 }), root).map((group) => group.label)).toEqual(["package.json"]);
-  expect(groupScripts(await finder({ max_depth: 2 }), root).map((group) => group.label)).toEqual([
-    "package.json",
-    "packages/ui/package.json",
-  ]);
+  expect(groupScripts(finder(1), root).map((group) => group.label)).toEqual(["package.json"]);
+  expect(groupScripts(finder(2), root).map((group) => group.label)).toEqual(["package.json", "packages/ui/package.json"]);
 });
 
-test("the order is by path, or the packages with most scripts first", async () => {
+test("the order is by path, or the packages with most scripts first", () => {
   const root = repository();
   write(root, "package.json", manifest({ build: "tsc -p ." }));
   write(root, "packages/ui/package.json", manifest({ test: "vitest", lint: "eslint ." }));
-  const labels = async (sort: string) => groupScripts(await finder({ sort }), root).map((group) => group.label);
-  expect(await labels("path")).toEqual(["package.json", "packages/ui/package.json"]);
-  expect(await labels("scripts")).toEqual(["packages/ui/package.json", "package.json"]);
-});
-
-test("the commands show beside the names unless the option says otherwise", async () => {
-  expect((await finder()).showDetail).toBe(true);
-  expect((await finder({ show_command: false })).showDetail).toBe(false);
-});
-
-test("its own options are what it reads again, and it says what it found nothing of", async () => {
-  const page = await finder();
-  expect(page.optionMatch).toBe("local.npm_scripts.*");
-  expect(page.empty).toBe("No package.json with scripts found");
+  const groups = (by: "path" | "scripts"): string[] => {
+    const found = groupScripts(finder(), root);
+    order(found, by);
+    return found.map((group: Group) => group.label);
+  };
+  expect(groups("path")).toEqual(["package.json", "packages/ui/package.json"]);
+  expect(groups("scripts")).toEqual(["packages/ui/package.json", "package.json"]);
 });

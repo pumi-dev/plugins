@@ -1,11 +1,10 @@
 // What the package contributes without running, as the app reads it: Settings shows the options, and
-// the app knows the view whose panes the buttons are.
+// the app knows where the buttons go without starting the package.
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { dir } from "./fake.ts";
-
+const dir = join(import.meta.dir, "..");
 const pumi = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).pumi;
 
 test("its options are declared for Settings, each with what it says", () => {
@@ -18,8 +17,8 @@ test("its options are declared for Settings, each with what it says", () => {
   expect(pumi.contributes.options.command.default).toBe("pi");
 });
 
-test("it contributes its view, and starts with the app", () => {
+test("it contributes the buttons to the strip of a pi pane", () => {
   expect(pumi.name).toBe("pi-session");
-  expect(pumi.contributes.views).toEqual([{ id: "strip", title: "Pi session", icon: "git_branch" }]);
-  expect(pumi.activation).toEqual(["onStartup"]);
+  expect(pumi.contributes.points).toEqual({ "pane.strip": { view: "Strip" } });
+  expect(pumi.contributes.views).toBeUndefined();
 });

@@ -8,7 +8,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -16,6 +15,19 @@
     "name": "alltabs",
     "owner": "amresyd",
     "api": 1,
-    "themes": ["themes/alltabs"]
+    "themes": [
+      "themes/alltabs"
+    ],
+    "contributes": {
+      "options": {
+        "all_sessions": {
+          "type": "boolean",
+          "default": true,
+          "label": "Every session",
+          "desc": "Show every session in the header, not only the one in front. Off, the header is the default's: the tabs of the session in front.",
+          "group": "All Tabs"
+        }
+      }
+    }
   }
 }

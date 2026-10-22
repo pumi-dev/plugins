@@ -1,0 +1,134 @@
+{
+  "name": "pumi-files",
+  "version": "0.1.0",
+  "description": "The project tree in the sidebar: the repository the current pane is in, its folders and files with git's marks, opened, renamed, trashed, dragged and filtered \u2014 and the file the cursor is on opened in your editor beside it.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "files",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "files",
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "hide_gitignore": {
+          "type": "boolean",
+          "default": false,
+          "label": "Hide ignored files",
+          "group": "Project",
+          "desc": "Leave out of the tree what a .gitignore hides."
+        },
+        "hide_hidden": {
+          "type": "boolean",
+          "default": false,
+          "label": "Hide dotfiles",
+          "group": "Project",
+          "desc": "Leave out of the tree what starts with a dot."
+        },
+        "file_icons": {
+          "type": "boolean",
+          "default": true,
+          "label": "File icons",
+          "group": "Project",
+          "desc": "Draw each file's icon, by its name and its extension."
+        },
+        "folder_icons": {
+          "type": "boolean",
+          "default": true,
+          "label": "Folder icons",
+          "group": "Project",
+          "desc": "Draw each folder's icon, open or closed."
+        },
+        "git_status": {
+          "type": "boolean",
+          "default": true,
+          "label": "Mark git's changes",
+          "group": "Project",
+          "desc": "Tint a row by what git says of it, and by what is under it."
+        },
+        "auto_fold_dirs": {
+          "type": "boolean",
+          "default": true,
+          "label": "Fold single-child folders",
+          "group": "Project",
+          "desc": "Draw a folder that holds one folder as one row, `a/b/c`, which opens a level at a time."
+        },
+        "indent_size": {
+          "type": "number",
+          "default": 20,
+          "min": 4,
+          "max": 64,
+          "step": 2,
+          "label": "Indent",
+          "unit": "px",
+          "group": "Project",
+          "desc": "How far one level of the tree is indented."
+        },
+        "open_with": {
+          "type": "string",
+          "default": "editor",
+          "choices": [
+            "editor",
+            "system"
+          ],
+          "labels": [
+            "Your editor, in a terminal pane",
+            "The system's default app"
+          ],
+          "label": "Open a file with",
+          "group": "Project",
+          "desc": "What a click on a file does. A package cannot reach the app's own editor and its document tabs, so a file opens in a terminal pane running your editor, or in whatever app owns it."
+        },
+        "editor": {
+          "type": "string",
+          "default": "",
+          "placeholder": "$EDITOR",
+          "label": "Editor",
+          "group": "Project",
+          "desc": "The editor a file opens in: `code -w`, `nvim`, `hx`. Empty is `$EDITOR`, and `vi` when that is empty too."
+        }
+      },
+      "commands": [
+        {
+          "id": "toggle",
+          "title": "Files: show the project tree"
+        },
+        {
+          "id": "reveal",
+          "title": "Files: reveal the current pane's file in the tree"
+        },
+        {
+          "id": "filter",
+          "title": "Files: filter the project tree"
+        }
+      ],
+      "keys": [
+        {
+          "key": "<D-S-e>",
+          "command": "toggle"
+        }
+      ],
+      "points": {
+        "panel": {
+          "view": "Tree",
+          "title": "Project",
+          "icon": "folder_open"
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}

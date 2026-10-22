@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -30,8 +29,16 @@
         "scope": {
           "type": "string",
           "default": "session",
-          "choices": ["tab", "session", "all"],
-          "labels": ["This tab", "This session", "Every session"],
+          "choices": [
+            "tab",
+            "session",
+            "all"
+          ],
+          "labels": [
+            "This tab",
+            "This session",
+            "Every session"
+          ],
           "label": "Which panes",
           "desc": "The panes the switcher shows: the tab's, the session's (every tab), or every session's.",
           "group": "Pane switcher"
@@ -39,8 +46,14 @@
         "order": {
           "type": "string",
           "default": "recent",
-          "choices": ["recent", "layout"],
-          "labels": ["Most recently used", "Layout order"],
+          "choices": [
+            "recent",
+            "layout"
+          ],
+          "labels": [
+            "Most recently used",
+            "Layout order"
+          ],
           "label": "Order",
           "desc": "How the cards are ordered. Recently used puts the last pane first, as a task switcher does.",
           "group": "Pane switcher"
@@ -109,9 +122,22 @@
           "group": "Pane switcher"
         }
       },
-      "commands": [{ "id": "switch", "title": "Switch pane" }],
-      "views": [{ "id": "switcher", "title": "Pane switcher", "icon": "blocks" }]
+      "commands": [
+        {
+          "id": "switch",
+          "title": "Switch pane"
+        }
+      ],
+      "views": [
+        {
+          "id": "switcher",
+          "title": "Pane switcher",
+          "icon": "blocks"
+        }
+      ]
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
   }
 }

@@ -23,12 +23,12 @@ test("its options are declared for Settings, each with what it says", () => {
   expect(pumi.contributes.options.shebang.default).toBe(true);
 });
 
-test("it contributes its view, finds the files, runs in a terminal, and starts with the app", () => {
+test("it contributes its page to the side bar, finds the files, and runs in a terminal", () => {
   expect(pumi.name).toBe("shell-scripts");
   expect(pumi.owner).toBe("amresyd");
-  expect(pumi.contributes.views).toEqual([{ id: "scripts", title: "Shell Scripts", icon: "terminal" }]);
+  expect(pumi.contributes.points).toEqual({ panel: { view: "Scripts", title: "Shell Scripts", icon: "terminal" } });
+  expect(pumi.contributes.views).toBeUndefined();
   expect(pumi.uses).toEqual(["files", "processes"]);
-  expect(pumi.activation).toEqual(["onStartup"]);
   // Its finder is `script-panel`'s page: the library is a dependency, not a copy of it.
   expect(manifest.dependencies).toEqual({ "script-panel": "file:../lib/script-panel" });
 });

@@ -1,12 +1,14 @@
-// attention: tell the user when an agent is blocked and they are looking elsewhere.
+// attention: tell the user when an agent is blocked and they are looking elsewhere. All of it is
+// logic, so all of it is here: the package contributes no point and opens no pane, and has no
+// `ui.tsx` for the window to draw.
+//
 // An agent's state is its pane's `@agent_status` (one word: `working`, `blocked`, `done`, `idle`,
 // `error`), which agents' hooks report (`pumi skill setup` installs them). While any is blocked,
 // `@attention` is how many, and a notice says so once each time the count goes up. The Dock
 // bounce and the badge come with the system mod (phase 4); until then they are `@attention` and
-// the notice.
-//
-// No view: what it makes is options, events and the global `@attention`.
+// the notice. What is said and what `@attention` is are `count.ts`'s rule; this reads the panes.
 import { notify, on, option, pane, pkg } from "pumi";
+import { attention, count, said } from "./count.ts";
 
 /** How many were blocked at the last look, so the notice is said once each time it goes up. */
 let waiting = 0;
@@ -19,22 +21,19 @@ async function bounce(): Promise<string> {
 /** How many panes' agents are blocked. */
 async function blocked(): Promise<number> {
   const panes = await pane.list();
-  const states = await Promise.all(panes.map((p) => p.options.get("@agent_status")));
-  return states.filter((state) => state === "blocked").length;
+  const states = await Promise.all(panes.map((p) => p.options.get<string | null>("@agent_status")));
+  return count(states);
 }
 
 /** Count them again: say so if more are waiting than before, and keep `@attention` the count. */
 async function update(): Promise<void> {
   const now = await blocked();
-  const more = now > waiting;
+  const words = said(waiting, now);
   // Ahead of the notice: two agents blocked in the same turn fire two events, and the second look
   // is then not of a count that went up.
   waiting = now;
-  if (more && (await bounce()) !== "none") {
-    const said = now === 1 ? "An agent is waiting for you" : `${now} agents are waiting for you`;
-    await notify(said, "warn");
-  }
-  await option.set("@attention", now > 0 ? now : null);
+  if (words && (await bounce()) !== "none") await notify(words, "warn");
+  await option.set("@attention", attention(now));
 }
 
 const desc = "count the agents waiting for you";

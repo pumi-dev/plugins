@@ -1,209 +1,31 @@
 // perf: how the app is doing, floating in a corner of the window. The app keeps the numbers
 // (`app.perf`: its CPU and memory, its frames, each core plugin's calls, the busiest threads,
-// sampled every second); this package draws them, as the app's own overlay did.
+// sampled every second); this package asks for them and draws them.
 //
 // The overlay is a float over the whole window (`relative: "client"`), pinned to a corner by its
 // anchor so it stays there as the window changes size. It takes neither the keyboard nor the
-// pointer, so the terminal under it goes on working, and it grows and shrinks with what it has to
-// show by moving its own pane (`pane.setPlace`).
+// pointer, so the terminal under it goes on working.
 //
-// What the numbers mean, and how the rows are laid out, is `report.ts`; where the float goes is
-// `place.ts`.
-import {
-  call,
-  command,
-  div,
-  key,
-  menu,
-  notify,
-  on,
-  option,
-  pane,
-  pkg,
-  px,
-  system,
-  theme,
-  token,
-  View,
-  view,
-  type Color,
-  type Disposer,
-  type El,
-  type Pane,
-  type ViewContext,
-} from "pumi";
+// What is here is the logic: opening, placing and closing the float, the key that toggles it, and
+// the numbers read from the app. What the numbers mean and how the rows are laid out is
+// `report.ts`'s; `ui.tsx` draws them.
+import { call, command, key, menu, notify, on, option, pane, pkg, system, type Disposer, type Pane } from "pumi";
+
 import { place } from "./place.ts";
-import {
-  CHAR,
-  EMPTY,
-  EXTENSIONS,
-  FONT,
-  GAP,
-  LINE,
-  PAD,
-  SPACER,
-  THREADS,
-  appLine,
-  extensionCells,
-  graphLine,
-  heightOf,
-  level,
-  load,
-  memoryLine,
-  reportOf,
-  threadCells,
-  uiLine,
-  type Column,
-  type Report,
-  type Series,
-} from "./report.ts";
+import { EMPTY, heightOf, reportOf, type Report } from "./report.ts";
 
 /** The view's id (`amresyd.perf.overlay`). */
 const VIEW = "overlay";
 /** The app's function that answers with the numbers. */
 const REPORT = "app.perf";
-/** How often the numbers are read again, in milliseconds: the app samples itself once a second. */
-const TICK_MS = 1000;
 /** The key that toggles it, and the corner it floats in, when their options are empty. */
 const DEFAULT_TRIGGER = "<D-M-p>";
 const DEFAULT_CORNER = "NE";
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-/** What the overlay's pane is opened with: the height it was already placed at. */
-interface OverlayArgs {
-  height?: number;
-}
-
-// ---------------------------------------------------------------- the view
-
-export class Overlay extends View<OverlayArgs> {
-  /** What the app last said of itself, and the height it last placed its pane at. */
-  private report: Report = EMPTY;
-  private height: number;
-  /** The font its tables line up in. */
-  private family = "monospace";
-
-  constructor(cx: ViewContext<OverlayArgs>) {
-    super(cx);
-    this.height = cx.args?.height ?? heightOf(EMPTY);
-    // The numbers again, every second, for as long as the view is open.
-    const timer = setInterval(() => void this.refresh(), TICK_MS);
-    cx.own(() => clearInterval(timer));
-    void this.start();
-  }
-
-  private async start(): Promise<void> {
-    this.family = await monoFamily();
-    await this.refresh();
-  }
-
-  /** Read the numbers again, and be as tall as what they show. */
-  private async refresh(): Promise<void> {
-    this.report = await read();
-    const height = heightOf(this.report);
-    if (height !== this.height) {
-      this.height = height;
-      try {
-        await pane.setPlace(this.cx.pane, place(height, await corner()));
-      } catch (err) {
-        console.error(`perf: ${message(err)}`);
-      }
-    }
-    this.cx.notify();
-  }
-
-  render(): El {
-    const report = this.report;
-    const list = div()
-      .flex()
-      .flexCol()
-      .gap(px(GAP))
-      .child(line().textColor(theme.surface_text).fontWeight(600).child("performance"))
-      .child(line().child(div().textColor(tone(load(report.cpu.avg10s / 2))).child(appLine(report))).child(graph(report.cpu)))
-      .child(line().textColor(theme.muted).child(memoryLine(report)))
-      .child(line().child(div().textColor(tone(load(report.ui.avg10s))).child(uiLine(report))).child(graph(report.ui)))
-      .child(spacer())
-      .child(heading(EXTENSIONS));
-    for (const extension of report.extensions) {
-      list.child(row(EXTENSIONS, extensionCells(extension), graph(extension.cpu), tone(level(extension))));
-    }
-    if (report.extensions.length === 0) {
-      list.child(line().textColor(theme.placeholder).child("no extension has run yet"));
-    }
-    if (report.threads.length > 0) {
-      list.child(spacer()).child(heading(THREADS));
-      for (const thread of report.threads) {
-        list.child(row(THREADS, threadCells(thread), graph(thread.cpu), tone(load(thread.cpu.avg10s))));
-      }
-    }
-    if (report.samples === 0) {
-      list.child(line().textColor(theme.placeholder).child("the first sample is a second away"));
-    }
-    return div()
-      .class("perf")
-      .sizeFull()
-      .overflowHidden()
-      .p(px(PAD))
-      .bg(token("surface", 0.92))
-      .fontFamily(this.family)
-      .textSize(px(FONT))
-      .child(list);
-  }
-}
-
-/** How loud a row is drawn. */
-function tone(loudness: ReturnType<typeof load>): Color {
-  switch (loudness) {
-    case "off":
-      return theme.placeholder;
-    case "quiet":
-      return theme.muted;
-    case "busy":
-      return theme.warning;
-    case "hot":
-      return theme.error;
-  }
-}
-
-/** A row of the overlay: one line high, its text unbroken. */
-function line(): El {
-  return div().flex().flexRow().flexNone().h(px(LINE)).lineHeight(px(LINE)).whitespaceNowrap();
-}
-
-function spacer(): El {
-  return div().flexNone().h(px(SPACER));
-}
-
-/** The last minute of `series` as block characters. */
-function graph(series: Series): El {
-  return div().textColor(theme.primary).child(graphLine(series));
-}
-
-/** One table row: its cells in their columns, then its graph. */
-function row(columns: readonly Column[], cells: string[], graph: El | null, tone: Color): El {
-  const at = line().textColor(tone);
-  columns.forEach(([, width], i) => {
-    if (i >= cells.length) return; // the graph's column is drawn apart
-    at.child(div().flexNone().w(px(width * CHAR)).overflowHidden().child(cells[i]!));
-  });
-  if (graph) at.child(graph);
-  return at;
-}
-
-function heading(columns: readonly Column[]): El {
-  return row(
-    columns,
-    columns.map(([name]) => name),
-    null,
-    theme.placeholder,
-  );
-}
-
-// ---------------------------------------------------------------- reading it
-
 /** The report now, or an empty one when the app does not answer (a build without it). */
-async function read(): Promise<Report> {
+export async function report(): Promise<Report> {
   try {
     return reportOf(await call(REPORT));
   } catch (err) {
@@ -212,27 +34,23 @@ async function read(): Promise<Report> {
   }
 }
 
-/** `name`'s text: the option when it is a non-empty string, else `fallback`. */
-async function textOption(name: string, fallback: string): Promise<string> {
+/** `corner`: the corner of the window it floats in. */
+export async function corner(): Promise<string> {
   try {
-    const value = await option.get(name);
-    return typeof value === "string" && value !== "" ? value : fallback;
+    const value = await option.get("corner");
+    return typeof value === "string" && value !== "" ? value : DEFAULT_CORNER;
   } catch (err) {
     console.error(`perf: ${message(err)}`);
-    return fallback;
+    return DEFAULT_CORNER;
   }
 }
 
-/** `corner`: the corner of the window it floats in. */
-function corner(): Promise<string> {
-  return textOption("corner", DEFAULT_CORNER);
-}
-
-/** The terminal's font (`guifont`, `JetBrains_Mono:h14`) when one is set, else the system's
- * monospace: the tables line up only in a font whose glyphs all take the same width. */
-async function monoFamily(): Promise<string> {
-  const family = (await textOption("guifont", "")).split(":")[0]!.trim().replace(/_/g, " ");
-  if (family !== "") return family;
+/** The font the overlay's tables line up in: the terminal's (`guifont`), else the system's
+ * monospace, since only a font whose glyphs are the same width keeps the columns straight. */
+export async function family(): Promise<string> {
+  const value = await option.get("guifont").catch(() => null);
+  const set = typeof value === "string" ? value.split(":")[0]!.trim().replace(/_/g, " ") : "";
+  if (set !== "") return set;
   try {
     return (await system.platform())?.os === "macos" ? "Menlo" : "monospace";
   } catch {
@@ -240,7 +58,10 @@ async function monoFamily(): Promise<string> {
   }
 }
 
-// ---------------------------------------------------------------- opening it
+/** Where the overlay goes, for a report as tall as it shows. */
+export async function at(): Promise<ReturnType<typeof place>> {
+  return place(heightOf(await report()), await corner());
+}
 
 /** The overlays open now. */
 async function openPanes(): Promise<Pane[]> {
@@ -259,9 +80,9 @@ async function toggle(): Promise<boolean> {
     for (const overlay of open) await pane.close(overlay, true).catch(() => {});
     return false;
   }
-  const height = heightOf(await read());
+  const where = await at();
   try {
-    await pane.open(pkg.prefixed(VIEW), { height }, place(height, await corner()));
+    await pane.open(pkg.prefixed(VIEW), { height: heightOf(await report()) }, where);
     return true;
   } catch (err) {
     await notify(`perf: ${message(err)}`, "error");
@@ -271,9 +92,10 @@ async function toggle(): Promise<boolean> {
 
 /** An open overlay moves to the corner the option says now. */
 async function replace(): Promise<void> {
+  const where = await at();
   for (const overlay of await openPanes()) {
     try {
-      await pane.setPlace(overlay, place(heightOf(await read()), await corner()));
+      await pane.setPlace(overlay, where);
     } catch (err) {
       console.error(`perf: ${message(err)}`);
     }
@@ -285,7 +107,8 @@ let bound: { trigger: string; mapping: Disposer } | null = null;
 
 /** Bind `trigger` in the global key table, and unbind the last one. */
 async function bind(): Promise<void> {
-  const trigger = await textOption("trigger", DEFAULT_TRIGGER);
+  const value = await option.get("trigger").catch(() => null);
+  const trigger = typeof value === "string" && value !== "" ? value : DEFAULT_TRIGGER;
   if (bound?.trigger === trigger) return;
   bound?.mapping();
   bound = null;
@@ -294,13 +117,8 @@ async function bind(): Promise<void> {
   bound = { trigger, mapping };
 }
 
-view(VIEW, Overlay);
 command("toggle", () => toggle());
-menu.add(
-  "View.Performance Overlay",
-  { call: pkg.prefixed("toggle") },
-  { desc: "How the app is doing: CPU, memory, frames, core plugins, threads." },
-);
+menu.add("View.Performance Overlay", { call: pkg.prefixed("toggle") }, { desc: "How the app is doing: CPU, memory, frames, core plugins, threads." });
 void bind();
 on("option.changed", { match: pkg.prefixed("*"), desc: "perf follows its options" }, () => {
   void bind();

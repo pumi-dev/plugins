@@ -1,0 +1,53 @@
+{
+  "name": "pumi-palette",
+  "version": "0.1.0",
+  "description": "The command palette: cmd+shift+p runs any command there is, cmd+p finds a file in the project, the same fuzzy search the core palette makes.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "palette",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "files"
+    ],
+    "contributes": {
+      "commands": [
+        {
+          "id": "go_to_file",
+          "title": "Go to file"
+        },
+        {
+          "id": "toggle",
+          "title": "Command Palette\u2026"
+        }
+      ],
+      "keys": [
+        {
+          "key": "<D-p>",
+          "command": "go_to_file"
+        },
+        {
+          "key": "<D-S-p>",
+          "command": "toggle"
+        }
+      ],
+      "views": [
+        {
+          "id": "main",
+          "title": "Command Palette",
+          "icon": "keyboard"
+        }
+      ]
+    },
+    "activation": []
+  }
+}

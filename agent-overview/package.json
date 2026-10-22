@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -57,9 +56,22 @@
           "desc": "A chord that opens the overview from anywhere (the root key table). Empty for none; `pumi call amresyd.agent_overview.open` works regardless."
         }
       },
-      "commands": [{ "id": "open", "title": "Open the agent overview" }],
-      "views": [{ "id": "overview", "title": "Agent overview", "icon": "blocks" }]
+      "commands": [
+        {
+          "id": "open",
+          "title": "Open the agent overview"
+        }
+      ],
+      "views": [
+        {
+          "id": "overview",
+          "title": "Agent overview",
+          "icon": "blocks"
+        }
+      ]
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
   }
 }

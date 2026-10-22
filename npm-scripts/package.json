@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -20,7 +19,10 @@
     "name": "npm-scripts",
     "owner": "amresyd",
     "api": 1,
-    "uses": ["files", "processes"],
+    "uses": [
+      "files",
+      "processes"
+    ],
     "contributes": {
       "options": {
         "show_command": {
@@ -33,8 +35,14 @@
         "sort": {
           "type": "string",
           "default": "path",
-          "choices": ["path", "scripts"],
-          "labels": ["Path", "Most scripts first"],
+          "choices": [
+            "path",
+            "scripts"
+          ],
+          "labels": [
+            "Path",
+            "Most scripts first"
+          ],
           "label": "Order packages by",
           "group": "NPM Scripts",
           "desc": "How the package.json files are listed."
@@ -50,8 +58,13 @@
           "desc": "How many directories below the repository root to look in."
         }
       },
-      "views": [{ "id": "scripts", "title": "NPM Scripts", "icon": "package" }]
-    },
-    "activation": ["onStartup"]
+      "points": {
+        "panel": {
+          "view": "Scripts",
+          "title": "NPM Scripts",
+          "icon": "package"
+        }
+      }
+    }
   }
 }

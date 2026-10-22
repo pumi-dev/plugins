@@ -9,7 +9,6 @@
     "check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@pumid/types": "1.0.0",
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
   },
@@ -17,7 +16,9 @@
     "name": "queue",
     "owner": "amresyd",
     "api": 1,
-    "uses": ["processes"],
+    "uses": [
+      "processes"
+    ],
     "contributes": {
       "options": {
         "rows": {
@@ -43,8 +44,14 @@
           "desc": "A notification when a job is over, as the OS gives one."
         }
       },
-      "views": [{ "id": "board", "title": "Queue", "icon": "list" }]
+      "points": {
+        "pane.strip": {
+          "view": "Bar"
+        }
+      }
     },
-    "activation": ["onStartup"]
+    "activation": [
+      "onStartup"
+    ]
   }
 }

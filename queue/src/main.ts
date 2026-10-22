@@ -10,10 +10,9 @@
 // The waiting is pumi's own — a pane's `@agent_status`, its `pane_foreground_pgid` back to its
 // shell, `pane_dead` — read here, in `queue.ts`. This file is what the app reaches: the functions
 // others call, the bar's view, and the events that end a wait.
-import { ApiError, on, option, provide, pkg, view } from "pumi";
-import { Bar } from "./bar.ts";
-import { paneId } from "./job.ts";
-import { addJob, advance, cancelJob, clearJobs, listJobs, pulse, syncViews, vanished } from "./queue.ts";
+import { ApiError, on, option, provide, pkg } from "pumi";
+import { detail, isRunning, paneId, type Job } from "./job.ts";
+import { addJob, advance, busy, cancelJob, clearJobs, jobsOf, listJobs, pulse, syncViews, vanished } from "./queue.ts";
 
 // ---- the functions others call
 
@@ -76,8 +75,58 @@ provide(
 );
 
 // ---- the bar
+//
+// One under each pane that has work, as the manifest's `contributes.points.pane.strip`: the app
+// draws it on every pane, and it draws nothing for a pane the queue has no job for. It reads the
+// queue through the two exports below, on its own clock.
 
-view("board", Bar);
+/** A job as a bar draws it: what it is called, where it is, and what it says of itself. */
+export interface BarRow {
+  id: number;
+  label: string;
+  /** `waiting`, `running`, `done`, `failed` or `cancelled`, and the status of a finished one. */
+  kind: string;
+  status: number | null;
+  /** Its detail line: how long, what it waits for, a headless job's last line. */
+  said: string;
+  /** The pane a press goes to: the one it runs in, opened, or waits for. */
+  target: number | null;
+  /** A waiting job can be cancelled. */
+  waiting: boolean;
+}
+
+/** The jobs the bar of `pane` shows, in the order they will run. */
+export function bar(pane: number): BarRow[] {
+  const now = Date.now();
+  return jobsOf(pane).map((job: Job) => {
+    const over = job.state.kind === "done" || job.state.kind === "failed";
+    return {
+      id: job.id,
+      label: job.label,
+      kind: job.state.kind,
+      status: job.state.kind === "done" ? job.state.status : null,
+      said: over && job.tail !== "" ? `${detail(job, now)} · ${job.tail}` : detail(job, now),
+      target: job.state.kind === "running" && job.state.pane !== null ? job.state.pane : (job.opened ?? job.after?.pane ?? null),
+      waiting: job.state.kind === "waiting",
+    };
+  });
+}
+
+/** Whether anything is waiting or running: the bar's clock is faster then. */
+export function running(): boolean {
+  return busy();
+}
+
+/** Looks at the panes the queue waits for, and starts what can start. */
+export function look(): Promise<void> {
+  return advance();
+}
+
+/** Cancels a job that has not started. */
+export function cancel(id: number): Promise<void> {
+  cancelJob(id);
+  return advance().then(() => syncViews());
+}
 
 // ---- the events that end a wait
 //

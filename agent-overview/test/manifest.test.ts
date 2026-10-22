@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { dir } from "./fake.ts";
+const dir = join(import.meta.dir, "..");
 
 const pumi = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).pumi;
 

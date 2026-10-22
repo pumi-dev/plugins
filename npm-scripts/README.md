@@ -59,7 +59,7 @@ a directory holds, its view, and its place in the sidebar.
 ## Working on it
 
 ```sh
-bun test                          # the package against pumi/testing's fake app
+bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit  # the types
 ```
 
