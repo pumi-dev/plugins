@@ -1,0 +1,174 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`the pane draws the diagram, fitted, with its kind and its size 1`] = `
+{
+  "children": [
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "props": {
+                "src": "<cache>/<picture>.svg",
+              },
+              "style": {
+                "height": "100%",
+                "width": "100%",
+              },
+              "tag": "img",
+            },
+          ],
+          "id": "marmaide-picture",
+          "style": {
+            "height": "107.78947368421052px",
+            "left": "12px",
+            "position": "absolute",
+            "top": "143.10526315789474px",
+            "width": "576px",
+          },
+          "tag": "div",
+        },
+      ],
+      "id": "marmaide-canvas",
+      "on": [
+        "doubleClick",
+        "mouseDown",
+        "mouseUp",
+        "mouseMove",
+        "mouseLeave",
+        "scroll",
+      ],
+      "style": {
+        "cursor": "grab",
+        "flex": "1 1 0%",
+        "overflow": "hidden",
+        "position": "relative",
+        "width": "100%",
+      },
+      "tag": "div",
+    },
+    {
+      "children": [
+        {
+          "id": "marmaide-caption",
+          "style": {
+            "color": "$muted",
+            "font-size": "12px",
+          },
+          "tag": "text",
+          "text": "flowchart · 342×64 · drag to move, scroll to zoom, click a node to ask an agent",
+        },
+        {
+          "children": [
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "−",
+                },
+              ],
+              "id": "marmaide-zoom-out",
+              "on": [
+                "click",
+              ],
+              "style": {
+                "color": "$muted",
+                "cursor": "pointer",
+                "font-size": "12px",
+                "hover": {
+                  "color": "$surface_text",
+                },
+                "padding-left": "4px",
+                "padding-right": "4px",
+              },
+              "tag": "div",
+            },
+            {
+              "id": "marmaide-zoom",
+              "style": {
+                "color": "$muted",
+                "font-size": "12px",
+              },
+              "tag": "text",
+              "text": "100%",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "+",
+                },
+              ],
+              "id": "marmaide-zoom-in",
+              "on": [
+                "click",
+              ],
+              "style": {
+                "color": "$muted",
+                "cursor": "pointer",
+                "font-size": "12px",
+                "hover": {
+                  "color": "$surface_text",
+                },
+                "padding-left": "4px",
+                "padding-right": "4px",
+              },
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "tag": "text",
+                  "text": "fit",
+                },
+              ],
+              "id": "marmaide-fit",
+              "on": [
+                "click",
+              ],
+              "style": {
+                "color": "$muted",
+                "cursor": "pointer",
+                "font-size": "12px",
+                "hover": {
+                  "color": "$surface_text",
+                },
+                "padding-left": "4px",
+                "padding-right": "4px",
+              },
+              "tag": "div",
+            },
+          ],
+          "style": {
+            "align-items": "center",
+            "display": "flex",
+            "gap": "4px",
+          },
+          "tag": "div",
+        },
+      ],
+      "id": "marmaide-footer",
+      "style": {
+        "align-items": "center",
+        "border-color": "$border",
+        "border-top-width": "1px",
+        "display": "flex",
+        "justify-content": "space-between",
+        "padding-bottom": "4px",
+        "padding-left": "8px",
+        "padding-right": "8px",
+        "padding-top": "4px",
+      },
+      "tag": "div",
+    },
+  ],
+  "id": "marmaide",
+  "style": {
+    "display": "flex",
+    "flex-direction": "column",
+    "height": "100%",
+    "width": "100%",
+  },
+  "tag": "div",
+}
+`;
