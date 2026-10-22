@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- The editor's page: `page/index.html`, copied into `web/` by `bun scripts/build.ts`. The app's
+     sheet (`<style id="pumi-theme">`, the `--pumi-*` variables) is put in before this loads. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./editor.css" />
+    <style>
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+      #editor {
+        position: absolute;
+        inset: 0;
+      }
+      #notice {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+        white-space: pre-wrap;
+        color: var(--pumi-faint);
+        font-family: var(--pumi-font);
+        font-size: var(--pumi-font-size);
+        pointer-events: none;
+      }
+      #notice[hidden] {
+        display: none;
+      }
+      body.dropping::after {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border: 2px dashed var(--pumi-accent);
+        border-radius: var(--pumi-radius);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <div id="notice" hidden></div>
+    <script type="module" src="./editor.js"></script>
+  </body>
+</html>
