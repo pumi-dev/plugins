@@ -1,0 +1,33 @@
+{
+  "name": "image-preview",
+  "label": "Image preview",
+  "description": "Rest the pointer on an image file's path in a terminal to see the image.",
+  "icon": "image",
+  "wasm": "target/wasm32-wasip2/release/image_preview.wasm",
+  "matchers": [
+    {
+      "id": "image",
+      "kind": "path",
+      "regex": "(?i)\\.(png|jpe?g|gif|webp|bmp|tiff?|ico|svg)$",
+      "exists": true,
+      "triggers": ["rest"],
+      "rest_ms": 350
+    }
+  ],
+  "settings": [
+    {
+      "key": "max_width",
+      "label": "Largest width",
+      "description": "Wider images are shrunk to fit, in px.",
+      "type": "number",
+      "default": 360
+    },
+    {
+      "key": "max_height",
+      "label": "Largest height",
+      "description": "Taller images are shrunk to fit, in px.",
+      "type": "number",
+      "default": 280
+    }
+  ]
+}
