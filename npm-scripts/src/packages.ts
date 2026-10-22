@@ -5,7 +5,7 @@
 import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { option } from "pumi";
-import { label, quote, type Finder, type Group, type Item } from "script-panel/finder.ts";
+import { label, quote, type Finder, type Group, type Item } from "../../lib/script-panel/src/finder.ts";
 
 /** The lockfiles that say which manager a directory uses; the first found wins. */
 const LOCKFILES: readonly (readonly [file: string, manager: string])[] = [

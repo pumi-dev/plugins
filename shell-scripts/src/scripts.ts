@@ -6,7 +6,7 @@
 import { closeSync, openSync, readdirSync, readSync } from "node:fs";
 import { join } from "node:path";
 import { option } from "pumi";
-import { label, quote, type Finder, type Group, type Item } from "script-panel/finder.ts";
+import { label, quote, type Finder, type Group, type Item } from "../../lib/script-panel/src/finder.ts";
 
 /** The shells a `#!` line names, and the ones an extension falls back to. */
 const SHELLS: readonly string[] = ["sh", "bash", "zsh", "ksh", "dash", "ash", "fish"];

@@ -1,6 +1,6 @@
 // What it draws: `script-panel`'s page, in the left sidebar (`package.json`'s `contributes.points.
 // panel`). The scripts are read by the worker (`load`), which reads this package's options.
-import { ScriptPage } from "script-panel/ui.tsx";
+import { ScriptPage } from "../../lib/script-panel/src/ui.tsx";
 
 import { load } from "./main.ts";
 

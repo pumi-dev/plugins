@@ -5,7 +5,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { groupScripts } from "script-panel/finder.ts";
+import { groupScripts } from "../../lib/script-panel/src/finder.ts";
 
 import { finder, interpreter, parseExtensions, shellOf, type Settings } from "../src/scripts.ts";
 

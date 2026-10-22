@@ -2,7 +2,7 @@
 // workspaces included — each run in a terminal beside the current pane, by the manager that owns
 // it. The page itself is `script-panel`'s; this package is its finder (`src/packages.ts`) and the
 // call the window makes to read it.
-import { page, type Page } from "script-panel/main.ts";
+import { page, type Page } from "../../lib/script-panel/src/main.ts";
 
 import { read } from "./packages.ts";
 

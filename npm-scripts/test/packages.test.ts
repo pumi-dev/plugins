@@ -4,7 +4,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { groupScripts, type Finder, type Group } from "script-panel/finder.ts";
+import { groupScripts, type Finder, type Group } from "../../lib/script-panel/src/finder.ts";
 
 import { manager, order, packageGroup } from "../src/packages.ts";
 import { manifest, temp, write } from "./files.ts";
