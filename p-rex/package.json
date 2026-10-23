@@ -1,0 +1,128 @@
+{
+  "name": "pumi-p-rex",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "P-Rex as a UI theme: the terminals' own colours, a little see-through; views as a list down the side, the panes as cards or edge to edge.",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "p-rex",
+    "owner": "amresyd",
+    "api": 1,
+    "themes": [
+      "themes/p-rex"
+    ],
+    "contributes": {
+      "options": {
+        "appearance": {
+          "type": "string",
+          "default": "dark",
+          "label": "Mode",
+          "desc": "Night or day when no terminal color scheme is picked (a picked scheme's look wins), or follow the system.",
+          "choices": [
+            "system",
+            "light",
+            "dark"
+          ],
+          "labels": [
+            "System",
+            "Light",
+            "Dark"
+          ]
+        },
+        "pane_style": {
+          "type": "string",
+          "default": "comfortable",
+          "label": "Pane style",
+          "desc": "Each pane a rounded card with room round it, or panes edge to edge with a line between.",
+          "choices": [
+            "comfortable",
+            "compact"
+          ],
+          "labels": [
+            "Comfortable",
+            "Compact"
+          ]
+        },
+        "opacity": {
+          "type": "number",
+          "default": 88,
+          "min": 50,
+          "max": 100,
+          "step": 2,
+          "unit": "%",
+          "label": "Background opacity",
+          "control": "slider",
+          "desc": "How much of the desktop shows through the window: 100 is opaque."
+        },
+        "pane_titles": {
+          "type": "boolean",
+          "default": true,
+          "label": "Show pane title bars",
+          "desc": "A strip over each pane with its tabs, its name and its buttons, to drag it by. Off, only a pane of several tabs keeps one.",
+          "group": "Panes"
+        },
+        "pane_outline": {
+          "type": "boolean",
+          "default": false,
+          "label": "Outline the focused pane",
+          "desc": "A line round the pane with the focus while its view is split.",
+          "group": "Panes"
+        },
+        "pane_equalize": {
+          "type": "boolean",
+          "default": true,
+          "label": "Even out splits automatically",
+          "desc": "Every pane in a view gets an equal share as one opens or closes.",
+          "group": "Panes"
+        },
+        "focus_follows_mouse": {
+          "type": "boolean",
+          "default": false,
+          "label": "Focus the pane under the mouse",
+          "desc": "A pane takes the focus as the mouse moves onto it, without a click.",
+          "group": "Panes"
+        },
+        "sidebar_swipe": {
+          "type": "boolean",
+          "default": true,
+          "label": "Hide the side bar with a swipe",
+          "desc": "Two fingers swept left over the side bar hide it; ⌘B brings it back.",
+          "group": "Side bar"
+        },
+        "view_icons": {
+          "type": "number",
+          "default": 3,
+          "label": "Tab icons per view",
+          "desc": "How many of a view's tabs show as icons beside its name; past that, a count.",
+          "group": "Side bar",
+          "min": 0,
+          "max": 3,
+          "step": 1,
+          "control": "slider"
+        },
+        "animate": {
+          "type": "boolean",
+          "default": true,
+          "label": "Animate layout changes",
+          "desc": "Panes glide into place as they open, close, move and zoom.",
+          "group": "Motion and feedback"
+        },
+        "haptics": {
+          "type": "boolean",
+          "default": true,
+          "label": "Haptic feedback",
+          "desc": "A tap on a Force Touch trackpad as a switch turns or a slider steps. Nothing on a mouse.",
+          "group": "Motion and feedback"
+        }
+      }
+    }
+  }
+}
