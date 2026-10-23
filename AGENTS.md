@@ -1,6 +1,6 @@
 # Writing a package here
 
-Every folder in this repository is a pumi package: a directory `pumi pack add` links, whose
+Every folder in this repository is a pumi plugin: a directory `pumi plugin add` links, whose
 `package.json`'s `pumi` key says what it is. A package has two halves — its logic and what it
 draws — and everything it contributes is declared in the manifest, without running it.
 
@@ -25,13 +25,17 @@ and answers a promise, so an export must answer something serialisable.
 
 ## The SDK
 
-- In `main.ts`: `command`, `on`, `provide`, `emit`, `notify`, `option`, `storage`, `paths`, `pkg`,
-  `call`, and the nouns (`pane`, `tab`, `session`, `key`, `menu`, `script`, `system`, …).
-- In `ui.tsx`: the state hooks (`useApp`, `useSessions`, `useTabs`, `useLayout`, `usePane`,
-  `useFocusedPane`, `useAgents`, `useOption`, `useWindow`, …), `useTheme`/`useMetrics`/
-  `useComponents`, `call`, `num`, `Icon`, `useWebview`/`WebView`, `renderView`, `Boundary`,
-  `useContributions`, and the renderer's kit (`useDraggable`/`useDroppable`, `useInterval`,
-  `motion`, `Button`, `Dialog`, `Tooltip`, …).
+- In `main.ts`: `command`, `on`, `provide`, `emit`, `notify`, `option`, `storage`, `paths`,
+  `plugin` (itself: `plugin.id`, `plugin.prefixed`), `call`, and the nouns (`pane`, `tab`,
+  `session`, `block`, `menu`, `message`, `server`, `fs`, `process`, `clipboard`, `dialog`,
+  `secret`, …). Keys a plugin computes go on the wire: `call("key.set", …)`.
+- In `ui.tsx`: the state hooks (`useSessions`, `useTabs`, `useLayout`, `usePane`, `usePanes`,
+  `useFocusedPane`, `useAgents`, `useAgent`, `useOption`, `useWindow`, …; numeric ids),
+  `useTheme`/`useMetrics`, `call`, `Icon`, `useWebview`/`WebView`, `useChannel`, `useEvent`,
+  `useFocus`, `usePlugin`, and the renderer's kit (`useDraggable`/`useDroppable`, `useInterval`,
+  `motion`, `Dialog`, `Tooltip`, …).
+- In a theme: `pumi/theme` too, the window's own kit (`useComponents`, `useSlot`, `useRenderer`,
+  `renderView`, `useApp`, `num`, `commands`, `useLocal`, `Button`, …; string ids `%3`).
 
 `pumi` is resolved by the app's Bun host, so it always matches the app. For `tsc`, each package's
 `tsconfig.json` names `./node_modules/@pumid/types/index.ts` — the app's own types — which
@@ -59,12 +63,12 @@ bun install                    # a package's npm dependencies, if it has any
       "options": { "side_by_side": { "type": "boolean", "default": false, "label": "Side by side" } },
       "commands": [{ "id": "toggle", "title": "Queue: show it" }],
       "keys": [{ "key": "<D-S-q>", "command": "toggle" }],
-      "points": {
+      "slots": {
         "panel": { "view": "Board", "title": "Queue", "icon": "list" },
         "pane.strip": { "view": "Bar" },
         "status": { "actions": [{ "id": "toggle", "title": "Queue", "icon": "list", "command": "toggle" }] }
       },
-      "views": [{ "id": "board", "title": "Queue" }]
+      "blocks": [{ "id": "board", "title": "Queue" }]
     },
     "activation": ["onStartup"],
     "themes": ["themes/queue"]
@@ -72,17 +76,19 @@ bun install                    # a package's npm dependencies, if it has any
 }
 ```
 
-- **`points`** is keyed by the fixed set: `window.titlebar`, `window.overlay`, `session.header`,
+- **`slots`** is keyed by the fixed set: `window.titlebar`, `window.overlay`, `session.header`,
   `tab.actions`, `tab.badge`, `pane.toolbar`, `pane.strip`, `pane.overlay`, `pane.menu`,
-  `agent.controls`, `agent.footer`, `agent.menu`, `panel`, `status`, `palette.actions`. A point has
+  `agent.controls`, `agent.footer`, `agent.menu`, `panel`, `status`, `palette.actions`. A slot has
   a `view` (a `ui.tsx` export) and/or `actions` (data, drawn as the theme's buttons; an action runs
   its command with `{ pane }` or `{ tab }` of where it was pressed).
-- **`views`** are pane types a package opens itself: `{ "id": "board" }` is the type
-  `owner.name.board`, drawn by the `ui.tsx` export `Board` with `{ pane }`.
-- **`themes`** are the folders `defineTheme` reads: a theme replaces the window's parts it names
-  (`runtime/app/sdk/theme.ts` `Components`) and nothing else.
-- Everything of the package's own is prefixed `owner.name.` (`pkg.prefixed("board")`).
-- `activation` says when the worker starts (`onStartup`, `onView:<id>`, `onCommand:<id>`,
+- **`blocks`** are what a plugin's panes hold: `{ "id": "board" }` is the block
+  `owner.name.board`, drawn by the `ui.tsx` export `Board` with `{ pane, block, focused }`.
+  **`renderers`** draws a block it didn't define: `{ "terminal": "Chat" }`, picked for a pane by
+  its `@pane_renderer` option.
+- **`themes`** are the folders `defineTheme` reads: colours, metrics, fonts, and the window's
+  parts it draws itself (`components`, with the kit from `pumi/theme`).
+- Everything of the plugin's own is prefixed `owner.name.` (`plugin.prefixed("board")`).
+- `activation` says when the worker starts (`onStartup`, `onBlock:<id>`, `onCommand:<id>`,
   `onEvent:<name>`); with none it starts on first use.
 
 ## Drawing
@@ -94,7 +100,7 @@ bun install                    # a package's npm dependencies, if it has any
 - **Sizes from `useMetrics()`**: `radius`, `radiusSmall`, `fontSize`.
 - **Text is `<text>`**; an icon is `<Icon name="folder" size={14} color={t.muted} />` (the app's
   names, `assets/icons`); a web page is `<WebView handle={pane} src={url} />`; a pane's terminal is
-  `<terminal pane={id} autoFocus />`.
+  `<terminal pane={pane.id} autoFocus />`. Window objects have numeric ids (`pane.id`).
 - Never block a render: state that arrives later is `useState` + `useEffect`, or a hook over the
   app's store (panes, options) when the state is the app's.
 
@@ -107,14 +113,15 @@ cd <pkg> && bun test                   # one package's
 cd <pkg> && ./node_modules/.bin/tsc --noEmit -p .   # its types
 ```
 
-In a pumi checkout beside this one, `pumi pack add ./<pkg>` links the package and the app starts
-it; `pumi pack dev ./<pkg>` reloads it on save, and `pumi plugin logs <owner>.<name>` shows its
-output.
+In a pumi checkout beside this one, `pumi plugin add ./<pkg>` links the plugin and the app starts
+it; `pumi plugin dev ./<pkg>` reloads it on save, and `pumi plugin logs <name>` shows its output.
+Do not run `pumi --headless` against your own directories to try one: `--headless --clean` keeps
+its own.
 
 ## Reference
 
 - `~/Kitchen/pumi/AGENTS.md`: how pumi itself is put together.
-- `PHASE2.md` here: the port this repository just went through — the mapping from the old SDK, the
-  two halves, and what "done" means for a package.
+- `PORTING.md` here: the move to pumi's final API (names, manifest, SDK), for what is left
+  (`tmux/PORT.md`).
 - `~/Kitchen/pumi/runtime/app/template`: the smallest package.
-- `~/Kitchen/pumi/runtime/app/app/theme/default.tsx`: every point drawn, and how.
+- `~/Kitchen/pumi/runtime/app/app/theme/default.tsx`: every slot drawn, and how.
