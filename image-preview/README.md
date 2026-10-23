@@ -2,20 +2,29 @@
 
 Rest the pointer on an image file's path in a terminal to see the image.
 
-**Not ported yet.** This is the plugin as it was written against the v1 plugin shape
-(`plugin.json`, the `Plugin` trait with `activate`/`event`, `runtime::settings()`,
-`terminal.match` with a `path` matcher, `Place::popover`). That shape is gone: a package is
-now `ui/` (a wasm component built from a crate with `pumi_plugin::plugin!(init)`; see
-pumi.dev/docs/packages) plus `pumi.toml`.
+**Not ported, and not portable as it stands.** What is here was written against the v1 plugin shape
+(`plugin.json`, the `Plugin` trait with `activate`/`event`, `runtime::settings()`, `terminal.match`
+with a `path` matcher, `Place::popover`). That shape is gone: a plugin is a directory whose
+`package.json` has a `pumi` key — `src/main.ts` in a worker and `src/ui.tsx` in the window — and the
+server runs none of it. `pumi`'s own plan lists this package as deleted (`docs/plan/migration.md`).
 
-To bring it back, two things are needed:
+Two things it needs have no replacement in the API:
 
-1. A source of "the pointer rested on this path, in this pane, at this row, here is the
-   anchor" — the matchers that produced it lived in the host's `runtime/plugin/matchers.lua`,
-   and the host runs no Lua now. Either the app gets that as a general feature,
-   or the plugin reads the pane under the pointer itself.
-2. `ui/`: `Card` as a view (`Render`), the settings as `pumi_create_option` calls
-   (`image_preview.max_width`, `image_preview.max_height`), and the hover card as a
-   `pumi_open_pane` with `place: {kind: "float", …}`.
+1. **A source of "the pointer rested on this path, in this pane, at this row, here is the anchor".**
+   The matchers that produced it lived in the host's `runtime/plugin/matchers.lua`, and the host runs
+   no Lua now; no event, slot or hook says a pointer rested on something a terminal drew. Until the
+   app has that as a feature of its own, there is nothing for a plugin to listen to.
+2. **A card over the pane.** `Place::popover` is gone; a pane now floats with
+   `pane.open(block, args, { kind: "float", … })`, which a plugin can ask for. What it has no road to
+   is the first part: knowing when.
 
-`src/size.rs` (an image's dimensions, from its header) is portable as it is.
+To bring it back, then:
+
+- `package.json` — `"pumi": { "name": "image-preview", "owner": "amresyd", "api": 1 }` with its two
+  settings in `contributes.options` (`max_width`, `max_height`, numbers, 360 and 280).
+- `src/ui.tsx` — `Card`, the image at the size those settings allow, and `src/main.ts` the function
+  that opens it as a float: `pane.open("…", { path }, { kind: "float", anchor, dismiss: ["escape", "press"] })`.
+- a trigger, which does not exist yet (1).
+
+`src/size.rs` (an image's dimensions, from its header) is portable as it is: read the header, fit
+the size to the settings.
