@@ -1,0 +1,59 @@
+{
+  "name": "pumi-nudge",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A notification from the OS when an agent is blocked or done, so a long turn does not need the window watched.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "nudge",
+    "owner": "amresyd",
+    "api": 1,
+    "contributes": {
+      "options": {
+        "blocked": {
+          "type": "boolean",
+          "default": true,
+          "label": "Waiting agents",
+          "desc": "Say so when an agent stops to wait for you: a permission, a question, a plan to approve."
+        },
+        "done": {
+          "type": "boolean",
+          "default": true,
+          "label": "Finished turns",
+          "desc": "Say so when an agent finishes a turn and its result is waiting for you."
+        },
+        "error": {
+          "type": "boolean",
+          "default": false,
+          "label": "Failed agents",
+          "desc": "Say so when an agent fails (its state is `error`)."
+        },
+        "sound": {
+          "type": "string",
+          "default": "default",
+          "label": "Sound",
+          "placeholder": "default, Glass, or empty",
+          "desc": "The sound the notice makes: `default` for the system's, a sound's name, or empty for a silent one."
+        }
+      },
+      "commands": [
+        {
+          "id": "test",
+          "title": "Nudge: send a test notification"
+        }
+      ]
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
