@@ -3,7 +3,8 @@
 // files under art/ (`bun tools/art.ts` draws them); an <img> of one is rasterised once and shared
 // by every place that shows it.
 import { useState, useSyncExternalStore, type ReactNode } from "react"
-import { useAppearance, useTheme, type Tokens } from "pumi"
+import { useTheme, type Tokens } from "pumi"
+import { useAppearance } from "pumi/theme"
 
 const ART = `${import.meta.dir}/art`
 

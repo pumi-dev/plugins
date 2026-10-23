@@ -6,35 +6,33 @@
 // Menus are the game's framed dialog boxes. Started from the app's default window
 // (runtime/app/app/theme/default.tsx): the behaviour is the default's, the look is this file's.
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
+import { Icon, useMetrics, useTheme } from "pumi"
 import {
   call,
   commands,
-  Icon,
   num,
   renderView,
   useAgentOf,
   useAgents,
   useComponents,
-  useContributions,
   useFloats,
   useFocusedPane,
   useLayout,
   useLocal,
-  useMetrics,
   usePane,
-  usePaneView,
+  useRenderer,
   useSession,
   useSessions,
+  useSlot,
   useTab,
   useTabs,
-  useTheme,
   useWindow,
   useZoomed,
   windowContext,
   type ActionItem,
   type Components,
   type Tree,
-} from "pumi"
+} from "pumi/theme"
 import { Avatar, box, Bubble, Decor, Floor, FONT, Nametag, Sign, useBeat, type Facing } from "./art.tsx"
 
 const swallow = (err: unknown) => console.error(String(err))
@@ -108,7 +106,7 @@ function Window() {
   const [sidebar, setSidebar] = useLocal("gather.sidebar", true)
   const [width, setWidth] = useLocal("gather.sidebar.width", 236)
   commands.useCommand("toggle_sidebar", "Toggle sidebar", () => setSidebar((v) => !v))
-  const overlays = useContributions("window.overlay").views
+  const overlays = useSlot("window.overlay").views
   return (
     <DesksContext.Provider value={desks}>
       <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", position: "relative", backgroundColor: t.window, color: t.text, fontSize: m.fontSize, fontFamily: FONT }}>
@@ -137,7 +135,7 @@ function Window() {
         <C.StatusBar />
         <Walker />
         {overlays.map((v) => (
-          <div key={`${v.pkg}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+          <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
             {renderView(v)}
           </div>
         ))}
@@ -252,7 +250,7 @@ function TopHud({ sidebar, toggleSidebar }: { sidebar: boolean; toggleSidebar():
   const session = useSession()
   const sessions = useSessions()
   const [picking, setPicking] = useState(false)
-  const { views, actions } = useContributions("window.titlebar")
+  const { views, actions } = useSlot("window.titlebar")
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", height: 46, flexShrink: 0, gap: 8, paddingLeft: 80, paddingRight: 14 }}>
       <PixelButton icon="layout_sidebar_left" title="Toggle lobby" active={sidebar} onClick={toggleSidebar} />
@@ -279,7 +277,7 @@ function TopHud({ sidebar, toggleSidebar }: { sidebar: boolean; toggleSidebar():
       ) : null}
       <div style={{ flexGrow: 1 }} />
       {actions.map((a) => (
-        <C.Action key={`${a.pkg}/${a.id}`} action={a} />
+        <C.Action key={`${a.plugin}/${a.id}`} action={a} />
       ))}
       {views.length ? <Board>{views.map((v) => renderView(v))}</Board> : null}
       <Minimap />
@@ -337,7 +335,7 @@ function MiniDesk({ pane: id, here }: { pane: string; here: boolean }) {
   const agent = pane?.agent ? (t[`agent.${pane.agent_status || "unknown"}`] ?? t["agent.unknown"]) : undefined
   return (
     <div
-      onClick={() => call("pane.select", { to: num(id) }).catch(swallow)}
+      onClick={() => call("pane.select", { pane: num(id) }).catch(swallow)}
       style={{ display: "flex", flexDirection: "row", flexGrow: 1, gap: 2, padding: 2, alignItems: "flex-start", backgroundColor: t.desk, cursor: "pointer" }}
     >
       {here ? <div style={{ width: 4, height: 4, backgroundColor: blink ? t.success : t.desk }} /> : null}
@@ -417,7 +415,7 @@ function TabBar({ session }: { session?: string }) {
 function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: number }) {
   const t = useTheme()
   const tab = useTab(id)
-  const { actions } = useContributions("tab.actions")
+  const { actions } = useSlot("tab.actions")
   if (!tab) return null
   const label = tab.label && !/^\d+$/.test(tab.label) ? tab.label : `Tab ${index + 1}`
   const status = tab.agent_status ? (t[`agent.${tab.agent_status}`] ?? t["agent.unknown"]) : undefined
@@ -447,13 +445,13 @@ function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: 
       <text style={{ fontSize: 13, color: active ? t.slotText : t.slotTextDim, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0, marginTop: 4 }}>{label}</text>
       <Point point="tab.badge" args={{ tab: id }} />
       {actions.map((a) => (
-        <Contributed key={`${a.pkg}/${a.id}`} action={a} args={{ tab: id }} />
+        <Contributed key={`${a.plugin}/${a.id}`} action={a} args={{ tab: id }} />
       ))}
       {active ? (
         <div
           onClick={(e: any) => {
             e?.stopPropagation?.()
-            call("tab.close", num(id), true).catch(swallow)
+            call("tab.close", num(id)).catch(swallow)
           }}
           style={{ display: "flex", width: 16, height: 16, alignItems: "center", justifyContent: "center", color: t.slotText, opacity: 0.6, hover: { opacity: 1, backgroundColor: t.slotRing } }}
         >
@@ -467,13 +465,13 @@ function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: 
 /** A point's views, given `args`, and its actions as buttons. */
 function Point({ point, args, gap = 4 }: { point: string; args?: Record<string, unknown>; gap?: number }) {
   const C = useComponents()
-  const { views, actions } = useContributions(point)
+  const { views, actions } = useSlot(point)
   if (!views.length && !actions.length) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap, flexShrink: 0 }}>
       {views.map((v) => renderView(v, args))}
       {actions.map((a) => (
-        <C.Action key={`${a.pkg}/${a.id}`} action={a} args={args} />
+        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={args} />
       ))}
     </div>
   )
@@ -482,7 +480,7 @@ function Point({ point, args, gap = 4 }: { point: string; args?: Record<string, 
 /** A right-click dialog of a point's actions (and views), where the mouse is. */
 function useMenu(point: string, args: Record<string, unknown>) {
   const t = useTheme()
-  const { views, actions } = useContributions(point)
+  const { views, actions } = useSlot(point)
   const [at, setAt] = useState<{ x: number; y: number } | undefined>()
   const open = (e: any) => {
     if (!e?.isRightClick || (!views.length && !actions.length)) return
@@ -494,7 +492,7 @@ function useMenu(point: string, args: Record<string, unknown>) {
       <div style={{ display: "flex", flexDirection: "column", minWidth: 190, padding: 6, ...box(t, "dialog") }}>
         {actions.map((a) => (
           <div
-            key={`${a.pkg}/${a.id}`}
+            key={`${a.plugin}/${a.id}`}
             onClick={() => {
               close()
               a.run(args)
@@ -602,7 +600,7 @@ function deskName(pane: ReturnType<typeof usePane>): string {
   if (pane.label) return pane.label
   if (pane.terminal_title) return pane.terminal_title
   const cwd = pane.cwd?.replace(/\/+$/, "")
-  return cwd ? cwd.split("/").pop() || "/" : pane.kind
+  return cwd ? cwd.split("/").pop() || "/" : pane.block
 }
 
 /**
@@ -614,25 +612,24 @@ function Pane({ pane: id, focused }: { pane: string; focused: boolean; zoomed: b
   const t = useTheme()
   const desks = useContext(DesksContext)
   const pane = usePane(id)
-  const view = usePaneView(pane?.kind)
-  const { views } = useContributions("pane.strip")
-  const overlays = useContributions("pane.overlay").views
+  const renderer = useRenderer(id)
+  const { views } = useSlot("pane.strip")
+  const overlays = useSlot("pane.overlay").views
   const { open, menu } = useMenu("pane.menu", { pane: id })
-  const body: ReactNode =
-    pane?.kind === "terminal" || !pane ? (
-      <terminal pane={id} autoFocus={focused} style={{ flexGrow: 1, minWidth: 0, minHeight: 0 }} />
-    ) : view ? (
-      renderView(view, { pane: id })
-    ) : (
-      <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" }}>
-        <text style={{ color: t.faint }}>{`Nothing draws ${pane.kind} panes`}</text>
-      </div>
-    )
+  // Every block is drawn by the renderer a plugin gives it, terminals included (`useRenderer`):
+  // the terminal's is the bundled plugin `pumi/terminal`.
+  const body: ReactNode = !pane ? null : renderer ? (
+    renderView(renderer, { pane: id, block: pane.block, focused })
+  ) : (
+    <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" }}>
+      <text style={{ color: t.faint }}>{`Nothing draws ${pane.block} blocks`}</text>
+    </div>
+  )
   return (
     <div
       onLayout={(e) => desks?.set(id, { x: e.x ?? 0, y: e.y ?? 0, width: e.width ?? 0, height: e.height ?? 0 })}
       onMouseDown={() => {
-        if (!focused) call("pane.select", { to: num(id) }).catch(swallow)
+        if (!focused) call("pane.select", { pane: num(id) }).catch(swallow)
       }}
       onAuxClick={open}
       style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, padding: 10, paddingBottom: 2 }}
@@ -674,8 +671,8 @@ function Pane({ pane: id, focused }: { pane: string; focused: boolean; zoomed: b
         >
           {body}
           {overlays.map((v) => (
-            <div key={`${v.pkg}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-              {renderView(v, { pane: id })}
+            <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+              {renderView(v, { pane: id, focused })}
             </div>
           ))}
         </div>
@@ -802,11 +799,11 @@ function Float({ pane: id }: { pane: string }) {
  */
 function Panel({ point }: { point: string }) {
   const t = useTheme()
-  const { views } = useContributions(point)
+  const { views } = useSlot(point)
   const [collapsed, setCollapsed] = useLocal<string[]>(`gather.${point}.collapsed`, [])
   const sections: { key: string; title: string; body: ReactNode; board: boolean }[] = [
     { key: "agents", title: "Players", body: <Agents />, board: false },
-    ...views.map((v) => ({ key: `${v.pkg}/${v.id}`, title: v.title ?? v.id, body: renderView(v), board: true })),
+    ...views.map((v) => ({ key: `${v.plugin}/${v.id}`, title: v.title ?? v.id, body: renderView(v), board: true })),
   ]
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
@@ -847,7 +844,7 @@ function Panel({ point }: { point: string }) {
 function SessionHeader() {
   const t = useTheme()
   const session = useSession()
-  const { views, actions } = useContributions("session.header")
+  const { views, actions } = useSlot("session.header")
   if (!session || (!views.length && !actions.length)) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32, margin: 8, marginBottom: 0, paddingLeft: 8, paddingRight: 4, flexShrink: 0, ...box(t, "panel") }}>
@@ -893,7 +890,7 @@ function Agent({ pane }: { pane: string }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAuxClick={open}
-      onClick={() => call("pane.select", { to: num(pane) }).catch(swallow)}
+      onClick={() => call("pane.select", { pane: num(pane) }).catch(swallow)}
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingLeft: 4, paddingRight: 4, cursor: "pointer", hover: { backgroundColor: t.floorHover } }}
     >
       <div style={{ position: "relative", width: 44, height: 44, flexShrink: 0 }}>
@@ -915,11 +912,11 @@ function Agent({ pane }: { pane: string }) {
 
 function AgentControls({ pane }: { pane: string }) {
   const C = useComponents()
-  const { views, actions } = useContributions("agent.controls")
+  const { views, actions } = useSlot("agent.controls")
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3 }}>
       {actions.map((a) => (
-        <C.Action key={`${a.pkg}/${a.id}`} action={a} args={{ pane }} />
+        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={{ pane }} />
       ))}
       {views.map((v) => renderView(v, { pane }))}
     </div>
@@ -936,7 +933,7 @@ function StatusBar() {
   const C = useComponents()
   const session = useSession()
   const focused = usePane(useFocusedPane())
-  const { views, actions } = useContributions("status")
+  const { views, actions } = useSlot("status")
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000)
@@ -962,7 +959,7 @@ function StatusBar() {
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, flexGrow: 1, flexBasis: 0, minWidth: 0 }}>
         {views.length ? <Board>{views.map((v) => renderView(v))}</Board> : null}
         {actions.map((a) => (
-          <C.Action key={`${a.pkg}/${a.id}`} action={a} />
+          <C.Action key={`${a.plugin}/${a.id}`} action={a} />
         ))}
         <div style={{ display: "flex", alignItems: "center", height: 28, paddingLeft: 10, paddingRight: 10, flexShrink: 0, ...box(t, "panel") }}>
           <text style={{ fontSize: 14 }}>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</text>

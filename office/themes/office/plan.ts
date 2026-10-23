@@ -3,7 +3,7 @@
 // desk that makes a new tab. Pods stand next to each other, wrap onto the next row when the floor
 // runs out, and the rows sit in the middle of the room. The plan also says what you bump into
 // (desks, the shelf, the coffee machine, the wall) and how to walk around it.
-import type { WindowPane, WindowSession, WindowTab } from "pumi"
+import type { Pane, Session, Tab } from "pumi/theme"
 
 /** A desk's cell on the carpet. */
 export const CELL_W = 176
@@ -38,15 +38,15 @@ export interface Rect {
 
 /** A desk: the tab it holds, and — a desk of its own — the pane. */
 export interface Seat {
-  tab: WindowTab
-  pane?: WindowPane
+  tab: Tab
+  pane?: Pane
   /** The pane's place in its tab (1-based); 1 for a tab's own desk. */
   i: number
 }
 
 /** A session: its carpet, its name, and the cells its desks stand in. */
 export interface Pod {
-  session: WindowSession
+  session: Session
   cols: number
   down: number
   seats: Seat[]
@@ -81,7 +81,7 @@ export interface Plan {
 }
 
 /** A tab's seats: itself, or one for each of its panes when the theme is told to. */
-export function seatsOf(tab: WindowTab, panes: WindowPane[], perPane: boolean): Seat[] {
+export function seatsOf(tab: Tab, panes: Pane[], perPane: boolean): Seat[] {
   const mine = panes.filter((pane) => pane.tab_id === tab.tab_id)
   if (!perPane || !mine.length) return [{ tab, i: 1 }]
   return mine.map((pane, index) => ({ tab, pane, i: index + 1 }))
@@ -94,7 +94,7 @@ export const deskKey = (seat: Seat) => `${seat.tab.tab_id}${seat.pane ? `:${seat
  * The room: each session's pod (its desks in columns, about as wide as tall, and a free desk), the
  * pods in rows in the middle of the floor, the props along its edges.
  */
-export function plan(sessions: WindowSession[], tabs: WindowTab[], panes: WindowPane[], width: number, viewHeight: number, perPane: boolean, lowest = 0): Plan {
+export function plan(sessions: Session[], tabs: Tab[], panes: Pane[], width: number, viewHeight: number, perPane: boolean, lowest = 0): Plan {
   const pods: Pod[] = []
   for (const session of sessions) {
     const seats = tabs.filter((tab) => tab.workspace_id === session.workspace_id).flatMap((tab) => seatsOf(tab, panes, perPane))

@@ -10,32 +10,28 @@
 // rename it, right-click for its menu. The agents at the desks type while they work, their screens
 // flicker, and their bubbles say what they are doing.
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
+import { Icon, motion, useHover, useNow, useTheme } from "pumi"
 import {
-  Icon,
   call,
   commands,
-  motion,
   num,
   renderView,
   useApp,
   useComponents,
-  useContributions,
   useFocusedPane,
-  useHover,
   useLayout,
   useLocal,
-  useNow,
   useSession,
   useSessions,
+  useSlot,
   useTabs,
-  useTheme,
   useThemeOption,
   useWindow,
   useWindowSize,
   windowContext,
+  type Session,
   type Tree,
-  type WindowSession,
-} from "pumi"
+} from "pumi/theme"
 import { BuildPanel, FLOORS, Ghost, Lighting, PieceView, WALLS, lightNow, type Fx, type Light } from "./build.tsx"
 import { KIND, bodyOf, keepAt, newId, placeOf, seatOf, spotOf, starter, type Piece } from "./furniture.ts"
 import { Game, isWalkKey, near, type You } from "./game.ts"
@@ -718,9 +714,9 @@ function Monitor({ tab, onStand }: { tab: string; onStand(): void }) {
 /** The bookshelf: the packages' panels, a book each, and the one that is open. */
 function Shelf({ close }: { close(): void }) {
   const t = useTheme()
-  const { views } = useContributions("panel")
-  const [open, setOpen] = useState<string | null>(views[0] ? `${views[0].pkg}/${views[0].id}` : null)
-  const shown = views.find((v) => `${v.pkg}/${v.id}` === open)
+  const { views } = useSlot("panel")
+  const [open, setOpen] = useState<string | null>(views[0] ? `${views[0].plugin}/${views[0].id}` : null)
+  const shown = views.find((v) => `${v.plugin}/${v.id}` === open)
   return (
     <motion.div
       initial={{ opacity: 0, x: -24 }}
@@ -755,7 +751,7 @@ function Shelf({ close }: { close(): void }) {
       <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 4, padding: 8, flexShrink: 0, borderBottomWidth: 1, borderColor: t.border }}>
         {views.length ? (
           views.map((view) => {
-            const id = `${view.pkg}/${view.id}`
+            const id = `${view.plugin}/${view.id}`
             const active = open === id
             return (
               <div
@@ -841,7 +837,7 @@ function Door({ onClose }: { onClose(): void }) {
   const window = useWindow()
   const sessions = useSessions()
   const here = useSession()
-  const go = (session: WindowSession) => {
+  const go = (session: Session) => {
     window.show(session.workspace_id)
     onClose()
   }
@@ -968,7 +964,7 @@ function Hud({ shelf, look, decorating, onShelf, onLook, onEmote, onDecorate }: 
             key={status}
             onClick={() => {
               const next = agents.find((a) => a.agent_status === status)
-              if (next) call("pane.select", { to: num(next.pane_id) }).catch(swallow)
+              if (next) call("pane.select", { pane: num(next.pane_id) }).catch(swallow)
             }}
             style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, height: 26, paddingLeft: 10, paddingRight: 10, borderRadius: 13, cursor: status === "blocked" ? "pointer" : "default", backgroundColor: status === "blocked" ? "#ef476f33" : "#ffffff12" }}
           >
@@ -1078,7 +1074,7 @@ export function Office() {
   }
   const sit = (seat: Seat) => {
     call("tab.select", { tab: num(seat.tab.tab_id) }).catch(swallow)
-    if (seat.pane) call("pane.select", { to: num(seat.pane.pane_id) }).catch(swallow)
+    if (seat.pane) call("pane.select", { pane: num(seat.pane.pane_id) }).catch(swallow)
     g.stop()
     setShelf(false)
     setDecorating(false)
@@ -1437,7 +1433,7 @@ export function Office() {
                   },
                 ]
               : []),
-            { label: "Close desk", icon: "close", danger: true, run: () => call("tab.close", num(menu.seat.tab.tab_id), true).catch(swallow) },
+            { label: "Close desk", icon: "close", danger: true, run: () => call("tab.close", num(menu.seat.tab.tab_id)).catch(swallow) },
           ]}
         />
       ) : null}

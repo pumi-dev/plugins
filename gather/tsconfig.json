@@ -17,6 +17,7 @@
     "skipLibCheck": true,
     "paths": {
       "pumi": ["./node_modules/@pumid/types/index.ts"],
+      "pumi/theme": ["./node_modules/@pumid/types/theme.ts"],
       "pumi/jsx-runtime": ["./node_modules/@pumid/types/jsx-runtime.ts"],
       "pumi/jsx-dev-runtime": ["./node_modules/@pumid/types/jsx-dev-runtime.ts"]
     }
