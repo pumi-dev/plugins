@@ -60,14 +60,14 @@ the picker over the current tab; give it `{ "pane": 12 }` to pick a path for tha
 
 ## How it is made
 
-A pumi package in TypeScript, run by pumi's Bun host while the app is open. `src/main.ts` reads the
-options, binds the trigger and opens the picker's float (`picker`); `src/picker.ts` is the view;
-`src/entries.ts` walks the directory, `src/match.ts` scores and ranks the matches, and `src/path.ts`
-quotes a path and writes it with `~`. `icons/file.svg` is the document a row draws when the file is
-not one it knows.
+A pumi plugin in TypeScript, run by pumi's Bun host while the app is open. The picker is the block
+`picker` (`<owner>.insert_path.picker`); `src/main.ts` reads the options, binds the trigger and
+opens its float, `src/ui.tsx` draws it, `src/entries.ts` walks the directory, `src/match.ts` scores
+and ranks the matches, and `src/path.ts` quotes a path and writes it with `~`. `icons/file.svg` is
+the document a row draws when the file is not one it knows.
 
 ```sh
-bun test                       # the pure logic: no pumi running
-bunx tsc --noEmit      # the types
-pumi pack dev .        # links it into the running app and reloads it on every save
+bun test                          # the pure logic: no pumi running
+bunx tsc --noEmit                 # the types
+pumi plugin dev .                 # links it into the running app and reloads it on every save
 ```

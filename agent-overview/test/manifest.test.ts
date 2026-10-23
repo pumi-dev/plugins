@@ -1,5 +1,5 @@
 // What the package contributes without running, as the app reads it: Settings shows its options,
-// the palette its command, and the app knows the view it draws.
+// the palette its command, and the app knows the block it draws.
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -21,11 +21,11 @@ test("its four options are declared for Settings, each with what it says", () =>
   expect(pumi.contributes.options.key).toMatchObject({ type: "string", default: "", placeholder: "<M-a>" });
 });
 
-test("it contributes its view and its command, and starts with the app", () => {
+test("it contributes its block and its command, and starts with the app", () => {
   expect(pumi.name).toBe("agent-overview");
   expect(pumi.owner).toBe("amresyd");
   expect(pumi.api).toBe(1);
-  expect(pumi.contributes.views).toEqual([{ id: "overview", title: "Agent overview", icon: "blocks" }]);
+  expect(pumi.contributes.blocks).toEqual([{ id: "overview", title: "Agent overview", icon: "blocks" }]);
   expect(pumi.contributes.commands).toEqual([{ id: "open", title: "Open the agent overview" }]);
   expect(pumi.activation).toEqual(["onStartup"]);
 });

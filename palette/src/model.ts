@@ -3,7 +3,7 @@
 // (`>` typed on an empty files query, backspace on an empty commands one), the same scoring, the
 // same history walking with ↑, the same 200 rows:
 //
-//   commands  cmd+shift+p: the commands there are, from `action.list` and the keys there are
+//   commands  cmd+shift+p: the commands there are, from `menu.list` and the keys there are
 //   files     cmd+p: the project's files, walked as the core walks them (see walk.ts)
 //
 // `ui.tsx` draws what `view()` answers; every gesture comes back here (a key typed, a row picked),
@@ -94,7 +94,6 @@ class Model {
     this.ready = true;
     this.switch(this.opening ?? "commands");
     on("menu.changed", { desc: "the palette follows the commands there are" }, () => void this.refresh());
-    on("key.changed", { desc: "the palette follows the keys there are" }, () => void this.refresh());
   }
 
   /** The commands changed under it: they are listed again. */
@@ -123,7 +122,7 @@ class Model {
   /** The directory the palette searches: the one the current pane is in. */
   private async directory(): Promise<string> {
     try {
-      const current = await pane.current();
+      const current = await pane.get();
       const id = typeof current?.id === "number" ? current.id : undefined;
       const path = await option.get("pane_current_path", id === undefined ? {} : { pane: id });
       return typeof path === "string" ? path : "";

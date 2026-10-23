@@ -38,11 +38,15 @@ work before its worker has ever run: `pumi call amresyd.palette.toggle` opens it
 The commands are what the app publishes about itself, read when the palette opens and again whenever
 they change:
 
-- `menu.get("")` — every menu the app and the packages put up: the header's buttons, a pane's strip,
-  the menu bar's menus. A leaf is a row; it runs with `menu.exec`, or opens the view it names.
+- `menu.list("")` — every menu the app and the packages put up: the header's buttons, a pane's strip,
+  the menu bar's menus. A leaf is a row; it runs with `menu.exec`, or opens the block it names.
 - `key.list("")` — every key table: the host's prefix keys, a package's own table, the `root` table
   a manifest's `keys` land in. A binding whose right-hand side is a function is a row; it runs by
-  calling that function.
+  calling that function. The tables have no noun of their own in the SDK, so it is a `call`.
+
+A key bound while the palette is open is not listed until it is opened again: the tables are read
+when it opens, and `menu.changed` re-reads them, but `key.changed` is gone, so a new key mapping no
+longer refreshes a palette that is up.
 
 The core plugin is handed the app's entire action list instead, which a package cannot have — see
 `docs/plan/ports/palette.md` in the pumi checkout for what that leaves out.
@@ -64,7 +68,7 @@ them), and the files opened lately (what an empty files search leads with, a hun
 
 | | |
 | --- | --- |
-| `src/main.ts` | what registers: the two commands, the view, and where the float goes |
+| `src/main.ts` | what registers: the two commands, the block, and where the float goes |
 | `src/palette.ts` | the palette itself: its modes, its keys, its rows |
 | `src/score.ts` | the fuzzy matcher and the palette's own arithmetic |
 | `src/files.ts` | the file index and the search over it |

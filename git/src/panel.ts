@@ -5,7 +5,7 @@
 //
 // It looks again when the work tree changes (`watch.ts`), when the current pane or its directory
 // does, when its options change, and after every action it takes.
-import { option, pane, system, tab } from "pumi";
+import { fs, option, pane, tab } from "pumi";
 import * as git from "./git.ts";
 import type { Change, Commit } from "./git.ts";
 import * as state from "./state.ts";
@@ -322,7 +322,7 @@ export class Panel {
     const root = this.root;
     if (root === null) return;
     try {
-      await system.open({ path: `${root}/${path}` });
+      await fs.open({ path: `${root}/${path}` });
     } catch (err) {
       this.say(false, `open failed: ${message(err)}`);
       this.changed();
@@ -383,8 +383,9 @@ async function read(): Promise<Settings> {
 }
 
 /**
- * The directory the user is working in: the pane the app has current, and when that is this page
- * itself — a page in the sidebar takes the keyboard like any other pane — the tab's own pane.
+ * The directory the user is working in: the pane the app has current, and when that is not a
+ * terminal (a page, a browser) the tab's own pane. A pane is tiled or float now, so where it is has
+ * nothing to say about whether its directory counts.
  */
 export async function directory(): Promise<string> {
   const pathOf = async (at: number): Promise<string | null> => {
@@ -392,15 +393,12 @@ export async function directory(): Promise<string> {
     return typeof path === "string" && path !== "" ? path : null;
   };
   try {
-    const current = await pane.current();
-    const place = await pane.getPlace(current).catch(() => null);
-    if (place?.kind !== "slot") {
-      const path = await pathOf(current.id);
-      if (path !== null) return path;
-    }
-    const here = await tab.current();
+    const current = await pane.get();
+    const path = await pathOf(current.id);
+    if (path !== null) return path;
+    const here = await tab.get();
     for (const each of await pane.list({ tab: here.id })) {
-      const path = await pathOf(each.id);
+      const path = await pathOf(Number(each));
       if (path !== null) return path;
     }
   } catch (err) {

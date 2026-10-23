@@ -52,7 +52,7 @@
           "group": "Pi session"
         }
       },
-      "points": {
+      "slots": {
         "pane.strip": {
           "view": "Strip"
         }

@@ -1,12 +1,11 @@
-// The model behind the dashboard: every agent pane in this pumi, built from the window's own
-// snapshot (the app has the panes and what each says of itself) or from the server's model, as a
-// test gives it.
+// The model behind the dashboard: every agent pane in this pumi, built from the panes, tabs and
+// sessions both halves have — the window's own state, or what `pane.list` and `option.get` find on
+// the server.
 //
 // An agent says what it is doing itself (OSC 7501, docs/v2/23 §6): the host keeps a pane's records
 // as `@program_status` and the most demanding state among them as `@agent_status`. Who the agent is
 // (`@agent`: `pi`, `claude`, …) and which conversation it is in (`@agent_session`) the agent's hook
 // writes. Nothing here reads a screen or a process.
-import type { Snapshot as Window } from "pumi";
 
 import {
   filterMatches,
@@ -39,6 +38,43 @@ export interface Agent {
   title: string;
   /** The pane the user is in: the model's current pane. */
   here: boolean;
+}
+
+/** A pane, a tab and a session, as both halves have them before the model is built: the window's
+ * own, or what the server's `pane.list` finds. */
+export interface PaneState {
+  id: number;
+  /** The tab it is tiled in; none for a float, a slot or a detached pane. */
+  tab: number | null;
+  /** The session its tab is in. */
+  session: number | null;
+  /** Its `title` option, as the program wrote it. */
+  title: string;
+  /** Its `pane_current_path`. */
+  cwd: string;
+  /** Its options: `@agent`, `@agent_status`, `@program_status`, `@agent_session`, … */
+  options: Record<string, unknown>;
+}
+
+/** A tab: its session and its name. */
+export interface TabState {
+  id: number;
+  session: number;
+  name: string;
+}
+
+/** A session. */
+export interface SpaceState {
+  id: number;
+  name: string;
+}
+
+/** Every pane, tab and session, and the pane in front. */
+export interface State {
+  spaces: SpaceState[];
+  tabs: TabState[];
+  panes: PaneState[];
+  here: number | null;
 }
 
 /** The last segment of its directory: what a row can afford to show. */
@@ -86,56 +122,50 @@ export class Overview {
   ) {}
 
   /**
-   * The window's own snapshot, as the dashboard reads it: the app has the panes and what they say of
-   * themselves, so nothing is read from the server here.
+   * The panes, tabs and sessions, as the dashboard reads them: what each pane says of itself is in
+   * its options, so nothing else is read here.
    */
-  static fromWindow(app: Window | undefined): Overview {
-    if (!app) return new Overview([], null);
+  static fromState(state: State | undefined): Overview {
+    if (!state) return new Overview([], null);
     /** A tab's place: its session, the session's name, and its own. */
-    const places = new Map<string, { session: number; sessionName: string; tabName: string }>();
-    const nameOf = new Map(app.workspaces.map((each) => [each.workspace_id, each.label ?? ""]));
-    for (const tab of app.tabs) {
-      places.set(tab.tab_id, {
-        session: id(tab.workspace_id) ?? 0,
-        sessionName: nameOf.get(tab.workspace_id) ?? "",
-        tabName: tab.label ?? "",
-      });
+    const places = new Map<number, { session: number; sessionName: string; tabName: string }>();
+    const nameOf = new Map(state.spaces.map((each) => [each.id, each.name]));
+    for (const tab of state.tabs) {
+      places.set(tab.id, { session: tab.session, sessionName: nameOf.get(tab.session) ?? "", tabName: tab.name });
     }
-    const currentPane = id(app.focused_pane_id ?? "");
     const agents: Agent[] = [];
-    for (const pane of app.panes) {
-      // Agents live in terminals placed in a tab; floats, slots and detached panes are the chrome's
-      // and other views' business.
-      if (pane.kind !== "terminal" && pane.kind !== "web") continue;
-      const site = places.get(pane.tab_id);
+    for (const pane of state.panes) {
+      // Agents live in panes placed in a tab; floats, slots and detached panes are the chrome's and
+      // other blocks' business.
+      if (pane.tab === null) continue;
+      const site = places.get(pane.tab);
       if (!site) continue;
-      const options = obj(pane.options);
+      const options = pane.options;
       const option = (key: string) => str(options[key]).trim();
       const records = Array.isArray(options["@program_status"]) ? (options["@program_status"] as unknown[]) : undefined;
-      const { status, why } = statusOf(pane.agent_status ?? "", records);
-      const agent = (pane.agent ?? "").trim() || option("@agent");
+      const { status, why } = statusOf(option("@agent_status"), records);
+      const agent = option("@agent");
       // A shell nobody has reported on is not an agent; a program that said what it is doing is one
       // even when it never named itself.
       if (agent === "" && (status === "idle" || status === "unknown")) continue;
       const record = worst(records);
       const message = record ? str(obj(record).msg) : "";
       const kind = agent !== "" ? agent : str(record ? obj(record).app : "") || option("pane_current_command");
-      const paneId = id(pane.pane_id) ?? 0;
       agents.push({
-        pane: paneId,
+        pane: pane.id,
         session: site.session,
         sessionName: site.sessionName,
-        tab: id(pane.tab_id) ?? 0,
+        tab: pane.tab,
         tabName: site.tabName,
         kind,
         status,
         why,
         message,
         conversation: option("@agent_session"),
-        cwd: pane.cwd ?? option("pane_current_path"),
+        cwd: pane.cwd.trim() !== "" ? pane.cwd : option("pane_current_path"),
         command: option("pane_current_command"),
-        title: stripTitle(pane.terminal_title ?? ""),
-        here: pane.pane_id === app.focused_pane_id,
+        title: stripTitle(pane.title),
+        here: pane.id === state.here,
       });
     }
     agents.sort(
@@ -146,7 +176,7 @@ export class Overview {
         compare(a.tabName, b.tabName) ||
         a.pane - b.pane,
     );
-    return new Overview(agents, currentPane);
+    return new Overview(agents, state.here);
   }
 
 
@@ -243,22 +273,6 @@ function obj(value: unknown): Record<string, unknown> {
 /** A string field, empty when it is not one. */
 function str(value: unknown): string {
   return typeof value === "string" ? value : "";
-}
-
-/** A number field, `null` when it is not one: the ids come as `"$1"` in an app's snapshot and as
- * numbers in the server's model, and both are read here. */
-function id(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value !== "") {
-    const at = Number(value.replace(/^[%@$]/, ""));
-    return Number.isFinite(at) ? at : null;
-  }
-  return null;
-}
-
-/** An array, empty when it is not one. */
-function list(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
 }
 
 /** Two names in the order the table shows them, the unnamed last. */

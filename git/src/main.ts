@@ -9,7 +9,7 @@
 // The repository is `panel.ts`, the rows `tree.ts`'s, the git work `git.ts`. What is here is the
 // logic: the page's own model, kept fresh as the pane in front moves and the work tree changes, and
 // the exports `ui.tsx` asks for — the rows, and every gesture it makes.
-import { action, command, on, option, paths, pkg } from "pumi";
+import { command, on, option, paths, plugin } from "pumi";
 
 import { panel, type Snapshot } from "./panel.ts";
 import type { Change, Group } from "./git.ts";
@@ -211,10 +211,10 @@ function next(step: number): string | null {
 // ---- what the app reaches
 
 /** `ctrl+shift+g`, as the app's own key does: the sidebar, which is where the page is. */
-command("toggle", () => action.run("toggle_sidebar"));
+command("toggle", () => command.run("toggle_sidebar"));
 
 /** Its options changed: read them again, and draw with them. */
-on("option.changed", { match: pkg.prefixed("*"), desc: "the git page's options" }, () => void panel.reread());
+on("option.changed", { match: plugin.prefixed("*"), desc: "the git page's options" }, () => void panel.reread());
 
 /** The pane in front may be in another repository. */
 on(["pane.focused", "cwd.changed", "tab.focused", "session.focused"], { desc: "the git page follows the pane the user works in" }, () => {

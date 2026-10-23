@@ -4,7 +4,7 @@
 // No view: it reads its options, measures every terminal on a timer of its own, and provides
 // `sleep` and `wake` (`amresyd.heavy_terminals.sleep` and `.wake`), which a user command of tmux's,
 // `pumi call`, or a script reaches.
-import { ApiError, pane, pkg, provide } from "pumi";
+import { ApiError, pane, plugin, provide } from "pumi";
 import { number } from "./options.ts";
 import { processes } from "./procs.ts";
 import { Watches } from "./watches.ts";
@@ -22,7 +22,7 @@ async function paneOf(asked: unknown): Promise<number | null> {
     if (named !== null) return named;
   }
   try {
-    return (await pane.current()).id;
+    return (await pane.get()).id;
   } catch {
     return null;
   }
@@ -36,7 +36,7 @@ function idOf(asked: unknown): number | null {
 }
 
 provide(
-  pkg.prefixed("sleep"),
+  plugin.prefixed("sleep"),
   {
     desc: "Suspend a terminal's foreground job, as ctrl+z would.",
     parameters: [["number", "pane"]],
@@ -50,7 +50,7 @@ provide(
 );
 
 provide(
-  pkg.prefixed("wake"),
+  plugin.prefixed("wake"),
   {
     desc: "Wake a terminal put to sleep.",
     parameters: [["number", "pane"]],
@@ -68,11 +68,11 @@ async function interval(): Promise<number> {
   return Math.max(await number("interval", 5), 0.1) * 1000;
 }
 
-/** Whether the package still runs: `pkg.prefix` is read through its connection, which a stop (the
- * app unloading it, `pumi/testing`'s) takes away. */
+/** Whether the package still runs: `plugin.prefix` is read through its connection, which a stop
+ * (the app unloading it, `pumi/testing`'s) takes away. */
 function connected(): boolean {
   try {
-    void pkg.prefix;
+    void plugin.prefix;
     return true;
   } catch {
     return false;

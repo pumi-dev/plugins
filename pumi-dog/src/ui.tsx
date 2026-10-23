@@ -2,7 +2,7 @@
 // bar, and its bubble while it barks. The art is `sprite.ts`'s runs of one colour, one div each; the
 // walk is `walker.ts`'s step; the settings are the package's options, which the window reads itself.
 import { useEffect, useRef, useState } from "react";
-import { useOption, usePackage, useTheme } from "pumi";
+import { useOption, usePlugin, useTheme } from "pumi";
 
 import { interval, read, scale, width } from "./settings.ts";
 import { paint } from "./sprite.ts";
@@ -11,8 +11,8 @@ import { bark as barked, barking, born, seeded, step, type Walker } from "./walk
 /** The dog in the status bar: one track wide, drawn a frame at a time. */
 export function Dog() {
   const t = useTheme();
-  const pkg = usePackage() ?? "";
-  const prefix = pkg ? `${pkg.replace("/", ".")}.` : "";
+  const id = usePlugin() ?? "";
+  const prefix = id ? `${id.replace("/", ".").replaceAll("-", "_")}.` : "";
   const dog = useRef<Walker>(born());
   const rng = useRef(seeded());
   const [, drawn] = useState(0);

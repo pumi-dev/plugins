@@ -4,26 +4,16 @@
 // taken from tokens of the same name: a theme is free to paint a surface almost the colour of its
 // background, and a diagram of invisible boxes is no diagram.
 //
-// The app says its colours as `app.theme` does: every token as `#rrggbb[aa]`, its metrics and its
-// fonts. Without it (a test, an app that cannot say) a diagram is Pele's own light one.
-import { call } from "pumi";
+// The tokens come from the window: the diagram's renderer has them (`useTheme`, `useMetrics`) and
+// hands them to `main.ts`'s `drawn`. Without them (a call from elsewhere: `draw`, `render`, `save`)
+// a diagram is Pele's own light one.
 import { FALLBACK_FONT, FALLBACK_MONO, type Faces } from "./pele.ts";
 
-/** What `app.theme` answers, of what a diagram reads of it. */
+/** The app's colours as a diagram reads them: every token as `#rrggbb[aa]`, and its metrics. */
 export interface AppTheme {
   colors?: Record<string, string>;
   metrics?: Record<string, number>;
   fonts?: Record<string, string>;
-}
-
-/** The app's theme as it is now; `null` when it cannot say. */
-export async function appTheme(): Promise<AppTheme | null> {
-  try {
-    const theme: unknown = await call("app.theme");
-    return theme && typeof theme === "object" ? (theme as AppTheme) : null;
-  } catch {
-    return null;
-  }
 }
 
 /** A colour as a rasteriser wants one, its channels from 0 to 1. */

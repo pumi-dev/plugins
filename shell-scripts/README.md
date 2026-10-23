@@ -68,7 +68,7 @@ It reads the repository's files (`files`), and opens a terminal pane to run a sc
 Scripts** — unless one is there already.
 
 The page itself is [`script-panel`](../lib/script-panel): this package is the finder that says what
-a directory holds, its view, and its place in the sidebar.
+a directory holds, and the export the manifest's `contributes.slots.panel` names.
 
 ## Working on it
 
@@ -78,6 +78,4 @@ bun test                       # the pure logic: no pumi running
 ```
 
 `test/scripts.test.ts` is the finder (what a script is, the shell it runs with, the walk and the
-options), `test/page.test.ts` the page itself, its groups and a script run from it,
-`test/place.test.ts` its sidebar page, and `test/manifest.test.ts` what its `package.json`
-contributes without running.
+options), and `test/manifest.test.ts` what its `package.json` contributes without running.

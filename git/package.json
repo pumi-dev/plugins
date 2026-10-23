@@ -57,7 +57,7 @@
           "command": "toggle"
         }
       ],
-      "points": {
+      "slots": {
         "panel": {
           "view": "Git",
           "title": "Git",

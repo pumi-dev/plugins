@@ -1,5 +1,5 @@
 // The machine's processes: what a pane's tree of them costs. `processes()` itself asks the app
-// (`system.process.list`), so it is not here: a package's test runs without one.
+// (`process.list`), so it is not here: a plugin's test runs without one.
 import { expect, test } from "bun:test";
 import { usage, type Procs } from "../src/procs.ts";
 

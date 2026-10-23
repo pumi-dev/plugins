@@ -1,5 +1,6 @@
 // The machine's processes, as the API lists them, and what a pane's tree of them costs together.
-import { system } from "pumi";
+// `process` is the SDK's, not Node's: what it lists is the machine the panes run on.
+import { process } from "pumi";
 
 /** A process: what its parent is, the CPU it uses, the memory it holds. */
 export interface Proc {
@@ -14,16 +15,16 @@ export interface Proc {
 export type Procs = Map<number, Proc>;
 
 /**
- * Every process on the machine the panes run on (`system.process.list`, so it is the server's, not
- * the app's). A failure is said, and the table comes back empty: this round has nothing to measure.
+ * Every process on the machine the panes run on (`process.list`, so it is the server's, not the
+ * app's). A failure is said, and the table comes back empty: this round has nothing to measure.
  */
 export async function processes(): Promise<Procs> {
   const procs: Procs = new Map();
   let listed: unknown;
   try {
-    listed = await system.process.list();
+    listed = await process.list();
   } catch (err) {
-    console.error("heavy-terminals: system.process.list:", err);
+    console.error("heavy-terminals: process.list:", err);
     return procs;
   }
   for (const each of Array.isArray(listed) ? listed : []) {

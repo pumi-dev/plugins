@@ -6,7 +6,7 @@
 // What is here is the logic: the key that opens it, the float it opens, and what it is opened with.
 // `ui.tsx` draws the picker; the walk, the matching and the quoting are `entries.ts`, `match.ts` and
 // `path.ts`.
-import { key, notify, on, option, pane, pkg, provide, type Disposer, type Pane } from "pumi";
+import { call, notify, on, option, pane, plugin, provide } from "pumi";
 
 /** What the picker's float is opened with. */
 export interface PickerArgs {
@@ -22,7 +22,7 @@ export interface PickerArgs {
 }
 
 /** The trigger last bound in the terminal's key table, so the next one can unbind it. */
-let bound: { key: string; mapping: Disposer } | null = null;
+let bound: string | null = null;
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -47,7 +47,7 @@ async function height(): Promise<number> {
 /** The caller's pane, or `undefined` when there is none. */
 async function currentPane(): Promise<number | undefined> {
   try {
-    const current = await pane.current();
+    const current = await pane.get();
     return typeof current?.id === "number" ? current.id : undefined;
   } catch {
     return undefined;
@@ -55,9 +55,10 @@ async function currentPane(): Promise<number | undefined> {
 }
 
 /** The picker's pane, if one is open. */
-async function picker(): Promise<Pane | undefined> {
+async function picker(): Promise<number | undefined> {
   try {
-    return (await pane.list({ type: pkg.prefixed("picker") }))?.[0];
+    const [first] = (await pane.list({ block: plugin.prefixed("picker") })) ?? [];
+    return typeof first === "number" ? first : undefined;
   } catch {
     return undefined;
   }
@@ -66,15 +67,16 @@ async function picker(): Promise<Pane | undefined> {
 /** The args the picker open now was opened with: the view asks for them as it starts. */
 let opened: PickerArgs | null = null;
 
-/** What the picker open now is about. */
-export function args(): PickerArgs {
+/** What the picker open now is about. It answers a promise because the view that asks is in the
+ * window and this runs in the worker. */
+export async function args(): Promise<PickerArgs> {
   return opened ?? {};
 }
 
 /** Close the picker, wherever it is. */
 async function close(): Promise<void> {
   const open = await picker();
-  if (open) await pane.close(open, true);
+  if (open !== undefined) await pane.close(open);
 }
 
 /** Open the picker over the tab of `event.pane`, or of the current pane. Whether it opened. */
@@ -99,7 +101,7 @@ async function open(event: { pane?: number } = {}): Promise<boolean> {
   // `row` anchors it under the tabline; without it the host centers the float in the tab, and a
   // press outside it dismisses it.
   try {
-    await pane.open(pkg.prefixed("picker"), args, {
+    await pane.open(plugin.prefixed("picker"), args, {
       kind: "float",
       width: "28%",
       height: await height(),
@@ -118,20 +120,27 @@ async function open(event: { pane?: number } = {}): Promise<boolean> {
 /** Bind `trigger` in the terminal's key table, and unbind the last one. */
 async function bind(): Promise<void> {
   const pressed = await trigger();
-  if (bound?.key === pressed) return;
-  bound?.mapping();
-  bound = null;
-  const mapping = key.set("terminal", pressed, (event: { pane?: number }) => void open(event), {
-    desc: "Insert a path…",
-  });
-  mapping.ready.catch((err: unknown) => console.error(`insert-path: ${message(err)}`));
-  bound = { key: pressed, mapping };
+  if (bound === pressed) return;
+  // `key.set` has no disposer of its own: the last trigger is unbound here, and the app undoes what
+  // is left when the plugin stops.
+  if (bound !== null) {
+    const previous = bound;
+    bound = null;
+    await call("key.del", "terminal", previous).catch((err: unknown) => console.error(`insert-path: key.del ${previous}: ${message(err)}`));
+  }
+  try {
+    await call("key.set", "terminal", pressed, (event: { pane?: number }) => void open(event), { desc: "Insert a path…" });
+    bound = pressed;
+  } catch (err) {
+    // Nothing is recorded, so the next change asks again rather than thinking it is bound.
+    console.error(`insert-path: key.set ${pressed}: ${message(err)}`);
+  }
 }
 
 void bind();
-on("option.changed", { match: pkg.prefixed("trigger"), desc: "insert-path follows its trigger" }, () => bind());
+on("option.changed", { match: plugin.prefixed("trigger"), desc: "insert-path follows its trigger" }, () => bind());
 provide(
-  pkg.prefixed("open"),
+  plugin.prefixed("open"),
   { desc: "Open the path picker over the current tab.", examples: [{ args: [] }] },
   (event: { pane?: number } = {}) => open(event ?? {}),
 );

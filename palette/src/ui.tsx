@@ -3,7 +3,7 @@
 // matched marked. What is typed, what ↑ walks and what a row runs is the worker's (`model.ts`,
 // `main.ts`); this sends it the keystrokes and draws what it answers.
 import { useEffect, useState } from "react";
-import { call, num, useInterval, useMetrics, useTheme } from "pumi";
+import { call, useInterval, useMetrics, useTheme, type RendererProps } from "pumi";
 
 import { pick, pressed, typed as onTyped, view as read, type PaletteView } from "./main.ts";
 
@@ -17,13 +17,14 @@ function swallow(err: unknown): void {
   console.error(`palette: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `main` view: a float over the window, the input, and the rows. */
-export function Palette({ pane }: { pane: string }) {
+/** The renderer of the block `main` (named for it, as a block's export is): a float over the
+ * window, the input, and the rows. */
+export function Main({ pane }: RendererProps) {
   const t = useTheme();
   const m = useMetrics();
   const [state, setState] = useState<PaletteView | undefined>(undefined);
 
-  const close = () => void call("pane.close", num(pane), true).catch(swallow);
+  const close = () => void call("pane.close", pane.id).catch(swallow);
 
   /** A key the input took: the palette's own, and the way out. */
   const press = (key: string) =>

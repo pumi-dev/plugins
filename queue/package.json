@@ -21,16 +21,6 @@
     ],
     "contributes": {
       "options": {
-        "rows": {
-          "type": "number",
-          "default": 4,
-          "min": 2,
-          "max": 12,
-          "step": 1,
-          "label": "Rows",
-          "group": "Queue",
-          "desc": "The most rows a pane's bar takes: its title and this many jobs."
-        },
         "keep": {
           "type": "boolean",
           "default": true,
@@ -44,7 +34,7 @@
           "desc": "A notification when a job is over, as the OS gives one."
         }
       },
-      "points": {
+      "slots": {
         "pane.strip": {
           "view": "Bar"
         }

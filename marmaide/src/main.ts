@@ -15,10 +15,11 @@
 // - `save {source | path, out}` writes that SVG to a file and answers its path.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { option, pane, pkg, provide } from "pumi";
+import { option, pane, plugin, provide } from "pumi";
 import { agents as agentsOf, attach, type About, type Agent } from "./agents.ts";
 import { fail, message } from "./errors.ts";
 import type { Node } from "./nodes.ts";
+import type { AppTheme } from "./palette.ts";
 import { picture } from "./picture.ts";
 
 /** What a call is about: a diagram, and what to do with it. */
@@ -64,7 +65,7 @@ function sourceOf(args: Args): string {
 /** The caller's pane, when it has one. */
 async function here(): Promise<number | null> {
   try {
-    const current = await pane.current();
+    const current = await pane.get();
     return typeof current?.id === "number" ? current.id : null;
   } catch {
     return null;
@@ -88,11 +89,10 @@ async function shown(first: unknown, second: unknown) {
       asked !== null && typeof asked === "object" && !Array.isArray(asked)
         ? asked
         : { kind: "tiled", ...(beside === null ? {} : { beside }), split: "right", size: "45%" };
-    const opened = await pane.open(pkg.prefixed("diagram"), { source }, place);
+    const opened = await pane.open(plugin.prefixed("diagram"), { source }, place);
     id = opened.id;
     const title = typeof args.title === "string" && args.title !== "" ? args.title : drawn.kind;
     await option.set("title", title, { pane: id });
-    await option.set("@icon", "package", { pane: id });
   }
   // The view of that pane reads this, now and after a restart; setting it is what tells it to
   // draw again.
@@ -154,8 +154,12 @@ export interface Shown {
   nodes: Node[];
 }
 
-/** The diagram pane `id` shows, drawn from the source on its options; or why it could not be. */
-export async function drawn(id: number): Promise<Shown | { error: string }> {
+/**
+ * The diagram pane `id` shows, drawn from the source on its options; or why it could not be. The
+ * theme is the window's: its renderer hands over what `useTheme()` and `useMetrics()` say, so a
+ * diagram is drawn in the colours the window has, and drawn again when the theme changes.
+ */
+export async function drawn(id: number, theme: AppTheme | null = null): Promise<Shown | { error: string }> {
   let source = "";
   try {
     const value = await option.get("source", { pane: id });
@@ -165,7 +169,7 @@ export async function drawn(id: number): Promise<Shown | { error: string }> {
   }
   if (source.trim() === "") return { error: "no diagram: `pumi call amresyd.marmaide.draw 'flowchart LR\n  a --> b'`" };
   try {
-    const made = await picture(source);
+    const made = await picture(source, theme);
     return { source, kind: made.kind, width: made.width, height: made.height, file: made.file, nodes: made.nodes };
   } catch (err) {
     return { error: message(err) };
@@ -183,7 +187,7 @@ export function note(agent: Agent, about: About): Promise<string> {
 }
 
 provide(
-  pkg.prefixed("draw"),
+  plugin.prefixed("draw"),
   {
     desc: "Draw a Mermaid diagram in a pane: one opens beside this pane, or the one `pane` names is redrawn. Answers where it is.",
     effect: "write",
@@ -204,7 +208,7 @@ provide(
 );
 
 provide(
-  pkg.prefixed("render"),
+  plugin.prefixed("render"),
   {
     desc: "Pele's SVG for a Mermaid diagram: CSS variables and all, so it themes wherever it is put. Nothing is shown.",
     effect: "read",
@@ -215,7 +219,7 @@ provide(
 );
 
 provide(
-  pkg.prefixed("save"),
+  plugin.prefixed("save"),
   {
     desc: "Write a diagram's SVG to a file, answering its path: Pele's own, themeable anywhere.",
     effect: "write",

@@ -3,9 +3,9 @@
 // for a document on a package's behalf (BRIEF, gap 4). So a chosen file opens the way a terminal
 // opens a file: `$EDITOR` in a terminal pane of its own, in a tab named after the file, the way an
 // editor tab would. A file no editor can render — an image, a PDF, a video, an archive — goes to
-// `system.open` instead, which is the desktop's own viewer for it.
+// `fs.open` instead, which is the desktop's own viewer for it.
 import { basename, dirname } from "node:path";
-import { pane, system } from "pumi";
+import { fs, pane } from "pumi";
 
 /** The kinds the desktop opens better than a text editor does. */
 const VIEWERS = new Set([
@@ -37,7 +37,7 @@ export function editor(): string[] {
 /** Opens `path` with the editor, in a tab of its own, its directory the one it runs in. */
 export async function openChosen(path: string): Promise<void> {
   if (viewed(path)) {
-    await system.open({ path });
+    await fs.open({ path });
     return;
   }
   await pane.open("terminal", { command: [...editor(), path], cwd: dirname(path) }, { kind: "tab", name: basename(path) });

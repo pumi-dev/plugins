@@ -1,9 +1,10 @@
 // What a browser pane draws, in the window's React tree: the page, and the app browser's toolbar
 // over it — back, forward, reload, an address, and the page's name. The window's webview keeps the
-// page's state (`useWebview`), so this reads it rather than keeping its own, and mirrors it onto the
-// pane's options so the package's functions (`url`, `title`) can answer with it.
+// page's state (`useWebview`), so this reads it rather than keeping its own; it follows its pane's
+// `url` option and writes it back as it goes, and reports what the page says of itself, which is
+// what the package's `url`, `title` and `read` answer with.
 import { useEffect, useRef, useState } from "react";
-import { Icon, WebView, call, num, useMetrics, useOption, usePane, useTheme, useWebview, webview } from "pumi";
+import { Icon, WebView, call, useEvent, useMetrics, useOption, usePane, useTheme, useWebview, webview, type RendererProps } from "pumi";
 
 import { hostOf, normalize, resolve } from "./address.ts";
 
@@ -14,12 +15,6 @@ const SEARCH = "https://duckduckgo.com/?q={query}";
 /** The toolbar's height, and the address field's, in pixels: the app browser's own. */
 const TOOLBAR = 32;
 const FIELD = 24;
-
-/** The pane option the package's `navigate` writes, and the one its `back`/`forward`/`reload` do. */
-const GO = "@url";
-const ACT = "@act";
-/** What this mirrors of the page, for the package's `url` and `title`. */
-const STATE = "@state";
 
 /** A throw the page cannot answer: said in the log, not drawn over the window. */
 function swallow(err: unknown): void {
@@ -52,56 +47,93 @@ function Button({ icon, tip, on, enabled = true }: { icon: string; tip: string; 
   );
 }
 
-/** The `page` view: a webview filling the pane, with the toolbar over it. */
-export function Page({ pane }: { pane: string }) {
+/** What the page in a pane hears of `pane.call`: its block's methods, and the protocol's `input`. */
+interface Called {
+  pane: number;
+  method: string;
+  args?: { url?: unknown; text?: unknown; paste?: unknown };
+}
+
+/** The `page` block's renderer: a webview filling the pane, with the toolbar over it. */
+export function Page({ pane, block }: RendererProps) {
   const t = useTheme();
-  const view = useWebview(pane);
+  // Its block names its prefix (`amresyd.browser.page` is `amresyd.browser.`), which its own
+  // options start with.
+  const PAGE = `${block.slice(0, block.lastIndexOf(".") + 1)}url`;
+  // The page itself: one in the app, named by the pane it is in.
+  const handle = `${pane.server ? `${pane.server}/` : ""}${pane.id}`;
+  const id = pane.id;
+  const view = useWebview(handle);
   const each = usePane(pane);
   const home = useOption<string>("browser.home_url");
   const search = useOption<string>("browser.search_url") ?? SEARCH;
-  const start = (each?.options ?? {})[`url`] as string | undefined;
-  const [src, setSrc] = useState(start && start !== "" ? start : BLANK);
+  const start = (each?.options ?? {})[PAGE] as string | undefined;
+  /** The page the option names as the pane opens: what the webview loads first. */
+  const opening = start ? resolve(start, search) : null;
+  const [src, setSrc] = useState(opening?.kind === "web" ? normalize(opening.url) : BLANK);
   /** What is being typed in the address: the address itself when the field is not being typed in. */
   const [draft, setDraft] = useState<string | null>(null);
-  /** The go/act requests the package's functions wrote, last seen. */
-  const go = (each?.options ?? {})[GO] as string | undefined;
-  const act = (each?.options ?? {})[ACT] as { cmd?: string; at?: number } | undefined;
-  const seenGo = useRef<string | undefined>(go);
-  const seenAct = useRef<number | undefined>(act?.at);
+  /** The `url` option's last value either effect agreed on, so neither acts on its own write. */
+  const agreed = useRef(start ?? src);
 
   /** Goes to `text`, as an address bar would: a URL, or a search. */
   const goes = (text: string) => {
     const target = resolve(text, search);
     if (!target) return;
     if (target.kind === "system") {
-      webview(pane, "load", target.url);
+      webview(handle, "load", target.url);
       return;
     }
     setSrc(normalize(target.url));
     setDraft(null);
   };
 
-  // The package's `navigate`: the address it wrote on this pane.
+  // The pane's `url` option, changed by whoever navigates it (the package's `navigate`, a pane
+  // coming back): the page follows it.
   useEffect(() => {
-    if (go === undefined || go === seenGo.current) return;
-    seenGo.current = go;
-    setSrc(normalize(resolve(go, search)?.url ?? go));
-    // A webview is made again for a new `src`, so the page is read again even at the same address.
+    if (start === undefined || start === agreed.current) return;
+    agreed.current = start;
+    const target = start === "" ? null : resolve(start, search);
+    if (target?.kind !== "web") return;
+    setSrc(normalize(target.url));
     setDraft(null);
-  }, [go, search]);
+  }, [start, search]);
 
-  // The package's `back`, `forward` and `reload`.
+  // Where the page is goes on its pane's `url` option, so the pane comes back there, and `url`
+  // answers with it.
   useEffect(() => {
-    if (act?.at === undefined || act.at === seenAct.current) return;
-    seenAct.current = act.at;
-    if (act.cmd === "back" || act.cmd === "forward" || act.cmd === "reload") webview(pane, act.cmd);
-  }, [act?.at, act?.cmd, pane]);
+    if (start === src) return;
+    agreed.current = src;
+    call("option.set", PAGE, src, { pane: id }).catch(swallow);
+  }, [src, PAGE, id, start]);
 
-  // What the page says of itself, kept where the package's `url` and `title` can read it.
+  // Where the page went by itself — a step back, a redirect, a link followed inside it: the address
+  // it is on is where the pane is, and `url` says so.
+  useEffect(() => {
+    if (view?.url) setSrc((was) => (view.url === was ? was : view.url));
+  }, [view?.url]);
+
+  // The block's methods (`navigate`, `back`, `forward`, `reload`), and the protocol's `input`:
+  // what is typed into the address bar, and Enter with it.
+  useEvent<Called>(
+    "pane.called",
+    (e) => {
+      if (e.data.pane !== id) return;
+      const method = e.data.method;
+      if (method === "navigate") goes(String(e.data.args?.url ?? ""));
+      else if (method === "input") goes(String(e.data.args?.text ?? e.data.args?.paste ?? ""));
+      else if (method === "back" || method === "forward" || method === "reload") webview(handle, method);
+    },
+    { match: block },
+  );
+
+  // What the page says of itself, reported to its pane: `read` answers the name and the address,
+  // `selection` nothing of another site's document, and the pane's title is the page's name.
   useEffect(() => {
     if (!view) return;
-    call("option.set", STATE, { url: view.url, title: view.title || (view.url ? hostOf(view.url) : "") }, { pane: num(pane) }).catch(swallow);
-  }, [view?.url, view?.title, pane]);
+    const title = view.title || (view.url ? hostOf(view.url) : "");
+    call("pane.call", id, "report", { title, text: `${title}\n${view.url}`, selection: null }).catch(swallow);
+  }, [view?.url, view?.title, id]);
 
   const title = view?.title || (view?.url ? hostOf(view.url) : "") || "Browser";
   const shown = draft ?? view?.url ?? "";
@@ -113,17 +145,17 @@ export function Page({ pane }: { pane: string }) {
         const chord = e?.key ?? "";
         if (chord === "r" && e?.modifiers?.cmd) {
           e?.preventDefault?.();
-          webview(pane, "reload");
+          webview(handle, "reload");
           return;
         }
         if (chord === "[" && e?.modifiers?.cmd) {
           e?.preventDefault?.();
-          webview(pane, "back");
+          webview(handle, "back");
           return;
         }
         if (chord === "]" && e?.modifiers?.cmd) {
           e?.preventDefault?.();
-          webview(pane, "forward");
+          webview(handle, "forward");
           return;
         }
         if (chord === "l" && e?.modifiers?.cmd) {
@@ -135,9 +167,9 @@ export function Page({ pane }: { pane: string }) {
       style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", minWidth: 0, minHeight: 0, backgroundColor: t.editor, color: t.text }}
     >
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: TOOLBAR, flexShrink: 0, paddingLeft: 6, paddingRight: 8, backgroundColor: t.surface, borderBottomWidth: 1, borderColor: t.border }}>
-        <Button icon="arrow_left" tip="Back" on={() => webview(pane, "back")} enabled={view?.back !== false} />
-        <Button icon="arrow_right" tip="Forward" on={() => webview(pane, "forward")} enabled={view?.forward !== false} />
-        <Button icon={view?.loading ? "square_minus" : "rotate_ccw"} tip={view?.loading ? "Stop" : "Reload"} on={() => webview(pane, view?.loading ? "stop" : "reload")} />
+        <Button icon="arrow_left" tip="Back" on={() => webview(handle, "back")} enabled={view?.back !== false} />
+        <Button icon="arrow_right" tip="Forward" on={() => webview(handle, "forward")} enabled={view?.forward !== false} />
+        <Button icon={view?.loading ? "square_minus" : "rotate_ccw"} tip={view?.loading ? "Stop" : "Reload"} on={() => webview(handle, view?.loading ? "stop" : "reload")} />
         <input
           value={shown}
           placeholder={home ?? "Search or enter an address"}
@@ -146,17 +178,16 @@ export function Page({ pane }: { pane: string }) {
           onSubmit={(e: any) => goes(e?.value ?? shown)}
           onKeyDown={(e: any) => {
             if (e?.key === "escape") setDraft(null);
-            else if (e?.key === "escape") e?.stopPropagation?.();
           }}
           style={{ display: "flex", flexGrow: 1, minWidth: 0, height: FIELD, paddingLeft: 8, paddingRight: 8, borderRadius: 6, backgroundColor: t.editor, color: t.text, fontSize: 12, borderWidth: 1, borderColor: t.border }}
         />
         <div style={{ display: "flex", flexShrink: 0, maxWidth: 220, minWidth: 0, paddingLeft: 6 }}>
           <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{title}</text>
         </div>
-        <Button icon="tool_web" tip="Open devtools" on={() => webview(pane, "devtools")} enabled={view?.devtools !== true} />
+        <Button icon="tool_web" tip="Open devtools" on={() => webview(handle, "devtools")} enabled={view?.devtools !== true} />
       </div>
       <div style={{ display: "flex", flexGrow: 1, minHeight: 0 }}>
-        <WebView handle={pane} src={src} style={{ width: "100%", height: "100%" }} />
+        <WebView handle={handle} src={src} style={{ width: "100%", height: "100%" }} />
       </div>
       <div style={{ display: "flex", flexShrink: 0, height: 20, alignItems: "center", paddingLeft: 8, paddingRight: 8, backgroundColor: t.surface, borderTopWidth: 1, borderColor: t.border }}>
         <text style={{ fontSize: 11, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis" }}>

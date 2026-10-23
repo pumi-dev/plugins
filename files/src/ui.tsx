@@ -31,7 +31,7 @@ function swallow(err: unknown): void {
   console.error(`files: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `panel` point's view: the filter box, the rows, and a row's menu. */
+/** The `panel` slot's view: the filter box, the rows, and a row's menu. */
 export function Tree() {
   const t = useTheme();
   const focused = usePane(useFocusedPane());

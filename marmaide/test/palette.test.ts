@@ -6,7 +6,8 @@ import type { Faces } from "../src/pele.ts";
 
 const faces: Faces = { font: "IBM Plex Sans", mono: "IBM Plex Mono", size: 16 };
 
-/** A dark theme as `app.theme` answers one: its tokens as `#rrggbb`. */
+/** A dark theme as the window hands one over: its tokens, as `#rrggbb`, and the metric a diagram
+ * reads (`diagramTheme` in `ui.tsx` maps `useTheme()` and `useMetrics()` onto this). */
 const dark: AppTheme = {
   colors: {
     editor: "#1e1e1e",

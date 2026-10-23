@@ -11,7 +11,7 @@ cmd+shift+a                                   # show or hide that side bar (the 
 
 ## The page
 
-It is the manifest's `contributes.points["panel"]` view (`ui.tsx`'s `Agents`), drawn by the app's own
+It is the manifest's `contributes.slots["panel"]` view (`ui.tsx`'s `Agents`), drawn by the app's own
 side bar with the theme's section header over it.
 
 - **Attention** on top: what is blocked or failed, why (`needs permission`, `has a question`,
@@ -34,12 +34,12 @@ setup` installs the hooks that report for agents that cannot report for themselv
 
 ## What it reads
 
-The core plugin is pushed a snapshot with every change. A package is not, so this package reads
-`server.getState` — the whole model as `client.attach` sends it — once per batch of events that
-move it (`pane.*`, `tab.*`, `session.*`, `client.attached`, `terminal.*`, `cwd.changed`,
-`layout.changed`, and the `@agent_status`-like options), plus a slow clock for what never said so.
-`src/snapshot.ts` maps that model the way the app maps it for the core plugin
-(`src/runtime/pumid/wire.rs`), so the rows read the same fields.
+The core plugin is pushed a snapshot with every change. A package is not, so the page is drawn
+from the window's own state — the app's sessions, tabs and panes as its hooks give them
+(`src/adapt.ts`) — and the model is read again only when the guide is: `agents.context` asks the
+API for every session, tab and pane and the options that say what they are (`src/snapshot.ts`,
+`session.get`, `tab.get`, `pane.list` and `option.get`). Both halves map to the same shape, so a
+row reads the same fields whichever half made the model.
 
 ## Options
 

@@ -6,7 +6,7 @@ function can put a flow, a state machine or a schema beside the sentence it is t
 keep drawing on the same pane as the answer changes.
 
 ```sh
-pumi pack add ~/Kitchen/pumi-plugins/marmaide      # or a copy of this directory
+pumi plugin add ~/Kitchen/pumi-plugins/marmaide    # or a copy of this directory
 pumi plugin reload marmaide
 
 pumi call local.marmaide.draw 'flowchart LR
@@ -46,7 +46,7 @@ shape, `{source, path}`, writes `source` to `path` too.
 
 ## Options
 
-Settings → Packages → **marmaide** (all of them are also `pumi call option.set`):
+Settings → Plugins → **marmaide** (all of them are also `pumi call option.set`):
 
 | Option | | |
 | --- | --- | --- |
@@ -66,10 +66,13 @@ worker, in the same file it is vendored as.
 1. `src/pele.ts` draws the source — Pele's own SVG, with Pele's defaults in it — and reads every
    `var(--pele-*)` back out of it, so a renderer that knows no CSS custom properties gets the
    colours written where it can see them.
-2. `src/palette.ts` says the app's theme the way Pele's SVG says it: `app.theme`'s tokens, as
+2. `src/palette.ts` says the app's theme the way Pele's SVG says it: the window's tokens (its
+   renderer's `useTheme()` and `useMetrics()`, which it hands `marmaide.drawn` with every draw), as
    `#rrggbb`, become `--pele-fg`, `--pele-bg`, `--pele-accent` and the rest, and the fills and lines
    are mixed from the background and the text — a theme may paint a surface almost the colour of its
-   background, and a diagram of invisible boxes is no diagram.
+   background, and a diagram of invisible boxes is no diagram. A theme switched while a diagram is
+   open draws it again; a call from elsewhere (`render`, `save`) has no window, so it gets Pele's own
+   colours.
 3. `src/picture.ts` writes the dressed SVG into the package's cache, named by what is in it, and the
    pane draws it as an image (`img`): the app paints SVG with usvg, so the diagram is sharp at any
    size.

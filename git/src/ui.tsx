@@ -33,7 +33,7 @@ function swallow(err: unknown): void {
   console.error(`git: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `panel` point's view: the changes, and the history as a tab of the same page. */
+/** The `panel` slot's view: the changes, and the history as a tab of the same page. */
 export function Git() {
   const t = useTheme();
   const m = useMetrics();

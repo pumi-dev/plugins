@@ -57,7 +57,7 @@
           "desc": "Also list files with no extension whose first line names a shell."
         }
       },
-      "points": {
+      "slots": {
         "panel": {
           "view": "Scripts",
           "title": "Shell Scripts",

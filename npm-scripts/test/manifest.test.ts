@@ -26,6 +26,6 @@ test("it contributes its page to the side bar, and no pane of its own", () => {
   expect(pumi.owner).toBe("amresyd");
   expect(pumi.api).toBe(1);
   expect(pumi.uses).toEqual(["files", "processes"]);
-  expect(pumi.contributes.points).toEqual({ panel: { view: "Scripts", title: "NPM Scripts", icon: "package" } });
-  expect(pumi.contributes.views).toBeUndefined();
+  expect(pumi.contributes.slots).toEqual({ panel: { view: "Scripts", title: "NPM Scripts", icon: "package" } });
+  expect(pumi.contributes.points).toBeUndefined();
 });

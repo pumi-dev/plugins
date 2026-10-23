@@ -59,7 +59,7 @@
           "title": "Pumi dog: take it away, or bring it back"
         }
       ],
-      "points": {
+      "slots": {
         "status": {
           "view": "Dog"
         }

@@ -9,7 +9,7 @@ path and directory on the clipboard.
                                    ⑂  ⧉
 ```
 
-They are the manifest's `contributes.points["pane.strip"]` view (`ui.tsx`'s `Strip`), at the row's
+They are the manifest's `contributes.slots["pane.strip"]` view (`ui.tsx`'s `Strip`), at the row's
 end, so they ride the strip the pane already has rather than a bar of its own: they show with the
 pane's own split and close buttons, and the view draws nothing for a pane that is not pi's.
 

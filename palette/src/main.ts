@@ -10,7 +10,7 @@
 //
 // The model is `model.ts` (what is typed, the rows a query keeps, and what ↑ walks); `ui.tsx` draws
 // it. Every gesture comes back here, and answers the rows as they are afterwards.
-import { command, notify, pane, pkg, provide, type PlaceSpec } from "pumi";
+import { command, notify, pane, plugin, provide, type PlaceSpec } from "pumi";
 
 import { model, type Mode, type PaletteView } from "./model.ts";
 
@@ -41,8 +41,8 @@ function message(err: unknown): string {
 /** The palette's float, if one is up. */
 async function shown(): Promise<number | null> {
   try {
-    const [there] = await pane.list({ type: pkg.prefixed("main") });
-    return there?.id ?? null;
+    const [there] = await pane.list({ block: plugin.prefixed("main") });
+    return typeof there === "number" ? there : null;
   } catch {
     return null;
   }
@@ -52,11 +52,11 @@ async function shown(): Promise<number | null> {
 async function open(mode: Mode): Promise<boolean> {
   try {
     const up = await shown();
-    if (up !== null) await pane.close(up, true).catch(() => {});
+    if (up !== null) await pane.close(up).catch(() => {});
     model.opening = mode;
     model.done = false;
     await model.start();
-    await pane.open(pkg.prefixed("main"), { mode }, PLACE);
+    await pane.open(plugin.prefixed("main"), { mode }, PLACE);
     return true;
   } catch (err) {
     await notify(`palette: ${message(err)}`, "error");
@@ -68,7 +68,7 @@ async function open(mode: Mode): Promise<boolean> {
 async function close(): Promise<void> {
   model.done = true;
   const up = await shown();
-  if (up !== null) await pane.close(up, true).catch(() => {});
+  if (up !== null) await pane.close(up).catch(() => {});
 }
 
 /** `cmd+shift+p`: the commands, or the way out of a palette that is up. */
@@ -134,5 +134,5 @@ export async function pick(at: number): Promise<{ close: boolean; view: PaletteV
 command("toggle", () => toggle());
 command("go_to_file", () => open("files"));
 
-provide(pkg.prefixed("toggle"), { desc: "Show or hide the palette: every command there is.", examples: [{ args: [] }] }, () => toggle());
-provide(pkg.prefixed("go_to_file"), { desc: "Show the palette on the project's files.", examples: [{ args: [] }] }, () => open("files"));
+provide(plugin.prefixed("toggle"), { desc: "Show or hide the palette: every command there is.", examples: [{ args: [] }] }, () => toggle());
+provide(plugin.prefixed("go_to_file"), { desc: "Show the palette on the project's files.", examples: [{ args: [] }] }, () => open("files"));

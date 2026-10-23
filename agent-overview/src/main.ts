@@ -3,72 +3,69 @@
 // to its pane.
 //
 // It reads nothing on its own: an agent says what it is doing itself, over OSC 7501, and the host
-// keeps that as a pane's `@agent_status` and `@program_status` (docs/v2/23 §6). The dashboard is
-// one `server.getState` every few seconds, and a read of every open dashboard whenever an event
-// says something moved.
-//
-// `pumi call amresyd.agent_overview.open` opens it (its command `open` in the palette, its menu
-// item under View), `amresyd.agent_overview.list` answers with the agents as JSON, and the `key`
-// option binds a chord to it.
-import { command, key, menu, on, option, pkg, provide, server, type Disposer, type Snapshot as Window } from "pumi";
+// keeps that as a pane's `@agent_status` and `@program_status` (docs/v2/23 §6). The dashboard is the
+// window's own state (`ui.tsx` reads the app's panes); what is here is what the rest of pumi asks
+// for: `amresyd.agent_overview.open` opens it (its command `open` in the palette, its menu item
+// under View), `amresyd.agent_overview.list` answers with the agents as JSON, and the `key` option
+// binds a chord to it.
+import { call, command, menu, on, option, pane, plugin, provide, session, tab } from "pumi";
 
-import { Overview } from "./overview.ts";
+import { Overview, type State } from "./overview.ts";
 import { message, open } from "./open.ts";
 
-/** The server's model, as the app's own snapshot: the worker has no window, so this is how it reads
- * the same panes the dashboard does. */
-function fromServer(reply: unknown): Window | undefined {
-  const outer = reply as { state?: unknown } | null;
-  const state = (outer && typeof outer === "object" && "state" in outer ? outer.state : reply) as
-    | {
-        sessions?: { id: number; name: string; tabs?: [number, number][]; current?: number }[];
-        tabs?: { id: number; name: string }[];
-        panes?: { id: number; type: string; place?: { kind?: string; tab?: number }; options?: Record<string, unknown> }[];
-        current?: { session?: number; tab?: number; pane?: number };
-      }
-    | undefined;
-  if (!state || typeof state !== "object") return undefined;
-  /** Which session a tab is in, and where. */
-  const where = new Map<number, string>();
-  for (const session of state.sessions ?? []) {
-    for (const [, tab] of session.tabs ?? []) where.set(tab, String(session.id));
+/** The options the model reads on a pane: what it is, what it says of itself, and where it is. */
+const OPTIONS = ["@agent", "@agent_status", "@agent_session", "@program_status", "pane_current_path", "pane_current_command", "title"];
+
+const text = (value: unknown): string => (typeof value === "string" ? value : "");
+
+/**
+ * The server's panes, tabs and sessions, as the model reads them: `pane.list` is every pane in
+ * layout order, and each one's options are read under it.
+ */
+async function readState(): Promise<State> {
+  const listed = await session.list();
+  const spaces = await Promise.all(listed.map((each) => session.get(each.id)));
+  const now = await session.get();
+  /** Which session a tab is in. */
+  const owned = new Map<number, number>();
+  const tabs: State["tabs"] = [];
+  for (const space of spaces) {
+    for (const [, id] of space.tabs) {
+      owned.set(id, space.id);
+      const info = await tab.get(id);
+      tabs.push({ id, session: space.id, name: info.name ?? "" });
+    }
   }
-  const label = new Map((state.tabs ?? []).map((tab) => [tab.id, tab.name]));
+  /** The pane in front: the current session's current tab's active one. */
+  const front = await tab.get(now.current ?? 0);
+  const ids = (await pane.list()).filter((each): each is number => typeof each === "number");
+  const panes: State["panes"] = await Promise.all(
+    ids.map(async (id) => {
+      const info = await pane.get(id);
+      const values = await Promise.all(OPTIONS.map((name) => option.get(name, { pane: id })));
+      const options = Object.fromEntries(OPTIONS.map((name, i) => [name, values[i]]));
+      const at = info.place.kind === "tiled" ? info.place.tab : null;
+      return {
+        id,
+        tab: at,
+        session: at === null ? null : (owned.get(at) ?? null),
+        title: text(options["title"]),
+        cwd: text(options["pane_current_path"]),
+        options,
+      };
+    }),
+  );
   return {
-    focused_workspace_id: state.current?.session === undefined ? null : `$${state.current.session}`,
-    focused_tab_id: state.current?.tab === undefined ? null : `@${state.current.tab}`,
-    focused_pane_id: state.current?.pane === undefined ? null : `%${state.current.pane}`,
-    workspaces: (state.sessions ?? []).map((session) => ({
-      workspace_id: `$${session.id}`,
-      label: session.name,
-      active_tab_id: session.current === undefined ? null : `@${session.current}`,
-      agent_status: "",
-    })),
-    tabs: (state.tabs ?? []).map((tab, index) => ({
-      tab_id: `@${tab.id}`,
-      workspace_id: where.get(tab.id) ?? "",
-      number: index,
-      label: tab.name,
-      agent_status: "",
-    })),
-    panes: (state.panes ?? []).map((pane) => ({
-      pane_id: `%${pane.id}`,
-      kind: pane.type,
-      tab_id: pane.place?.kind === "tiled" && pane.place.tab !== undefined ? `@${pane.place.tab}` : "",
-      workspace_id: pane.place?.kind === "tiled" && pane.place.tab !== undefined ? (where.get(pane.place.tab) ?? "") : "",
-      agent_status: String((pane.options ?? {})["@agent_status"] ?? ""),
-      cwd: String((pane.options ?? {}).pane_current_path ?? ""),
-      terminal_title: String((pane.options ?? {}).title ?? ""),
-      agent: String((pane.options ?? {})["@agent"] ?? ""),
-      options: pane.options ?? {},
-    })),
-    layouts: [],
+    spaces: spaces.map((each) => ({ id: each.id, name: each.name })),
+    tabs,
+    panes,
+    here: front.active,
   };
 }
 
 /** The agents and their counts, as `amresyd.agent_overview.list` answers. */
 async function listed(): Promise<{ agents: Record<string, unknown>[]; counts: Record<string, number>; sessions: number }> {
-  const model = Overview.fromWindow(fromServer(await server.getState()));
+  const model = Overview.fromState(await readState());
   const counts: Record<string, number> = {};
   for (const agent of model.agents) counts[agent.status] = (counts[agent.status] ?? 0) + 1;
   return {
@@ -79,7 +76,7 @@ async function listed(): Promise<{ agents: Record<string, unknown>[]; counts: Re
 }
 
 /** The chord the `key` option is bound at, so a change unbinds the one before. */
-let bound: { chord: string; dispose: Disposer } | null = null;
+let bound: string | null = null;
 
 /** Bind the `key` option (and unbind the chord it was bound at before). */
 async function bind(): Promise<void> {
@@ -90,20 +87,22 @@ async function bind(): Promise<void> {
     console.error("agent-overview:", message(err));
   }
   const chord = typeof chosen === "string" ? chosen.trim() : "";
-  if (bound?.chord === chord) return;
-  bound?.dispose();
+  if (bound === chord) return;
+  if (bound !== null) await call("key.del", "root", bound, {}).catch(() => {});
   bound = null;
   if (chord === "") return;
-  bound = {
-    chord,
-    dispose: key.set("root", chord, { call: pkg.prefixed("open") }, { desc: "Open the agent overview" }),
-  };
+  // The chord comes from an option, so it is not the manifest's: it stays on the wire (`key.set`),
+  // and the app takes it out when the plugin stops.
+  await call("key.set", "root", chord, { call: plugin.prefixed("open") }, { desc: "Open the agent overview" }).catch((err) =>
+    console.error("agent-overview:", message(err)),
+  );
+  bound = chord;
 }
 
 command("open", () => open());
 
 provide(
-  pkg.prefixed("list"),
+  plugin.prefixed("list"),
   {
     desc: "Every agent and what it is doing: `{agents, counts, sessions}`.",
     parameters: [],
@@ -117,17 +116,11 @@ provide(
   () => listed(),
 );
 
-menu.add(
-  "View.Agent Overview",
-  { call: pkg.prefixed("open") },
-  { desc: "Every agent in this pumi: who is working, who is blocked, and where." },
-);
+menu.add("View.Agent Overview", { call: plugin.prefixed("open") }, {
+  desc: "Every agent in this pumi: who is working, who is blocked, and where.",
+});
 
 // The chord follows its option, as the dashboard follows its others.
-on(
-  "option.changed",
-  { match: `${pkg.prefix}*`, desc: "agent-overview follows its options" },
-  () => void bind(),
-);
+on("option.changed", { match: `${plugin.prefix}*`, desc: "agent-overview follows its options" }, () => void bind());
 
 void bind();

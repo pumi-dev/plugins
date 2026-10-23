@@ -5,11 +5,11 @@ the project the current pane's directory is in — its folders and files, folder
 file's icon and git's marks on every row — and what the user does to it: open, rename, make, copy,
 cut, paste, trash, delete, drag out, drop in, add to `.gitignore`, filter, expand and collapse.
 
-It is the manifest's `contributes.points["panel"]` view (`ui.tsx`'s `Tree`); `cmd+shift+e` shows the
+It is the manifest's `contributes.slots["panel"]` view (`ui.tsx`'s `Tree`); `cmd+shift+e` shows the
 side bar it is in, as it does in the app, and `cmd+f` opens its filter box.
 
 ```sh
-pumi pack add ~/Kitchen/pumi-plugins/files     # or: pumi pack dev .
+pumi plugin add ~/Kitchen/pumi-plugins/files     # or: pumi plugin dev .
 ```
 
 ## What it does
@@ -84,7 +84,7 @@ whose directory the tree follows — or, with `open_with = "system"`, in whateve
 | | |
 | --- | --- |
 | `src/main.ts` | what registers: the view, the commands, the option reads, the events that move the tree |
-| `src/project.ts` | the page, drawn with the builder: rows, disclosure, indent guides, the filter, the row menu |
+| `src/ui.tsx` | the page: rows, disclosure, indent guides, the filter, the row menu |
 | `src/panel.ts` | the core plugin's `ProjectPanel`: the cursor, the open folders, the clipboard, the row being typed into |
 | `src/tree.ts` | the tree: lazy listing, ignore stacks, folded chains, the visible rows |
 | `src/intent.ts` | what a gesture comes to, and doing it: files on disk, the clipboard, the editor |

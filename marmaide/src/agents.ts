@@ -38,7 +38,7 @@ export interface About {
 export async function agents(here: number): Promise<Agent[]> {
   const tabOf = async (id: number): Promise<number | null> => {
     try {
-      const place: unknown = await pane.getPlace(id);
+      const { place } = await pane.get(id);
       const tab = (place as { kind?: string; tab?: number } | null)?.tab;
       return typeof tab === "number" ? tab : null;
     } catch {
@@ -47,7 +47,7 @@ export async function agents(here: number): Promise<Agent[]> {
   };
   let ids: number[];
   try {
-    ids = (await pane.list()).map((p) => p.id);
+    ids = ((await pane.list()) ?? []).filter((id): id is number => typeof id === "number");
   } catch {
     return [];
   }

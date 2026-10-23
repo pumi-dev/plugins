@@ -62,7 +62,7 @@
           "title": "Open the agent overview"
         }
       ],
-      "views": [
+      "blocks": [
         {
           "id": "overview",
           "title": "Agent overview",

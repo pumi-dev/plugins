@@ -5,21 +5,18 @@
 //   pumi call amresyd.browser.navigate 3 'example.com'            # the page in pane 3
 //   pumi call amresyd.browser.back 3
 //
-// The window's webview keeps the page's own state now (`useWebview`: its address, its title,
-// whether it is loading, whether it can go back), so the package no longer keeps it: a call names a
-// pane and writes what it wants on that pane's options, which the view follows. What is here is
-// what the app and other callers reach; `ui.tsx` draws the page and its toolbar.
-import { ApiError, command, option, pane, pkg, provide, type PlaceSpec } from "pumi";
+// The window's webview keeps the page's own state (`useWebview`: its address, its title,
+// whether it is loading, whether it can go back), so the package keeps none of it: a verb is the
+// block's own method (`pane.call`, which the page hears as `pane.called`), and what a caller reads
+// of a pane is its options — `url`, which the page writes back as it goes, and the `title` it
+// reports. What is here is what the app and other callers reach; `ui.tsx` draws the page.
+import { ApiError, call, command, option, pane, plugin, provide, type PlaceSpec } from "pumi";
 
-/** The pane option the view follows for a page to show (`navigate`), and the one it acts on
- * (`back`, `forward`, `reload`): `{"cmd": "back", "at": 1699999999999}`. */
-const GO = "@url";
-const ACT = "@act";
-/** What the view mirrors of the page it draws, so `url` and `title` can answer with it. */
-const STATE = "@state";
+/** The pane option a page is on and goes to: the block's own (`amresyd.browser.url`). */
+const PAGE = "url";
 
-/** The pane option a page is opened with: its address. */
-const START = "url";
+/** The block a page is in: `amresyd.browser.page`. */
+const BLOCK = plugin.prefixed("page");
 
 /** The address a call gives: the second argument, or the first's `url`. */
 function addressOf(first: unknown, second: unknown): string {
@@ -43,28 +40,28 @@ async function open(args: unknown, place: PlaceSpec): Promise<number> {
   const asked = typeof args === "string" ? args : (args as { url?: unknown } | null)?.url;
   const home = await option.get("browser.home_url").catch(() => null);
   const url = typeof asked === "string" && asked !== "" ? asked : typeof home === "string" ? home : "";
-  const opened = await pane.open(pkg.prefixed("page"), {}, place);
-  if (url !== "") await opened.options.set(START, url);
+  // The block's option, set as it opens: the page the pane starts on.
+  const opened = await pane.open(BLOCK, { [PAGE]: url }, place);
   return opened.id;
 }
 
 command("open", (args?: unknown) => open(args, { split: "right" }));
 command("openTab", (args?: unknown) => open(args, { kind: "tab", name: "Browser" }));
 
-/** What the view last said of the page in `id`: its address and its name. */
-async function said(id: number): Promise<{ url?: string; title?: string }> {
-  const value = await option.get(STATE, { pane: id }).catch(() => null);
-  return typeof value === "object" && value !== null ? (value as { url?: string; title?: string }) : {};
+/** An option of the page in `id`, as the page left it. */
+async function said(id: number, name: string): Promise<string> {
+  const value = await option.get(name, { pane: id }).catch(() => null);
+  return typeof value === "string" ? value : "";
 }
 
-/** Asks the page in `id` to do `cmd`, and answers what it says of itself afterwards. */
-async function act(id: number, cmd: "back" | "forward" | "reload"): Promise<string> {
-  await option.set(ACT, { cmd, at: Date.now() }, { pane: id });
-  return (await said(id)).url ?? "";
+/** Asks the page in `id` to do `method`, as `pane.called` tells its renderer to. */
+async function act(id: number, method: string, args?: unknown): Promise<null> {
+  await call("pane.call", id, method, args ?? {});
+  return null;
 }
 
 provide(
-  pkg.prefixed("navigate"),
+  plugin.prefixed("navigate"),
   {
     desc: "Show a page in a browser pane: it takes what an address bar takes, a URL or a search.",
     effect: "write",
@@ -82,13 +79,13 @@ provide(
   async (first: unknown, second: unknown) => {
     const id = paneOf(first);
     const url = addressOf(first, second);
-    await option.set(GO, url, { pane: id });
+    await act(id, "navigate", { url });
     return url;
   },
 );
 
 provide(
-  pkg.prefixed("back"),
+  plugin.prefixed("back"),
   {
     desc: "Step back in a page's history, as `cmd+[` does.",
     effect: "write",
@@ -97,11 +94,15 @@ provide(
     returns: "The address it is on now.",
     returns_schema: { type: "string" },
   },
-  (first: unknown) => act(paneOf(first), "back"),
+  async (first: unknown) => {
+    const id = paneOf(first);
+    await act(id, "back");
+    return said(id, PAGE);
+  },
 );
 
 provide(
-  pkg.prefixed("forward"),
+  plugin.prefixed("forward"),
   {
     desc: "Step forward in a page's history, as `cmd+]` does.",
     effect: "write",
@@ -110,11 +111,15 @@ provide(
     returns: "The address it is on now.",
     returns_schema: { type: "string" },
   },
-  (first: unknown) => act(paneOf(first), "forward"),
+  async (first: unknown) => {
+    const id = paneOf(first);
+    await act(id, "forward");
+    return said(id, PAGE);
+  },
 );
 
 provide(
-  pkg.prefixed("reload"),
+  plugin.prefixed("reload"),
   {
     desc: "Load the page again, as `cmd+r` does.",
     effect: "write",
@@ -125,7 +130,7 @@ provide(
 );
 
 provide(
-  pkg.prefixed("url"),
+  plugin.prefixed("url"),
   {
     desc: "The address a browser pane is on; empty for a pane that has not left the address bar.",
     effect: "read",
@@ -133,11 +138,11 @@ provide(
     examples: [{ args: [3] }],
     returns_schema: { type: "string" },
   },
-  async (first: unknown) => (await said(paneOf(first))).url ?? "",
+  (first: unknown) => said(paneOf(first), PAGE),
 );
 
 provide(
-  pkg.prefixed("title"),
+  plugin.prefixed("title"),
   {
     desc: "What a browser pane is called: the page's own title, else its host.",
     effect: "read",
@@ -145,5 +150,5 @@ provide(
     examples: [{ args: [3] }],
     returns_schema: { type: "string" },
   },
-  async (first: unknown) => (await said(paneOf(first))).title ?? "",
+  (first: unknown) => said(paneOf(first), "title"),
 );

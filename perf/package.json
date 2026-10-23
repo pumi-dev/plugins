@@ -56,7 +56,7 @@
           "title": "Toggle the performance overlay"
         }
       ],
-      "views": [
+      "blocks": [
         {
           "id": "overlay",
           "title": "Performance Overlay",

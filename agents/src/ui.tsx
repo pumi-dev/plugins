@@ -4,9 +4,9 @@
 // and its buttons, and a folded group is a header with a chevron. What the user does goes to the
 // API (`call`), which is the only way a window moves the panes.
 import { useMemo, useState } from "react";
-import { Icon, call, useApp, useDraggable, useDroppable, useMetrics, useTheme, type Snapshot as Window, type Tree } from "pumi";
+import { Icon, call, useDraggable, useDroppable, useFocusedPane, useMetrics, usePanes, useSession, useSessions, useTab, useTabs, useTheme } from "pumi";
 
-import { read } from "./adapt.ts";
+import { fromWindow } from "./adapt.ts";
 import type { Pane, Space, Tab } from "./snapshot.ts";
 import { bold, shown, word, type State } from "./status.ts";
 import { detail, icon as kindIcon, rows, spaceLabel, tabLabel, title, type Row, type Shape } from "./tree.ts";
@@ -34,12 +34,16 @@ function swallow(err: unknown): void {
   console.error(`agents: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `panel` point's view: the search field, the rows, and the menus over them. */
+/** The `panel` slot's view: the search field, the rows, and the menus over them. */
 export function Agents() {
   const t = useTheme();
-  const app = useApp((s) => s.snapshot);
-  const trees = useApp((s) => s.trees);
-  const model = useMemo(() => read(app as Window | undefined, (trees ?? {}) as Record<string, Tree>), [app, trees]);
+  const sessions = useSessions();
+  const tabs = useTabs();
+  const panes = usePanes();
+  const session = useSession();
+  const tab = useTab();
+  const pane = useFocusedPane();
+  const model = useMemo(() => fromWindow({ sessions, tabs, panes, session, tab, pane }), [sessions, tabs, panes, session, tab, pane]);
   const [query, setQuery] = useState("");
   const [foldedSpaces, setFoldedSpaces] = useState<number[]>([]);
   const [foldedTabs, setFoldedTabs] = useState<number[]>([]);
@@ -536,7 +540,7 @@ function iconOf(name: string): string {
 // ---- what a click does: the API's own calls
 
 function goTo(pane: number): Promise<unknown> {
-  return call("pane.select", { to: pane }).catch(swallow);
+  return call("pane.select", { pane }).catch(swallow);
 }
 
 function goToTab(tab: number): Promise<unknown> {
@@ -556,15 +560,15 @@ function newTab(space: number): Promise<unknown> {
 }
 
 function closePane(pane: number): Promise<unknown> {
-  return call("pane.close", pane, true).catch(swallow);
+  return call("pane.close", pane).catch(swallow);
 }
 
 function closeTab(tab: number): Promise<unknown> {
-  return call("tab.select", { tab }).then(() => call("tab.close", tab, true)).catch(swallow);
+  return call("tab.select", { tab }).then(() => call("tab.close", tab)).catch(swallow);
 }
 
 function removeSpace(space: number): Promise<unknown> {
-  return call("session.select", { session: space }).then(() => call("session.close", space, true)).catch(swallow);
+  return call("session.select", { session: space }).then(() => call("session.close", space)).catch(swallow);
 }
 
 /** What a row drags. */

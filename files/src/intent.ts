@@ -3,7 +3,7 @@
 // one thing a package must do for itself where the core plugin asks the app for a document tab: a
 // file opens in a terminal pane running the user's editor, or in whatever app owns it.
 import { dirname } from "node:path";
-import { pane, pkg } from "pumi";
+import { pane, plugin } from "pumi";
 import type { Transfer } from "./ops.ts";
 import * as ops from "./ops.ts";
 import type { Panel } from "./panel.ts";
@@ -115,7 +115,7 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
     await pane.open("terminal", { command, cwd: dirname(path) }, place);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
-    console.error(`${pkg.prefix}: cannot open ${path}: ${why}`);
+    console.error(`${plugin.prefix}: cannot open ${path}: ${why}`);
     // The next honest thing: the app the system gives it, rather than nothing at all.
     await ops.openWithSystem(panel.root, rel);
   }

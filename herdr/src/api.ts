@@ -44,7 +44,11 @@ export function fromApi(err: unknown): Fail {
   return new Fail(code, err instanceof Error ? err.message : String(err));
 }
 
-/** A call of the core's, its refusal as herdr's. */
+/**
+ * A call of the core's, its refusal as herdr's. Some of the calls here are the wire's own
+ * (`server.getState`, `server.kill`, `server.restart`): they are out of the SDK, and `call` reaches
+ * them by name.
+ */
 async function ask(name: string, ...args: Json[]): Promise<Json> {
   try {
     return (await call(name, ...args)) as Json;
@@ -246,7 +250,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "workspace.close": {
       const v = await view();
       const workspace = workspaceOf(v, p);
-      await ask("session.close", workspace, true);
+      await ask("session.close", workspace);
       return result("ok");
     }
     case "tab.list": {
@@ -284,7 +288,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "tab.close": {
       const v = await view();
       const tab = tabOf(v, p);
-      await ask("tab.close", tab, true);
+      await ask("tab.close", tab);
       return result("ok");
     }
     case "pane.list": {
@@ -311,7 +315,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       const v = await view();
       const pane = paneOf(v, p.str("pane_id"));
       if (method === "pane.focus") {
-        await ask("pane.select", { to: pane });
+        await ask("pane.select", { pane });
       }
       if (method === "pane.rename") {
         const label = p.optStr("label")?.trim();
@@ -322,7 +326,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
         const zoomed = tab === undefined ? false : (v.tabs.get(tab)?.zoomed ?? false);
         const asked = p.get("zoomed");
         const want = typeof asked === "boolean" ? asked : !zoomed;
-        await ask("pane.setZoom", pane, want);
+        await ask("pane.resize", pane, { zoom: want });
         return result("pane_zoom", { pane_id: v.paneId(pane), zoomed: want });
       }
       if (method === "pane.clear") {
@@ -378,7 +382,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "pane.close": {
       const v = await view();
       const pane = paneOf(v, p.str("pane_id"));
-      await ask("pane.close", pane, true);
+      await ask("pane.close", pane);
       return result("ok");
     }
     case "pane.read":
@@ -425,7 +429,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       let v = await view();
       const pane = paneOf(v, p.str("target"));
       if (method === "agent.focus") {
-        await ask("pane.select", { to: pane });
+        await ask("pane.select", { pane });
         v = await view();
       }
       const agent: AgentInfo | undefined = v.agentInfo(pane);

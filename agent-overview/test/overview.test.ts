@@ -2,16 +2,16 @@
 import { expect, test } from "bun:test";
 
 import { folder, place, statusOf, stripTitle, tilde, Overview } from "../src/overview.ts";
-import { snapshot } from "./window.ts";
+import { state } from "./window.ts";
 
 /** The model the fixture describes, as the view reads it. */
 function overview(): Overview {
-  return Overview.fromWindow(snapshot());
+  return Overview.fromState(state());
 }
 
 const panes = (agents: { pane: number }[]) => agents.map((agent) => agent.pane);
 
-test("only terminals in tabs are agents", () => {
+test("only panes in tabs are agents", () => {
   const all = overview();
   expect(panes(all.agents)).toEqual([100, 101, 200]);
   expect(all.currentPane).toBe(100);

@@ -1,5 +1,5 @@
 // attention: tell the user when an agent is blocked and they are looking elsewhere. All of it is
-// logic, so all of it is here: the package contributes no point and opens no pane, and has no
+// logic, so all of it is here: the package contributes no slot and opens no pane, and has no
 // `ui.tsx` for the window to draw.
 //
 // An agent's state is its pane's `@agent_status` (one word: `working`, `blocked`, `done`, `idle`,
@@ -7,7 +7,7 @@
 // `@attention` is how many, and a notice says so once each time the count goes up. The Dock
 // bounce and the badge come with the system mod (phase 4); until then they are `@attention` and
 // the notice. What is said and what `@attention` is are `count.ts`'s rule; this reads the panes.
-import { notify, on, option, pane, pkg } from "pumi";
+import { notify, on, option, pane, plugin } from "pumi";
 import { attention, count, said } from "./count.ts";
 
 /** How many were blocked at the last look, so the notice is said once each time it goes up. */
@@ -18,10 +18,15 @@ async function bounce(): Promise<string> {
   return (await option.get("bounce")) ?? "once";
 }
 
+/** The id of a pane `pane.list` named: its ids, unless it was asked for the panes closed lately. */
+function paneId(listed: number | { pane: number }): number {
+  return typeof listed === "number" ? listed : listed.pane;
+}
+
 /** How many panes' agents are blocked. */
 async function blocked(): Promise<number> {
   const panes = await pane.list();
-  const states = await Promise.all(panes.map((p) => p.options.get<string | null>("@agent_status")));
+  const states = await Promise.all(panes.map((p) => option.get("@agent_status", { pane: paneId(p) })));
   return count(states);
 }
 
@@ -37,5 +42,5 @@ async function update(): Promise<void> {
 }
 
 const desc = "count the agents waiting for you";
-on("option.changed", { match: ["@agent_status", pkg.prefixed("bounce"), pkg.prefixed("badge")], desc }, () => update());
+on("option.changed", { match: ["@agent_status", plugin.prefixed("bounce"), plugin.prefixed("badge")], desc }, () => update());
 on("pane.closed", { desc }, () => update());

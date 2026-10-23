@@ -53,7 +53,7 @@
           "desc": "The Mermaid text this diagram pane draws."
         }
       },
-      "views": [
+      "blocks": [
         {
           "id": "diagram",
           "title": "Diagram",

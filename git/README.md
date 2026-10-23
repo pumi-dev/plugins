@@ -67,11 +67,10 @@ They are declared in `package.json`, so Settings shows them under *Packages → 
 | `src/panel.ts` | the repository of the current pane, its snapshot, the cursor, the draft, the actions |
 | `src/git.ts` | the git work: `Bun.spawn`, porcelain, the history, stage/unstage/discard/ignore/resolve/commit |
 | `src/tree.ts` | the changes as a path tree, and the group states its checkboxes read |
-| `src/changes.ts` | the Changes page |
-| `src/history.ts` | the History page |
-| `src/rows.ts` | the pieces a row is made of, at the app's sizes |
+| `src/ui.tsx` | what the page draws: the groups, the rows, the commit box, the history, a row's menu |
 | `src/time.ts` | "3 days ago", "2025-10-09 08:53" |
 | `src/state.ts` | the folded directories, kept per repository |
 | `src/watch.ts` | the watch on the work tree, and which of its paths matter |
 
-`pumi testing`'s fake app and a real repository in a temporary directory: `bun test`.
+`bun test` drives the git work against a real repository in a temporary directory: no pumi is
+running.

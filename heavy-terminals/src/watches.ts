@@ -1,6 +1,6 @@
 // Every terminal's last checks, and the panes whose foreground job was suspended: what measuring
 // finds, and what being heavy does to a pane.
-import { notify, option, pane, type Pane } from "pumi";
+import { notify, option, pane } from "pumi";
 import { flag, number } from "./options.ts";
 import { usage, type Procs } from "./procs.ts";
 
@@ -41,14 +41,14 @@ export class Watches {
       autoSleep: await flag("auto_sleep", false),
     };
     // An answer with no list of panes (`null`) is no panes: this round measures nothing.
-    const terminals = (await pane.list({ type: "terminal" })) ?? [];
+    const terminals = ((await pane.list({ block: "terminal" })) ?? []).filter((id): id is number => typeof id === "number");
     const seen = new Set<number>();
-    for (const terminal of terminals) {
-      seen.add(terminal.id);
+    for (const id of terminals) {
+      seen.add(id);
       try {
-        await this.measure(terminal, procs, bars);
+        await this.measure(id, procs, bars);
       } catch (err) {
-        console.error(`heavy-terminals: pane ${terminal.id}:`, err);
+        console.error(`heavy-terminals: pane ${id}:`, err);
       }
     }
     // A pane that closed is forgotten: what was found of it, and that it was asleep.
@@ -71,9 +71,8 @@ export class Watches {
   }
 
   /** One terminal: its tree's cost, whether that is heavy, and what being heavy does. */
-  private async measure(terminal: Pane, procs: Procs, bars: Bars): Promise<void> {
-    const id = terminal.id;
-    const pid = await terminal.options.get("pane_pid");
+  private async measure(id: number, procs: Procs, bars: Bars): Promise<void> {
+    const pid = await option.get("pane_pid", { pane: id });
     if (typeof pid !== "number") return;
     const { cpu, rss } = usage(procs, pid);
     let watch = this.watched.get(id);

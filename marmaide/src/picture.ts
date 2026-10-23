@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { paths } from "pumi";
 import { faces } from "./faces.ts";
 import { nodes, type Node } from "./nodes.ts";
-import { appTheme, palette } from "./palette.ts";
+import { palette, type AppTheme } from "./palette.ts";
 import { draw, themed } from "./pele.ts";
 
 /** A diagram, drawn and dressed, ready to show or hand out. */
@@ -29,9 +29,9 @@ export interface Picture {
   nodes: Node[];
 }
 
-/** `source` drawn by Pele, in the app's colours, and written where the app can paint it. */
-export async function picture(source: string): Promise<Picture> {
-  const theme = await appTheme();
+/** `source` drawn by Pele, in the app's colours, and written where the app can paint it. `theme` is
+ * the window's (`ui.tsx` passes `useTheme()`'s tokens); without one the diagram is Pele's own. */
+export async function picture(source: string, theme: AppTheme | null = null): Promise<Picture> {
   const set = await faces(theme);
   const laid = draw(source, set);
   // The nodes come from Pele's own SVG: what `themed()` does to it is write colours and faces

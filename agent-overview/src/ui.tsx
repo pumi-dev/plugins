@@ -1,11 +1,12 @@
 // What the dashboard draws, in the window's React tree: the rail that narrows the list by state and
 // by name, a row per agent, and — beside it — the agent picked, its place and why it waits, or every
-// agent as a table by session. The agents are the app's own panes (`useAgents` and the snapshot's
-// `@program_status`), read through `overview.ts`; a press goes to a pane with `pane.select`.
+// agent as a table by session. The agents are the app's own panes (`usePanes`, `useTabs`,
+// `useSessions` and their options), read through `overview.ts`; a press goes to a pane with
+// `pane.select`.
 import { useMemo, useState } from "react";
-import { Icon, call, num, useApp, useMetrics, useTheme, type Snapshot as Window } from "pumi";
+import { Icon, call, useFocusedPane, useMetrics, usePanes, useSessions, useTabs, useTheme } from "pumi";
 
-import { Overview, folder, path, place, type Agent } from "./overview.ts";
+import { Overview as Model, folder, path, place, type Agent } from "./overview.ts";
 import { FILTERS, filterLabel, needsYou, statusLabel, type Filter, type Status } from "./status.ts";
 
 /** A throw the dashboard cannot answer: said in the log, not drawn over the window. */
@@ -13,11 +14,30 @@ function swallow(err: unknown): void {
   console.error(`agent-overview: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `overview` view: the rail, and the table or the agent picked. */
-export function Dashboard({ pane }: { pane: string }) {
+/** The `overview` block: the rail, and the table or the agent picked. */
+export function Overview() {
   const t = useTheme();
-  const app = useApp((s) => s.snapshot);
-  const model = useMemo(() => Overview.fromWindow(app as Window | undefined), [app]);
+  const panes = usePanes();
+  const tabs = useTabs();
+  const sessions = useSessions();
+  const focused = useFocusedPane();
+  const model = useMemo(
+    () =>
+      Model.fromState({
+        spaces: sessions.map((each) => ({ id: each.id, name: each.name })),
+        tabs: tabs.map((each) => ({ id: each.id, session: each.session, name: each.name })),
+        panes: panes.map((each) => ({
+          id: each.id,
+          tab: each.tab ?? null,
+          session: each.session ?? null,
+          title: each.title ?? "",
+          cwd: each.cwd ?? "",
+          options: each.options,
+        })),
+        here: focused?.id ?? null,
+      }),
+    [sessions, tabs, panes, focused],
+  );
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<number | null>(null);
@@ -28,7 +48,7 @@ export function Dashboard({ pane }: { pane: string }) {
   /** A press on an agent: the first picks it, the second goes to its pane. */
   const press = (agent: Agent) => {
     if (picked === agent.pane) {
-      void call("pane.select", { to: agent.pane }).catch(swallow);
+      void call("pane.select", { pane: agent.pane }).catch(swallow);
       return;
     }
     setPicked(agent.pane);
@@ -49,7 +69,7 @@ export function Dashboard({ pane }: { pane: string }) {
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}>
         <Cards model={model} />
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll", padding: 12, gap: 10 }}>
-          {chosen ? <Brief agent={chosen} shown={pane} /> : <Table agents={visible} onPress={press} />}
+          {chosen ? <Brief agent={chosen} /> : <Table agents={visible} onPress={press} />}
         </div>
       </div>
     </div>
@@ -67,7 +87,7 @@ function Rail({
   onQuery,
   onPress,
 }: {
-  model: Overview;
+  model: Model;
   visible: Agent[];
   filter: Filter;
   query: string;
@@ -141,7 +161,7 @@ function Rail({
 }
 
 /** The counts across the top: what is working, what wants you, and how many sessions they are in. */
-function Cards({ model }: { model: Overview }) {
+function Cards({ model }: { model: Model }) {
   const t = useTheme();
   const m = useMetrics();
   const cards: { title: string; count: number; caption: string; tone: string }[] = [
@@ -163,7 +183,7 @@ function Cards({ model }: { model: Overview }) {
 }
 
 /** One agent, in full: what it is, where it is, why it waits, and what it last said. */
-function Brief({ agent, shown }: { agent: Agent; shown: string }) {
+function Brief({ agent }: { agent: Agent }) {
   const t = useTheme();
   const m = useMetrics();
   const tone = t[`agent.${agent.status}`] ?? t["agent.unknown"];
@@ -175,7 +195,7 @@ function Brief({ agent, shown }: { agent: Agent; shown: string }) {
         <text style={{ fontSize: 12, color: tone }}>{statusLabel(agent.status)}</text>
         <div style={{ flexGrow: 1 }} />
         <div
-          onClick={() => void call("pane.select", { to: agent.pane }).catch(swallow)}
+          onClick={() => void call("pane.select", { pane: agent.pane }).catch(swallow)}
           style={{ display: "flex", paddingLeft: 8, paddingRight: 8, height: 24, alignItems: "center", borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: t.active, hover: { backgroundColor: t.hover } }}
         >
           <text style={{ fontSize: 12, color: t.text }}>Go to the pane</text>
@@ -192,7 +212,7 @@ function Brief({ agent, shown }: { agent: Agent; shown: string }) {
           <text style={{ fontSize: 12, color: t.text }}>{agent.message}</text>
         </div>
       ) : null}
-      <text style={{ fontSize: 10, color: t.faint }}>{`pane %${agent.pane} · drawn in ${shown === "" ? "the window" : "this tab"}`}</text>
+      <text style={{ fontSize: 10, color: t.faint }}>{`pane %${agent.pane}`}</text>
     </div>
   );
 }
@@ -257,6 +277,3 @@ function matchesFilter(filter: Filter, status: Status): boolean {
   if (filter === "working") return status === "working";
   return status === "idle" || status === "done";
 }
-
-/** Kept for the package's own calls: the pane id of an agent, as the API writes it. */
-export const paneOf = num;

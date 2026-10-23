@@ -1,8 +1,8 @@
-// The snapshot: the model `server.getState` answers, mapped the way the app maps it for the core
-// plugin (src/runtime/pumid/wire.rs).
+// The snapshot: the window's state — sessions, tabs and panes, and what each pane says of itself —
+// as the rows read it.
 import { expect, test } from "bun:test";
 
-import { leaves, read, strip } from "../src/snapshot.ts";
+import { read, strip } from "../src/snapshot.ts";
 import { state } from "./fake.ts";
 
 test("every space, tab and pane comes back with what it says of itself", () => {
@@ -12,9 +12,9 @@ test("every space, tab and pane comes back with what it says of itself", () => {
     [2, "site", 1],
   ]);
   expect(snap.tabs.map((tab) => [tab.id, tab.space, tab.index, tab.label])).toEqual([
-    [10, 1, 0, ""],
+    [10, 1, 0, "Tab 1"],
     [11, 1, 1, "editor"],
-    [20, 2, 0, ""],
+    [20, 2, 0, "Tab 1"],
   ]);
   const agent = snap.panes.find((pane) => pane.id === 101)!;
   expect([agent.tab, agent.space, agent.agent, agent.status, agent.title, agent.stripped]).toEqual([
@@ -28,7 +28,7 @@ test("every space, tab and pane comes back with what it says of itself", () => {
   expect(agent.cwd).toBe("/Users/me/Kitchen/pumi");
 });
 
-test("a tab's panes are in the order its layout lays them out", () => {
+test("a tab's panes keep the order they are given in", () => {
   const snap = read(state());
   expect(snap.tabs.find((tab) => tab.id === 11)!.panes.map((pane) => pane.id)).toEqual([101, 102]);
 });
@@ -41,7 +41,7 @@ test("a float and a detached pane are not in a tab, so they are not in a space",
   }
 });
 
-test("what is in front is the model's current one", () => {
+test("what is in front is the one that says it is", () => {
   const snap = read(state());
   expect(snap.focus).toEqual({ space: 1, tab: 11, pane: 101 });
   expect(snap.spaces.find((space) => space.id === 1)!.focused).toBe(true);
@@ -50,9 +50,9 @@ test("what is in front is the model's current one", () => {
 });
 
 test("`@label` is what the user named a pane, and `title` is untouched", () => {
-  const model = state() as any;
-  model.state.panes[1].options["@label"] = "the agent";
-  const pane = read(model).panes.find((each) => each.id === 101)!;
+  const given = state();
+  given.panes[1]!.label = "the agent";
+  const pane = read(given).panes.find((each) => each.id === 101)!;
   expect([pane.label, pane.title]).toEqual(["the agent", "π - claude"]);
 });
 
@@ -62,10 +62,4 @@ test("a title loses the decoration a program puts round it", () => {
   expect(strip("⠋ claude")).toBe("claude");
   expect(strip("✳ thinking")).toBe("thinking");
   expect(strip("yarn build")).toBe("yarn build");
-});
-
-test("a layout's leaves come out in order", () => {
-  expect(leaves(["leaf", 3])).toEqual([3]);
-  expect(leaves(["row", [["leaf", 1, 0.3], ["col", [["leaf", 2, 0.5], ["leaf", 3, 0.5]], 0.7]]])).toEqual([1, 2, 3]);
-  expect(leaves(null)).toEqual([]);
 });

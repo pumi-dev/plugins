@@ -15,7 +15,7 @@
 // It also binds herdr's default keys in the prefix table (keys.ts), as herdr has them.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { on, option, paths, pkg, type PumiEvent } from "pumi";
+import { on, option, paths, plugin, type PumiEvent } from "pumi";
 import { serve as serveClient } from "./client.ts";
 import { install as installKeys } from "./keys.ts";
 import type { Listener } from "./listen.ts";
@@ -116,7 +116,7 @@ mkdirSync(data, { recursive: true });
 dataListeners = await serveIn(data, grid);
 await serveSession(grid);
 await installKeys();
-on("option.changed", { match: pkg.prefixed(SESSION), desc: "herdr's session sockets follow herdr.session" }, () => {
+on("option.changed", { match: plugin.prefixed(SESSION), desc: "herdr's session sockets follow herdr.session" }, () => {
   void serveSession(grid).catch((err) => log(`${SESSION}: ${why(err)}`));
 });
 on(EVENTS, { desc: "herdr's socket: the model changing" }, (event: PumiEvent) => {

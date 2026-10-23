@@ -9,7 +9,7 @@
 // What is here is the logic: opening, placing and closing the float, the key that toggles it, and
 // the numbers read from the app. What the numbers mean and how the rows are laid out is
 // `report.ts`'s; `ui.tsx` draws them.
-import { call, command, key, menu, notify, on, option, pane, pkg, system, type Disposer, type Pane } from "pumi";
+import { call, command, menu, notify, on, option, pane, plugin } from "pumi";
 
 import { place } from "./place.ts";
 import { EMPTY, heightOf, reportOf, type Report } from "./report.ts";
@@ -51,11 +51,7 @@ export async function family(): Promise<string> {
   const value = await option.get("guifont").catch(() => null);
   const set = typeof value === "string" ? value.split(":")[0]!.trim().replace(/_/g, " ") : "";
   if (set !== "") return set;
-  try {
-    return (await system.platform())?.os === "macos" ? "Menlo" : "monospace";
-  } catch {
-    return "monospace";
-  }
+  return process.platform === "darwin" ? "Menlo" : "monospace";
 }
 
 /** Where the overlay goes, for a report as tall as it shows. */
@@ -64,9 +60,10 @@ export async function at(): Promise<ReturnType<typeof place>> {
 }
 
 /** The overlays open now. */
-async function openPanes(): Promise<Pane[]> {
+async function openPanes(): Promise<number[]> {
   try {
-    return (await pane.list({ type: pkg.prefixed(VIEW) })) ?? [];
+    const listed = (await pane.list({ block: plugin.prefixed(VIEW) })) ?? [];
+    return listed.filter((id): id is number => typeof id === "number");
   } catch (err) {
     console.error(`perf: ${message(err)}`);
     return [];
@@ -77,12 +74,12 @@ async function openPanes(): Promise<Pane[]> {
 async function toggle(): Promise<boolean> {
   const open = await openPanes();
   if (open.length > 0) {
-    for (const overlay of open) await pane.close(overlay, true).catch(() => {});
+    for (const overlay of open) await pane.close(overlay).catch(() => {});
     return false;
   }
   const where = await at();
   try {
-    await pane.open(pkg.prefixed(VIEW), { height: heightOf(await report()) }, where);
+    await pane.open(plugin.prefixed(VIEW), { height: heightOf(await report()) }, where);
     return true;
   } catch (err) {
     await notify(`perf: ${message(err)}`, "error");
@@ -103,24 +100,36 @@ async function replace(): Promise<void> {
 }
 
 /** The trigger last bound in the global key table, so the next one can unbind it. */
-let bound: { trigger: string; mapping: Disposer } | null = null;
+let bound: string | null = null;
+
+/** Unbinds the trigger bound last, if any: `key.del` has no disposer of its own. */
+async function unbind(): Promise<void> {
+  if (bound === null) return;
+  const previous = bound;
+  bound = null;
+  // A key that is not bound, or a table that is gone, is `not_found`: there is nothing to undo.
+  await call("key.del", "global", previous).catch((err: unknown) => console.error(`perf: key.del ${previous}: ${message(err)}`));
+}
 
 /** Bind `trigger` in the global key table, and unbind the last one. */
 async function bind(): Promise<void> {
   const value = await option.get("trigger").catch(() => null);
   const trigger = typeof value === "string" && value !== "" ? value : DEFAULT_TRIGGER;
-  if (bound?.trigger === trigger) return;
-  bound?.mapping();
-  bound = null;
-  const mapping = key.set("global", trigger, () => void toggle(), { desc: "Toggle the performance overlay" });
-  mapping.ready.catch((err: unknown) => console.error(`perf: ${message(err)}`));
-  bound = { trigger, mapping };
+  if (bound === trigger) return;
+  await unbind();
+  try {
+    await call("key.set", "global", trigger, () => void toggle(), { desc: "Toggle the performance overlay" });
+    bound = trigger;
+  } catch (err) {
+    // Nothing is recorded, so the next change asks again rather than thinking it is bound.
+    console.error(`perf: key.set ${trigger}: ${message(err)}`);
+  }
 }
 
 command("toggle", () => toggle());
-menu.add("View.Performance Overlay", { call: pkg.prefixed("toggle") }, { desc: "How the app is doing: CPU, memory, frames, core plugins, threads." });
+menu.add("View.Performance Overlay", { call: plugin.prefixed("toggle") }, { desc: "How the app is doing: CPU, memory, frames, core plugins, threads." });
 void bind();
-on("option.changed", { match: pkg.prefixed("*"), desc: "perf follows its options" }, () => {
+on("option.changed", { match: plugin.prefixed("*"), desc: "perf follows its options" }, () => {
   void bind();
   void replace();
 });

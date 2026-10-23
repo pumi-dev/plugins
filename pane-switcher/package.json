@@ -128,7 +128,7 @@
           "title": "Switch pane"
         }
       ],
-      "views": [
+      "blocks": [
         {
           "id": "switcher",
           "title": "Pane switcher",

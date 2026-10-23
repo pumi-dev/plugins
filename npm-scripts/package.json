@@ -58,7 +58,7 @@
           "desc": "How many directories below the repository root to look in."
         }
       },
-      "points": {
+      "slots": {
         "panel": {
           "view": "Scripts",
           "title": "NPM Scripts",

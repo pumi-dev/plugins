@@ -2,19 +2,20 @@
 // app's every action, with its keys, by the host (`{type:"actions"}`); a package is not, so the list
 // is put together from the two places the app publishes its vocabulary:
 //
-//   menu.get("")  every menu the app and the packages put up — the header's buttons, a pane's strip,
-//                 the menu bar's menus — each item with its label, its key and what it runs
-//   key.list("")  every key table: the host's prefix keys, the packages' (a manifest's `keys` land in
-//                 `root`), each binding with the function it calls and what it is for
+//   menu.list("")  every menu the app and the packages put up — the header's buttons, a pane's strip,
+//                  the menu bar's menus — each item with its label, its key and what it runs
+//   key.list("")   every key table: the host's prefix keys, the packages' (a manifest's `keys` land
+//                  in `root`), each binding with the function it calls and what it is for. The key
+//                  tables have no noun in the SDK; it is a call, as a plugin's own keys are.
 //
 // What is listed is what can be run from here: a menu item is run with `menu.exec`, a binding by
-// calling the function it holds. A menu item that opens a view of the app's own (`open`) has no way
-// in from a package, and a binding to a command line needs the tmux package to run it, so neither
-// is listed — see the report.
-import { call, key, menu, option, pane, type PlaceSpec } from "pumi";
+// calling the function it holds. A menu item that opens a block of the app's own (`open`) has no
+// way in from a package, and a binding to a command line needs the tmux package to run it, so
+// neither is listed — see the report.
+import { call, menu, option, pane, type PlaceSpec } from "pumi";
 import { humanizeActionName } from "./score.ts";
 
-/** A menu item, as `menu.get` says it (the host's `Menu`). */
+/** A menu item, as `menu.list` says it (the host's `Menu`). */
 interface MenuItem {
   name: string;
   label?: string | null;
@@ -28,7 +29,7 @@ interface MenuItem {
   open?: Open | null;
 }
 
-/** A view a menu item shows instead of running anything: a package's view type, and how big. */
+/** A block a menu item shows instead of running anything: its id, and how big. */
 interface Open {
   view: string;
   args?: unknown;
@@ -103,16 +104,25 @@ async function prefixChord(): Promise<string> {
 /** The menu tree, or nothing when the host has none yet. */
 async function tree(): Promise<MenuItem[]> {
   try {
-    return (await menu.get("")) as MenuItem[];
+    return (await menu.list("")) as MenuItem[];
   } catch {
     return [];
   }
 }
 
+/** A key binding, as `key.list` says it (the host's `Binding`): the table and key it is, and what
+ * it runs. */
+interface Binding {
+  table: string;
+  key: string;
+  desc?: string | null;
+  call?: { call: string; args?: unknown } | null;
+}
+
 /** The key tables, or nothing. */
-async function bindings() {
+async function bindings(): Promise<Binding[]> {
   try {
-    return await key.list("");
+    return (await call("key.list", "")) as Binding[];
   } catch {
     return [];
   }
@@ -136,16 +146,16 @@ function collect(item: MenuItem, above: string[], into: Action[], byCall: Map<st
     label: item.label ?? name,
     keys: item.keys === null || item.keys === undefined || item.keys === "" ? [] : [item.keys],
     context: above[0] ?? null,
-    // An item that opens a view is not `menu.exec`'s to run ("the app shows it where it was chosen"),
-    // so the view is opened here instead: as a float over the tab, which is as close to the app's
-    // popover as a package gets.
+    // An item that opens a block is not `menu.exec`'s to run ("the app shows it where it was
+    // chosen"), so the block is opened here instead: as a float over the tab, which is as close to
+    // the app's popover as a package gets.
     run: () => (open === null ? menu.exec(escapePath(path)) : shown(open)),
   };
   into.push(action);
   if (item.call?.call !== undefined) byCall.set(signature(item.call.call, item.call.args), action);
 }
 
-/** Opens the view a menu item shows, over the tab, at about the size the item asked for. */
+/** Opens the block a menu item shows, over the tab, at about the size the item asked for. */
 async function shown(open: Open): Promise<unknown> {
   const place: PlaceSpec = { kind: "float" };
   if (typeof open.width === "number") place.width = `${open.width}px`;

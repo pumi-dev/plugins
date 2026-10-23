@@ -46,7 +46,7 @@ test("a shell's words are commands, and its `{ }` a block", () => {
 
 test("variables and a home directory are the environment's", () => {
   const env = vars({ HOME: "/home/amr", NAME: "amr" });
-  expect(words(parseStr("echo $NAME ${NAME}x", env))).toEqual([["echo", "amrx", "amrx"]]);
+  expect(words(parseStr("echo $NAME ${NAME}x", env))).toEqual([["echo", "amr", "amrx"]]);
   expect(words(parseStr("cd ~/src", env))).toEqual([["cd", "/home/amr/src"]]);
   expect(() => parseStr("cd ~nobody", vars({ HOME: "/home/amr" }))).toThrow("no home directory for ~nobody");
 });
@@ -77,7 +77,7 @@ test("a command line prints again as itself", () => {
   expect(printList(list)).toBe("new-window -n 'a b' ; bind x { kill-pane }");
   expect(parseStr(printList(list), vars())).toEqual([
     { name: "new-window", args: ["-n", "a b"], line: 1 },
-    { name: "bind", args: ["x", [{ name: "kill-pane", args: [], line: 1 }]], line: 2 },
+    { name: "bind", args: ["x", [{ name: "kill-pane", args: [], line: 1 }]], line: 1 },
   ]);
 });
 

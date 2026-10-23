@@ -3,11 +3,12 @@
 // `fit` to put it back. A click on a node asks for a note, which goes to an agent's inbox; the
 // rendering, the nodes and the inbox are the worker's (`main.ts`, `picture.ts`, `agents.ts`).
 import { useEffect, useState } from "react";
-import { Icon, num, useMetrics, usePane, useTheme } from "pumi";
+import { Icon, useMetrics, usePane, usePlugin, useTheme, type Metrics, type RendererProps, type Tokens } from "pumi";
 
 import { agents as agentsOf, drawn, note, type Shown } from "./main.ts";
 import type { Agent } from "./agents.ts";
 import { at as nodeAt, type Node } from "./nodes.ts";
+import type { AppTheme } from "./palette.ts";
 
 /** Room around the diagram, in points. */
 const PADDING = 12;
@@ -27,14 +28,31 @@ function swallow(err: unknown): void {
   console.error(`marmaide: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `diagram` view: the picture, the zoom it is at, and the caption row under it. */
-export function Diagram({ pane }: { pane: string }) {
+/** This plugin's options carry its prefix (`amresyd.marmaide.`), which is how the pane's own
+ * `source` is named in the state the window reads. */
+function usePrefix(): string {
+  const id = usePlugin();
+  return id === undefined ? "" : `${id.replace("/", ".").replaceAll("-", "_")}.`;
+}
+
+/** The app's colours as the worker draws a diagram in them: the window has the tokens, the SVG is
+ * the worker's, so they go with every draw. */
+function diagramTheme(t: Tokens, m: Metrics): AppTheme {
+  return {
+    colors: { editor: t.editor, surface_text: t.text, primary: t.accent },
+    metrics: { radius_sm: m.radiusSmall },
+  };
+}
+
+/** The `diagram` block: the picture, the zoom it is at, and the caption row under it. */
+export function Diagram({ pane }: RendererProps) {
   const t = useTheme();
   const m = useMetrics();
-  const owner = num(pane);
+  const owner = pane.id;
   const each = usePane(pane);
+  const prefix = usePrefix();
   /** The source the pane's options say: a redraw is a new value of it. */
-  const source = (each?.options ?? {})[`source`] as string | undefined;
+  const source = each?.options?.[`${prefix}source`] as string | undefined;
   const [shown, setShown] = useState<Shown | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -42,11 +60,13 @@ export function Diagram({ pane }: { pane: string }) {
   const [drag, setDrag] = useState<{ from: [number, number]; pan: [number, number]; moved: boolean } | null>(null);
   const [asking, setAsking] = useState<{ node: Node; to: Agent[]; text: string; said: string | null } | null>(null);
 
+  // A new source, or a new theme, is a new picture: the diagram is drawn in the window's colours,
+  // so the tokens go with the ask and a theme switch draws it again.
   useEffect(() => {
     let live = true;
     setShown(null);
     setError(null);
-    void drawn(owner)
+    void drawn(owner, diagramTheme(t, m))
       .then((read) => {
         if (!live) return;
         if ("error" in read) setError(read.error);
@@ -56,7 +76,7 @@ export function Diagram({ pane }: { pane: string }) {
     return () => {
       live = false;
     };
-  }, [owner, source]);
+  }, [owner, source, t, m]);
 
   /** Puts the diagram back where it came from: fitted, and centred enough to read. */
   const fit = () => {

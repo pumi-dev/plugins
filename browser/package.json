@@ -23,6 +23,7 @@
           "type": "string",
           "scope": "pane",
           "default": "about:blank",
+          "blocks": ["page"],
           "label": "Page",
           "group": "Page",
           "desc": "The page's address in this pane. Setting it navigates, as the app's own browser does."
@@ -35,14 +36,15 @@
         },
         {
           "id": "openTab",
-          "title": "Browser: open a page in a new view"
+          "title": "Browser: open a page in a new tab"
         }
       ],
-      "views": [
+      "blocks": [
         {
           "id": "page",
           "title": "Browser",
-          "icon": "globe"
+          "icon": "globe",
+          "methods": ["navigate", "back", "forward", "reload"]
         }
       ]
     },

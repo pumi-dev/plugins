@@ -1,16 +1,13 @@
-// The snapshot: what the core agents plugin is handed in `{type: "refresh", snapshot}` — every
-// space, tab and pane with the options that say what they are — rebuilt from the API.
+// The snapshot the rows read: every space, tab and pane with the options that say what they are,
+// as `tree.ts` and `status.ts` expect it — numeric ids, and one record per space, tab and pane.
 //
-// `server.getState` answers the whole model as `client.attach` sends it, and `read` maps it the way
-// the app's own `read()` does (src/runtime/pumid/wire.rs), so the rows read the fields the Rust
-// sidebar read: a pane's `title`, `@label`, `@agent`, `@agent_status`, `@program_status` and
-// `pane_current_path`; a tab's name, index and layout; a session's name and tabs.
+// Both halves build it from `read`: the window from the app's own state (`adapt.ts`), and the
+// worker from the API (`main.ts`'s `readState`: `session.get`, `tab.get`, `pane.list` and each
+// pane's options under it), so a row reads the same whichever half made the model.
 //
-// What the app's snapshot carries and this cannot: the app's own leaves (`tab.leaves`, the doc tabs
-// and browsers it draws itself — a package cannot see them, and never gets a doc tab), a window's
-// focus as opposed to the server's current one, and sessions on other servers (`server.list` +
-// `server.call` reach those, unimplemented here).
-import { server } from "pumi";
+// What the app's window has and the server's own read does not: a window's focus as opposed to
+// the server's current one, and the sessions of other servers (`server.list` + `server.call` reach
+// those, unimplemented here).
 
 /** One program's report of what it is doing, as OSC 7501 carries it (`@program_status`). */
 export interface Program {
@@ -30,8 +27,8 @@ export interface Pane {
   tab: number | null;
   /** `$1` its tab is in. */
   space: number | null;
-  /** Its type: `terminal`, a browser, or a view a package draws. */
-  kind: string;
+  /** The block it holds: `terminal`, or a package's (`owner.name.id`). */
+  block: string;
   /** Its `title` option, as the program wrote it. */
   title: string;
   /** The same without the program's decoration (a shell's prompt mark, a spinner). */
@@ -54,6 +51,7 @@ export interface Pane {
 export interface Tab {
   id: number;
   space: number;
+  /** Its place in its session, from 0, as the server counts it (`tab.index` in the window is 1). */
   index: number;
   label: string;
   /** Its panes, in the order its layout lays them out. */
@@ -85,9 +83,52 @@ export interface Snapshot {
   focus: Focus;
 }
 
+/** A pane before the model is built: where it is, and what its options say. */
+export interface PaneGiven {
+  id: number;
+  block: string;
+  /** The tab it is tiled in, or `null` for a float, a slot or a detached pane. */
+  tab: number | null;
+  /** The session its tab is in. */
+  space: number | null;
+  /** Its `title` option. */
+  title: string;
+  /** Its `pane_current_path`. */
+  cwd: string;
+  /** Its `@label`. */
+  label: string;
+  /** Its options: `@agent`, `@agent_status`, `@program_status`, … */
+  options: Record<string, unknown>;
+  focused: boolean;
+}
+
+/** A tab before the model is built. */
+export interface TabGiven {
+  id: number;
+  space: number;
+  index: number;
+  label: string;
+  focused: boolean;
+}
+
+/** A space before the model is built. */
+export interface SpaceGiven {
+  id: number;
+  label: string;
+  current: number | null;
+  focused: boolean;
+}
+
+/** What both halves know before the model is built: the window's state, or the server's. */
+export interface Given {
+  spaces: SpaceGiven[];
+  tabs: TabGiven[];
+  /** Every pane, in the order its tab lays it out. */
+  panes: PaneGiven[];
+}
+
 export const EMPTY: Snapshot = { spaces: [], tabs: [], panes: [], focus: { space: null, tab: null, pane: null } };
 
-const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const array = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const obj = (v: unknown): Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
@@ -107,22 +148,6 @@ export function strip(title: string): string {
   return title.slice(at).trim();
 }
 
-/** The panes of a tab's layout, in the order it lays them out: `["leaf", 3]`, `["row", [...]]`. */
-export function leaves(layout: unknown): number[] {
-  const node = array(layout);
-  switch (node[0]) {
-    case "leaf": {
-      const id = num(node[1]);
-      return id === null ? [] : [id];
-    }
-    case "row":
-    case "col":
-      return array(node[1]).flatMap(leaves);
-    default:
-      return [];
-  }
-}
-
 /** The programs a pane reports: `@program_status` is an array of records, or nothing. */
 export function programs(value: unknown): Program[] {
   return array(value).map((each) => {
@@ -136,107 +161,55 @@ export function programs(value: unknown): Program[] {
   });
 }
 
-/** The model as `server.getState` answers it, mapped to the snapshot. */
-export function read(reply: unknown): Snapshot {
-  const outer = obj(reply);
-  const state = "state" in outer ? obj(outer.state) : outer;
-  const current = obj(state.current);
-  const focus: Focus = { space: num(current.session), tab: num(current.tab), pane: num(current.pane) };
-
-  // Which session lists which tabs, and where: the first session that has one, as the app reads it.
-  const where = new Map<number, { space: number; index: number }>();
-  const owned = new Map<number, { index: number; tab: number }[]>();
-  for (const each of array(state.sessions)) {
-    const session = obj(each);
-    const id = num(session.id);
-    if (id === null) continue;
-    const pairs = array(session.tabs).map((pair) => {
-      const listed = array(pair);
-      return { index: num(listed[0]) ?? 0, tab: num(listed[1]) ?? 0 };
-    });
-    owned.set(id, pairs);
-    for (const pair of pairs) if (!where.has(pair.tab)) where.set(pair.tab, { space: id, index: pair.index });
-  }
-
-  const tabs = new Map<number, Record<string, unknown>>();
-  for (const each of array(state.tabs)) {
-    const tab = obj(each);
-    const id = num(tab.id);
-    if (id !== null) tabs.set(id, tab);
-  }
-
-  const panes: Pane[] = [];
+/** The panes, tabs and spaces as the rows read them: one nesting, and what each pane says. */
+export function read(given: Given): Snapshot {
   const inTab = new Map<number, Pane[]>();
-  for (const each of array(state.panes)) {
-    const raw = obj(each);
-    const id = num(raw.id);
-    if (id === null) continue;
-    const place = obj(raw.place);
-    const tab = place.kind === "tiled" ? num(place.tab) : null;
-    const options = obj(raw.options);
-    const title = str(options.title);
-    const pane: Pane = {
-      id,
-      tab,
-      space: tab === null ? null : (where.get(tab)?.space ?? null),
-      kind: str(raw.type) || "terminal",
-      title,
-      stripped: strip(title),
-      cwd: str(options.pane_current_path),
-      label: str(options["@label"]),
-      agent: str(options["@agent"]),
-      status: str(options["@agent_status"]),
-      program: programs(options["@program_status"]),
-      focused: id === focus.pane,
+  const panes: Pane[] = given.panes.map((each) => {
+    const said = obj(each.options);
+    const made: Pane = {
+      id: each.id,
+      tab: each.tab,
+      space: each.space,
+      block: each.block,
+      title: each.title,
+      stripped: strip(each.title),
+      cwd: each.cwd,
+      label: each.label,
+      agent: str(said["@agent"]),
+      status: str(said["@agent_status"]),
+      program: programs(said["@program_status"]),
+      focused: each.focused,
     };
-    panes.push(pane);
-    if (tab !== null) inTab.set(tab, [...(inTab.get(tab) ?? []), pane]);
-  }
+    if (each.tab !== null) inTab.set(each.tab, [...(inTab.get(each.tab) ?? []), made]);
+    return made;
+  });
 
-  // A tab's panes as its layout says, then any it keeps but does not lay out.
-  for (const [tab, list] of inTab) {
-    const order = leaves(tabs.get(tab)?.layout);
-    const rank = (pane: Pane) => {
-      const at = order.indexOf(pane.id);
-      return at === -1 ? order.length : at;
-    };
-    list.sort((a, b) => rank(a) - rank(b) || a.id - b.id);
-  }
+  const tabs: Tab[] = given.tabs
+    .map((each) => ({
+      id: each.id,
+      space: each.space,
+      index: each.index,
+      label: each.label,
+      panes: inTab.get(each.id) ?? [],
+      focused: each.focused,
+    }))
+    .sort((a, b) => a.space - b.space || a.index - b.index);
 
-  const ordered: Tab[] = [];
-  for (const [space, pairs] of owned) {
-    for (const pair of pairs) {
-      ordered.push({
-        id: pair.tab,
-        space,
-        index: pair.index,
-        label: str(tabs.get(pair.tab)?.name),
-        panes: inTab.get(pair.tab) ?? [],
-        focused: pair.tab === focus.tab && space === focus.space,
-      });
-    }
-  }
-  ordered.sort((a, b) => a.space - b.space || a.index - b.index);
+  const spaces: Space[] = given.spaces
+    .map((each) => ({
+      id: each.id,
+      label: each.label,
+      current: each.current,
+      focused: each.focused,
+      tabs: tabs.filter((tab) => tab.space === each.id),
+    }))
+    .sort((a, b) => a.id - b.id);
 
-  const spaces: Space[] = [];
-  for (const each of array(state.sessions)) {
-    const session = obj(each);
-    const id = num(session.id);
-    if (id === null) continue;
-    spaces.push({
-      id,
-      label: str(session.name),
-      current: num(session.current),
-      focused: id === focus.space,
-      tabs: ordered.filter((tab) => tab.space === id),
-    });
-  }
-  spaces.sort((a, b) => a.id - b.id);
+  const focus: Focus = {
+    space: given.spaces.find((each) => each.focused)?.id ?? null,
+    tab: given.tabs.find((each) => each.focused)?.id ?? null,
+    pane: given.panes.find((each) => each.focused)?.id ?? null,
+  };
 
-  return { spaces, tabs: ordered, panes, focus };
-}
-
-/** Read the model, and map it. */
-export async function readState(): Promise<Snapshot> {
-  return read(await server.getState());
+  return { spaces, tabs, panes, focus };
 }

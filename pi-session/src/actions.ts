@@ -1,7 +1,7 @@
 // What the strip's two buttons do, each reading its pane afresh: Fork opens `pi --fork <session>`
 // in a pane beside that one, in the same directory; Copy puts the session's id, path and directory
 // on the clipboard.
-import { pane, system } from "pumi";
+import { clipboard, pane } from "pumi";
 
 import { Session } from "./session.ts";
 import { setting } from "./settings.ts";
@@ -19,6 +19,6 @@ export async function fork(at: number): Promise<void> {
 /** Puts the session's id, path and directory on the clipboard, and says what it put there. */
 export async function copy(at: number): Promise<string> {
   const summary = (await Session.of(at)).summary();
-  await system.clipboard.set(summary);
+  await clipboard.set(summary);
   return summary;
 }

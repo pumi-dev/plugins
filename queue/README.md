@@ -4,13 +4,10 @@ Commands that run **one at a time**, each after the pane it waits for is done �
 each pane that has one, showing its jobs.
 
 ```
-  %3  pi  ───────────────────────────────
-        ...terminal...
   ───────────────────────────────────────
-   queue   1 running · 2 waiting
-   ▶ make deploy      in %7 · 0:42
-   · cargo test       after %3 · done
-   · ./notarize.sh    next
+   ▶ make deploy   +2   in %7 · 0:42   ✕ →
+  ───────────────────────────────────────
+        ...terminal...
 ```
 
 ## Add a job
@@ -51,19 +48,15 @@ seen busy, or 2 s have passed with it at rest (a command too quick to see, `true
 
 ## The bar
 
-One under each pane that has work — the manifest's `contributes.points["pane.strip"]` view, which
+One under each pane that has work — the manifest's `contributes.slots["pane.strip"]` view, which
 draws nothing for a pane the queue has no job for: the jobs waiting for that pane, the one running
-in it, and a job that is over for ten seconds after. A row goes to the pane it is
-about — the one it waits for, or the one it was added from — so a click focuses it; `✕` cancels
-a job that has not started.
-
-The bar is as many rows as it has jobs (`queue.rows` at most), because the app gives a winbar the
-height the views in it ask for (`@rows`, one row by default). On an app older than that, the bar
-is one row and draws the queue as a single line — it still works.
+in it, and a job that is over for ten seconds after. It is one line: the job that matters at the
+moment, how many follow it, and how many are over. The line goes to the pane it is about — the one
+it waits for, or the one it was added from — so a click focuses it; `✕` cancels a job that has not
+started.
 
 ## Options
 
-- `queue.rows` — the most rows a bar takes (default 4).
 - `queue.keep` — a finished job's own pane stays open with its output (default true). The pane is
   the job's record: `queue.clear` closes it.
 - `queue.notify` — say when a job is over, as the OS says it (default true).

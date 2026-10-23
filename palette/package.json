@@ -40,7 +40,7 @@
           "command": "toggle"
         }
       ],
-      "views": [
+      "blocks": [
         {
           "id": "main",
           "title": "Command Palette",

@@ -11,9 +11,9 @@ export const MAX_PREVIEWS = 20;
 export interface Card {
   /** The pane it is. */
   pane: number;
-  /** Its type (`terminal`, `browser`, …). */
+  /** Its block (`terminal`, `amresyd.browser.page`, …). */
   kind: string;
-  /** Its title, or what it runs, or its type. */
+  /** Its title, or what it runs, or its block. */
   title: string;
   /** Its `tab.pane` number and its directory, or its page. */
   detail: string;
@@ -29,7 +29,7 @@ export function tilde(path: string): string {
   return home !== "" && path.startsWith(home) ? `~${path.slice(home.length)}` : path;
 }
 
-/** The icon a pane type's card is drawn with. */
+/** The icon a pane's block is drawn with. */
 export function kindIcon(kind: string): string {
   if (kind === "terminal") return "terminal";
   if (kind === "browser") return "tool_web";

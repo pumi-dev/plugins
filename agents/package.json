@@ -80,7 +80,7 @@
           "command": "toggle"
         }
       ],
-      "points": {
+      "slots": {
         "panel": {
           "view": "Agents",
           "title": "Agents",

@@ -17,7 +17,7 @@ test("pumi's data directory, as $PUMI_DATA_DIR says it", () => {
 test("else the platform's, for the app's name", () => {
   const mac = temp();
   mkdirSync(join(mac, "Library/Application Support"), { recursive: true });
-  expect(dataDir({ HOME: mac }, `${mac}/Library/Application Support/pumi-dev/packages/amresyd.herdr`)).toBe(
+  expect(dataDir({ HOME: mac }, `${mac}/Library/Application Support/pumi-dev/plugins/amresyd.herdr`)).toBe(
     join(mac, "Library", "Application Support", "pumi-dev"),
   );
   // No Library: the XDG data home, or ~/.local/share when that is not set either.
@@ -26,10 +26,10 @@ test("else the platform's, for the app's name", () => {
   expect(dataDir({ HOME: "/h" })).toBe("/h/.local/share/pumi");
 });
 
-test("the app's name: $PUMI_APPNAME, else the one above the packages, else pumi", () => {
+test("the app's name: $PUMI_APPNAME, else the one above the plugins, else pumi", () => {
   expect(appName({ PUMI_APPNAME: "pumi-dev" })).toBe("pumi-dev");
-  expect(appName({ PUMI_APPNAME: "" }, "/s/pumi/packages/amresyd.herdr")).toBe("pumi");
-  expect(appName({}, "/s/pumi/packages/amresyd.herdr")).toBe("pumi");
+  expect(appName({ PUMI_APPNAME: "" }, "/s/pumi/plugins/amresyd.herdr")).toBe("pumi");
+  expect(appName({}, "/s/pumi/plugins/amresyd.herdr")).toBe("pumi");
   expect(appName({})).toBe("pumi");
   expect(home({ HOME: "/h" })).toBe("/h");
   expect(home({})).toBe("/");

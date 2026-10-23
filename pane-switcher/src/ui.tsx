@@ -1,11 +1,11 @@
 // What the switcher draws, in the window's React tree: the row of cards, the one the highlight is
-// on, and the keys that move it. It is the view type `switcher`, opened as a float over the window
-// by its command (`main.ts`), so a switch from any tab of the session still shows it; the app's
-// float takes the presses outside it and closes it on Escape (`dismiss`), so the view handles
-// neither key nor click itself. The panes, the keys a card picks and the float it closes are
-// `main.ts`'s: the view asks it and draws the answer.
+// on, and the keys that move it. It is the renderer of the block `switcher`, opened as a float over
+// the window by its command (`main.ts`), so a switch from any tab of the session still shows it;
+// the app's float takes the presses outside it and closes it on Escape (`dismiss`), so the view
+// handles neither key nor click itself. The panes, the keys a card picks and the float it closes
+// are `main.ts`'s: the view asks it and draws the answer.
 import { useEffect, useRef, useState } from "react";
-import { Icon, useMetrics, useTheme } from "pumi";
+import { Icon, useMetrics, useTheme, type RendererProps } from "pumi";
 
 import { kindIcon } from "./cards.ts";
 import { chord, keyed, type Action } from "./keys.ts";
@@ -25,8 +25,9 @@ interface Scrolls {
   scrollIntoView?(): void;
 }
 
-/** The view `switcher`: a card per pane, the highlight on the one a key or a click picks. */
-export function Switcher({ pane }: { pane: string }) {
+/** The `switcher` block's renderer: a card per pane, the highlight on the one a key or a click
+ * picks. */
+export function Switcher({ pane }: RendererProps) {
   const t = useTheme();
   const m = useMetrics();
   const [opened, setOpened] = useState<Opened | undefined>(undefined);
@@ -74,8 +75,8 @@ export function Switcher({ pane }: { pane: string }) {
   /** Goes to the pane card `index` shows, and closes the switcher. */
   const commit = async (index: number) => {
     const card = shown[index];
-    if (card) await pick(card.pane, pane);
-    else await dismiss(pane);
+    if (card) await pick(card.pane, pane.id);
+    else await dismiss(pane.id);
   };
 
   /** Closes the pane card `index` shows and reads the rest again, closing the switcher when there
@@ -87,7 +88,7 @@ export function Switcher({ pane }: { pane: string }) {
     const next = await load(card.pane, index);
     setOpened(next);
     setAt(next.at);
-    if (next.cards.length === 0) await dismiss(pane);
+    if (next.cards.length === 0) await dismiss(pane.id);
   };
 
   /** A key the switcher answers: what it does, and nothing behind it acts on the key too. */
@@ -190,7 +191,7 @@ export function Switcher({ pane }: { pane: string }) {
                   }}
                 >
                   {card.preview ? (
-                    <preview pane={`%${card.pane}`} style={{ width: "100%", height: "100%" }} />
+                    <preview pane={card.pane} style={{ width: "100%", height: "100%" }} />
                   ) : (
                     <Icon name={kindIcon(card.kind)} size={28} color={t.faint} />
                   )}

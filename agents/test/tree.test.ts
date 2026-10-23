@@ -44,9 +44,9 @@ test("a space with one tab is that tab's panes; a space with two names its tabs"
 });
 
 test("a space's name is its own, or its id when it has none", () => {
-  const model = state() as any;
-  model.state.sessions[0].name = "";
-  expect(spaceLabel(read(model).spaces[0]!)).toBe("$1");
+  const given = state();
+  given.spaces[0]!.label = "";
+  expect(spaceLabel(read(given).spaces[0]!)).toBe("$1");
 });
 
 test("a tab with no name is its number, as the core says it", () => {
@@ -100,13 +100,12 @@ test("a tab's name matches the whole tab, panes and all", () => {
 
 test("the attention section folds to its header, and a quiet pumi has none", () => {
   expect(said(rows(snap(), shape({ attention: true })).slice(0, 1))).toEqual(["attention blocked 1"]);
-  const quiet = state() as any;
-  quiet.state.panes[3].options["@agent_status"] = "working";
-  quiet.state.panes[3].options["@program_status"] = [{ id: "", state: "working" }];
+  const quiet = state();
+  quiet.panes[3]!.options["@agent_status"] = "working";
+  quiet.panes[3]!.options["@program_status"] = [{ id: "", state: "working" }];
   expect(rows(read(quiet), shape()).some((row) => row.kind.startsWith("attention"))).toBe(false);
 });
 
 test("an empty pumi says there are no agents yet", () => {
-  const empty = { state: { sessions: [], tabs: [], panes: [], current: null } };
-  expect(said(rows(read(empty), shape()))).toEqual(["note No agents yet"]);
+  expect(said(rows(read({ spaces: [], tabs: [], panes: [] }), shape()))).toEqual(["note No agents yet"]);
 });

@@ -6,7 +6,7 @@
 // Every call is answered asynchronously, so `advance()` looks at the panes and is run one look at a
 // time: an event, a tick and a job's end all ask for the same thing, and two looks at once would
 // start a job twice.
-import { ApiError, notify, option, pane, pkg } from "pumi";
+import { ApiError, notify, option, pane, plugin } from "pumi";
 import {
   Armed,
   clock,
@@ -22,8 +22,6 @@ import {
   type Job,
 } from "./job.ts";
 
-/** The bar's view id: one under each pane that has work (`amresyd.queue.board`). */
-export const VIEW = "board";
 /** The most jobs a queue keeps; the oldest settled go past it. */
 const LIMIT = 50;
 
@@ -77,11 +75,11 @@ async function exitOf(at: number): Promise<number | null> {
   return numberOf(at, "pane_dead_status");
 }
 
-/** The panes there are, or those of `type`. */
-async function panesNow(type?: string): Promise<number[]> {
+/** The panes there are. */
+async function panesNow(): Promise<number[]> {
   try {
-    const list = await pane.list(type === undefined ? undefined : { type });
-    return Array.isArray(list) ? list.map((at) => at.id) : [];
+    const list = await pane.list();
+    return Array.isArray(list) ? list.filter((at): at is number => typeof at === "number") : [];
   } catch {
     // No answer is no panes: a pane that closed, a look that came too late.
     return [];
@@ -96,7 +94,7 @@ async function present(at: number): Promise<boolean> {
 /** The pane the queue runs jobs for, as its caller has it. */
 async function currentPane(): Promise<number> {
   try {
-    const at = await pane.current();
+    const at = await pane.get();
     return typeof at?.id === "number" ? at.id : 0;
   } catch {
     return 0;
@@ -109,13 +107,6 @@ async function currentPane(): Promise<number> {
 async function flag(name: string, otherwise: boolean): Promise<boolean> {
   const value = await option.get(name);
   return typeof value === "boolean" ? value : otherwise;
-}
-
-/** The most rows a bar takes: its title and this many jobs. */
-async function rowLimit(): Promise<number> {
-  const value = await option.get("rows");
-  const rows = typeof value === "number" ? value : 4;
-  return Math.min(12, Math.max(2, rows));
 }
 
 // ---- the queue
@@ -188,7 +179,7 @@ async function look(): Promise<void> {
   try {
     if (await step()) await syncViews();
   } catch (err) {
-    console.error(`${pkg.prefix}: looking at the queue threw:`, err);
+    console.error(`${plugin.prefix}: looking at the queue threw:`, err);
   }
 }
 
@@ -304,7 +295,7 @@ function shell(job: Job, now: number): void {
       }
       await advance();
     })
-    .catch((err) => console.error(`${pkg.prefix}: ${message(err)}`));
+    .catch((err) => console.error(`${plugin.prefix}: ${message(err)}`));
 }
 
 /** Keep the last line a headless job printed, for its bar. */
@@ -424,7 +415,7 @@ export function cancelJob(id: number): boolean {
 export async function clearJobs(): Promise<number> {
   const over = jobs.filter((job) => isSettled(job.state));
   for (const job of over) {
-    if (job.opened !== null && (await present(job.opened))) await pane.close(job.opened, true).catch(() => undefined);
+    if (job.opened !== null && (await present(job.opened))) await pane.close(job.opened).catch(() => undefined);
   }
   const before = jobs.length;
   jobs = jobs.filter((job) => !isSettled(job.state));
@@ -441,22 +432,9 @@ export async function pulse(): Promise<void> {
   for (const fn of watchers) fn();
 }
 
-/** A bar's height: its title and a row a job. */
-async function fit(bar: number, count: number): Promise<void> {
-  const rows = Math.min(count + 1, await rowLimit());
-  if ((await numberOf(bar, "@rows")) === rows) return;
-  await option.set("@rows", rows, { pane: bar }).catch((err) => {
-    console.error(`${pkg.prefix}: %${bar}: ${message(err)}`);
-  });
-}
-
-/** Keep a bar for every pane that has work, and none for the rest. */
+/** Render the bars again: the app draws one on every pane, and it reads the queue itself. */
 export async function syncViews(): Promise<void> {
-  // The bar is a `pane.strip` view now (`ui.tsx`), which the app draws on every pane that has a
-  // contribution: there is no pane to open or close, and nothing to size. The bars read the queue
-  // themselves, on their own clock.
   for (const fn of watchers) fn();
-
 }
 
 function message(err: unknown): string {

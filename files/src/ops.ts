@@ -3,7 +3,7 @@
 // loud rather than thrown: the panel reports it and stays where it was.
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { notify, system } from "pumi";
+import { clipboard, dialog, fs, notify } from "pumi";
 import * as git from "./git.ts";
 import * as relpath from "./relpath.ts";
 
@@ -88,7 +88,7 @@ export function drop(root: string, transfers: Transfer[]): void {
 /** `rel` to the Trash, the system's own: it can be brought back. */
 export async function trash(root: string, rel: string): Promise<void> {
   try {
-    await system.trash([join(root, rel)]);
+    await fs.trash([join(root, rel)]);
   } catch (err) {
     failed(`cannot trash ${rel}`, err);
   }
@@ -97,12 +97,12 @@ export async function trash(root: string, rel: string): Promise<void> {
 /** `rel` deleted for good, once the user has said so. */
 export async function remove(root: string, rel: string): Promise<void> {
   const path = join(root, rel);
-  const answer = await system.dialog.alert({
+  const answer = await dialog.ask({
     message: `Delete ${relpath.fileName(rel)}?`,
     detail: `${path} is deleted for good. It does not go to the Trash.`,
     buttons: ["Cancel", "Delete"],
   });
-  if (answer !== "Delete") return;
+  if (answer?.button !== "Delete") return;
   try {
     rmSync(path, { recursive: true, force: true });
   } catch (err) {
@@ -113,7 +113,7 @@ export async function remove(root: string, rel: string): Promise<void> {
 /** `text` on the clipboard: a path copied out of the tree. */
 export async function putOnClipboard(text: string): Promise<void> {
   try {
-    await system.clipboard.set(text);
+    await clipboard.set(text);
   } catch (err) {
     failed("cannot copy to the clipboard", err);
   }
@@ -151,7 +151,7 @@ export function appendPattern(path: string, pattern: string): void {
 /** `rel` shown in the Finder. */
 export async function reveal(root: string, rel: string): Promise<void> {
   try {
-    await system.reveal(join(root, rel));
+    await fs.reveal(join(root, rel));
   } catch (err) {
     failed(`cannot reveal ${rel}`, err);
   }
@@ -160,7 +160,7 @@ export async function reveal(root: string, rel: string): Promise<void> {
 /** `rel` opened by whatever app owns it, and not by an editor of the user's. */
 export async function openWithSystem(root: string, rel: string): Promise<void> {
   try {
-    await system.open({ path: join(root, rel) });
+    await fs.open({ path: join(root, rel) });
   } catch (err) {
     failed(`cannot open ${rel}`, err);
   }

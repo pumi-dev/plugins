@@ -10,8 +10,8 @@
 // The waiting is pumi's own — a pane's `@agent_status`, its `pane_foreground_pgid` back to its
 // shell, `pane_dead` — read here, in `queue.ts`. This file is what the app reaches: the functions
 // others call, the bar's view, and the events that end a wait.
-import { ApiError, on, option, provide, pkg } from "pumi";
-import { detail, isRunning, paneId, type Job } from "./job.ts";
+import { ApiError, on, plugin, provide } from "pumi";
+import { detail, paneId, type Job } from "./job.ts";
 import { addJob, advance, busy, cancelJob, clearJobs, jobsOf, listJobs, pulse, syncViews, vanished } from "./queue.ts";
 
 // ---- the functions others call
@@ -76,7 +76,7 @@ provide(
 
 // ---- the bar
 //
-// One under each pane that has work, as the manifest's `contributes.points.pane.strip`: the app
+// One under each pane that has work, as the manifest's `contributes.slots["pane.strip"]`: the app
 // draws it on every pane, and it draws nothing for a pane the queue has no job for. It reads the
 // queue through the two exports below, on its own clock.
 
@@ -146,26 +146,11 @@ on("pane.closed", { desc: "a pane closed, so what it was doing is over" }, async
   await pulse();
 });
 
-/** Drop a `queue` region an earlier version left in `chrome.regions`, and nothing else. */
-async function forgetRegion(): Promise<void> {
-  const list = await option.get("chrome.regions").catch(() => null);
-  if (!Array.isArray(list)) return;
-  const named = (entry: unknown) =>
-    typeof entry === "object" && entry !== null && (entry as { name?: unknown }).name === "queue";
-  if (!list.some(named)) return;
-  try {
-    await option.save("chrome.regions", list.filter((entry) => !named(entry)));
-  } catch (err) {
-    console.error(`${pkg.prefix}: ${message(err)}`);
-  }
-}
-
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-void forgetRegion();
-// Run the queue up to now, and keep a bar wherever there is work.
+// Run the queue up to now, and draw the bars wherever there is work.
 void advance()
   .then(() => syncViews())
-  .catch((err) => console.error(`${pkg.prefix}: starting up threw:`, err));
+  .catch((err) => console.error(`${plugin.prefix}: starting up threw:`, err));

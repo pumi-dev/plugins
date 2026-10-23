@@ -15,7 +15,7 @@ to sleep and wake one, for a user command of tmux's, a script, or `pumi call`.
 
 ## How it measures
 
-Each round it lists the machine's processes — `system.process.list`, so the server's, where the
+Each round it lists the machine's processes — `process.list`, so the server's, where the
 panes run, not the app's — and adds up what each terminal's program costs together with everything
 that program started. That total is compared with two bars: `cpu` (100 is one core) and `memory`.
 

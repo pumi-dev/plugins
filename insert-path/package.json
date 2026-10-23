@@ -48,7 +48,7 @@
           "desc": "How many terminal rows tall the picker is."
         }
       },
-      "views": [
+      "blocks": [
         {
           "id": "picker",
           "title": "Insert a path",

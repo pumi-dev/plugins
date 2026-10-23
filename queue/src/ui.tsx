@@ -4,7 +4,7 @@
 // a clock the queue itself sets the pace of: twice a second while it has work, now and then when it
 // has none.
 import { useEffect, useRef, useState } from "react";
-import { call, num, useInterval, useMetrics, useTheme } from "pumi";
+import { call, useInterval, useMetrics, useTheme, type Ref } from "pumi";
 
 import { bar, cancel, look, running, type BarRow } from "./main.ts";
 
@@ -16,11 +16,11 @@ function swallow(err: unknown): void {
   console.error(`queue: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `pane.strip` point's view: the queue's jobs for `pane`, or nothing at all. */
-export function Bar({ pane }: { pane: string }) {
+/** The `pane.strip` slot's view: the queue's jobs for `pane`, or nothing at all. */
+export function Bar({ pane }: { pane: Ref }) {
   const t = useTheme();
   const m = useMetrics();
-  const owner = num(pane);
+  const owner = pane.id;
   const [rows, setRows] = useState<BarRow[]>([]);
   const [work, setWork] = useState(false);
   const alive = useRef(true);
@@ -76,7 +76,7 @@ export function Bar({ pane }: { pane: string }) {
       {first.target !== null ? (
         <div
           aria-label="Go to the pane this job is in"
-          onClick={() => void call("pane.select", { to: first.target }).catch(swallow)}
+          onClick={() => void call("pane.select", { pane: first.target }).catch(swallow)}
           style={{ display: "flex", flexShrink: 0, cursor: "pointer" }}
         >
           <text style={{ fontSize: 10, color: t.muted }}>→</text>

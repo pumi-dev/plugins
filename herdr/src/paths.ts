@@ -32,7 +32,7 @@ export function home(env: Env = process.env): string {
 
 /**
  * The app's name, as the server keeps its directories. `$PUMI_APPNAME` says it; otherwise it is
- * read off the package's own state directory, `<app name>/packages/<owner.name>`; otherwise `pumi`.
+ * read off the package's own state directory, `<app name>/plugins/<owner.name>`; otherwise `pumi`.
  */
 export function appName(env: Env = process.env, stateDir?: string): string {
   const named = set(env, "PUMI_APPNAME");

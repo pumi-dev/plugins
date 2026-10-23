@@ -34,7 +34,6 @@ export interface Tab {
 
 export interface Pane {
   id: number;
-  ty: string;
   tab?: number;
   options: Record<string, Json>;
 }
@@ -111,7 +110,7 @@ export class View {
       if (id === undefined) continue;
       const place = isObject(pane.place) ? pane.place : {};
       const inTab = place.kind === "tiled" ? number(place.tab) : undefined;
-      panes.set(id, { id, ty: string(pane.type) ?? "", tab: inTab, options: isObject(pane.options) ? pane.options : {} });
+      panes.set(id, { id, tab: inTab, options: isObject(pane.options) ? pane.options : {} });
     }
     const now = isObject(at("current")) ? (at("current") as Record<string, Json>) : undefined;
     const session = now === undefined ? undefined : number(now.session);

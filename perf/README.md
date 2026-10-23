@@ -1,8 +1,7 @@
 # perf
 
-How the app is doing, floating in a corner of the window: the overlay that used to be built
-into pumi (Cmd-Alt-P), as a package. The app keeps the numbers — it samples itself every
-second — and answers `app.perf` with them; this package only draws them.
+How the app is doing, floating in a corner of the window, as a plugin. The app keeps the numbers —
+it samples itself every second — and answers `app.perf` with them; this plugin only draws them.
 
 ```text
 performance
@@ -52,8 +51,8 @@ they line up only in a font whose glyphs all take the same width. The float itse
 ```sh
 bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit  # the types
-pumi pack add ~/Kitchen/pumi-plugins/perf
+pumi plugin add ~/Kitchen/pumi-plugins/perf
 ```
 
 `src/report.ts` is what `app.perf`'s answer means and how it is laid out, `src/place.ts` where the
-float goes, and `src/main.ts` the view and the command, menu and key that show it.
+float goes, and `src/main.ts` the block, the command, the menu item and the key that show it.

@@ -1,8 +1,35 @@
 // The dog's art: every frame is the same size, every pixel is a colour or nothing, a frame paints
 // as runs of one colour inside its box, and a left-facing frame is the right-facing one reversed.
 import { expect, test } from "bun:test";
-import { DARK } from "pumi";
+import type { Tokens } from "pumi";
 import { colour, grid, H, paint, POSES, runs, W } from "../src/sprite.ts";
+
+/** A theme to paint with: the art asks for the theme's token names, and every one of them is a
+ * colour (the window hands `useTheme()`'s own in). */
+const THEME: Tokens = {
+  window: "#282c34",
+  surface: "#26282b",
+  editor: "#1e1f22",
+  text: "#dfe1e5",
+  muted: "#b0b1b3",
+  faint: "#888a8f",
+  border: "#393b41",
+  hover: "#3c3e41",
+  active: "#494a4d",
+  selected: "#4a4d54",
+  accent: "#3474f0",
+  accentText: "#ffffff",
+  warning: "#f0c674",
+  error: "#cc6666",
+  success: "#a6e3a1",
+  overlay: "#26282bf2",
+  "agent.working": "#89b4fa",
+  "agent.blocked": "#fab387",
+  "agent.error": "#f38ba8",
+  "agent.done": "#a6e3a1",
+  "agent.idle": "#9399b2",
+  "agent.unknown": "#6c7086",
+};
 
 test("every frame is the same size", () => {
   for (const pose of POSES) {
@@ -15,7 +42,7 @@ test("every frame is the same size", () => {
 test("every pixel has a colour", () => {
   for (const pose of POSES) {
     for (const row of grid(pose)) {
-      for (const c of row) expect(c === "." || colour(c, DARK) !== undefined).toBe(true);
+      for (const c of row) expect(c === "." || colour(c, THEME) !== undefined).toBe(true);
     }
   }
 });
@@ -40,7 +67,7 @@ test("a left-facing frame is the right-facing one mirrored", () => {
 test("a painted frame stays in the dog's box, at its scale", () => {
   const scale = 2;
   for (const pose of POSES) {
-    for (const command of paint(pose, false, scale, DARK)) {
+    for (const command of paint(pose, false, scale, THEME)) {
       expect(command.x).toBeGreaterThanOrEqual(0);
       expect(command.y).toBeGreaterThanOrEqual(0);
       expect(command.x + command.w).toBeLessThanOrEqual(W * scale);
@@ -51,7 +78,7 @@ test("a painted frame stays in the dog's box, at its scale", () => {
 });
 
 test("nothing is painted where the art is transparent", () => {
-  const painted = paint("walk-a", false, 1, DARK);
+  const painted = paint("walk-a", false, 1, THEME);
   expect(painted.length).toBeLessThan(runs("walk-a", false).length);
   for (const command of painted) expect(command.color).not.toBe("");
 });

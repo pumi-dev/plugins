@@ -1,40 +1,33 @@
-// What an agent-overview test reads: the window's own snapshot, with the panes that say what they
-// are — two sessions, three agents, one of them blocked, and the panes that are not agents at all.
-// A fixture, not an app: nothing of the package's starts.
-import type { Snapshot } from "pumi";
+// What an agent-overview test reads: the panes, tabs and sessions the model is built from — two
+// sessions, three agents, one of them blocked, and the panes that are not agents at all. A fixture,
+// not an app: nothing of the package's starts.
+import type { State } from "../src/overview.ts";
 
-/** The snapshot the app hands a window: the same panes, as the app has them. */
-export function snapshot(): Snapshot {
+/** The panes, tabs and sessions, as the window has them: the same ids the server gives. */
+export function state(): State {
   return {
-    focused_workspace_id: "$1",
-    focused_tab_id: "@10",
-    focused_pane_id: "%100",
-    workspaces: [
-      { workspace_id: "$1", label: "main", active_tab_id: "@10", agent_status: "" },
-      { workspace_id: "$2", label: "work", active_tab_id: "@20", agent_status: "" },
+    spaces: [
+      { id: 1, name: "main" },
+      { id: 2, name: "work" },
     ],
     tabs: [
-      { tab_id: "@10", workspace_id: "$1", number: 0, label: "agents", agent_status: "" },
-      { tab_id: "@11", workspace_id: "$1", number: 1, label: "build", agent_status: "" },
-      { tab_id: "@20", workspace_id: "$2", number: 0, label: "review", agent_status: "" },
+      { id: 10, session: 1, name: "agents" },
+      { id: 11, session: 1, name: "build" },
+      { id: 20, session: 2, name: "review" },
     ],
     panes: [
       {
-        pane_id: "%100",
-        kind: "terminal",
-        tab_id: "@10",
-        workspace_id: "$1",
-        agent: "claude",
-        agent_status: "blocked",
+        id: 100,
+        tab: 10,
+        session: 1,
+        title: "⠋ claude",
         cwd: "/Users/me/Kitchen/pumi",
-        terminal_title: "⠋ claude",
         options: {
           "@agent": "claude",
           "@agent_status": "blocked",
           "@agent_session": "conv-1",
           pane_current_path: "/Users/me/Kitchen/pumi",
           pane_current_command: "claude",
-          title: "⠋ claude",
           "@program_status": [
             { id: "", state: "working", app: "claude" },
             { id: "tool", state: "blocked", kind: "permission", msg: "Bash(rm -rf build)?", app: "claude" },
@@ -42,11 +35,10 @@ export function snapshot(): Snapshot {
         },
       },
       {
-        pane_id: "%101",
-        kind: "terminal",
-        tab_id: "@11",
-        workspace_id: "$1",
-        agent_status: "done",
+        id: 101,
+        tab: 11,
+        session: 1,
+        title: "",
         cwd: "/Users/me/Kitchen/pumi",
         options: {
           pane_current_path: "/Users/me/Kitchen/pumi",
@@ -56,19 +48,18 @@ export function snapshot(): Snapshot {
         },
       },
       {
-        pane_id: "%200",
-        kind: "terminal",
-        tab_id: "@20",
-        workspace_id: "$2",
-        agent: "pi",
-        agent_status: "idle",
+        id: 200,
+        tab: 20,
+        session: 2,
+        title: "π - other",
         cwd: "/Users/me/other",
-        terminal_title: "π - other",
-        options: { "@agent": "pi", "@agent_status": "idle", pane_current_path: "/Users/me/other", title: "π - other" },
+        options: { "@agent": "pi", "@agent_status": "idle", pane_current_path: "/Users/me/other" },
       },
       // A shell nobody reported on: not an agent, so not in the list.
-      { pane_id: "%201", kind: "terminal", tab_id: "@20", workspace_id: "$2", agent_status: "", cwd: "/tmp", options: { pane_current_path: "/tmp" } },
+      { id: 201, tab: 20, session: 2, title: "", cwd: "/tmp", options: { pane_current_path: "/tmp" } },
+      // A float that reports: in no tab, so not in the list either.
+      { id: 300, tab: null, session: null, title: "float", cwd: "/tmp", options: { "@agent": "claude", "@agent_status": "blocked" } },
     ],
-    layouts: [],
+    here: 100,
   };
 }

@@ -88,19 +88,9 @@ export function place(snapshot: Snapshot, pane: Pane): string {
   return tab && space.tabs.length > 1 ? `${spaceLabel(space)} › ${tabLabel(tab)}` : spaceLabel(space);
 }
 
-/** The icon a pane's row carries: its type's. */
+/** The icon a pane's row carries: its block's. */
 export function icon(pane: Pane): string {
-  switch (pane.kind) {
-    case "browser":
-    case "web":
-      return "globe";
-    case "document":
-      return "code";
-    case "terminal":
-      return "terminal";
-    default:
-      return "dot";
-  }
+  return pane.block === "terminal" ? "terminal" : "dot";
 }
 
 /** The most urgent of some panes' states: what a tab drawn shut says in one mark. */

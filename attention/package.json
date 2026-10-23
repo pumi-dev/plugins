@@ -16,7 +16,6 @@
     "name": "attention",
     "owner": "amresyd",
     "api": 1,
-    "main": "src/main.ts",
     "contributes": {
       "options": {
         "bounce": {

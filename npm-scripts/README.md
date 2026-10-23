@@ -54,7 +54,7 @@ a script in (`processes`). It is a Bun package: it runs in a worker of its own, 
 Scripts** — unless one is there already.
 
 The page itself is [`script-panel`](../lib/script-panel): this package is the finder that says what
-a directory holds, its view, and its place in the sidebar.
+a directory holds, and the export the manifest's `contributes.slots.panel` names.
 
 ## Working on it
 
@@ -64,5 +64,5 @@ bun test                       # the pure logic: no pumi running
 ```
 
 `test/files.ts` writes the tests' temporary repositories; `test/packages.test.ts` is the finder
-(the managers, the groups, the walk and the options), and `test/page.test.ts` the page itself, its
-groups, a script run from it, and its place in the sidebar.
+(the managers, the groups, the walk and the options), and `test/manifest.test.ts` what its
+`package.json` contributes without running.

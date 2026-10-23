@@ -19,6 +19,6 @@ test("its options are declared for Settings, each with what it says", () => {
 
 test("it contributes the buttons to the strip of a pi pane", () => {
   expect(pumi.name).toBe("pi-session");
-  expect(pumi.contributes.points).toEqual({ "pane.strip": { view: "Strip" } });
-  expect(pumi.contributes.views).toBeUndefined();
+  expect(pumi.contributes.slots).toEqual({ "pane.strip": { view: "Strip" } });
+  expect(pumi.contributes.blocks).toBeUndefined();
 });

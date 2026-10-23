@@ -3,7 +3,7 @@
 // focus (its directory is what is listed) and re-reads when one of the package's options changes;
 // the walk and the running are `main.ts`'s, answered as data.
 import { useEffect, useState } from "react";
-import { Icon, useApp, useFocusedPane, useMetrics, usePackage, usePane, useTheme } from "pumi";
+import { Icon, useEvent, useFocusedPane, useMetrics, usePlugin, useTheme } from "pumi";
 
 import { run, type Page } from "./main.ts";
 
@@ -30,13 +30,16 @@ function plural(n: number, noun: string): string {
 export function ScriptPage({ load, options = [], noun = "script" }: ScriptPageProps) {
   const t = useTheme();
   const m = useMetrics();
-  const focused = usePane(useFocusedPane());
+  const focused = useFocusedPane();
   const cwd = focused?.cwd ?? "/";
-  // The package's options, as the app has them: the prefix is the package's own (`owner.name.`).
-  const id = usePackage() ?? "";
-  const prefix = id ? `${id.replace("/", ".")}.` : "";
-  const all = useApp((s) => s.options);
-  const stamp = options.map((key) => `${key}=${JSON.stringify(all[prefix + key])}`).join("|");
+  // The package's options: one changing re-reads the page. The window names them with the prefix
+  // the package's own options have (`amresyd.npm_scripts.show_command`).
+  const id = usePlugin() ?? "";
+  const prefix = id ? `${id.replace("/", ".").replaceAll("-", "_")}.` : "";
+  const [changed, setChanged] = useState(0);
+  // The options it follows, by the names the app gives them; with none named, the package's own.
+  const watched = options.length > 0 ? options.map((key) => `${prefix}${key}`) : [`${prefix}*`];
+  useEvent("option.changed", () => setChanged((n) => n + 1), { match: watched });
   const [page, setPage] = useState<Page | undefined>(undefined);
   const [reading, setReading] = useState(false);
   /** The groups folded away, by label. */
@@ -58,7 +61,7 @@ export function ScriptPage({ load, options = [], noun = "script" }: ScriptPagePr
     return () => {
       live = false;
     };
-  }, [cwd, stamp, again]);
+  }, [cwd, changed, again]);
 
   /** Folds the group `label` away, or unfolds it. */
   const fold = (label: string) => {

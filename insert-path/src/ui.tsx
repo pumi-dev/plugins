@@ -3,7 +3,7 @@
 // program and closes. The walk, the matching and the quoting are pure modules; what it was opened
 // with, and what typing into the terminal does, is the worker's (`main.ts`).
 import { useEffect, useState } from "react";
-import { Icon, call, num, useInterval, useMetrics, useTheme } from "pumi";
+import { Icon, call, useMetrics, useTheme, type Ref } from "pumi";
 
 import type { PickerArgs } from "./main.ts";
 import { args as opened } from "./main.ts";
@@ -47,7 +47,7 @@ function iconName(extension: string | null): string | null {
 }
 
 /** The picker's own view: the header, the matches, and the field. */
-export function Picker({ pane }: { pane: string }) {
+export function Picker({ pane }: { pane: Ref }) {
   const t = useTheme();
   const m = useMetrics();
   const [config, setConfig] = useState<PickerArgs | undefined>(undefined);
@@ -59,14 +59,22 @@ export function Picker({ pane }: { pane: string }) {
   /** It was picked or cancelled: what closes it types nothing more. */
   const [done, setDone] = useState(false);
 
+  // What this picker was opened with is the worker's (`main.ts`'s `args`), so it comes back a
+  // promise; the walk is the window's, in the process the files are read in.
   useEffect(() => {
-    const read = opened();
-    setConfig(read);
-    const cwd = read.cwd ?? "/";
-    setLabel(tilde(cwd));
-    const walked = walk(cwd);
-    setEntries(walked);
-    setFound(hits(walked, ""));
+    let live = true;
+    void opened().then((read: PickerArgs) => {
+      if (!live) return;
+      setConfig(read);
+      const cwd = read.cwd ?? "/";
+      setLabel(tilde(cwd));
+      const walked = walk(cwd);
+      setEntries(walked);
+      setFound(hits(walked, ""));
+    });
+    return () => {
+      live = false;
+    };
   }, []);
 
   const term = config?.pane;
@@ -77,14 +85,14 @@ export function Picker({ pane }: { pane: string }) {
   const insert = (text: string) => {
     setDone(true);
     if (term !== undefined) type(term, quoting ? quote(text) : text);
-    call("pane.close", num(pane), true).catch(() => {});
+    call("pane.close", pane).catch(() => {});
   };
 
   /** Closes without picking; a bare trigger key is typed back so what was typed still lands. */
   const dismiss = () => {
     setDone(true);
     if (term !== undefined && query === "" && cancel !== null) type(term, cancel, false);
-    call("pane.close", num(pane), true).catch(() => {});
+    call("pane.close", pane).catch(() => {});
   };
 
   const refilter = (text: string) => {
@@ -227,6 +235,3 @@ export function Picker({ pane }: { pane: string }) {
 
 /** The float's own argument: what the picker open now was opened with. */
 export type { PickerArgs };
-
-/** Unused import guard: `useInterval` is what keeps the row heights honest on a resize. */
-void useInterval;
