@@ -1,3 +1,0 @@
-name = "tmux"
-version = "0.1.0"
-description = "tmux's language on pumi: its commands, formats, targets, hooks, buffers and prefix keys drive pumi's sessions while the app is open."
