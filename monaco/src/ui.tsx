@@ -4,7 +4,7 @@
 // (`save`, `reveal`, `action`), and whether its pane is the window's current one. `Toolbar` puts
 // the unsaved mark, and a save, in the pane's title bar.
 import { useEffect, useState } from "react";
-import { IconButton, useEvent, useOption, usePane, useTheme, webview, WebView, type Ref, type RendererProps } from "pumi";
+import { IconButton, useEvent, useOption, usePane, usePlugin, useTheme, webview, WebView, type Ref, type RendererProps } from "pumi";
 import { save } from "./main.ts";
 
 /** The plugin's prefix, `amresyd.monaco.`, read off its block's id. */
@@ -12,8 +12,6 @@ function prefixOf(block: string): string {
   return block.slice(0, block.lastIndexOf(".") + 1);
 }
 
-/** The editor's block, by the prefix the pane's plugin has. */
-const BLOCK_ID = "editor";
 
 /**
  * Chords Monaco binds that the app's keymap takes too, kept by the page while it has the keyboard
@@ -108,8 +106,9 @@ export function Editor({ pane, block, focused }: RendererProps) {
 export function Toolbar({ pane }: { pane: Ref }) {
   const t = useTheme();
   const each = usePane(pane);
-  if (!each || !each.block.endsWith(`.${BLOCK_ID}`)) return null;
-  const prefix = prefixOf(each.block);
+  // `amresyd/monaco` draws `amresyd.monaco.editor`.
+  const prefix = `${(usePlugin() ?? "").replace("/", ".")}.`;
+  if (!each || each.block !== `${prefix}editor`) return null;
   const options = each.options ?? {};
   if (options[`${prefix}dirty`] !== true) return null;
   const path = String(options[`${prefix}path`] ?? "");
