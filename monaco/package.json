@@ -1,0 +1,103 @@
+{
+  "name": "pumi-monaco",
+  "version": "0.1.0",
+  "description": "A code editor in a pane: Monaco, VS Code's editor, in a page themed by the window, with a model per open file, saved through the plugin and dropped onto from the project tree.",
+  "type": "module",
+  "main": "src/main.ts",
+  "keywords": ["editor", "monaco", "code"],
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "test": "bun test",
+    "check": "tsc --noEmit && tsc --noEmit -p page"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "monaco-editor": "0.57.0",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "monaco",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": ["files"],
+    "contributes": {
+      "options": {
+        "path": {
+          "type": "string",
+          "scope": "pane",
+          "default": "",
+          "blocks": ["editor"],
+          "label": "File",
+          "group": "Editor",
+          "desc": "The file this editor pane shows. Setting it opens that file in the pane, beside the ones it already holds."
+        },
+        "dirty": {
+          "type": "boolean",
+          "scope": "pane",
+          "default": false,
+          "blocks": ["editor"],
+          "label": "Unsaved",
+          "group": "Editor",
+          "desc": "Whether the pane's file has changes not saved yet. The editor sets it; setting it does nothing."
+        },
+        "font_size": {
+          "type": "number",
+          "default": 0,
+          "min": 0,
+          "max": 40,
+          "step": 1,
+          "unit": "px",
+          "label": "Font size",
+          "group": "Editor",
+          "desc": "The size of the editor's text. 0 is the theme's own size."
+        },
+        "tab_size": {
+          "type": "number",
+          "default": 4,
+          "min": 1,
+          "max": 16,
+          "step": 1,
+          "label": "Tab size",
+          "group": "Editor",
+          "desc": "How many columns a tab is, for a file whose own indentation says nothing."
+        },
+        "word_wrap": {
+          "type": "boolean",
+          "default": false,
+          "label": "Word wrap",
+          "group": "Editor",
+          "desc": "Wrap long lines at the pane's edge."
+        },
+        "minimap": {
+          "type": "boolean",
+          "default": false,
+          "label": "Minimap",
+          "group": "Editor",
+          "desc": "Draw the file in miniature along the pane's right edge."
+        }
+      },
+      "commands": [
+        { "id": "open", "title": "Editor: open a file" },
+        { "id": "save", "title": "Editor: save" },
+        { "id": "find", "title": "Editor: find" },
+        { "id": "goToLine", "title": "Editor: go to line" },
+        { "id": "commands", "title": "Editor: show the editor's commands" },
+        { "id": "toggleWordWrap", "title": "Editor: toggle word wrap" },
+        { "id": "toggleMinimap", "title": "Editor: toggle the minimap" }
+      ],
+      "keys": [{ "key": "<D-s>", "command": "save" }],
+      "slots": {
+        "pane.toolbar": { "view": "Toolbar" }
+      },
+      "blocks": [
+        {
+          "id": "editor",
+          "title": "Editor",
+          "icon": "code",
+          "methods": ["save", "reveal", "action"]
+        }
+      ]
+    },
+    "activation": ["onStartup"]
+  }
+}
