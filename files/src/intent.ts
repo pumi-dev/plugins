@@ -1,9 +1,9 @@
 // What a gesture of the panel comes to, and what carrying it out does: core/files' `Intent` and
-// `carry_out` (`lib.rs`). The panel decides, this file acts — files on disk, the clipboard, and the
-// one thing a package must do for itself where the core plugin asks the app for a document tab: a
-// file opens in a terminal pane running the user's editor, or in whatever app owns it.
+// `carry_out` (`lib.rs`). The panel decides, this file acts — files on disk, the clipboard, and
+// opening a file: in a file pane (`file.open`, drawn by whichever plugin fits it), a terminal pane
+// running the user's editor, or whatever app owns it.
 import { dirname } from "node:path";
-import { pane, plugin } from "pumi";
+import { file, pane, plugin } from "pumi";
 import type { Transfer } from "./ops.ts";
 import * as ops from "./ops.ts";
 import type { Panel } from "./panel.ts";
@@ -94,10 +94,9 @@ function opensAfter(panel: Panel, intent: Intent): string | null {
 }
 
 /**
- * Opens `rel` as the `open_with` option says. The core plugin hands the file to the app's editor, in
- * a document tab beside the pane it came from; no package can open one (the editor, its rope and its
- * syntax trees are the app's own), so this is the honest nearest thing: the user's editor, in a
- * terminal pane split beside the pane whose directory the tree follows, or the system's app.
+ * Opens `rel` as the `open_with` option says, split on the right of the pane whose directory the
+ * tree follows: in a file pane (`file.open`: the one showing it already, else a new one, drawn by
+ * the plugin that fits it), the user's editor in a terminal pane, or the system's app.
  */
 export async function openFile(panel: Panel, rel: string): Promise<void> {
   if (panel.settings.openWith === "system") {
@@ -105,14 +104,15 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
     return;
   }
   const path = panel.tree.abs(rel);
-  const editor = panel.settings.editor.trim();
-  const command = editor === "" ? `"\${EDITOR:-vi}" ${quote(path)}` : `${editor} ${quote(path)}`;
   const place =
     panel.followedPane === null
       ? { kind: "tiled" as const, split: "right" as const }
       : { kind: "tiled" as const, beside: panel.followedPane, split: "right" as const, size: "45%" };
+  const editor = panel.settings.editor.trim();
+  const command = editor === "" ? `"\${EDITOR:-vi}" ${quote(path)}` : `${editor} ${quote(path)}`;
   try {
-    await pane.open("terminal", { command, cwd: dirname(path) }, place);
+    if (panel.settings.openWith === "pane") await file.open(path, {}, place);
+    else await pane.open("terminal", { command, cwd: dirname(path) }, place);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
     console.error(`${plugin.prefix}: cannot open ${path}: ${why}`);

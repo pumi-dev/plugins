@@ -55,8 +55,9 @@ The files are the directories under the project around the current pane's direct
 `.git` above it — walked once when files mode opens, `.gitignore` and `.ignore` respected and `.git`
 skipped, and searched as they arrive.
 
-A chosen file opens in `$EDITOR` (then `$VISUAL`, then `vi`) in a terminal tab of its own. A file no
-editor can show — an image, a PDF, a video, an archive — goes to the desktop instead.
+A chosen file opens as `pumi open` opens one (`file.open`): in a file pane on the right of the
+current pane, drawn by the enabled plugin that fits it (the `monaco` editor, say). An image, a PDF,
+a video or an archive goes to the desktop instead, unless a viewer of its own kind is enabled.
 
 ## What it remembers
 

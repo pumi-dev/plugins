@@ -1,7 +1,7 @@
 {
   "name": "pumi-monaco",
   "version": "0.1.0",
-  "description": "A code editor in a pane: Monaco, VS Code's editor, in a page themed by the window, with a model per open file, saved through the plugin and dropped onto from the project tree.",
+  "description": "A code editor for file panes: Monaco, VS Code's editor, in a page themed by the window, drawing every file the core's `file` block opens (`pumi open`), with a model per open file, saved through the plugin and dropped onto from the project tree.",
   "type": "module",
   "main": "src/main.ts",
   "keywords": ["editor", "monaco", "code"],
@@ -22,23 +22,14 @@
     "uses": ["files"],
     "contributes": {
       "options": {
-        "path": {
-          "type": "string",
-          "scope": "pane",
-          "default": "",
-          "blocks": ["editor"],
-          "label": "File",
-          "group": "Editor",
-          "desc": "The file this editor pane shows. Setting it opens that file in the pane, beside the ones it already holds."
-        },
         "dirty": {
           "type": "boolean",
           "scope": "pane",
           "default": false,
-          "blocks": ["editor"],
+          "blocks": ["file"],
           "label": "Unsaved",
           "group": "Editor",
-          "desc": "Whether the pane's file has changes not saved yet. The editor sets it; setting it does nothing."
+          "desc": "Whether the file pane's file has changes not saved yet. The editor sets it; setting it does nothing."
         },
         "font_size": {
           "type": "number",
@@ -77,7 +68,6 @@
         }
       },
       "commands": [
-        { "id": "open", "title": "Editor: open a file" },
         { "id": "save", "title": "Editor: save" },
         { "id": "find", "title": "Editor: find" },
         { "id": "goToLine", "title": "Editor: go to line" },
@@ -89,14 +79,9 @@
       "slots": {
         "pane.toolbar": { "view": "Toolbar" }
       },
-      "blocks": [
-        {
-          "id": "editor",
-          "title": "Editor",
-          "icon": "code",
-          "methods": ["save", "reveal", "action"]
-        }
-      ]
+      "renderers": {
+        "file": { "export": "Editor", "match": ["*"] }
+      }
     },
     "activation": ["onStartup"]
   }

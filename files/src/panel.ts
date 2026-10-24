@@ -42,8 +42,9 @@ export interface Settings {
   autoFoldDirs: boolean;
   /** Pixels a level of the tree takes. */
   indentSize: number;
-  /** What a click on a file does: the user's editor in a terminal pane, or the system's app. */
-  openWith: "editor" | "system";
+  /** What a click on a file does: a file pane (`file.open`), the user's editor in a terminal
+   *  pane, or the system's app. */
+  openWith: "pane" | "editor" | "system";
   /** The editor to open it with; `$EDITOR` when it is empty. */
   editor: string;
 }
@@ -56,7 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
   gitStatus: true,
   autoFoldDirs: true,
   indentSize: DEFAULT_INDENT,
-  openWith: "editor",
+  openWith: "pane",
   editor: "",
 };
 
@@ -117,7 +118,7 @@ export class Panel {
       gitStatus: gitStatus !== false,
       autoFoldDirs: autoFoldDirs !== false,
       indentSize: Math.min(64, Math.max(4, Number(indentSize) || DEFAULT_INDENT)),
-      openWith: openWith === "system" ? "system" : "editor",
+      openWith: openWith === "system" || openWith === "editor" ? openWith : "pane",
       editor: typeof editor === "string" ? editor : "",
     };
     this.announce();

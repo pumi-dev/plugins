@@ -11,6 +11,9 @@ Look at other panes (safe; do it whenever the user asks about one):
 Open a pane next to you (the user keeps focus):
   pumi split-pane -h -d -P -- "<command>"     run a command beside you (-v: below); prints its id
   pumi split-pane -d -P --type browser <url>  show a web page
+  pumi open -d -P <file>                        show a file on your right, in the viewer that fits it
+                                                (-v below, --tab, --float, --line N, --with owner/name;
+                                                `pumi file viewers <file>` lists the viewers)
   pumi wait-pane -t %5                        wait for it to exit, with its status
 
 Act on an existing pane (only when the user asks):

@@ -1,35 +1,31 @@
 # monaco
 
-A code editor in a pane: [Monaco](https://microsoft.github.io/monaco-editor/), VS Code's editor,
-in a page of the plugin's own, themed by the window. One page per pane holds a model per file it has
-opened, so going back to a file keeps its undo, its scroll and its unsaved edits.
+A code editor for file panes: [Monaco](https://microsoft.github.io/monaco-editor/), VS Code's
+editor, in a page of the plugin's own, themed by the window. One page per pane holds a model per
+file it has opened, so going back to a file keeps its undo, its scroll and its unsaved edits.
 
 ```sh
 pumi plugin add ~/Kitchen/pumi-plugins/monaco     # or: pumi plugin dev ~/Kitchen/pumi-plugins/monaco
 ```
 
-Then **Editor: open a file** in the palette, or drag a file from the project tree (`files`) onto an
-editor pane.
+It has no block of its own: it draws the core's `file` block (`renderers.file`, matching `*`), so
+every file opened in a pane is drawn here unless an enabled viewer fits it better (`*.md` beats
+`*`), or the pane's `@pane_renderer` names another plugin.
 
 ## Open one
 
 ```sh
-pumi call amresyd.monaco.open /src/main.rs                    # an editor pane: see below
-pumi call amresyd.monaco.open /src/main.rs '{"line":42}'      # at line 42
-pumi call amresyd.monaco.open '{"path":"src/lib.rs","pane":7}'  # in editor pane 7
-pumi call amresyd.monaco.reveal /src/main.rs 42
-pumi call amresyd.monaco.save 7                               # pane 7's file, to disk
-pumi call pane.open amresyd.monaco.editor '{"amresyd.monaco.path":"/src/main.rs"}' '{"split":"right"}'
+pumi open src/main.rs                        # on the right of this pane; -v below, --tab, --float
+pumi open --line 42 src/main.rs              # at line 42
+pumi open --with amresyd/monaco notes.md     # this editor, whatever else fits it
+pumi call amresyd.monaco.save 7              # pane 7's file, to disk
 ```
 
-`open` goes to the editor pane showing the file already, else the current pane if it is an editor,
-else an editor in the current tab, else a new pane beside the current one. A relative path is the
-current pane's directory's; no path asks for a file. It answers `{pane, path, opened}`.
-
-`amresyd.monaco.editor` is the block, drawn by `Editor` in `src/ui.tsx`. Its pane options are
-`path` (the file; setting it opens that file there, and a pane comes back with it) and `dirty`
-(the file has unsaved changes; the editor sets it). `pane.call(pane, "read")` answers the file's
-text, and `"selection"` what is selected in it.
+`pumi open` is `file.open` (see `pumi api show file.open`): it shows the file in a file pane of
+the tab already showing it, else a new one. The pane's `path` option is the file (setting it
+opens that one there, and a pane comes back with it); `dirty` (`amresyd.monaco.dirty`) says the
+file has unsaved changes. `pane.call(pane, "read")` answers the file's text, and `"selection"`
+what is selected in it.
 
 ## What it does
 
@@ -47,8 +43,9 @@ text, and `"selection"` what is selected in it.
   Monaco takes it itself). Monaco keeps its chords the app also binds while it has the keyboard:
   `cmd+d`, `cmd+k …`, `cmd+/`, `cmd+[`, `cmd+]`, `cmd+enter`, `cmd+alt+up`/`down`. `cmd+f`,
   `ctrl+g` and `F1` are Monaco's.
-- **Drops**: a file dragged from the project tree, or a `file://` URL, opens in the pane. Several
-  open together, the last one shown. A pane dragged over it still splits as usual.
+- **Drops**: a file dragged from the project tree, or a `file://` URL, opens in the pane (its
+  `path` follows). Several open together, the last one shown. A pane dragged over it still
+  splits as usual.
 - **Saving**: through `main.ts`, which writes the file (making its folder if it has to). The title
   bar's dot (`pane.toolbar`) says the file is unsaved, and saves it when pressed.
 - **The disk**: a file that changed on disk is read again when the page gets the focus or the file

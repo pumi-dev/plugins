@@ -68,16 +68,18 @@ decide itself:
 | `git_status` | `true` | tint a row by git's state of it |
 | `auto_fold_dirs` | `true` | a folder that holds one folder is one row |
 | `indent_size` | `20` | pixels a level takes |
-| `open_with` | `editor` | what a click on a file does: `editor` (a terminal pane) or `system` (its app) |
-| `editor` | `$EDITOR` | the editor a file opens in, empty for `$EDITOR` |
+| `open_with` | `pane` | what a click on a file does: `pane` (a file pane), `editor` (a terminal pane) or `system` (its app) |
+| `editor` | `$EDITOR` | the editor a file opens in with `open_with = "editor"`, empty for `$EDITOR` |
 
-## The editor is not here
+## Opening a file
 
-The app's editor and its document tabs are the app's, not a plugin's: `core/files` asks the app for a
-document tab and no package can. A click on a file therefore opens it in a **terminal pane running
-your editor** (`$EDITOR`, or the `editor` option: `code -w`, `nvim`, `hx`), split beside the pane
-whose directory the tree follows — or, with `open_with = "system"`, in whatever app owns the file.
-`docs/plan/ports/files.md` has the whole of it.
+A click on a file opens it with `file.open`, as `pumi open` does: in a **file pane** (the core's
+`file` block) split on the right of the pane whose directory the tree follows, or the file pane in
+that tab showing it already. Which plugin draws it is the app's choice — the enabled viewer whose
+`renderers.file.match` fits the file best, such as `monaco` — and with none the pane says so and
+offers the system's app. `open_with = "editor"` opens a **terminal pane running your editor**
+instead (`$EDITOR`, or the `editor` option: `code -w`, `nvim`, `hx`), and `open_with = "system"`
+whatever app owns the file.
 
 ## Layout
 
@@ -87,7 +89,7 @@ whose directory the tree follows — or, with `open_with = "system"`, in whateve
 | `src/ui.tsx` | the page: rows, disclosure, indent guides, the filter, the row menu |
 | `src/panel.ts` | the core plugin's `ProjectPanel`: the cursor, the open folders, the clipboard, the row being typed into |
 | `src/tree.ts` | the tree: lazy listing, ignore stacks, folded chains, the visible rows |
-| `src/intent.ts` | what a gesture comes to, and doing it: files on disk, the clipboard, the editor |
+| `src/intent.ts` | what a gesture comes to, and doing it: files on disk, the clipboard, opening a file |
 | `src/ops.ts` | the file operations |
 | `src/git.ts` | `git status` and the colour a row takes from it |
 | `src/icons.ts` | which icon a name gets |

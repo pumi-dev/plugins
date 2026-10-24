@@ -1,15 +1,16 @@
-// What an editor pane draws: the page (`web/index.html`, Monaco) filling it, with no background of
-// its own, so the pane's shows through. The page reads its files through `main.ts` itself; this
-// tells it what changes of its pane: the file (`path`), the options, a method called on the block
-// (`save`, `reveal`, `action`), and whether its pane is the window's current one. `Toolbar` puts
-// the unsaved mark, and a save, in the pane's title bar.
+// What a file pane draws when the editor draws it (the manifest's `renderers.file`): the page
+// (`web/index.html`, Monaco) filling it, with no background of its own, so the pane's shows
+// through. The page reads its files through `main.ts` itself; this tells it what changes of its
+// pane: the file (the core's option `path`), the options, a method called on the block (`save`,
+// `reveal`, `action`), and whether its pane is the window's current one. `Toolbar` puts the
+// unsaved mark, and a save, in the pane's title bar.
 import { useEffect, useState } from "react";
 import { IconButton, useEvent, useOption, usePane, usePlugin, useTheme, webview, WebView, type Ref, type RendererProps } from "pumi";
 import { save } from "./main.ts";
 
-/** The plugin's prefix, `amresyd.monaco.`, read off its block's id. */
-function prefixOf(block: string): string {
-  return block.slice(0, block.lastIndexOf(".") + 1);
+/** The plugin's prefix, `amresyd.monaco.`: its options'. */
+function usePrefix(): string {
+  return `${(usePlugin() ?? "").replace("/", ".")}.`;
 }
 
 
@@ -42,12 +43,12 @@ interface Called {
   args?: { id?: unknown };
 }
 
-/** The `editor` block's renderer. */
+/** The renderer of the core's `file` block. */
 export function Editor({ pane, block, focused }: RendererProps) {
-  const prefix = prefixOf(block);
+  const prefix = usePrefix();
   const handle = `monaco-${pane.server ? `${pane.server}/` : ""}${pane.id}`;
   const each = usePane(pane);
-  const path = ((each?.options ?? {})[`${prefix}path`] as string | undefined) ?? "";
+  const path = ((each?.options ?? {}).path as string | undefined) ?? "";
   // The page reads `args` once, as it is made; what changes after goes in through `__monaco`.
   const [args] = useState(() => ({ pane: pane.id, path, focused }));
   const fontSize = useOption<number>(`${prefix}font_size`);
@@ -102,15 +103,15 @@ export function Editor({ pane, block, focused }: RendererProps) {
   return <WebView handle={handle} src="web/index.html" args={args} keepKeys={KEEP_KEYS} autoFocus={focused} style={{ flexGrow: 1, width: "100%", height: "100%" }} />;
 }
 
-/** The pane's title bar, on an editor pane: a dot while its file has unsaved changes, which saves. */
+/** The pane's title bar, on a file pane the editor draws: a dot while its file has unsaved
+ *  changes (the editor's own `dirty`, which only it sets), which saves. */
 export function Toolbar({ pane }: { pane: Ref }) {
   const t = useTheme();
   const each = usePane(pane);
-  // `amresyd/monaco` draws `amresyd.monaco.editor`.
-  const prefix = `${(usePlugin() ?? "").replace("/", ".")}.`;
-  if (!each || each.block !== `${prefix}editor`) return null;
+  const prefix = usePrefix();
+  if (!each || each.block !== "file") return null;
   const options = each.options ?? {};
   if (options[`${prefix}dirty`] !== true) return null;
-  const path = String(options[`${prefix}path`] ?? "");
+  const path = String(options.path ?? "");
   return <IconButton icon="circle" title={`Save ${path.slice(path.lastIndexOf("/") + 1)} (⌘S)`} color={t.accent} onClick={() => void save(pane.id).catch(swallow)} />;
 }

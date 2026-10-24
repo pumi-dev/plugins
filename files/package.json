@@ -77,18 +77,20 @@
         },
         "open_with": {
           "type": "string",
-          "default": "editor",
+          "default": "pane",
           "choices": [
+            "pane",
             "editor",
             "system"
           ],
           "labels": [
+            "A file pane, drawn by the plugin that fits it",
             "Your editor, in a terminal pane",
             "The system's default app"
           ],
           "label": "Open a file with",
           "group": "Project",
-          "desc": "What a click on a file does. A package cannot reach the app's own editor and its document tabs, so a file opens in a terminal pane running your editor, or in whatever app owns it."
+          "desc": "What a click on a file does: a file pane on the right (`file.open`, drawn by the enabled viewer that fits the file, such as the Monaco editor), a terminal pane running your editor, or whatever app owns it."
         },
         "editor": {
           "type": "string",
@@ -96,7 +98,7 @@
           "placeholder": "$EDITOR",
           "label": "Editor",
           "group": "Project",
-          "desc": "The editor a file opens in: `code -w`, `nvim`, `hx`. Empty is `$EDITOR`, and `vi` when that is empty too."
+          "desc": "The editor a file opens in when `open_with` is your editor: `code -w`, `nvim`, `hx`. Empty is `$EDITOR`, and `vi` when that is empty too."
         }
       },
       "commands": [

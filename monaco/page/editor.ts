@@ -436,7 +436,7 @@ async function dropped(paths: string[]): Promise<void> {
   for (const path of paths.slice(0, -1)) if (!files.has(path)) await show(path).catch(swallow);
   const last = paths[paths.length - 1];
   await show(last);
-  pumi!.setOption(`${prefix}path`, last, { pane }).catch(swallow);
+  pumi!.setOption("path", last, { pane }).catch(swallow);
 }
 
 // ---- focus: a press in the page makes its pane the window's current one
@@ -451,10 +451,15 @@ window.addEventListener("focus", () => {
 
 // ---- what `ui.tsx` reaches
 
-/** What `main.ts` was asked to show here (`open`, `reveal`): a file, a line. */
+/** Where in its file the pane is to be (the core's `at`: `file.open`'s line, a `reveal`). */
+function at(): Promise<{ path: string; line?: number; column?: number } | null> {
+  return pumi!.call("pane.call", pane, "at").catch(() => null);
+}
+
+/** What the pane was asked to show (`file.open`, `reveal`): a file, a line. */
 async function pull(): Promise<void> {
-  const wanted = await rpc<{ path: string; line?: number; column?: number } | null>("wanted", pane).catch(() => null);
-  if (wanted) await show(wanted.path, wanted);
+  const wanted = await at();
+  if (wanted?.path) await show(wanted.path, wanted);
 }
 
 window.__monaco = Object.freeze({
@@ -481,7 +486,7 @@ void Promise.all(names.map((name) => pumi.option(`${prefix}${name}`).catch(() =>
 });
 const first = typeof args.path === "string" ? args.path : "";
 void (async () => {
-  const wanted = await rpc<{ path: string; line?: number; column?: number } | null>("wanted", pane).catch(() => null);
-  const path = wanted?.path ?? ((await pumi.option(`${prefix}path`, { pane }).catch(() => null)) as string | null) ?? first;
-  await show(path ?? "", wanted ?? undefined);
+  const wanted = await at();
+  const path = wanted?.path || ((await pumi.option("path", { pane }).catch(() => null)) as string | null) || first;
+  await show(path ?? "", wanted?.path === path ? wanted : undefined);
 })();

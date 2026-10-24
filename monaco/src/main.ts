@@ -1,48 +1,28 @@
-// monaco: a code editor in a pane — Monaco, VS Code's editor, in a page of the plugin's own
-// (`web/`, built from `page/` by `bun scripts/build.ts`), drawn by `ui.tsx`'s `Editor`.
+// monaco: a code editor for the core's `file` panes — Monaco, VS Code's editor, in a page of the
+// plugin's own (`web/`, built from `page/` by `bun scripts/build.ts`), drawn by `ui.tsx`'s
+// `Editor`. Its manifest's `renderers.file` claims every file (`*`), so a file opened anywhere
+// (`pumi open`, `file.open`, the project tree, the palette) is drawn here unless a viewer that fits
+// it better is enabled, or the pane's `@pane_renderer` names another.
 //
-//   pumi call amresyd.monaco.open /src/main.rs                  # in an editor pane, or a new one
-//   pumi call amresyd.monaco.open /src/main.rs '{"line":42}'    # at line 42
-//   pumi call amresyd.monaco.reveal '{"path":"/src/main.rs","line":42}'
+//   pumi open src/main.rs                                       # on the right of this pane
+//   pumi open --line 42 --with amresyd/monaco notes.md          # at line 42, in this editor
 //   pumi call amresyd.monaco.save 7                             # the file pane 7 shows, to disk
 //
 // The page holds the text; this holds the disk. The page reads and writes through the exports
-// below (`read`, `write`, its `<prefix>rpc`), and is told what to show through its pane: the
-// option `path` (which a pane comes back with), and `wanted` for a line to go to, which it takes
-// when it loads or when the block's `reveal` method says there is one.
-import { dirname, isAbsolute, join, resolve } from "node:path";
-import { homedir } from "node:os";
+// below (`read`, `write`, its `<prefix>rpc`), and learns what to show from its pane: the core's
+// option `path`, and `pane.call(pane, "at")` for a line to go to, which it takes when it loads or
+// when the block's `reveal` says there is one.
+import { dirname } from "node:path";
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
-import { ApiError, call, command, dialog, format, notify, option, pane, plugin, provide, type PlaceSpec } from "pumi";
+import { ApiError, call, command, notify, option, provide, plugin } from "pumi";
 
-/** The block an editor pane holds: `amresyd.monaco.editor`. */
-const BLOCK = plugin.prefixed("editor");
-/** The pane option naming its file, by its full name: what `pane.open` sets as a pane opens. */
-const PATH = plugin.prefixed("path");
+/** The core's block for a file, which the editor draws. */
+const BLOCK = "file";
 /** A file larger than this is not opened: the page would hold it all. */
 const LIMIT = 16 * 1024 * 1024;
 /** How long `save` waits for the page to hand over its text. */
 const SAVE_WAIT = 8000;
 
-/** Where a call asks a file to be shown. */
-interface At {
-  path: string;
-  line?: number;
-  column?: number;
-}
-
-/** What `open` takes beside the path. */
-interface OpenOpts {
-  line?: number;
-  column?: number;
-  /** An editor pane to show it in, instead of finding one. */
-  pane?: number;
-  /** Where a new pane goes; beside the current one, on its right, by default. */
-  place?: PlaceSpec;
-}
-
-/** What each editor page is to show when it next asks (`wanted`), by pane. */
-const wants = new Map<number, At>();
 /** Who waits for each pane's save, settled when its page writes (or says it can't). */
 const saving = new Map<number, { resolve(path: string): void; reject(err: Error): void }[]>();
 
@@ -59,27 +39,11 @@ function paneOf(what: unknown): number | undefined {
   return id;
 }
 
-/** A whole number a call gives (`line`), or undefined. */
-function count(value: unknown): number | undefined {
-  const n = typeof value === "string" ? Number(value) : value;
-  return typeof n === "number" && Number.isFinite(n) && n >= 1 ? Math.floor(n) : undefined;
-}
-
 /** The current pane, as the app has it; null when there is none. */
-async function here(): Promise<{ id: number; block: string; tab?: number } | null> {
+async function here(): Promise<{ id: number; block: string } | null> {
   const info = await call("pane.get").catch(() => null);
   if (!info || typeof info.id !== "number") return null;
-  const tab = (info.place as { tab?: unknown } | undefined)?.tab;
-  return { id: info.id, block: String(info.block), tab: typeof tab === "number" ? tab : undefined };
-}
-
-/** `path` as an absolute one: `~` is home, and a relative path is the current pane's directory's. */
-async function absolute(path: string): Promise<string> {
-  if (path === "~" || path.startsWith("~/")) return join(homedir(), path.slice(1));
-  if (isAbsolute(path)) return resolve(path);
-  const at = await here();
-  const dir = at ? await format.eval("#{pane_current_path}", { pane: at.id }).catch(() => "") : "";
-  return resolve(typeof dir === "string" && dir !== "" ? dir : homedir(), path);
+  return { id: info.id, block: String(info.block) };
 }
 
 async function isEditor(id: number): Promise<boolean> {
@@ -87,55 +51,13 @@ async function isEditor(id: number): Promise<boolean> {
   return info?.block === BLOCK;
 }
 
-/** The editor pane a file goes to: one showing it already, else the current pane if it is an
- *  editor, else an editor in the current tab; null when a new one is to open. */
-async function editorFor(path: string): Promise<number | null> {
-  const editors = ((await call("pane.list", { block: BLOCK }).catch(() => [])) as unknown[]).filter((id): id is number => typeof id === "number");
-  for (const id of editors) {
-    if ((await option.get("path", { pane: id }).catch(() => null)) === path) return id;
-  }
-  const at = await here();
-  if (at?.block === BLOCK) return at.id;
-  if (at?.tab === undefined) return null;
-  const inTab = ((await call("pane.list", { tab: at.tab, block: BLOCK }).catch(() => [])) as unknown[]).filter((id): id is number => typeof id === "number");
-  return inTab[0] ?? null;
-}
-
-/** Shows `path` in an editor pane (`opts.pane`, one already showing it, the current one, or a new
- *  one beside it), at `opts.line`. With no path it asks for a file. Answers where it is. */
-export async function open(path?: string, opts: OpenOpts = {}): Promise<{ pane: number; path: string; opened: boolean }> {
-  let asked = path;
-  if (!asked) {
-    const picked = await dialog.file({ mode: "open", prompt: "Open in the editor" });
-    if (!picked.length) throw new ApiError("cancelled", "no file was chosen");
-    asked = picked[0];
-  }
-  const file = await absolute(asked);
-  const at: At = { path: file, line: count(opts.line), column: count(opts.column) };
-  let target = opts.pane ?? null;
-  if (target !== null && !(await isEditor(target))) throw new ApiError("invalid_params", `pane ${target} is not an editor (${BLOCK})`);
-  target ??= await editorFor(file);
-  if (target !== null) {
-    wants.set(target, at);
-    await option.set("path", file, { pane: target });
-    // Its page, if it is drawn, takes what it is wanted to show; else it takes it when it loads.
-    await call("pane.call", target, "reveal", {}).catch(() => null);
-    await call("pane.select", { pane: target }).catch(() => null);
-    return { pane: target, path: file, opened: false };
-  }
-  const opened = await pane.open(BLOCK, { [PATH]: file }, opts.place ?? { split: "right" });
-  const id = Number(opened.id ?? opened);
-  wants.set(id, at);
-  return { pane: id, path: file, opened: true };
-}
-
 /** Writes the file pane `id` shows (the current pane without one) and answers its path; a pane
- *  that is not an editor is an error only when it was named. */
+ *  that is not a file pane is an error only when it was named. */
 export async function save(id?: number): Promise<{ pane: number; path: string } | null> {
   const named = id !== undefined;
   const target = id ?? (await here())?.id;
   if (target === undefined || !(await isEditor(target))) {
-    if (named) throw new ApiError("invalid_params", `pane ${target} is not an editor (${BLOCK})`);
+    if (named) throw new ApiError("invalid_params", `pane ${target} is not a file pane`);
     return null;
   }
   const path = await option.get("path", { pane: target }).catch(() => "");
@@ -150,7 +72,7 @@ export async function save(id?: number): Promise<{ pane: number; path: string } 
     const rest = (saving.get(target) ?? []).filter((w) => w !== waiter);
     if (rest.length) saving.set(target, rest);
     else saving.delete(target);
-    waiter?.reject(new ApiError("timeout", `the editor in pane ${target} did not answer: is it drawn in a window?`));
+    waiter?.reject(new ApiError("timeout", `the editor in pane ${target} did not answer: is it drawn in a window, by this plugin?`));
   }, SAVE_WAIT);
   try {
     await call("pane.call", target, "save", {});
@@ -209,78 +131,22 @@ export function unsaved(id: number, why: string): null {
   return null;
 }
 
-/** What pane `id`'s page is to show, once: a file and a line `open` asked for. */
-export function wanted(id: number): At | null {
-  const at = wants.get(id) ?? null;
-  wants.delete(id);
-  return at;
-}
-
-// ---- what the app reaches: the commands, which are the functions too
-
-/** `open(path, opts)` as a call names it: a path, or `{ path, line, … }`; a slot's `{ pane }` is
- *  the pane to open a chosen file in. */
-async function opening(first?: unknown, second?: unknown) {
-  const table = (v: unknown): Record<string, unknown> => (v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
-  const opts = { ...table(first), ...table(second) };
-  const path = typeof first === "string" ? first : typeof opts.path === "string" ? opts.path : undefined;
-  return open(path, {
-    line: count(opts.line),
-    column: count(opts.column),
-    pane: paneOf(opts),
-    place: table(opts.place) as PlaceSpec,
-  });
-}
-
-// `open` and `save` are the manifest's commands (the palette, `<D-s>`) and the functions a script or
-// an agent calls, so they are provided with their parameters rather than through `command`.
-provide(
-  plugin.prefixed("open"),
-  {
-    desc: "Open a file in an editor pane: the one showing it already, the current pane if it is an editor, an editor in the current tab, or a new one beside the current pane. With no path it asks for a file. Answers the pane.",
-    effect: "write",
-    parameters: [
-      ["string", "path"],
-      ["table", "opts"],
-    ],
-    examples: [
-      { args: ["/src/main.rs"], desc: "Show it in an editor." },
-      { args: ["/src/main.rs", { line: 42 }], desc: "At line 42." },
-      { args: [{ path: "src/lib.rs", pane: 7 }], desc: "In editor pane 7; a relative path is the current pane's directory's." },
-    ],
-    returns: "`{pane, path, opened}`: `opened` when a new pane was made.",
-  },
-  opening,
-);
+// ---- what the app reaches: `save` is the manifest's command (`<D-s>`) and the function a script
+// or an agent calls, so it is provided with its parameter rather than through `command`.
 
 provide(
   plugin.prefixed("save"),
   {
-    desc: "Save the file an editor pane shows (the current pane without one). Answers the pane and the path written.",
+    desc: "Save the file a file pane the editor draws shows (the current pane without one). Answers the pane and the path written.",
     effect: "write",
     parameters: [["number", "pane"]],
-    examples: [{ args: [7] }, { args: [{ pane: 7 }] }, { args: [], desc: "The current pane, if it is an editor." }],
-    returns: "`{pane, path}`, or null when the current pane is not an editor.",
+    examples: [{ args: [7] }, { args: [{ pane: 7 }] }, { args: [], desc: "The current pane, if it is a file pane." }],
+    returns: "`{pane, path}`, or null when the current pane is not a file pane.",
   },
   (first?: unknown) => save(paneOf(first)),
 );
 
-provide(
-  plugin.prefixed("reveal"),
-  {
-    desc: "Show a file at a line in an editor pane, as `open` does with a line.",
-    effect: "write",
-    parameters: [
-      ["string", "path"],
-      ["number", "line"],
-    ],
-    examples: [{ args: ["/src/main.rs", 42] }, { args: [{ path: "/src/main.rs", line: 42, column: 5 }] }],
-    returns: "`{pane, path, opened}`.",
-  },
-  (first?: unknown, second?: unknown) => opening(first, typeof second === "number" || typeof second === "string" ? { line: second } : second),
-);
-
-/** Runs one of Monaco's actions in pane `what` names, or the current one if it is an editor. */
+/** Runs one of Monaco's actions in the file pane `what` names, or the current one. */
 async function act(what: unknown, id: string): Promise<null> {
   const target = paneOf(what) ?? (await here())?.id;
   if (target === undefined || !(await isEditor(target))) return null;
