@@ -53,11 +53,14 @@ export function watch(root: string, onChange: (paths: string[]) => void, ms: num
 
 /**
  * Whether a burst says anything the page should show. What git writes inside its own directory
- * matters only when it is the index, `HEAD`, a ref or a stash; an editor's swap file does not.
+ * matters only when it is the index, `HEAD`, a ref or a stash; a write under a directory git ignores
+ * (`ignored`, each ending in `/`: a build's `target/`, `node_modules/`) never does.
  */
-export function relevant(paths: readonly string[]): boolean {
+export function relevant(paths: readonly string[], ignored: readonly string[] = []): boolean {
   if (paths.length === 0) return true;
-  const shown = (path: string) =>
-    !path.startsWith(".git/") || path === ".git/HEAD" || path === ".git/index" || /^\.git\/refs\//.test(path) || path.startsWith(".git/logs/");
+  const shown = (path: string) => {
+    if (path.startsWith(".git/")) return path === ".git/HEAD" || path === ".git/index" || path.startsWith(".git/refs/") || path.startsWith(".git/logs/");
+    return !ignored.some((dir) => path.startsWith(dir) || `${path}/` === dir);
+  };
   return paths.some((path) => path === "" || shown(path));
 }

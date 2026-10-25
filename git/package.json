@@ -1,7 +1,7 @@
 {
   "name": "pumi-git",
   "version": "0.1.0",
-  "description": "The repository in the sidebar: the changes as a path tree \u2014 stage, unstage, discard, commit \u2014 and the history, for whichever repository the current pane is in.",
+  "description": "The repository in the sidebar: the changes as a path tree — stage, unstage, discard, commit — the history, and a native diff pane in the window's theme, for whichever repository the current pane is in.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {
@@ -43,6 +43,14 @@
           "label": "Authors",
           "group": "Git",
           "desc": "Show each commit's author in the history."
+        },
+        "diff": {
+          "type": "string",
+          "default": "",
+          "scope": "pane",
+          "label": "Diff",
+          "group": "Git",
+          "desc": "What a diff pane shows, as the page set it: a side of the work tree, a file of it, or a commit."
         }
       },
       "commands": [
@@ -63,7 +71,14 @@
           "title": "Git",
           "icon": "git_branch"
         }
-      }
+      },
+      "blocks": [
+        {
+          "id": "diff",
+          "title": "Diff",
+          "icon": "git_branch"
+        }
+      ]
     }
   }
 }

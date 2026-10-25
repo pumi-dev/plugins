@@ -61,7 +61,7 @@ const COMMAND = "git";
 
 /** git's environment: the one this package was started in, with its optional index writes off, so
  * a status never takes the index's lock from a commit the user is making. */
-const ENV: Record<string, string | undefined> = { ...process.env, GIT_OPTIONAL_LOCKS: "0" };
+const ENV: Record<string, string | undefined> = { ...process.env, GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0" };
 
 /** Runs git in `dir`; what it wrote, and how it ended. */
 async function run(dir: string, args: string[]): Promise<Answer> {
@@ -302,12 +302,15 @@ export async function headId(root: string): Promise<string> {
   return answer.code === 0 ? answer.out.trim() : "";
 }
 
+/** How many commits the history reads: enough to scroll through, never the whole of a big one. */
+export const HISTORY_LIMIT = 1000;
+
 /** The repository's commits, newest first, the ones the branch's upstream does not have marked. */
 export async function history(root: string): Promise<Commit[]> {
   if ((await headId(root)) === "") return [];
   // A record a line, its fields between them: the subject may hold anything but these.
   // git's own order: the newest commit first, which is the order a revwalk sorted by time gives.
-  const log = await run(root, ["log", "--format=%H%x1f%an%x1f%at%x1f%s"]);
+  const log = await run(root, ["log", `--max-count=${HISTORY_LIMIT}`, "--format=%H%x1f%an%x1f%at%x1f%s"]);
   if (log.code !== 0) return [];
   const tags = await tagsByCommit(root);
   const ahead = await aheadCount(root);
@@ -355,6 +358,39 @@ async function aheadCount(root: string): Promise<number> {
   if (count.code !== 0) return 0;
   const ahead = Number(count.out.trim());
   return Number.isFinite(ahead) ? ahead : 0;
+}
+
+/** Where the branch stands against its upstream: the remote it would go to, and how far apart. */
+export interface Remote {
+  /** `origin/main`, or `null` when the branch has none. */
+  upstream: string | null;
+  /** The remote a branch without an upstream is published to; `null` when there is no remote. */
+  remote: string | null;
+  ahead: number;
+  behind: number;
+}
+
+/** The branch against its upstream, in two git calls (one when there is no upstream). */
+export async function remote(root: string): Promise<Remote> {
+  const [upstream, remotes] = await Promise.all([
+    run(root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]),
+    run(root, ["remote"]),
+  ]);
+  const names = remotes.code === 0 ? remotes.out.split("\n").map((line) => line.trim()).filter((line) => line !== "") : [];
+  const target = names.includes("origin") ? "origin" : (names[0] ?? null);
+  const name = upstream.code === 0 ? upstream.out.trim() : "";
+  if (name === "") return { upstream: null, remote: target, ahead: 0, behind: 0 };
+  const counts = await run(root, ["rev-list", "--left-right", "--count", `${name}...HEAD`]);
+  const [behind, ahead] = counts.code === 0 ? counts.out.trim().split(/\s+/).map(Number) : [0, 0];
+  return { upstream: name, remote: target, ahead: Number.isFinite(ahead) ? ahead! : 0, behind: Number.isFinite(behind) ? behind! : 0 };
+}
+
+/** The directories git ignores that hold something (`target/`, `node_modules/`): a write under one
+ * says nothing the page shows, and a build writes thousands. */
+export async function ignoredDirs(root: string): Promise<string[]> {
+  const answer = await run(root, ["ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"]);
+  if (answer.code !== 0) return [];
+  return answer.out.split("\0").filter((path) => path.endsWith("/"));
 }
 
 // ---- what a row does
@@ -411,13 +447,93 @@ export async function ignore(root: string, path: string): Promise<void> {
   await Bun.write(file, `${text}${rule}\n`);
 }
 
-/** Commit what is staged, with `message`; the commit it made. */
-export async function commit(root: string, message: string): Promise<string> {
-  await ok(root, ["commit", "--quiet", "--message", message]);
+/** How a commit is made: what is staged, every tracked file's changes (`-a`), or onto the last one. */
+export type CommitMode = "staged" | "tracked" | "amend";
+
+/** Commit with `message`, as `mode` says; the commit it made. An amend with no message keeps the
+ * last one's. */
+export async function commit(root: string, message: string, mode: CommitMode = "staged"): Promise<string> {
+  const args = ["commit", "--quiet"];
+  if (mode === "tracked") args.push("--all");
+  if (mode === "amend") args.push("--amend");
+  if (message !== "") args.push("--message", message);
+  else if (mode === "amend") args.push("--no-edit");
+  await ok(root, args);
   return await headId(root);
+}
+
+/** What the branch button does with the remote. */
+export type Sync = "fetch" | "pull" | "push" | "publish";
+
+/** Fetch, pull (fast-forward only), push, or publish the branch to `target` and track it there. */
+export async function sync(root: string, what: Sync, target: string | null): Promise<void> {
+  switch (what) {
+    case "fetch":
+      await ok(root, ["fetch", "--quiet"]);
+      return;
+    case "pull":
+      await ok(root, ["pull", "--ff-only", "--quiet"]);
+      return;
+    case "push":
+      await ok(root, ["push", "--quiet"]);
+      return;
+    case "publish":
+      if (target === null) throw new GitError("no remote to publish to");
+      await ok(root, ["push", "--quiet", "--set-upstream", target, "HEAD"]);
+      return;
+  }
 }
 
 /** The first seven characters of a sha, as the page names a commit. */
 export function short(sha: string): string {
   return sha.slice(0, 7);
+}
+
+/** What a diff pane shows: one side of the work tree (all of it, or a file of it), or a commit. */
+export type DiffSpec =
+  | { kind: "work"; side: "staged" | "changes" | "all"; path?: string; untracked?: boolean }
+  | { kind: "commit"; sha: string };
+
+/** Untracked files the whole-tree diff reads as additions; past this, they are counted, not read. */
+export const UNTRACKED_LIMIT = 200;
+
+const DIFF_FLAGS = ["--no-color", "--no-ext-diff", "--find-renames", "--patch"];
+
+/** A unified patch for `spec`, as `git diff` writes it, for the `<diff>` element to draw. */
+export async function patch(root: string, spec: DiffSpec): Promise<string> {
+  if (spec.kind === "commit") {
+    if (!/^[0-9a-f]{4,64}$/.test(spec.sha)) throw new GitError(`not a commit: ${spec.sha}`);
+    return ok(root, ["show", "--format=", ...DIFF_FLAGS, spec.sha]);
+  }
+  const paths = spec.path ? ["--", spec.path] : [];
+  if (spec.path && spec.untracked) return untrackedPatch(root, [spec.path]);
+  if (spec.side === "staged") return ok(root, ["diff", "--cached", ...DIFF_FLAGS, ...paths]);
+  if (spec.side === "changes") {
+    const tracked = await ok(root, ["diff", ...DIFF_FLAGS, ...paths]);
+    if (spec.path) return tracked;
+    return tracked + (await untrackedPatch(root, await untracked(root)));
+  }
+  // Everything against HEAD (or, before the first commit, everything staged), and what is new.
+  const born = (await run(root, ["rev-parse", "-q", "--verify", "HEAD"])).code === 0;
+  const tracked = await ok(root, born ? ["diff", "HEAD", ...DIFF_FLAGS, ...paths] : ["diff", "--cached", ...DIFF_FLAGS, ...paths]);
+  if (spec.path) return tracked;
+  return tracked + (await untrackedPatch(root, await untracked(root)));
+}
+
+/** The untracked files git does not ignore. */
+async function untracked(root: string): Promise<string[]> {
+  const out = await ok(root, ["ls-files", "--others", "--exclude-standard", "-z"]);
+  return out.split("\0").filter((path) => path !== "");
+}
+
+/** New files as additions: `git diff --no-index` against nothing, which exits 1 when they differ. */
+async function untrackedPatch(root: string, paths: string[]): Promise<string> {
+  const read = paths.slice(0, UNTRACKED_LIMIT);
+  const parts = await Promise.all(
+    read.map(async (path) => {
+      const answer = await run(root, ["diff", "--no-index", ...DIFF_FLAGS, "--", "/dev/null", path]);
+      return answer.code <= 1 ? answer.out : "";
+    }),
+  );
+  return parts.join("");
 }

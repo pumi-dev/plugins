@@ -1,210 +1,357 @@
 // git: the repository in the left sidebar — its changes as a path tree you can stage, unstage,
 // discard and commit from, and its history — for whichever repository the pane you are working in
-// is in. The app's own git plugin drawn as a package, on the `git` binary and a watch of the work
-// tree.
+// is in, on the `git` binary and a watch of the work tree.
 //
 //   ctrl+shift+g                    show the app's sidebar, which is where the page is
 //   pumi call amresyd.git.toggle    the same from anywhere
 //
 // The repository is `panel.ts`, the rows `tree.ts`'s, the git work `git.ts`. What is here is the
-// logic: the page's own model, kept fresh as the pane in front moves and the work tree changes, and
-// the exports `ui.tsx` asks for — the rows, and every gesture it makes.
-import { command, on, option, paths, plugin } from "pumi";
+// page's model and the exports `ui.tsx` calls. The page is pushed, not asked for: each time the
+// panel changes the whole view is posted (`ui.post`, at most once a tick), and the window draws the
+// last one it has the moment the sidebar opens — nothing is read on the way.
+import { command, file, on, option, pane, paths, plugin, ui } from "pumi";
 
-import { panel, type Snapshot } from "./panel.ts";
-import type { Change, Group } from "./git.ts";
+import { panel } from "./panel.ts";
+import * as git from "./git.ts";
+import type { Change, Commit, CommitMode, DiffSpec, Remote, Sync } from "./git.ts";
 import { diffTotals, rows, stageStates, visible, type Checkbox, type Row } from "./tree.ts";
 
-/** A group's rows, as the page draws them: its name, its rows, and its own staging state. */
-export interface GroupView {
-  group: Group;
-  label: string;
-  state: Checkbox;
-  rows: Row[];
+/** One line of the changes list: a group's header, its empty note, or a row of its tree. */
+export interface Line {
+  /** `group:staged`, `staged:file:src/main.ts`, `changes:dir:src`, `empty:staged`. */
+  id: string;
+  kind: "header" | "empty" | Row["kind"];
+  depth: number;
+  open: boolean;
+  text: string;
+  /** What git says of a file (`added`, `modified`, `deleted`, `renamed`, `untracked`, `conflict`). */
+  status: string;
+  checkbox: Checkbox;
+  /** A header's count of files. */
+  count: number;
+  selected: boolean;
+  /** What its menu offers, best first. */
+  actions: string[];
 }
 
-/** The changes page: the repository, its three groups, and what the user is doing to them. */
+/** The changes page: the repository, its lines, and what the user is doing to them. */
 export interface ChangesView {
+  version: number;
   root: string | null;
   branch: string;
   error: string | null;
   /** Before the first look there is nothing to say, and "no changes" would be a guess. */
   looked: boolean;
-  groups: GroupView[];
+  lines: Line[];
+  /** Every changed file, each counted once. */
+  total: number;
+  staged: number;
+  /** Files with a change in the work tree that `commit -a` takes: tracked, not new. */
+  tracked: number;
   notice: { ok: boolean; text: string } | null;
-  /** The commit box, and what is typed in it. */
-  composing: boolean;
-  message: string;
-  /** The filter box, and what it holds. */
   filtering: boolean;
   filter: string;
-  /** `+12 -3`, over every group. */
+  /** The draft in the commit box, for a box drawn again. */
+  message: string;
   added: number;
   deleted: number;
-  /** A conflicted file's own `ours`/`theirs` rows are in its group, as the tree draws them. */
-  cursor: string | null;
+  remote: Remote;
+  busy: string | null;
 }
 
 /** The history page: the commits, newest first. */
 export interface HistoryView {
+  version: number;
   root: string | null;
-  branch: string;
   error: string | null;
-  commits: { sha: string; subject: string; author: string; timestamp: number; tags: string[]; unpushed: boolean }[] | null;
+  commits: Commit[] | null;
+  dates: "relative" | "absolute";
+  author: boolean;
 }
 
-const GROUPS: { group: Group; label: string }[] = [
-  { group: "staged", label: "Staged" },
-  { group: "changes", label: "Unstaged" },
-];
+export interface Views {
+  changes: ChangesView;
+  history: HistoryView;
+}
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** Where the repository is looked for: the directory the window says the user is in. */
-let lastCwd: string | null = null;
+let version = 0;
 
-/** Points the panel at `cwd`, reading the repository when it moved. */
-async function at(cwd: string): Promise<void> {
-  if (cwd === lastCwd) return;
-  lastCwd = cwd;
-  panel.cwd = cwd;
-  panel.cursor = null;
-  await panel.refresh();
+/** A group's lines: its header, then its tree, or the note that it is empty. */
+function group(
+  lines: Line[],
+  key: "conflicts" | "staged" | "changes",
+  label: string,
+  all: readonly Change[],
+  state: Checkbox,
+  states: ReturnType<typeof stageStates>,
+  empty: string | null,
+): void {
+  const kept = visible(all, panel.filter);
+  if (kept.length === 0 && empty === null) return;
+  const id = `group:${key}`;
+  const open = panel.revealing || !panel.collapsed.has(id);
+  lines.push({ id, kind: "header", depth: 0, open, text: label, status: "", checkbox: kept.length === 0 ? "" : state, count: kept.length, selected: panel.cursor === id, actions: [] });
+  if (!open) return;
+  if (kept.length === 0) {
+    lines.push({ id: `empty:${key}`, kind: "empty", depth: 0, open: false, text: empty ?? "", status: "", checkbox: "", count: 0, selected: false, actions: [] });
+    return;
+  }
+  const tree = rows(key === "staged" ? "staged" : "changes", kept, panel.collapsed, panel.revealing, panel.cursor, states.dirStage, states.both);
+  for (const row of tree) {
+    lines.push({ id: row.id, kind: row.kind, depth: row.depth, open: row.open, text: row.text, status: row.color, checkbox: row.checkbox, count: 0, selected: row.selected, actions: row.actions });
+  }
 }
 
-/** The rows of a group, folded as the user left them. */
-function groupRows(group: Group, changes: readonly Change[], at: ReturnType<typeof stageStates>, state: Checkbox): Row[] {
-  return rows(group, changes, panel.collapsed, panel.revealing, panel.cursor, at.dirStage, at.both);
-}
-
-// ---- what the window asks for
-
-/** The changes page at `cwd`: the groups, the commit box, and the notice the last action left. */
-export async function changes(cwd: string): Promise<ChangesView> {
-  await at(cwd);
-  const snapshot: Snapshot = panel.snapshot;
+/** The changes page as the panel has it now. */
+function changesView(): ChangesView {
+  const snapshot = panel.snapshot;
   const { staged, changes: unstaged, conflicts } = snapshot;
   const states = stageStates(staged, unstaged, conflicts);
-  const shown = (all: readonly Change[]) => visible(all, panel.filter);
-  const groups: GroupView[] = [];
-  const conflictsShown = shown(conflicts);
-  if (conflictsShown.length > 0) {
-    groups.push({ group: "changes", label: "Conflicts", state: "off", rows: groupRows("changes", conflictsShown, states, "off") });
-  }
-  for (const { group, label } of GROUPS) {
-    const all = group === "staged" ? staged : unstaged;
-    const kept = shown(all);
-    if (kept.length === 0) continue;
-    const state: Checkbox = all.some((change) => states.both.has(change.path)) ? "partial" : group === "staged" ? "on" : "off";
-    groups.push({ group, label, state, rows: groupRows(group, kept, states, state) });
+  const lines: Line[] = [];
+  const any = staged.length + unstaged.length + conflicts.length > 0;
+  if (any) {
+    group(lines, "conflicts", "Conflicts", conflicts, "", states, null);
+    group(lines, "staged", "Staged", staged, staged.some((change) => states.both.has(change.path)) ? "partial" : "on", states, "No staged changes yet");
+    group(lines, "changes", "Unstaged", unstaged, unstaged.some((change) => states.both.has(change.path)) ? "partial" : "off", states, "No unstaged changes");
   }
   const [added, deleted] = diffTotals(staged, unstaged, conflicts);
   return {
+    version,
     root: panel.root,
     branch: snapshot.branch,
     error: snapshot.error,
     looked: panel.looked,
-    groups,
+    lines,
+    total: new Set([...staged, ...unstaged, ...conflicts].map((change) => change.path)).size,
+    staged: staged.length,
+    tracked: unstaged.filter((change) => change.glyph !== "?").length,
     notice: panel.notice,
-    composing: panel.composing,
-    message: panel.message,
     filtering: panel.filtering,
     filter: panel.filter,
+    message: panel.message,
     added,
     deleted,
-    cursor: panel.cursor,
+    remote: snapshot.remote,
+    busy: panel.busy,
   };
 }
 
-/** The history page at `cwd`: the commits, when git has been asked for them. */
-export async function history(cwd: string): Promise<HistoryView> {
-  await at(cwd);
-  const snapshot = panel.snapshot;
+function historyView(): HistoryView {
   return {
+    version,
     root: panel.root,
-    branch: snapshot.branch,
-    error: snapshot.error,
-    commits: snapshot.commits,
+    error: panel.snapshot.error,
+    commits: panel.snapshot.commits,
+    dates: panel.settings.dates,
+    author: panel.settings.author,
   };
 }
 
-/** A row pressed: a folder folds, a file is opened for its diff (nothing here: the app shows it). */
+function views(): Views {
+  return { changes: changesView(), history: historyView() };
+}
+
+// ---- what the window hears
+
+/** What the history was last posted with: it is posted again only when one of them changed. */
+let postedHistory: { commits: Commit[] | null; dates: string; author: boolean; root: string | null } | null = null;
+let queued = false;
+
+/** Posts the page to the window, once however many times the panel changed in this tick. */
+function post(): void {
+  if (queued) return;
+  queued = true;
+  queueMicrotask(() => {
+    queued = false;
+    version += 1;
+    ui.post("changes", changesView());
+    const { commits } = panel.snapshot;
+    const { dates, author } = panel.settings;
+    const had = postedHistory;
+    if (had === null || had.commits !== commits || had.dates !== dates || had.author !== author || had.root !== panel.root) {
+      postedHistory = { commits, dates, author, root: panel.root };
+      ui.post("history", historyView());
+    }
+  });
+}
+panel.watch(post);
+
+// ---- what the window asks for
+
+/** The user is in `cwd`: the repository around it, and the page as it is (for a window the posts
+ * do not reach, and the first draw of one that has none yet). */
+export async function follow(cwd: string): Promise<Views> {
+  await panel.follow(cwd);
+  return views();
+}
+
+/** A line pressed: a header or a folder folds, a file takes the cursor. */
 export async function picked(id: string): Promise<void> {
-  if (id.startsWith("changes:dir:") || id.startsWith("staged:dir:")) await panel.toggle(id);
+  if (id.startsWith("group:") || id.includes(":dir:")) await panel.toggle(id);
   else panel.select(id);
 }
 
-/** An action of a row's menu (`stage`, `unstage`, `discard`, `stage-all`, …). */
+/** A file line opened (double click): the file, in a pane beside the current one. */
+export async function opened(id: string): Promise<void> {
+  const at = id.indexOf(":file:");
+  if (at >= 0) await panel.open(id.slice(at + ":file:".length));
+}
+
+/** An action of a line's menu or checkbox (`stage`, `unstage`, `discard`, `stage-all`, …). */
 export async function chose(name: string, id: string): Promise<void> {
   await panel.act(name, id);
 }
 
-/** What is typed in the commit box. */
+/** What is typed in the commit box: kept, not drawn (the box draws its own text). */
 export function typed(text: string): void {
-  panel.setMessage(text);
-  if (text !== "" && !panel.composing) panel.compose();
+  panel.message = text;
 }
 
-/** The commit box opened (`c`), or closed. */
-export function composing(on: boolean): void {
-  panel.composing = on;
-  if (on) panel.compose();
+/** Commits `text`: what is staged, every tracked change, or onto the last commit. */
+export async function committed(text: string, mode: CommitMode): Promise<boolean> {
+  return panel.commit(text, mode);
 }
 
-/** The filter box: what it holds, which is what the tree keeps. */
-export function filtered(text: string): void {
-  panel.filtering = text !== "";
-  panel.filter = text;
+/** The branch button: fetch, pull, push or publish. */
+export async function synced(what: Sync): Promise<void> {
+  await panel.sync(what);
 }
 
-/** A key the page answers: `next`, `previous`, the commit box, the filter. Returns whether it was
- * one of them. */
+/** The filter box shown or hidden, and what it holds, which is what the tree keeps. */
+export function filtered(text: string, shown = true): void {
+  panel.filtering = shown;
+  panel.filter = shown ? text : "";
+  panel.changed();
+}
+
+// ---- the diff pane
+
+/** What a diff pane is told to show: the spec, and the repository it is of. */
+export type Shown = DiffSpec & { root: string; title: string };
+
+/** The diff tab the page opened last: the next diff is drawn in it, not in another — while the user
+ * is still in that tab. */
+let diffPane: number | null = null;
+
+/** Shows `spec` in the diff tab, opening one beside the tab the user is in when there is none. */
+async function showDiff(spec: DiffSpec, title: string): Promise<void> {
+  const root = panel.root;
+  if (root === null) return;
+  const value = JSON.stringify({ ...spec, root, title } satisfies Shown);
+  try {
+    const here = await pane.get().catch(() => null);
+    const tab = here?.place.kind === "tiled" ? here.place.tab : null;
+    if (diffPane !== null) {
+      const there = await pane.get(diffPane).catch(() => null);
+      if (there && there.block === plugin.prefixed("diff") && there.place.kind === "tiled" && (tab === null || there.place.tab === tab)) {
+        await option.set("diff", value, { pane: diffPane, scope: "pane" });
+        await option.set("title", title, { pane: diffPane });
+        return;
+      }
+    }
+    const opened = await pane.open(plugin.prefixed("diff"), {}, { kind: "tab", name: title });
+    diffPane = opened.id;
+    await option.set("diff", value, { pane: opened.id, scope: "pane" });
+    await option.set("title", title, { pane: opened.id });
+  } catch (err) {
+    console.error(`git: diff: ${message(err)}`);
+  }
+}
+
+/** The whole diff, staged and not, new files with it. */
+export async function diff(): Promise<void> {
+  await showDiff({ kind: "work", side: "all" }, "Changes");
+}
+
+/** A file line's diff: its staged side, or its work tree's (`staged:file:src/a.ts`). */
+export async function diffed(id: string): Promise<void> {
+  const at = id.indexOf(":file:");
+  if (at < 0) return;
+  const group = id.slice(0, at);
+  const path = id.slice(at + ":file:".length);
+  const side = group === "staged" ? "staged" : "changes";
+  const change = (side === "staged" ? panel.snapshot.staged : [...panel.snapshot.changes, ...panel.snapshot.conflicts]).find((each) => each.path === path);
+  const name = path.split("/").at(-1) ?? path;
+  await showDiff({ kind: "work", side, path, untracked: change?.glyph === "?" }, `${name}${side === "staged" ? " (staged)" : ""}`);
+}
+
+/** A commit of the history, as a diff. */
+export async function shown(sha: string): Promise<void> {
+  if (!/^[0-9a-f]{4,64}$/.test(sha)) return;
+  const commit = panel.snapshot.commits?.find((each) => each.sha === sha);
+  await showDiff({ kind: "commit", sha }, commit ? `${sha.slice(0, 7)} ${commit.subject}` : sha.slice(0, 7));
+}
+
+/** The patch a diff pane draws, read now. The view asks again when the repository changes. */
+export async function patchOf(value: string): Promise<{ patch: string; error: string | null }> {
+  let spec: Shown;
+  try {
+    spec = JSON.parse(value) as Shown;
+  } catch {
+    return { patch: "", error: "nothing to show" };
+  }
+  try {
+    return { patch: await git.patch(spec.root, spec), error: null };
+  } catch (err) {
+    return { patch: "", error: message(err) };
+  }
+}
+
+/** A line of a diff pressed: the file, at that line, in the editor. */
+export async function reveal(root: string, path: string, line: number | null): Promise<void> {
+  try {
+    await file.open(`${root}/${path}`, line === null ? {} : { line }, { kind: "tiled", split: "right" });
+  } catch (err) {
+    console.error(`git: open: ${message(err)}`);
+  }
+}
+
+/** A key the page answers: the cursor, the filter, and a line's first action. Answers whether it
+ * was one of them. */
 export async function pressed(key: string): Promise<boolean> {
   switch (key) {
-    case "c":
-      panel.compose();
-      return true;
     case "/":
-      panel.filtering = true;
-      panel.filter = "";
+      filtered("", true);
       return true;
     case "escape":
       panel.filtering = false;
       panel.filter = "";
-      panel.composing = false;
       panel.select(null);
-      return true;
-    case "enter":
-      if (panel.composing) await panel.act("commit", "");
+      panel.changed();
       return true;
     case "j":
     case "down":
-      if (!panel.composing) panel.select(next(1));
+      panel.select(step(1));
       return true;
     case "k":
     case "up":
-      if (!panel.composing) panel.select(next(-1));
+      panel.select(step(-1));
       return true;
+    case "enter":
+    case "space": {
+      const line = changesView().lines.find((each) => each.id === panel.cursor);
+      if (!line) return false;
+      if (line.kind === "header" || line.kind === "folder") await panel.toggle(line.id);
+      else if (line.kind === "file") await panel.act(line.checkbox === "on" ? "unstage" : "stage", line.id);
+      return true;
+    }
     default:
       return false;
   }
 }
 
-/** The row `step` rows away from the cursor, in the order the page draws them. */
-function next(step: number): string | null {
-  const { staged, changes, conflicts } = panel.snapshot;
-  const states = stageStates(staged, changes, conflicts);
-  const all = [
-    ...rows("changes", conflicts, panel.collapsed, panel.revealing, panel.cursor, states.dirStage, states.both),
-    ...rows("staged", staged, panel.collapsed, panel.revealing, panel.cursor, states.dirStage, states.both),
-    ...rows("changes", changes, panel.collapsed, panel.revealing, panel.cursor, states.dirStage, states.both),
-  ];
-  const order = all.filter((row) => row.kind !== "note").map((row) => row.id);
+/** The line `by` lines away from the cursor, in the order the page draws them. */
+function step(by: number): string | null {
+  const order = changesView()
+    .lines.filter((line) => line.kind !== "note" && line.kind !== "empty")
+    .map((line) => line.id);
   if (order.length === 0) return null;
   const at = panel.cursor === null ? -1 : order.indexOf(panel.cursor);
-  const to = Math.min(order.length - 1, Math.max(0, at + step));
+  const to = Math.min(order.length - 1, Math.max(0, at + by));
   return order[to] ?? null;
 }
 
@@ -216,12 +363,8 @@ command("toggle", () => command.run("toggle_sidebar"));
 /** Its options changed: read them again, and draw with them. */
 on("option.changed", { match: plugin.prefixed("*"), desc: "the git page's options" }, () => void panel.reread());
 
-/** The pane in front may be in another repository. */
-on(["pane.focused", "cwd.changed", "tab.focused", "session.focused"], { desc: "the git page follows the pane the user works in" }, () => {
-  lastCwd = null;
-});
-
-/** Starts the panel, with where its folded directories are kept. */
+/** Starts the panel, with where its folded directories are kept, and reads the repository the
+ * worker started in, so the page has something to draw before it is first shown. */
 async function start(): Promise<void> {
   let state: string | null = null;
   try {
@@ -231,7 +374,19 @@ async function start(): Promise<void> {
     console.error(`git: no state directory: ${message(err)}`);
   }
   await panel.start(state);
+  await panel.follow(await directory());
+}
+
+/** The directory of the pane the user is in, as the window will ask for it when the page opens. */
+async function directory(): Promise<string> {
+  try {
+    const current = await pane.get();
+    const path = await option.get("pane_current_path", { pane: current.id });
+    if (typeof path === "string" && path !== "") return path;
+  } catch {
+    // No pane in front yet: the worker's own directory.
+  }
+  return process.cwd();
 }
 
 void start().catch((err) => console.error(`git: starting threw:`, err));
-void option.get("dates").catch(() => undefined);

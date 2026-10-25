@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as git from "../src/git.ts";
+import { relevant } from "../src/watch.ts";
 import { empty, repository, run, scratch, write } from "./repo.ts";
 
 describe("what a repository has", () => {
@@ -200,5 +201,71 @@ describe("what the page can do", () => {
       { path: "b.txt", index: "?", work: "?" },
       { path: "c.txt", index: "R", work: " ", from: "c-old.txt" },
     ]);
+  });
+
+  test("commit tracked takes every tracked change, staged or not, and leaves new files", async () => {
+    const dir = repository();
+    writeFileSync(join(dir, "a.txt"), "changed\n");
+    write(dir, { "new.txt": "hi\n" });
+    await git.commit(dir, "tracked", "tracked");
+    const { staged, changes } = await git.collect(dir);
+    expect(staged).toEqual([]);
+    expect(changes.map((each) => each.path)).toEqual(["new.txt"]);
+  });
+
+  test("amend with no message keeps the last commit's", async () => {
+    const dir = repository();
+    writeFileSync(join(dir, "a.txt"), "changed\n");
+    await git.stageAll(dir);
+    await git.commit(dir, "", "amend");
+    expect(run(dir, "log", "--format=%s").trim()).toBe("first");
+  });
+
+  test("publish pushes the branch and tracks it; then it is level with its upstream", async () => {
+    const dir = repository();
+    const upstream = scratch("upstream");
+    run(upstream, "init", "--quiet", "--bare");
+    expect(await git.remote(dir)).toEqual({ upstream: null, remote: null, ahead: 0, behind: 0 });
+    run(dir, "remote", "add", "origin", upstream);
+    expect((await git.remote(dir)).remote).toBe("origin");
+    await git.sync(dir, "publish", "origin");
+    expect(await git.remote(dir)).toEqual({ upstream: "origin/main", remote: "origin", ahead: 0, behind: 0 });
+    writeFileSync(join(dir, "a.txt"), "changed\n");
+    run(dir, "commit", "--quiet", "--all", "--message", "second");
+    expect((await git.remote(dir)).ahead).toBe(1);
+    await git.sync(dir, "push", "origin");
+    expect((await git.remote(dir)).ahead).toBe(0);
+  });
+
+  test("the ignored directories are what a watch skips", async () => {
+    const dir = repository({ ".gitignore": "target/\n", "a.txt": "one\n" });
+    write(dir, { "target/debug/x.o": "bin" });
+    const ignored = await git.ignoredDirs(dir);
+    expect(ignored).toEqual(["target/"]);
+    expect(relevant(["target/debug/x.o", "target"], ignored)).toBe(false);
+    expect(relevant(["a.txt"], ignored)).toBe(true);
+    expect(relevant([".git/objects/ab/cd"], ignored)).toBe(false);
+    expect(relevant([".git/index"], ignored)).toBe(true);
+  });
+
+  test("a patch for each thing a diff pane shows", async () => {
+    const dir = repository({ "a.txt": "one\n", "b.txt": "two\n" });
+    writeFileSync(join(dir, "a.txt"), "one\nmore\n");
+    run(dir, "add", "a.txt");
+    writeFileSync(join(dir, "b.txt"), "TWO\n");
+    write(dir, { "new.txt": "hi\n" });
+    const staged = await git.patch(dir, { kind: "work", side: "staged" });
+    expect(staged).toContain("+++ b/a.txt");
+    expect(staged).not.toContain("b.txt\n+TWO");
+    const changes = await git.patch(dir, { kind: "work", side: "changes" });
+    expect(changes).toContain("+TWO");
+    expect(changes).toContain("+++ b/new.txt");
+    const all = await git.patch(dir, { kind: "work", side: "all" });
+    expect(all).toContain("+more");
+    expect(all).toContain("+TWO");
+    expect(all).toContain("+hi");
+    expect(await git.patch(dir, { kind: "work", side: "changes", path: "new.txt", untracked: true })).toContain("+hi");
+    const head = await git.headId(dir);
+    expect(await git.patch(dir, { kind: "commit", sha: head })).toContain("+++ b/a.txt");
   });
 });

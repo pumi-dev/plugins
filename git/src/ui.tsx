@@ -1,268 +1,429 @@
-// What the git page draws, in the window's React tree: the branch and what the changes add up to,
-// the two groups of the tree — staged and unstaged, conflicts on top — a row a path with its mark,
-// its checkbox and its stats, the commit box under them, and the history beside them as a tab. The
-// repository, the rows and every action are the worker's (`main.ts`, `panel.ts`, `tree.ts`).
-import { useEffect, useState } from "react";
-import { Icon, useFocusedPane, useMetrics, usePane, useTheme } from "pumi";
+// What the git page draws, in the window's React tree: two tabs, Changes and History. Changes is a
+// toolbar (the whole diff, what it adds up to, the filter, Stage All), the lines of the three groups
+// — conflicts, staged, unstaged — as path trees with a checkbox each, the branch and its remote, and
+// the commit box. History is the commits, newest first.
+//
+// Nothing here waits on git: the worker posts the whole page each time it changes (`useChannel`),
+// the last post is drawn the moment the sidebar opens, the lines are a windowed `<virtual-list>`
+// whose unchanged rows are not drawn again, and the commit box keeps its own text. The repository,
+// the lines and every action are the worker's (`main.ts`, `panel.ts`, `tree.ts`).
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Icon, useChannel, useFocusedPane, useMetrics, usePane, usePlugin, useTheme, type RendererProps } from "pumi";
 
-import { changes, chose, composing, filtered, history, picked, pressed, typed, type ChangesView, type GroupView, type HistoryView } from "./main.ts";
-import type { Row } from "./tree.ts";
+import {
+  chose,
+  committed,
+  diff,
+  diffed,
+  filtered,
+  follow,
+  opened,
+  patchOf,
+  picked,
+  pressed,
+  reveal,
+  shown,
+  synced,
+  typed,
+  type ChangesView,
+  type HistoryView,
+  type Line,
+  type Shown,
+  type Views,
+} from "./main.ts";
+import type { Commit, CommitMode, Sync } from "./git.ts";
 import { when } from "./time.ts";
 
-/** A row's height, in pixels. */
+/** A line's height, and a commit's, in pixels. */
 const ROW = 26;
-/** A directory level's indent. */
+const COMMIT_ROW = 46;
+/** A directory level's indent, and where its guide runs in it: under the middle of the folder icon. */
 const INDENT = 16;
-
-/** A row's action in words, as its menu shows it. */
-const LABELS: Record<string, string> = {
-  stage: "Stage",
-  unstage: "Unstage",
-  "stage-all": "Stage All",
-  "unstage-all": "Unstage All",
-  discard: "Discard",
-  ignore: "Ignore",
-  ours: "Ours",
-  theirs: "Theirs",
-  commit: "Commit",
-  publish: "Publish",
-};
+const GUIDE = 7;
+const PAD = 10;
+/** Lines made beyond each end of what shows. */
+const OVERSCAN = 40;
 
 /** A throw the page cannot answer: said in the log, not drawn over the window. */
 function swallow(err: unknown): void {
   console.error(`git: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `panel` slot's view: the changes, and the history as a tab of the same page. */
-export function Git() {
-  const t = useTheme();
-  const m = useMetrics();
-  const focused = usePane(useFocusedPane());
-  const cwd = focused?.cwd ?? "/";
-  const [tab, setTab] = useState<"changes" | "history">("changes");
-  const [view, setView] = useState<ChangesView | undefined>(undefined);
-  const [past, setPast] = useState<HistoryView | undefined>(undefined);
-  const [menu, setMenu] = useState<{ at: { x: number; y: number }; actions: string[]; id: string } | null>(null);
-
-  /** Reads the page again: the changes, and the history when it is the tab showing. */
-  const load = () => {
-    if (tab === "changes") void changes(cwd).then(setView).catch(swallow);
-    else void history(cwd).then(setPast).catch(swallow);
-  };
-  useEffect(load, [cwd, tab]);
-
-  const act = (name: string, id: string) => {
-    setMenu(null);
-    void chose(name, id).then(load).catch(swallow);
-  };
-
-  return (
-    <div
-      autoFocus
-      tabIndex={0}
-      onKeyDown={(e: any) => {
-        if (e?.key === undefined) return;
-        void pressed(e.key)
-          .then((mine) => {
-            if (!mine) return;
-            e?.preventDefault?.();
-            load();
-          })
-          .catch(swallow);
-      }}
-      style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, backgroundColor: t.surface, color: t.text }}
-    >
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 26, flexShrink: 0, paddingLeft: 8, paddingRight: 8, borderBottomWidth: 1, borderColor: t.border }}>
-        {(["changes", "history"] as const).map((each) => (
-          <div
-            key={each}
-            onClick={() => setTab(each)}
-            style={{ display: "flex", alignItems: "center", height: 22, paddingLeft: 8, paddingRight: 8, borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: tab === each ? t.selected : undefined, hover: { backgroundColor: tab === each ? t.selected : t.hover } }}
-          >
-            <text style={{ fontSize: 11, fontWeight: 600, color: tab === each ? t.text : t.muted }}>{each === "changes" ? "Changes" : "History"}</text>
-          </div>
-        ))}
-        <div style={{ flexGrow: 1 }} />
-        {tab === "changes" && view ? (
-          <text style={{ fontSize: 10, color: t.faint }}>{`+${view.added} −${view.deleted}`}</text>
-        ) : null}
-      </div>
-      {tab === "history" ? <History view={past} /> : <Changes view={view} act={act} menu={(at, actions, id) => setMenu({ at, actions, id })} load={load} />}
-      {menu ? <Menu at={menu.at} actions={menu.actions} close={() => setMenu(null)} run={(name) => act(name, menu.id)} /> : null}
-    </div>
-  );
+/** `1,417`. */
+function count(n: number): string {
+  return n.toLocaleString("en-US");
 }
 
-/** The changes: the branch, the groups, and the commit box. */
-function Changes({
-  view,
-  act,
-  menu,
-  load,
-}: {
-  view: ChangesView | undefined;
-  act(name: string, id: string): void;
-  menu(at: { x: number; y: number }, actions: string[], id: string): void;
-  load(): void;
-}) {
+/** A menu's item. */
+interface Item {
+  label: string;
+  run(): void;
+  danger?: boolean;
+}
+
+type At = { x: number; y: number };
+
+/** Where a click was, for the menu it opens. */
+function at(e: any): At {
+  return { x: e?.x ?? 0, y: e?.y ?? 0 };
+}
+
+/** The `panel` slot's view. Only the focused pane's directory is read here, so a pane's title or
+ * status changing draws nothing of the page. */
+export function Git() {
+  const focused = usePane(useFocusedPane());
+  const prefix = usePrefix();
+  // A pane with no directory of its own (this plugin's diff, a page, nothing focused yet) is not
+  // somewhere the user went: the page stays on the repository it was showing.
+  const last = useRef<string | null>(null);
+  const cwd = focused?.cwd;
+  if (cwd && cwd !== "/" && focused?.block !== `${prefix}diff`) last.current = cwd;
+  return <GitAt cwd={last.current} />;
+}
+
+/** The newer of what was posted and what an export answered. */
+function newest<T extends { version: number }>(posted: T | undefined, answered: T | undefined): T | undefined {
+  if (!posted) return answered;
+  if (!answered) return posted;
+  return answered.version > posted.version ? answered : posted;
+}
+
+const GitAt = memo(function GitAt({ cwd }: { cwd: string | null }) {
+  const t = useTheme();
+  const [tab, setTab] = useState<"changes" | "history">("changes");
+  const [menu, setMenu] = useState<{ at: At; items: Item[] } | null>(null);
+  const postedChanges = useChannel<ChangesView | undefined>("changes", undefined);
+  const postedHistory = useChannel<HistoryView | undefined>("history", undefined);
+  const [answer, setAnswer] = useState<Views | undefined>(undefined);
+  useEffect(() => {
+    // No directory yet: what the worker posted (it looked where it started) is the page.
+    if (cwd !== null) void follow(cwd).then(setAnswer).catch(swallow);
+  }, [cwd]);
+  const changes = newest(postedChanges, answer?.changes);
+  const history = newest(postedHistory, answer?.history);
+  const open = (where: At, items: Item[]) => setMenu({ at: where, items });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, color: t.text }}>
+      <div style={{ display: "flex", flexDirection: "row", height: 32, flexShrink: 0 }}>
+        {(["changes", "history"] as const).map((each) => {
+          const active = tab === each;
+          return (
+            <div
+              key={each}
+              onClick={() => setTab(each)}
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                flexGrow: 1,
+                flexBasis: 0,
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                cursor: "pointer",
+                backgroundColor: active ? undefined : t.editor,
+                borderBottomWidth: active ? 0 : 1,
+                borderRightWidth: each === "changes" ? 1 : 0,
+                borderColor: t.border,
+                hover: { backgroundColor: active ? undefined : t.hover },
+              }}
+            >
+              <text style={{ fontSize: 13, color: active ? t.text : t.muted }}>{each === "changes" ? "Changes" : "History"}</text>
+              {each === "changes" && changes && changes.total > 0 ? <text style={{ fontSize: 12, color: t.faint }}>{`(${count(changes.total)})`}</text> : null}
+            </div>
+          );
+        })}
+      </div>
+      {tab === "changes" ? <Changes view={changes} menu={open} /> : <History view={history} />}
+      {menu ? <Menu at={menu.at} items={menu.items} close={() => setMenu(null)} /> : null}
+    </div>
+  );
+});
+
+/** What a line does, by its id: one object for every line and every render, so a line that has not
+ * changed is not drawn again for a new closure. */
+interface LineActions {
+  pick(id: string): void;
+  open(id: string): void;
+  check(line: Line): void;
+  menu(line: Line, where: At): void;
+}
+
+const LABELS: Record<string, string> = {
+  stage: "Stage",
+  unstage: "Unstage",
+  discard: "Discard Changes",
+  ignore: "Add to .gitignore",
+  ours: "Take Ours",
+  theirs: "Take Theirs",
+};
+
+/** The changes: the toolbar, the lines, the branch, and the commit box. */
+function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At, items: Item[]): void }) {
   const t = useTheme();
   const m = useMetrics();
-  if (!view) return null;
+  const list = useRef<any>(null);
+  const [made, setMade] = useState({ start: 0, end: OVERSCAN * 2 });
+  const shownRange = useRef({ start: 0, end: 0 });
+
+  const latest = useRef(menu);
+  latest.current = menu;
+  const actions = useRef<LineActions>({
+    pick: (id) => {
+      void picked(id).catch(swallow);
+      if (id.includes(":file:")) void diffed(id).catch(swallow);
+    },
+    open: (id) => void opened(id).catch(swallow),
+    check: (line) => {
+      if (line.kind === "header") void chose(line.id === "group:staged" ? "unstage-all" : "stage-all", "").catch(swallow);
+      else void chose(line.checkbox === "on" ? "unstage" : "stage", line.id).catch(swallow);
+    },
+    menu: (line, where) => {
+      if (line.actions.length === 0) return;
+      latest.current(
+        where,
+        line.actions.map((name) => ({ label: LABELS[name] ?? name, danger: name === "discard", run: () => void chose(name, line.id).catch(swallow) })),
+      );
+    },
+  }).current;
+
+  const lines = view?.lines ?? [];
+  // The cursor moved by the keyboard stays in sight.
+  const selected = lines.find((line) => line.selected)?.id ?? null;
+  useEffect(() => {
+    if (selected === null) return;
+    const index = lines.findIndex((line) => line.id === selected);
+    const { start, end } = shownRange.current;
+    if (index < 0) return;
+    if (index < start) list.current?.scrollToItem?.(index);
+    else if (end > start && index >= end - 1) {
+      const viewport = list.current?.listScrollTop?.()?.[2] ?? (end - start) * ROW;
+      list.current?.scrollToItem?.(index, -(viewport - ROW));
+    }
+  }, [selected]);
+
+  if (!view) return <div style={{ flexGrow: 1 }} />;
   if (view.error !== null) {
     return (
-      <div style={{ padding: 10 }}>
-        <text style={{ fontSize: 11, color: t.error }}>{view.error}</text>
+      <div style={{ padding: PAD }}>
+        <text style={{ fontSize: 12, color: t.faint }}>{view.error.includes("not a git repository") ? "No repository here" : view.error}</text>
       </div>
     );
   }
+  const start = Math.max(0, Math.min(made.start, lines.length - 1));
+  const end = Math.min(lines.length, Math.max(made.end, start));
+  const everything = view.staged === view.total && view.total > 0;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 26, flexShrink: 0, paddingLeft: 10, paddingRight: 8 }}>
-        <Icon name="git_branch" size={12} color={t.muted} />
-        <text style={{ fontSize: 11, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{view.branch || "no branch"}</text>
-      </div>
-      {view.notice ? (
-        <text style={{ paddingLeft: 10, paddingRight: 10, paddingBottom: 4, fontSize: 11, color: view.notice.ok ? t.success : t.error }}>{view.notice.text}</text>
-      ) : null}
-      {view.filtering ? (
-        <div style={{ display: "flex", alignItems: "center", height: ROW, paddingLeft: 10, paddingRight: 10, flexShrink: 0 }}>
-          <input
-            value={view.filter}
-            autoFocus
-            placeholder="Filter the changes"
-            onChange={(e: any) => {
-              filtered(e?.value ?? "");
-              load();
-            }}
-            style={{ display: "flex", flexGrow: 1, minWidth: 0, height: 20, fontSize: 11, color: t.text }}
-          />
-        </div>
-      ) : null}
-      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll" }}>
-        {view.groups.map((group) => (
-          <Group key={group.label} group={group} act={act} menu={menu} load={load} />
-        ))}
-        {view.groups.length === 0 ? <text style={{ padding: 10, fontSize: 11, color: t.faint }}>{view.looked ? "No changes to commit" : "Reading the repository…"}</text> : null}
-      </div>
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0, padding: 8, borderTopWidth: 1, borderColor: t.border }}>
-        <input
-          value={view.message}
-          placeholder="Commit message"
-          onChange={(e: any) => {
-            typed(e?.value ?? "");
-            load();
-          }}
-          onSubmit={() => {
-            act("commit", "");
-            composing(false);
-          }}
-          style={{ display: "flex", flexGrow: 1, minWidth: 0, height: 24, paddingLeft: 8, paddingRight: 8, fontSize: 12, color: t.text, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border }}
-        />
+      {/* The toolbar: the whole diff and what it adds up to, the filter, and Stage All. */}
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 34, flexShrink: 0, paddingLeft: PAD, paddingRight: 8 }}>
         <div
-          onClick={() => act("commit", "")}
-          style={{ display: "flex", alignItems: "center", height: 24, paddingLeft: 10, paddingRight: 10, borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: view.message.trim() === "" ? t.active : t.accent, hover: { backgroundColor: view.message.trim() === "" ? t.active : t.accent } }}
+          onClick={() => void diff().catch(swallow)}
+          style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 24, paddingLeft: 2, paddingRight: 4, borderRadius: m.radiusSmall, cursor: "pointer", flexShrink: 1, minWidth: 0, hover: { backgroundColor: t.hover } }}
         >
-          <text style={{ fontSize: 11, fontWeight: 600, color: view.message.trim() === "" ? t.faint : t.accentText }}>Commit</text>
+          <text style={{ fontSize: 13, color: t.muted }}>±</text>
+          <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap" }}>View Diff</text>
+          {view.added > 0 ? <text style={{ fontSize: 13, color: t.success, whiteSpace: "nowrap" }}>{`+${count(view.added)}`}</text> : null}
+          {view.deleted > 0 ? <text style={{ fontSize: 13, color: t.error, whiteSpace: "nowrap" }}>{`−${count(view.deleted)}`}</text> : null}
         </div>
+        <div style={{ flexGrow: 1 }} />
+        <IconButton name="settings" label="Filter the changes" on={view.filtering} onClick={() => filtered("", !view.filtering)} />
+        <SplitButton
+          label={everything ? "Unstage All" : "Stage All"}
+          disabled={view.total === 0}
+          onClick={() => void chose(everything ? "unstage-all" : "stage-all", "").catch(swallow)}
+          onMenu={(e) =>
+            menu(at(e), [
+              { label: "Stage All", run: () => void chose("stage-all", "").catch(swallow) },
+              { label: "Unstage All", run: () => void chose("unstage-all", "").catch(swallow) },
+            ])
+          }
+        />
       </div>
+      {view.filtering ? <Filter value={view.filter} /> : null}
+      {view.notice && !view.notice.ok ? (
+        <text style={{ paddingLeft: PAD, paddingRight: PAD, paddingBottom: 4, fontSize: 12, color: t.error }}>{view.notice.text}</text>
+      ) : null}
+      <div
+        tabIndex={0}
+        onKeyDown={(e: any) => {
+          const key = e?.key === " " ? "space" : e?.key;
+          if (typeof key !== "string" || e?.modifiers?.cmd || e?.modifiers?.ctrl || e?.modifiers?.alt) return;
+          if (!["j", "k", "up", "down", "enter", "space", "/", "escape"].includes(key)) return;
+          e?.preventDefault?.();
+          void pressed(key).catch(swallow);
+        }}
+        style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}
+      >
+        {lines.length > 0 ? (
+          <virtual-list
+            ref={list}
+            itemCount={lines.length}
+            estimatedItemHeight={ROW}
+            windowStart={start}
+            overdraw={ROW * 10}
+            aria-label="Changes"
+            onVisibleRange={(e: any) => {
+              const first = e?.startIndex ?? 0;
+              const last = e?.endIndex ?? first;
+              shownRange.current = { start: first, end: last };
+              setMade((had) => {
+                if (first - had.start >= OVERSCAN / 2 && had.end - last >= OVERSCAN / 2) return had;
+                const next = { start: Math.max(0, first - OVERSCAN), end: last + OVERSCAN };
+                return next.start === had.start && next.end === had.end ? had : next;
+              });
+            }}
+            style={{ flexGrow: 1, minHeight: 0 }}
+          >
+            {lines.slice(start, end).map((line) => (
+              <LineView key={line.id} line={line} actions={actions} />
+            ))}
+          </virtual-list>
+        ) : (
+          <div style={{ display: "flex", flexGrow: 1, paddingLeft: PAD, paddingTop: 8 }}>
+            {view.looked ? <text style={{ fontSize: 13, color: t.faint }}>{view.filter !== "" ? `Nothing matches “${view.filter}”` : "No changes"}</text> : null}
+          </div>
+        )}
+      </div>
+      <Branch view={view} menu={menu} />
+      <CommitBox view={view} menu={menu} />
     </div>
   );
 }
 
-/** One group: its name, how many it holds, its own checkbox, and its rows. */
-function Group({
-  group,
-  act,
-  menu,
-  load,
-}: {
-  group: GroupView;
-  act(name: string, id: string): void;
-  menu(at: { x: number; y: number }, actions: string[], id: string): void;
-  load(): void;
-}) {
-  const t = useTheme();
-  const bulk = group.group === "staged" ? "unstage-all" : "stage-all";
+/** Two lines that say the same: the memoised row keeps what it drew. */
+function sameLine(a: Line, b: Line): boolean {
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: ROW, paddingLeft: 8, paddingRight: 8, cursor: "pointer" }}>
-        <Checkbox state={group.state} onClick={() => act(bulk, "")} />
-        <text style={{ fontSize: 11, fontWeight: 600, color: t.muted, flexGrow: 1 }}>{group.label.toUpperCase()}</text>
-        <text style={{ fontSize: 10, color: t.faint }}>{String(group.rows.filter((row) => row.kind === "file").length)}</text>
+    a.id === b.id &&
+    a.kind === b.kind &&
+    a.depth === b.depth &&
+    a.open === b.open &&
+    a.text === b.text &&
+    a.status === b.status &&
+    a.checkbox === b.checkbox &&
+    a.count === b.count &&
+    a.selected === b.selected &&
+    a.actions.join() === b.actions.join()
+  );
+}
+
+/** One line: a group's header, its empty note, a folder or a file of its tree, or a conflict's note. */
+const LineView = memo(
+  function LineView({ line, actions }: { line: Line; actions: LineActions }) {
+    const t = useTheme();
+    const m = useMetrics();
+    if (line.kind === "empty") {
+      return (
+        <div style={{ display: "flex", alignItems: "center", width: "100%", height: ROW, paddingLeft: PAD }}>
+          <text style={{ fontSize: 13, color: t.faint }}>{line.text}</text>
+        </div>
+      );
+    }
+    if (line.kind === "note") {
+      return (
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", width: "100%", height: ROW, paddingLeft: PAD, overflow: "hidden" }}>
+          <Indent depth={line.depth} />
+          <text style={{ fontSize: 11, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0 }}>{line.text}</text>
+        </div>
+      );
+    }
+    const header = line.kind === "header";
+    return (
+      <div
+        onClick={() => actions.pick(line.id)}
+        onDoubleClick={() => {
+          if (line.kind === "file") actions.open(line.id);
+        }}
+        onAuxClick={(e: any) => {
+          if (e?.isRightClick) actions.menu(line, at(e));
+        }}
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          width: "100%",
+          minWidth: 0,
+          height: ROW,
+          flexShrink: 0,
+          paddingLeft: PAD,
+          paddingRight: 8,
+          overflow: "hidden",
+          cursor: "pointer",
+          backgroundColor: line.selected ? t.active : undefined,
+          hover: { backgroundColor: line.selected ? t.active : t.hover },
+        }}
+      >
+        {header ? (
+          <Icon name={line.open ? "chevron_down" : "chevron_right"} size={12} color={t.muted} />
+        ) : (
+          <>
+            <Indent depth={line.depth} />
+            {line.kind === "folder" ? <Icon name={line.open ? "folder_open" : "folder"} size={14} color={t.muted} /> : <Status status={line.status} />}
+          </>
+        )}
+        <div style={{ display: "flex", flexGrow: 1, flexShrink: 1, minWidth: 0, overflow: "hidden" }}>
+          <text
+            style={{
+              fontSize: 13,
+              color: header ? t.muted : line.status === "deleted" ? t.muted : t.text,
+              whiteSpace: "nowrap",
+              textOverflow: "ellipsis",
+              overflow: "hidden",
+              minWidth: 0,
+            }}
+          >
+            {line.text}
+          </text>
+        </div>
+        {header && line.count > 0 && line.id !== "group:staged" ? (
+          <div style={{ display: "flex", alignItems: "center", height: 18, paddingLeft: 6, paddingRight: 6, flexShrink: 0, borderRadius: m.radiusSmall, backgroundColor: t.active }}>
+            <text style={{ fontSize: 11, color: t.muted }}>{count(line.count)}</text>
+          </div>
+        ) : null}
+        <Checkbox state={line.checkbox} onClick={() => actions.check(line)} />
       </div>
-      {group.rows.map((row) => (
-        <RowView key={row.id} row={row} act={act} menu={menu} load={load} />
+    );
+  },
+  (a, b) => a.actions === b.actions && sameLine(a.line, b.line),
+);
+
+/** The room a line's depth takes, with a guide down each level above it. */
+function Indent({ depth }: { depth: number }) {
+  const t = useTheme();
+  if (depth === 0) return null;
+  // The row's gap sits between the indent and the icon: the guides are measured from the row's edge.
+  return (
+    <div style={{ position: "relative", width: depth * INDENT - 6, height: ROW, flexShrink: 0 }}>
+      {Array.from({ length: depth }, (_, level) => (
+        <div key={level} style={{ position: "absolute", left: level * INDENT + GUIDE, top: 0, width: 1, height: ROW, backgroundColor: t.border }} />
       ))}
     </div>
   );
 }
 
-/** One row of the tree: its indent, its mark, its checkbox, its name and its stats. */
-function RowView({
-  row,
-  act,
-  menu,
-  load,
-}: {
-  row: Row;
-  act(name: string, id: string): void;
-  menu(at: { x: number; y: number }, actions: string[], id: string): void;
-  load(): void;
-}) {
+/** A file's mark: what git says of it, as a square in its colour. */
+function Status({ status }: { status: string }) {
   const t = useTheme();
-  const m = useMetrics();
-  if (row.kind === "note") {
-    return (
-      <div style={{ display: "flex", alignItems: "center", height: ROW, paddingLeft: 10 + row.depth * INDENT, paddingRight: 8 }}>
-        <text style={{ fontSize: 10, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{row.text}</text>
-      </div>
-    );
-  }
-  const color = t[row.color] ?? t.text;
-  return (
-    <div
-      onClick={() => {
-        void picked(row.id).then(load).catch(swallow);
-      }}
-      onAuxClick={(e: any) => {
-        if (!e?.isRightClick) return;
-        menu({ x: e.x ?? 0, y: e.y ?? 0 }, row.actions, row.id);
-      }}
-      style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: ROW, flexShrink: 0, paddingLeft: 8 + row.depth * INDENT, paddingRight: 8, cursor: "pointer", borderRadius: m.radiusSmall, backgroundColor: row.selected ? t.selected : undefined, hover: { backgroundColor: row.selected ? t.selected : t.hover } }}
-    >
-      {row.kind === "folder" ? (
-        <Icon name={row.open ? "chevron_down" : "chevron_right"} size={10} color={t.muted} />
-      ) : (
-        <div style={{ display: "flex", width: 10, flexShrink: 0, justifyContent: "center" }}>
-          <text style={{ fontSize: 10, fontWeight: 600, color }}>{row.glyph}</text>
-        </div>
-      )}
-      <Checkbox state={row.checkbox} onClick={() => act(row.checkbox === "on" ? "unstage" : "stage", row.id)} />
-      <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
-        <text style={{ fontSize: 12, color: row.kind === "folder" ? t.muted : color, whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{row.text}</text>
-      </div>
-      {row.stats !== "" ? <text style={{ fontSize: 10, color: t.faint, flexShrink: 0 }}>{row.stats}</text> : null}
-      {row.actions.length > 0 ? (
-        <div
-          aria-label="What can be done to this row"
-          onClick={(e: any) => {
-            e?.stopPropagation?.();
-            menu({ x: e?.x ?? 0, y: e?.y ?? 0 }, row.actions, row.id);
-          }}
-          style={{ display: "flex", width: 16, height: 16, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: m.radiusSmall, hover: { backgroundColor: t.active } }}
-        >
-          <Icon name="ellipsis" size={10} color={t.muted} />
-        </div>
-      ) : null}
-    </div>
-  );
+  const [name, color] =
+    status === "added" || status === "untracked"
+      ? ["square_plus", t.success]
+      : status === "deleted"
+        ? ["square_minus", t.error]
+        : status === "conflict"
+          ? ["warning", t.error]
+          : status === "renamed"
+            ? ["square_dot", t.accent]
+            : ["square_dot", t.warning];
+  return <Icon name={name} size={14} color={color} />;
 }
 
-/** A row's checkbox: git's own three states. */
+/** A line's checkbox: git's own three states. */
 function Checkbox({ state, onClick }: { state: string; onClick(): void }) {
   const t = useTheme();
-  if (state === "") return <div style={{ width: 12, flexShrink: 0 }} />;
-  const glyph = state === "on" ? "check" : state === "partial" ? "dash" : "";
+  if (state === "") return <div style={{ width: 16, flexShrink: 0 }} />;
+  const on = state !== "off";
   return (
     <div
       aria-label="Stage or unstage"
@@ -270,64 +431,470 @@ function Checkbox({ state, onClick }: { state: string; onClick(): void }) {
         e?.stopPropagation?.();
         onClick();
       }}
-      style={{ display: "flex", width: 12, height: 12, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 3, borderWidth: 1, borderColor: state === "off" ? t.border : t.accent, backgroundColor: state === "off" ? undefined : t.accent, cursor: "pointer" }}
+      style={{
+        display: "flex",
+        width: 16,
+        height: 16,
+        flexShrink: 0,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 3,
+        borderWidth: 1,
+        borderColor: on ? t.accent : t.border,
+        backgroundColor: on ? t.accent : t.editor,
+        cursor: "pointer",
+        hover: { borderColor: on ? t.accent : t.faint },
+      }}
     >
-      {glyph === "" ? null : <Icon name={glyph} size={9} color={t.accentText} />}
+      {on ? <Icon name={state === "partial" ? "dash" : "check"} size={11} color={t.accentText} /> : null}
     </div>
   );
 }
 
-/** The history: the commits, newest first. */
-function History({ view }: { view: HistoryView | undefined }) {
+/** The filter box, under the toolbar: the tree keeps what holds its text, every directory open. */
+function Filter({ value }: { value: string }) {
   const t = useTheme();
-  if (!view) return null;
-  if (view.commits === null) {
-    return (
-      <div style={{ padding: 10 }}>
-        <text style={{ fontSize: 11, color: t.faint }}>{view.root === null ? "No repository here" : "Reading the history…"}</text>
-      </div>
-    );
-  }
+  const m = useMetrics();
+  const [text, setText] = useState(value);
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll" }}>
-      {view.commits.map((commit) => (
-        <div key={commit.sha} style={{ display: "flex", flexDirection: "column", flexShrink: 0, paddingLeft: 10, paddingRight: 10, paddingTop: 4, paddingBottom: 4, gap: 1 }}>
-          <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <text style={{ fontSize: 12, color: t.text, flexGrow: 1, whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{commit.subject}</text>
-            <text style={{ fontSize: 10, color: t.faint }}>{commit.sha.slice(0, 7)}</text>
-          </div>
-          <div style={{ display: "flex", flexDirection: "row", gap: 6 }}>
-            <text style={{ fontSize: 10, color: t.faint }}>{commit.author}</text>
-            <text style={{ fontSize: 10, color: t.faint }}>{when(commit.timestamp, "relative")}</text>
-            {commit.unpushed ? <text style={{ fontSize: 10, color: t.warning }}>unpushed</text> : null}
-            {commit.tags.length > 0 ? <text style={{ fontSize: 10, color: t.accent }}>{commit.tags.join(" ")}</text> : null}
-          </div>
-        </div>
-      ))}
+    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, marginLeft: 8, marginRight: 8, marginBottom: 4, paddingLeft: 8, paddingRight: 6, height: 26, flexShrink: 0, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border }}>
+      <Icon name="search" size={12} color={t.muted} />
+      <input
+        value={text}
+        autoFocus
+        placeholder="Filter the changes"
+        onChange={(e: any) => {
+          const next = e?.value ?? "";
+          setText(next);
+          filtered(next, true);
+        }}
+        onKeyDown={(e: any) => {
+          if (e?.key !== "escape") return;
+          e?.stopPropagation?.();
+          filtered("", false);
+        }}
+        style={{ display: "flex", flexGrow: 1, minWidth: 0, height: 22, fontSize: 12, color: t.text }}
+      />
+      <div onClick={() => filtered("", false)} style={{ display: "flex", cursor: "pointer" }}>
+        <Icon name="close" size={12} color={t.muted} />
+      </div>
     </div>
   );
 }
 
-/** A row's menu, where it was pressed. */
-function Menu({ at, actions, close, run }: { at: { x: number; y: number }; actions: string[]; close(): void; run(name: string): void }) {
+/** The branch, and what its button does with the remote: publish it, push, pull, or fetch. */
+function Branch({ view, menu }: { view: ChangesView; menu(where: At, items: Item[]): void }) {
+  const t = useTheme();
+  const { upstream, remote, ahead, behind } = view.remote;
+  const primary: { what: Sync; label: string; icon: string | null } =
+    upstream === null
+      ? { what: "publish", label: "Publish", icon: "arrow_up" }
+      : behind > 0
+        ? { what: "pull", label: `Pull ${behind}`, icon: null }
+        : ahead > 0
+          ? { what: "push", label: `Push ${ahead}`, icon: "arrow_up" }
+          : { what: "fetch", label: "Fetch", icon: "rotate_cw" };
+  const busy = view.busy;
+  const run = (what: Sync) => void synced(what).catch(swallow);
+  return (
+    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 34, flexShrink: 0, paddingLeft: PAD, paddingRight: 8, borderTopWidth: 1, borderColor: t.border }}>
+      <Icon name="git_branch" size={13} color={t.muted} />
+      <text style={{ fontSize: 13, color: t.text, flexGrow: 1, flexShrink: 1, minWidth: 0, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>{view.branch || "no branch"}</text>
+      {remote !== null ? (
+        <SplitButton
+          icon={busy === null ? primary.icon : "loader_circle"}
+          label={busy === null ? primary.label : `${busy[0]!.toUpperCase()}${busy.slice(1)}ing…`}
+          disabled={busy !== null}
+          onClick={() => run(primary.what)}
+          onMenu={(e) =>
+            menu(at(e), [
+              { label: "Fetch", run: () => run("fetch") },
+              { label: "Pull", run: () => run("pull") },
+              upstream === null ? { label: "Publish", run: () => run("publish") } : { label: "Push", run: () => run("push") },
+            ])
+          }
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** The commit box: the message, kept as it is typed (the worker hears it, nothing is drawn back),
+ * and the button that commits it — what is staged, or every tracked change when nothing is. */
+function CommitBox({ view, menu }: { view: ChangesView; menu(where: At, items: Item[]): void }) {
+  const t = useTheme();
+  const [draft, setDraft] = useState(view.message);
+  const [tall, setTall] = useState(false);
+  const mode: CommitMode = view.staged > 0 || view.tracked === 0 ? "staged" : "tracked";
+  const empty = draft.trim() === "";
+  const can = !empty && (mode === "staged" ? view.staged > 0 : view.tracked > 0);
+  const commit = (how: CommitMode) => {
+    const text = draft;
+    void committed(text, how)
+      .then((done) => {
+        if (done) setDraft((now) => (now === text ? "" : now));
+      })
+      .catch(swallow);
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, borderTopWidth: 1, borderColor: t.border }}>
+      <div style={{ display: "flex", flexDirection: "row" }}>
+        <textarea
+          aria-label="Commit message"
+          value={draft}
+          placeholder="Enter commit message"
+          minRows={tall ? 14 : 4}
+          maxRows={tall ? 40 : 10}
+          theme={{ bg: t.surface, border: t.surface, text: t.text, textMuted: t.muted, textFaint: t.faint, accent: t.accent, caret: t.accent }}
+          onChange={(e: any) => {
+            const next = e?.value ?? "";
+            setDraft(next);
+            typed(next);
+          }}
+          onKeyDown={(e: any) => {
+            const mod = e?.modifiers?.cmd === true || e?.modifiers?.ctrl === true;
+            if (e?.key !== "enter" || !mod) return;
+            e?.preventDefault?.();
+            e?.stopPropagation?.();
+            if (can) commit(mode);
+          }}
+          style={{ display: "flex", flexGrow: 1, minWidth: 0, paddingLeft: PAD, paddingRight: 4, paddingTop: 8, paddingBottom: 4, fontSize: 13, color: t.text }}
+        />
+        <div style={{ display: "flex", flexDirection: "column", paddingTop: 6, paddingRight: 6 }}>
+          <IconButton name={tall ? "minimize" : "maximize"} label={tall ? "A smaller box" : "A bigger box"} on={false} onClick={() => setTall(!tall)} />
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingLeft: PAD, paddingRight: 8, paddingBottom: 8, paddingTop: 2 }}>
+        <SplitButton
+          label={mode === "staged" ? "Commit" : "Commit Tracked"}
+          disabled={!can}
+          onClick={() => commit(mode)}
+          onMenu={(e) =>
+            menu(at(e), [
+              { label: "Commit Staged", run: () => commit("staged") },
+              { label: "Commit Tracked", run: () => commit("tracked") },
+              { label: "Amend Last Commit", run: () => commit("amend") },
+            ])
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+/** A small square button with one of the app's icons. */
+function IconButton({ name, label, on, onClick }: { name: string; label: string; on: boolean; onClick(): void }) {
   const t = useTheme();
   const m = useMetrics();
   return (
-    <anchored position={at} fit="snap" deferred occlude onMouseDownOutside={close}>
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 160, padding: 4, borderRadius: m.radius, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}>
-        {actions.map((name) => (
+    <div
+      aria-label={label}
+      onClick={onClick}
+      style={{ display: "flex", width: 24, height: 24, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: on ? t.active : undefined, hover: { backgroundColor: on ? t.active : t.hover } }}
+    >
+      <Icon name={name} size={14} color={on ? t.text : t.muted} />
+    </div>
+  );
+}
+
+/** A bordered button with a menu beside it: `[ Stage All | ▾ ]`. */
+function SplitButton({ label, icon, disabled, onClick, onMenu }: { label: string; icon?: string | null; disabled: boolean; onClick(): void; onMenu(e: any): void }) {
+  const t = useTheme();
+  const m = useMetrics();
+  return (
+    <div style={{ display: "flex", flexDirection: "row", alignItems: "stretch", height: 24, flexShrink: 0, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, overflow: "hidden" }}>
+      <div
+        onClick={() => {
+          if (!disabled) onClick();
+        }}
+        style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, paddingLeft: 8, paddingRight: 8, cursor: disabled ? "default" : "pointer", hover: { backgroundColor: disabled ? undefined : t.hover } }}
+      >
+        {icon ? <Icon name={icon} size={12} color={disabled ? t.faint : t.muted} /> : null}
+        <text style={{ fontSize: 13, color: disabled ? t.faint : t.text, whiteSpace: "nowrap" }}>{label}</text>
+      </div>
+      <div
+        aria-label="More"
+        onClick={(e: any) => onMenu(e)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 22, borderLeftWidth: 1, borderColor: t.border, cursor: "pointer", hover: { backgroundColor: t.hover } }}
+      >
+        <Icon name="chevron_down" size={11} color={t.muted} />
+      </div>
+    </div>
+  );
+}
+
+/** The history: the commits, newest first, a subject and who, when and which under it. */
+function History({ view }: { view: HistoryView | undefined }) {
+  const t = useTheme();
+  const [made, setMade] = useState({ start: 0, end: OVERSCAN * 2 });
+  if (!view) return <div style={{ flexGrow: 1 }} />;
+  if (view.root === null || view.commits === null || view.commits.length === 0) {
+    return (
+      <div style={{ padding: PAD }}>
+        <text style={{ fontSize: 12, color: t.faint }}>{view.root === null ? "No repository here" : view.commits === null ? "" : "No commits yet"}</text>
+      </div>
+    );
+  }
+  const commits = view.commits;
+  const start = Math.max(0, Math.min(made.start, commits.length - 1));
+  const end = Math.min(commits.length, Math.max(made.end, start));
+  const now = Date.now();
+  return (
+    <virtual-list
+      itemCount={commits.length}
+      estimatedItemHeight={COMMIT_ROW}
+      windowStart={start}
+      overdraw={COMMIT_ROW * 6}
+      aria-label="History"
+      onVisibleRange={(e: any) => {
+        const first = e?.startIndex ?? 0;
+        const last = e?.endIndex ?? first;
+        setMade((had) => {
+          if (first - had.start >= OVERSCAN / 2 && had.end - last >= OVERSCAN / 2) return had;
+          const next = { start: Math.max(0, first - OVERSCAN), end: last + OVERSCAN };
+          return next.start === had.start && next.end === had.end ? had : next;
+        });
+      }}
+      style={{ flexGrow: 1, minHeight: 0 }}
+    >
+      {commits.slice(start, end).map((commit) => (
+        <CommitView key={commit.sha} commit={commit} date={when(commit.timestamp, view.dates, now)} author={view.author} />
+      ))}
+    </virtual-list>
+  );
+}
+
+const CommitView = memo(function CommitView({ commit, date, author }: { commit: Commit; date: string; author: boolean }) {
+  const t = useTheme();
+  const meta = { fontSize: 12, color: t.muted, whiteSpace: "nowrap" } as const;
+  const dot = <text style={{ fontSize: 12, color: t.faint }}>•</text>;
+  return (
+    <div
+      onClick={() => void shown(commit.sha).catch(swallow)}
+      style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, width: "100%", minWidth: 0, height: COMMIT_ROW, paddingLeft: PAD, paddingRight: PAD, overflow: "hidden", cursor: "pointer", hover: { backgroundColor: t.hover } }}
+    >
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" }}>
+        <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0, flexShrink: 1 }}>{commit.subject}</text>
+        {commit.tags.map((tag) => (
+          <text key={tag} style={{ fontSize: 11, color: t.accent, flexShrink: 0 }}>
+            {tag}
+          </text>
+        ))}
+      </div>
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" }}>
+        {author ? (
+          <>
+            <div style={{ display: "flex", width: 16, height: 16, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 8, borderWidth: 1, borderColor: t.border }}>
+              <Icon name="person" size={10} color={t.faint} />
+            </div>
+            <text style={{ ...meta, textOverflow: "ellipsis", overflow: "hidden", minWidth: 0, flexShrink: 1 }}>{commit.author}</text>
+            {dot}
+          </>
+        ) : null}
+        <text style={{ ...meta, flexShrink: 0 }}>{date}</text>
+        {dot}
+        <text style={{ ...meta, flexShrink: 0 }}>{commit.sha.slice(0, 7)}</text>
+        {commit.unpushed ? <Icon name="arrow_up" size={11} color={t.warning} /> : null}
+      </div>
+    </div>
+  );
+});
+
+/** A menu where it was pressed. */
+function Menu({ at: where, items, close }: { at: At; items: Item[]; close(): void }) {
+  const t = useTheme();
+  const m = useMetrics();
+  return (
+    <anchored position={where} fit="snap" deferred occlude onMouseDownOutside={close}>
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 170, padding: 4, borderRadius: m.radius, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}>
+        {items.map((item) => (
           <div
-            key={name}
+            key={item.label}
             onClick={() => {
               close();
-              run(name);
+              item.run();
             }}
-            style={{ display: "flex", alignItems: "center", height: 24, paddingLeft: 8, paddingRight: 8, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } }}
+            style={{ display: "flex", alignItems: "center", height: 26, paddingLeft: 8, paddingRight: 8, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } }}
           >
-            <text style={{ fontSize: 12, color: name === "discard" ? t.error : t.text }}>{LABELS[name] ?? name}</text>
+            <text style={{ fontSize: 13, color: item.danger ? t.error : t.text }}>{item.label}</text>
           </div>
         ))}
       </div>
     </anchored>
+  );
+}
+
+// ---- the diff pane
+
+/** The native text elements' colours, from the window's theme: the diff is drawn the way the
+ * editor is, on the editor's background, its additions and deletions in the theme's own green and
+ * red, so a theme switch redraws it in the new one. */
+function useDiffTheme() {
+  const t = useTheme();
+  const m = useMetrics();
+  return useMemo(
+    () => ({
+      bg: t.editor,
+      border: t.border,
+      text: t.text,
+      textMuted: t.muted,
+      textFaint: t.faint,
+      textDim: t.muted,
+      accent: t.accent,
+      caret: t.accent,
+      codeText: t.text,
+      codeWash: t.surface,
+      diffAdd: t.success,
+      diffDel: t.error,
+      diffHunkBg: t.surface,
+      metrics: { diffTextSize: m.fontSize - 1, diffLineHeight: Math.round((m.fontSize - 1) * 1.6), diffFileHeaderHeight: 30, diffHunkHeaderHeight: 24 },
+    }),
+    [t, m],
+  );
+}
+
+/** This plugin's options carry its prefix (`amresyd.git.`), which is how the pane's own `diff` is
+ * named in the state the window reads. */
+function usePrefix(): string {
+  const id = usePlugin();
+  return id === undefined ? "" : `${id.replace("/", ".").replaceAll("-", "_")}.`;
+}
+
+/** The files of a patch, and what it adds and deletes, read in one pass over its lines. */
+function summary(patch: string): { files: string[]; added: number; deleted: number } {
+  const files: string[] = [];
+  let added = 0;
+  let deleted = 0;
+  let at = 0;
+  while (at < patch.length) {
+    let end = patch.indexOf("\n", at);
+    if (end < 0) end = patch.length;
+    const c = patch.charCodeAt(at);
+    if (c === 43 /* + */) {
+      if (!patch.startsWith("+++ ", at)) added += 1;
+    } else if (c === 45 /* - */) {
+      if (!patch.startsWith("--- ", at)) deleted += 1;
+    } else if (c === 100 /* d */ && patch.startsWith("diff --git ", at)) {
+      const line = patch.slice(at, end);
+      const b = line.lastIndexOf(" b/");
+      files.push(b >= 0 ? line.slice(b + 3) : line.slice(11));
+    }
+    at = end + 1;
+  }
+  return { files, added, deleted };
+}
+
+/** A diff pane: what the page said to show (the pane's `diff` option), read through the worker and
+ * drawn by the native `<diff>` — virtualised, syntax-highlighted, word-level, in the theme. What it
+ * drew stays up while the next read runs, so a change in the work tree never blanks it. */
+export function Diff({ pane }: RendererProps) {
+  const t = useTheme();
+  const m = useMetrics();
+  const theme = useDiffTheme();
+  const each = usePane(pane);
+  const prefix = usePrefix();
+  const value = (each?.options?.[`${prefix}diff`] as string | undefined) ?? "";
+  const spec = useMemo<Shown | null>(() => {
+    try {
+      return value === "" ? null : (JSON.parse(value) as Shown);
+    } catch {
+      return null;
+    }
+  }, [value]);
+  // The work tree's diff is read again whenever the page is posted anew; a commit's never changes.
+  const changes = useChannel<ChangesView | undefined>("changes", undefined);
+  const stamp = spec?.kind === "work" ? changes?.version ?? 0 : 0;
+  const [read, setRead] = useState<{ value: string; patch: string; error: string | null } | null>(null);
+  const [words, setWords] = useState(true);
+  const [folded, setFolded] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (value === "") return;
+    let live = true;
+    void patchOf(value)
+      .then((answer) => {
+        if (!live) return;
+        setRead((had) => (had && had.value === value && had.patch === answer.patch && had.error === answer.error ? had : { value, ...answer }));
+      })
+      .catch(swallow);
+    return () => {
+      live = false;
+    };
+  }, [value, stamp]);
+  // Another diff is another set of files: none of them folded.
+  useEffect(() => setFolded(new Set()), [value]);
+
+  const patch = read?.patch ?? "";
+  const info = useMemo(() => summary(patch), [patch]);
+  const collapsed = useMemo(() => [...folded], [folded]);
+  const many = info.files.length > 1;
+  const allFolded = many && folded.size >= info.files.length;
+  const path = spec?.kind === "work" ? spec.path : undefined;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, color: t.text }}>
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 34, flexShrink: 0, paddingLeft: 12, paddingRight: 8, borderBottomWidth: 1, borderColor: t.border }}>
+        <Icon name={spec?.kind === "commit" ? "status_dot" : "git_branch"} size={13} color={t.muted} />
+        <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0, flexShrink: 1 }}>
+          {path ?? spec?.title ?? "Diff"}
+        </text>
+        {spec?.kind === "work" && spec.path === undefined ? null : spec?.kind === "work" && spec.side === "staged" ? <Tag text="Staged" /> : null}
+        {many ? <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap" }}>{`${count(info.files.length)} files`}</text> : null}
+        {info.added > 0 ? <text style={{ fontSize: 12, color: t.success, whiteSpace: "nowrap" }}>{`+${count(info.added)}`}</text> : null}
+        {info.deleted > 0 ? <text style={{ fontSize: 12, color: t.error, whiteSpace: "nowrap" }}>{`−${count(info.deleted)}`}</text> : null}
+        <div style={{ flexGrow: 1 }} />
+        <IconButton name="code" label="Highlight the words that changed" on={words} onClick={() => setWords(!words)} />
+        {many ? (
+          <IconButton
+            name={allFolded ? "chevron_down" : "chevron_up_down"}
+            label={allFolded ? "Open every file" : "Fold every file"}
+            on={false}
+            onClick={() => setFolded(allFolded ? new Set() : new Set(info.files))}
+          />
+        ) : null}
+        {spec?.kind === "work" && path !== undefined ? (
+          <IconButton name="arrow_up_right" label="Open the file" on={false} onClick={() => void reveal(spec.root, path, null).catch(swallow)} />
+        ) : null}
+      </div>
+      {read === null ? (
+        <div style={{ flexGrow: 1, backgroundColor: t.editor }} />
+      ) : read.error !== null ? (
+        <div style={{ padding: 12 }}>
+          <text style={{ fontSize: 12, color: t.error }}>{read.error}</text>
+        </div>
+      ) : patch === "" ? (
+        <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.editor }}>
+          <text style={{ fontSize: 13, color: t.faint }}>No changes</text>
+        </div>
+      ) : (
+        <diff
+          patch={patch}
+          wordDiff={words}
+          scroll
+          collapsedPaths={collapsed}
+          theme={theme}
+          onToggleFile={(e: any) => {
+            const file = e?.value;
+            if (typeof file !== "string") return;
+            setFolded((had) => {
+              const next = new Set(had);
+              if (!next.delete(file)) next.add(file);
+              return next;
+            });
+          }}
+          style={{ flexGrow: 1, minHeight: 0, backgroundColor: t.editor, borderRadius: m.radiusSmall }}
+        />
+      )}
+    </div>
+  );
+}
+
+function Tag({ text }: { text: string }) {
+  const t = useTheme();
+  const m = useMetrics();
+  return (
+    <div style={{ display: "flex", alignItems: "center", height: 18, paddingLeft: 6, paddingRight: 6, flexShrink: 0, borderRadius: m.radiusSmall, backgroundColor: t.active }}>
+      <text style={{ fontSize: 11, color: t.muted }}>{text}</text>
+    </div>
   );
 }
