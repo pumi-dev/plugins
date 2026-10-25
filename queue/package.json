@@ -1,0 +1,48 @@
+{
+  "name": "pumi-queue",
+  "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A queue of commands that run one at a time, each after another pane is done, in a bar under the panes.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "queue",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "keep": {
+          "type": "boolean",
+          "default": true,
+          "label": "Keep a finished job's pane",
+          "desc": "A job that ran in a pane of its own leaves that pane (and its output) open when it is done."
+        },
+        "notify": {
+          "type": "boolean",
+          "default": true,
+          "label": "Say when a job finishes",
+          "desc": "A notification when a job is over, as the OS gives one."
+        }
+      },
+      "slots": {
+        "tab.strip": {
+          "component": "Bar"
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
