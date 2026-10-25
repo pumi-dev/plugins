@@ -1,0 +1,99 @@
+{
+  "name": "pumi-scripts",
+  "version": "0.4.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A page in the left sidebar of everything a repository can run: the scripts of every package.json (workspaces included) and its shell scripts, each run in a terminal beside the current pane.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "script-panel": "file:../lib/script-panel"
+  },
+  "pumi": {
+    "name": "scripts",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "files",
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "npm_scripts": {
+          "type": "boolean",
+          "default": true,
+          "label": "Package scripts",
+          "group": "Scripts",
+          "desc": "List the scripts of every package.json in the repository, workspaces included."
+        },
+        "shell_scripts": {
+          "type": "boolean",
+          "default": true,
+          "label": "Shell scripts",
+          "group": "Scripts",
+          "desc": "List the shell scripts: the files with a shell's extension, and the ones whose #! names a shell."
+        },
+        "show_command": {
+          "type": "boolean",
+          "default": true,
+          "label": "Commands",
+          "group": "Scripts",
+          "desc": "Show what each script runs, beside its name."
+        },
+        "sort": {
+          "type": "string",
+          "default": "path",
+          "choices": [
+            "path",
+            "scripts"
+          ],
+          "labels": [
+            "Path",
+            "Most scripts first"
+          ],
+          "label": "Order by",
+          "group": "Scripts",
+          "desc": "How the packages and the directories are listed."
+        },
+        "max_depth": {
+          "type": "number",
+          "default": 4,
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "label": "Depth",
+          "group": "Scripts",
+          "desc": "How many directories below the repository root to look in."
+        },
+        "extensions": {
+          "type": "string",
+          "default": "sh, bash, zsh, ksh, fish",
+          "label": "Shell extensions",
+          "group": "Scripts",
+          "desc": "Which file extensions are shell scripts, separated by commas."
+        },
+        "shebang": {
+          "type": "boolean",
+          "default": true,
+          "label": "#! files",
+          "group": "Scripts",
+          "desc": "Also list files with no extension whose first line names a shell."
+        }
+      },
+      "slots": {
+        "panel": {
+          "component": "Scripts",
+          "title": "Scripts",
+          "icon": "code"
+        }
+      }
+    }
+  }
+}
