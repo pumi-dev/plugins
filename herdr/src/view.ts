@@ -172,10 +172,10 @@ export class View {
     return typeof value === "string" && value !== "" ? value : undefined;
   }
 
-  /** The pane's `@agent_status`, which pumi's host decides. herdr has no `error`: a failed
+  /** The pane's `@agent.status`, which pumi's host decides. herdr has no `error`: a failed
    * program is `done` to its clients, and its record (`program_status`) says so. */
   status(pane: number): AgentStatus {
-    const status = this.text(pane, "@agent_status");
+    const status = this.text(pane, "@agent.status");
     if (status === undefined) return "unknown";
     return parseAgentStatus(status === "error" ? "done" : status) ?? "unknown";
   }

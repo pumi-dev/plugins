@@ -147,7 +147,7 @@ export function Pane({ pane: id, focused }: { pane: string; focused: boolean; zo
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, padding: 1 }}>
       <div
         title={title}
-        onDoubleClick={() => call("pane.setZoom", num(id), "toggle").catch(swallow)}
+        onDoubleClick={() => call("pane.update", id, { zoom: "toggle" }).catch(swallow)}
         style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 16, flexShrink: 0, paddingLeft: 4, paddingRight: 2, backgroundColor: "#c0c0c0" }}
       >
         <div style={{ width: 6, height: 6, flexShrink: 0, backgroundColor: color[status] ?? "#808080", borderWidth: 1, borderColor: "#00000033" }} />
@@ -161,12 +161,12 @@ export function Pane({ pane: id, focused }: { pane: string; focused: boolean; zo
         ))}
         {toolbar.map((contributed) => renderView(contributed, { pane: id }))}
         <div style={{ display: "flex", flexDirection: "row", gap: 1, flexShrink: 0 }}>
-          <Button title="Split Right" onClick={() => call("pane.open", "terminal", {}, { split: "right", beside: num(id) }).catch(swallow)} style={{ width: 16, height: 13 }} icon="split" />
-          <Button title="Split Down" onClick={() => call("pane.open", "terminal", {}, { split: "down", beside: num(id) }).catch(swallow)} style={{ width: 16, height: 13 }} icon="split_down" />
+          <Button title="Split Right" onClick={() => call("pane.open", "terminal", {}, { split: "right", beside: id }).catch(swallow)} style={{ width: 16, height: 13 }} icon="split" />
+          <Button title="Split Down" onClick={() => call("pane.open", "terminal", {}, { split: "down", beside: id }).catch(swallow)} style={{ width: 16, height: 13 }} icon="split_down" />
           {panes.length > 1 ? (
-            <Button title="Zoom" onClick={() => call("pane.setZoom", num(id), "toggle").catch(swallow)} style={{ width: 16, height: 13 }} icon="maximize" />
+            <Button title="Zoom" onClick={() => call("pane.update", id, { zoom: "toggle" }).catch(swallow)} style={{ width: 16, height: 13 }} icon="maximize" />
           ) : null}
-          <Button title="Close Pane" onClick={() => call("pane.close", num(id), true).catch(swallow)} style={{ width: 16, height: 13 }} icon="close" />
+          <Button title="Close Pane" onClick={() => call("pane.close", id).catch(swallow)} style={{ width: 16, height: 13 }} icon="close" />
         </div>
       </div>
       <Bevel sunken style={{ flexGrow: 1, minHeight: 0 }}>
@@ -339,7 +339,7 @@ function StartMenu({ close }: { close(): void }) {
             {divider}
             {tabs.map((tab, index) =>
               item(tab.label && !/^\d+$/.test(tab.label) ? tab.label : `Tab ${index + 1}`, () => {
-                call("tab.select", { tab: num(tab.tab_id) }).catch(swallow)
+                call("tab.focus", tab.tab_id).catch(swallow)
                 close()
               }, "terminal"),
             )}
@@ -390,7 +390,7 @@ function Taskbar({ tabs, active }: { tabs: WindowTab[]; active?: string }) {
           label={tab.label && !/^\d+$/.test(tab.label) ? tab.label : `Tab ${index + 1}`}
           pressed={tab.tab_id === active}
           icon="terminal"
-          onClick={() => call("tab.select", { tab: num(tab.tab_id) }).catch(swallow)}
+          onClick={() => call("tab.focus", tab.tab_id).catch(swallow)}
           style={{ width: 160, height: 22 }}
         />
       ))}
@@ -433,7 +433,7 @@ export function Desktop() {
   }
   const setPlace = (tab: string, next: Place) => setPlaces((old) => ({ ...old, [tab]: next }))
   const raise = (tab: string) => {
-    if (active !== tab) call("tab.select", { tab: num(tab) }).catch(swallow)
+    if (active !== tab) call("tab.focus", tab).catch(swallow)
     setOrder((old) => [...old.filter((t) => t !== tab), tab])
   }
   const rank = (tab: string) => order.indexOf(tab)
@@ -462,7 +462,7 @@ export function Desktop() {
           active={tab.tab_id === top?.tab_id}
           place={placeOf(tab.tab_id, index)}
           onPlace={(next) => setPlace(tab.tab_id, next)}
-          onClose={() => call("tab.close", num(tab.tab_id), true).catch(swallow)}
+          onClose={() => call("tab.close", tab.tab_id).catch(swallow)}
           onRaise={() => raise(tab.tab_id)}
         />
       ))}

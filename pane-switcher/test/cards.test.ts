@@ -22,10 +22,10 @@ test("a pane type's icon is the one that says what it is", () => {
 });
 
 test("the recent order comes first and the rest keep their place", () => {
-  const panes = [{ pane: 1 }, { pane: 2 }, { pane: 3 }, { pane: 4 }];
+  const panes = [{ pane: "%1" }, { pane: "%2" }, { pane: "%3" }, { pane: "%4" }];
   expect(ordered(panes, [], false)).toEqual(panes);
-  expect(ordered(panes, [4, 2], true).map((p) => p.pane)).toEqual([4, 2, 1, 3]);
-  expect(ordered(panes, [9, 4], true).map((p) => p.pane)).toEqual([4, 1, 2, 3]);
+  expect(ordered(panes, ["%4", "%2"], true).map((p) => p.pane)).toEqual(["%4", "%2", "%1", "%3"]);
+  expect(ordered(panes, ["%9", "%4"], true).map((p) => p.pane)).toEqual(["%4", "%1", "%2", "%3"]);
 });
 
 test("the switcher draws a screen for the first cards only", () => {

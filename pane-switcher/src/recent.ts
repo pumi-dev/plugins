@@ -1,13 +1,15 @@
 // The panes used lately, the most recent first: what `order = "recent"` sorts by. The switcher is
 // momentary and reads this as it opens, so the first card is where you were and the next one is
 // where you were before, as a task switcher does.
-const seen: number[] = [];
+import type { PaneId } from "pumi";
+
+const seen: PaneId[] = [];
 
 /** How many panes it remembers. */
 const KEEP = 64;
 
 /** Remembers that `pane` is the one being used now. */
-export function remember(pane: number | undefined): void {
+export function remember(pane: PaneId | undefined): void {
   if (pane === undefined) return;
   const at = seen.indexOf(pane);
   if (at >= 0) seen.splice(at, 1);
@@ -16,6 +18,6 @@ export function remember(pane: number | undefined): void {
 }
 
 /** The panes used lately, the most recent first. */
-export function recently(): number[] {
+export function recently(): PaneId[] {
   return [...seen];
 }

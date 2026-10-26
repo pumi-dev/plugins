@@ -84,9 +84,9 @@ function GlassTab({ tab, active, index }: { tab: WindowTab; active: boolean; ind
   const title = tab.label && !/^\d+$/.test(tab.label) ? tab.label : `Tab ${index + 1}`
   return (
     <div
-      onClick={() => call("tab.select", { tab: num(tab.tab_id) }).catch(swallow)}
+      onClick={() => call("tab.focus", tab.tab_id).catch(swallow)}
       onAuxClick={(e: any) => {
-        if (e?.isRightClick) call("tab.close", num(tab.tab_id), true).catch(swallow)
+        if (e?.isRightClick) call("tab.close", tab.tab_id).catch(swallow)
       }}
       style={{
         display: "flex",
@@ -157,7 +157,7 @@ function StartMenu({ close }: { close(): void }) {
       <text style={{ paddingLeft: 10, paddingTop: 2, paddingBottom: 2, fontSize: 10, fontWeight: 600, color: "#4a6d8c" }}>TABS</text>
       {shownTabs.map((tab, index) =>
         item(tab.tab_id, tab.label && !/^\d+$/.test(tab.label) ? tab.label : `Tab ${index + 1}`, "layout_panel_bottom", () => {
-          call("tab.select", { tab: num(tab.tab_id) }).catch(swallow)
+          call("tab.focus", tab.tab_id).catch(swallow)
           close()
         }),
       )}
@@ -231,9 +231,9 @@ function Superbar() {
         return (
           <div
             key={tab.tab_id}
-            onClick={() => call("tab.select", { tab: num(tab.tab_id) }).catch(swallow)}
+            onClick={() => call("tab.focus", tab.tab_id).catch(swallow)}
             onAuxClick={(e: any) => {
-              if (e?.isRightClick) call("tab.close", num(tab.tab_id), true).catch(swallow)
+              if (e?.isRightClick) call("tab.close", tab.tab_id).catch(swallow)
             }}
             style={{
               display: "flex",

@@ -3,7 +3,7 @@
 // calls and the busiest threads, each with the last minute beside it. The numbers are read by the
 // worker (`report`), and the float is placed by it too; this only draws what it is given.
 import { useEffect, useState } from "react";
-import { call, useInterval, useTheme, type Ref, type Tokens } from "pumi";
+import { useInterval, useTheme, workspace, type PaneId, type Tokens } from "pumi";
 
 import { family, report } from "./main.ts";
 import { place } from "./place.ts";
@@ -75,7 +75,7 @@ function Heading({ t, columns }: { t: Tokens; columns: readonly Column[] }) {
 }
 
 /** The overlay's own view: the table, as tall as what it shows. */
-export function Overlay({ pane }: { pane: Ref }) {
+export function Overlay({ pane }: { pane: PaneId }) {
   const t = useTheme();
   const [now, setNow] = useState<Report | undefined>(undefined);
   const [font, setFont] = useState("monospace");
@@ -91,7 +91,8 @@ export function Overlay({ pane }: { pane: Ref }) {
       .then(async (read) => {
         setNow(read);
         // As tall as what it shows: the float's own pane is moved to keep its corner.
-        await call("pane.setPlace", pane.id, place(heightOf(read), "NE")).catch(() => {});
+        await workspace.ready;
+        await workspace.getPane(pane)?.update({ place: place(heightOf(read), "NE") }).catch(() => {});
       })
       .catch((err: unknown) => console.error(`perf: ${err instanceof Error ? err.message : String(err)}`));
   }, 1_000);

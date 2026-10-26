@@ -7,18 +7,16 @@
 //   pumi call queue.cancel '{"id":3}'
 //   pumi call queue.clear
 //
-// The waiting is pumi's own — a pane's `@agent_status`, its `pane_foreground_pgid` back to its
+// The waiting is pumi's own — a pane's `@agent.status`, its `pane_foreground_pgid` back to its
 // shell, `pane_dead` — read here, in `queue.ts`. This file is what the app reaches: the functions
 // others call, the bar's view, and the events that end a wait.
-import { ApiError, on, plugin, provide } from "pumi";
+import { ApiError, fn, on, self } from "pumi";
 import { detail, paneId, type Job } from "./job.ts";
 import { addJob, advance, busy, cancelJob, clearJobs, jobsOf, listJobs, pulse, syncViews, vanished } from "./queue.ts";
 
 // ---- the functions others call
 
-provide(
-  "queue.add",
-  {
+fn.set("queue.add", {
     desc: "Add a command to the queue: it runs when the pane it waits for is done, and when everything before it is.",
     parameters: [["table", "spec"]],
     examples: [
@@ -26,34 +24,27 @@ provide(
       { args: [{ command: "say done", run: "shell" }] },
       { args: [{ command: "make deploy", after: { pane: 5, on: "done" }, run: "pane:%7" }] },
     ],
-  },
-  async (spec: unknown) => {
+  callback: async (spec: unknown) => {
     try {
       return await addJob(spec);
     } catch (err) {
       throw err instanceof ApiError ? err : new ApiError("invalid_params", message(err));
     }
   },
-);
+});
 
-provide(
-  "queue.list",
-  {
+fn.set("queue.list", {
     desc: "The queue: every job, its state, what it waits for and where it runs.",
     parameters: [],
     examples: [{ args: [] }],
-  },
-  () => listJobs(),
-);
+  callback: () => listJobs(),
+});
 
-provide(
-  "queue.cancel",
-  {
+fn.set("queue.cancel", {
     desc: "Cancel a job that has not started.",
     parameters: [["number", "id"]],
     examples: [{ args: [{ id: 3 }] }],
-  },
-  async (args: unknown) => {
+  callback: async (args: unknown) => {
     const at = args && typeof args === "object" && "id" in args ? (args as { id: unknown }).id : args;
     const id = paneId(at);
     if (id === null) throw new ApiError("invalid_params", "queue.cancel needs an `id`");
@@ -62,17 +53,14 @@ provide(
     await syncViews();
     return true;
   },
-);
+});
 
-provide(
-  "queue.clear",
-  {
+fn.set("queue.clear", {
     desc: "Forget the jobs that are over, and close the panes they opened.",
     parameters: [],
     examples: [{ args: [] }],
-  },
-  () => clearJobs(),
-);
+  callback: () => clearJobs(),
+});
 
 // ---- the bar
 //
@@ -131,15 +119,7 @@ export function cancel(id: number): Promise<void> {
 // ---- the events that end a wait
 //
 // A pane's report, its shell coming back, its program ending: any of them can end a wait.
-on(
-  "option.changed",
-  {
-    match: ["@agent_status", "pane_current_command", "pane_foreground_pgid", "pane_dead"],
-    desc: "the queue follows the panes it waits for",
-  },
-  () => void pulse(),
-);
-on("terminal.closed", { desc: "a terminal's program ended" }, () => void pulse());
+on("pane.changed", { desc: "the queue follows the panes it waits for" }, () => void pulse());
 on("pane.closed", { desc: "a pane closed, so what it was doing is over" }, async (e) => {
   const at = paneId(e.pane) ?? paneId(e.data?.pane);
   if (at !== null) await vanished(at);
@@ -153,4 +133,4 @@ function message(err: unknown): string {
 // Run the queue up to now, and draw the bars wherever there is work.
 void advance()
   .then(() => syncViews())
-  .catch((err) => console.error(`${plugin.prefix}: starting up threw:`, err));
+  .catch((err) => console.error(`${self.plugin.prefix}: starting up threw:`, err));

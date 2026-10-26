@@ -1,11 +1,11 @@
 // What a file pane draws when the editor draws it (the manifest's `renderers.file`): the page
 // (`web/index.html`, Monaco) filling it, with no background of its own, so the pane's shows
 // through. The page reads its files through `main.ts` itself; this tells it what changes of its
-// pane: the file (the core's option `path`), the options, a method called on the block (`save`,
+// pane: the file (the core's option `path`), the options, what the worker asks of it (`save`,
 // `reveal`, `action`), and whether its pane is the window's current one. `Toolbar` puts the
 // unsaved mark, and a save, in the pane's title bar.
 import { useEffect, useState } from "react";
-import { IconButton, useEvent, useOption, usePane, usePlugin, useTheme, webview, WebView, type Ref, type RendererProps } from "pumi";
+import { IconButton, useChannelListener, useOption, usePane, usePlugin, useTheme, webview, WebView, type PaneId } from "pumi";
 import { save } from "./main.ts";
 
 /** The plugin's prefix, `amresyd.monaco.`: its options'. */
@@ -36,21 +36,21 @@ function swallow(err: unknown): void {
   console.error(`monaco: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** What the page in a pane hears of `pane.call`: the block's methods. */
-interface Called {
-  pane: number;
+/** What the worker posts to a page: what the pane was asked to do (`save`, `action`, `pull`). */
+interface Asked {
+  pane: PaneId;
   method: string;
   args?: { id?: unknown };
 }
 
 /** The renderer of the core's `file` block. */
-export function Editor({ pane, block, focused }: RendererProps) {
+export function Editor({ pane, focused }: { pane: PaneId; focused: boolean }) {
   const prefix = usePrefix();
-  const handle = `monaco-${pane.server ? `${pane.server}/` : ""}${pane.id}`;
+  const handle = `monaco-${pane}`;
   const each = usePane(pane);
   const path = ((each?.options ?? {}).path as string | undefined) ?? "";
   // The page reads `args` once, as it is made; what changes after goes in through `__monaco`.
-  const [args] = useState(() => ({ pane: pane.id, path, focused }));
+  const [args] = useState(() => ({ pane, path, focused }));
   const fontSize = useOption<number>(`${prefix}font_size`);
   const tabSize = useOption<number>(`${prefix}tab_size`);
   const wordWrap = useOption<boolean>(`${prefix}word_wrap`);
@@ -88,24 +88,21 @@ export function Editor({ pane, block, focused }: RendererProps) {
     tell("focus()");
   }, [handle, focused]);
 
-  useEvent<Called>(
-    "pane.called",
-    (e) => {
-      if (e.data.pane !== pane.id) return;
-      const method = e.data.method;
-      if (method === "save") tell("save()");
-      else if (method === "reveal") tell("pull()");
-      else if (method === "action" && typeof e.data.args?.id === "string") tell(`action(${JSON.stringify(e.data.args.id)})`);
-    },
-    { match: block },
-  );
+  // What the worker asks of this pane's page: `amresyd.monaco.save` and the editor's commands come
+  // through it, since a block's methods are functions now.
+  useChannelListener("page", (asked: Asked) => {
+    if (asked?.pane !== pane) return;
+    if (asked.method === "save") tell("save()");
+    else if (asked.method === "reveal") tell("pull()");
+    else if (asked.method === "action" && typeof asked.args?.id === "string") tell(`action(${JSON.stringify(asked.args.id)})`);
+  });
 
   return <WebView handle={handle} src="web/index.html" args={args} keepKeys={KEEP_KEYS} autoFocus={focused} style={{ flexGrow: 1, width: "100%", height: "100%" }} />;
 }
 
 /** The pane's title bar, on a file pane the editor draws: a dot while its file has unsaved
  *  changes (the editor's own `dirty`, which only it sets), which saves. */
-export function Toolbar({ pane }: { pane: Ref }) {
+export function Toolbar({ pane }: { pane: PaneId }) {
   const t = useTheme();
   const each = usePane(pane);
   const prefix = usePrefix();
@@ -113,5 +110,5 @@ export function Toolbar({ pane }: { pane: Ref }) {
   const options = each.options ?? {};
   if (options[`${prefix}dirty`] !== true) return null;
   const path = String(options.path ?? "");
-  return <IconButton icon="circle" title={`Save ${path.slice(path.lastIndexOf("/") + 1)} (⌘S)`} color={t.accent} onClick={() => void save(pane.id).catch(swallow)} />;
+  return <IconButton icon="circle" title={`Save ${path.slice(path.lastIndexOf("/") + 1)} (⌘S)`} color={t.accent} onClick={() => void save(pane).catch(swallow)} />;
 }

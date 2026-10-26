@@ -3,7 +3,7 @@
 // An agent's hook marks its pane with the option `@agent`; a pane whose program is a shell is not
 // an agent (its `pane_current_command` says one), whatever marked it. The note goes to the agents'
 // core plugin's `@agent_inbox`, a list of attachments it hands its agent with the next message.
-import { option, pane } from "pumi";
+import { option, workspace, type PaneId } from "pumi";
 import type { Node } from "./nodes.ts";
 
 /** The agents' inbox (the agents core plugin's `@agent_inbox`) and how much it keeps. */
@@ -16,14 +16,14 @@ const SHELLS = ["zsh", "bash", "fish", "sh", "nu", "dash", "tcsh"];
 
 /** One agent that can be asked: the pane it runs in, and what to call it by. */
 export interface Agent {
-  pane: number;
+  pane: PaneId;
   label: string;
 }
 
 /** What a note says the diagram is. */
 export interface About {
   /** The diagram's pane. */
-  pane: number;
+  pane: PaneId;
   /** Mermaid's name for the kind of diagram. */
   kind: string;
   /** The diagram's source, as it is. */
@@ -35,19 +35,19 @@ export interface About {
 }
 
 /** The agents `here` can be sent to: those in its tab first, then the others. */
-export async function agents(here: number): Promise<Agent[]> {
-  const tabOf = async (id: number): Promise<number | null> => {
+export async function agents(here: PaneId): Promise<Agent[]> {
+  const tabOf = async (id: PaneId): Promise<string | null> => {
     try {
-      const { place } = await pane.get(id);
-      const tab = (place as { kind?: string; tab?: number } | null)?.tab;
-      return typeof tab === "number" ? tab : null;
+      await workspace.ready;
+      const tab = workspace.getPane(id)?.tab;
+      return tab === null || tab === undefined ? null : tab.id;
     } catch {
       return null;
     }
   };
-  let ids: number[];
+  let ids: PaneId[];
   try {
-    ids = ((await pane.list()) ?? []).filter((id): id is number => typeof id === "number");
+    ids = (await workspace.panes()).map((pane) => pane.id);
   } catch {
     return [];
   }
@@ -57,16 +57,16 @@ export async function agents(here: number): Promise<Agent[]> {
     const mark = await read("@agent", id);
     if (mark === "") continue;
     if (SHELLS.includes(await read("pane_current_command", id))) continue;
-    found.push({ elsewhere: (await tabOf(id)) !== mine, agent: { pane: id, label: `${mark} %${id}` } });
+    found.push({ elsewhere: (await tabOf(id)) !== mine, agent: { pane: id, label: `${mark} ${id}` } });
   }
   found.sort((a, b) => Number(a.elsewhere) - Number(b.elsewhere));
   return found.map((found) => found.agent);
 }
 
 /** What a pane's option says, as text, or nothing. */
-async function read(name: string, id: number): Promise<string> {
+async function read(name: string, id: PaneId): Promise<string> {
   try {
-    const value = await option.get(name, { pane: id });
+    const value = await option.get(name, { scope: "pane", id });
     return typeof value === "string" ? value.trim() : "";
   } catch {
     return "";
@@ -77,8 +77,8 @@ async function read(name: string, id: number): Promise<string> {
 export async function attach(agent: Agent, about: About): Promise<string> {
   const source = about.source.length > SOURCE_LIMIT ? `${about.source.slice(0, SOURCE_LIMIT)}…` : about.source;
   const what = `node \`${about.node.id}\` (“${about.node.label}”) of this ${about.kind} diagram:\n\`\`\`mermaid\n${source}\n\`\`\``;
-  const attachment = { from: "marmaide", pane: `%${about.pane}`, what, note: about.note };
-  const target = { pane: agent.pane };
+  const attachment = { from: "marmaide", pane: about.pane, what, note: about.note };
+  const target: { scope: "pane"; id: PaneId } = { scope: "pane", id: agent.pane };
   let inbox: unknown[] = [];
   try {
     const kept = await option.get(INBOX, target);

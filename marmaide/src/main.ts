@@ -15,7 +15,7 @@
 // - `save {source | path, out}` writes that SVG to a file and answers its path.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { option, pane, plugin, provide } from "pumi";
+import { fn, option, self, workspace, type PaneId } from "pumi";
 import { agents as agentsOf, attach, type About, type Agent } from "./agents.ts";
 import { fail, message } from "./errors.ts";
 import type { Node } from "./nodes.ts";
@@ -29,7 +29,7 @@ interface Args {
   /** A file to read it from. */
   path?: string;
   /** The pane to draw in, instead of a new one. */
-  pane?: number;
+  pane?: PaneId;
   /** The new pane's title; the kind of diagram without. */
   title?: string;
   /** Where the new pane goes. */
@@ -63,10 +63,10 @@ function sourceOf(args: Args): string {
 }
 
 /** The caller's pane, when it has one. */
-async function here(): Promise<number | null> {
+async function here(): Promise<PaneId | null> {
   try {
-    const current = await pane.get();
-    return typeof current?.id === "number" ? current.id : null;
+    await workspace.ready;
+    return workspace.currentPane?.id ?? null;
   } catch {
     return null;
   }
@@ -80,23 +80,24 @@ async function shown(first: unknown, second: unknown) {
   const args = argsOf(first, second);
   const source = sourceOf(args);
   const drawn = await picture(source);
-  const target = typeof args.pane === "number" ? args.pane : null;
-  let id = target;
-  if (id === null) {
+  const target = typeof args.pane === "string" ? args.pane : null;
+  let id: PaneId;
+  if (target === null) {
     const beside = await here();
     const asked = args.place;
     const place =
       asked !== null && typeof asked === "object" && !Array.isArray(asked)
         ? asked
         : { kind: "tiled", ...(beside === null ? {} : { beside }), split: "right", size: "45%" };
-    const opened = await pane.open(plugin.prefixed("diagram"), { source }, place);
-    id = opened.id;
+    id = (await workspace.openPane(self.plugin.prefixed("diagram"), { source }, place)).id;
     const title = typeof args.title === "string" && args.title !== "" ? args.title : drawn.kind;
-    await option.set("title", title, { pane: id });
+    await option.set("title", title, { scope: "pane", id });
+  } else {
+    id = target;
   }
   // The view of that pane reads this, now and after a restart; setting it is what tells it to
   // draw again.
-  await option.set("source", source, { pane: id, scope: "pane" });
+  await option.set("source", source, { scope: "pane", id });
   return { pane: id, type: drawn.kind, width: drawn.width, height: drawn.height, opened: target === null };
 }
 
@@ -159,10 +160,10 @@ export interface Shown {
  * theme is the window's: its renderer hands over what `useTheme()` and `useMetrics()` say, so a
  * diagram is drawn in the colours the window has, and drawn again when the theme changes.
  */
-export async function drawn(id: number, theme: AppTheme | null = null): Promise<Shown | { error: string }> {
+export async function drawn(id: PaneId, theme: AppTheme | null = null): Promise<Shown | { error: string }> {
   let source = "";
   try {
-    const value = await option.get("source", { pane: id });
+    const value = await option.get("source", { scope: "pane", id });
     source = typeof value === "string" ? value : "";
   } catch (err) {
     return { error: message(err) };
@@ -177,7 +178,7 @@ export async function drawn(id: number, theme: AppTheme | null = null): Promise<
 }
 
 /** The agents a node clicked in the pane `here` can be sent to. */
-export function agents(here: number): Promise<Agent[]> {
+export function agents(here: PaneId): Promise<Agent[]> {
   return agentsOf(here);
 }
 
@@ -186,9 +187,7 @@ export function note(agent: Agent, about: About): Promise<string> {
   return attach(agent, about);
 }
 
-provide(
-  plugin.prefixed("draw"),
-  {
+fn.set(self.plugin.prefixed("draw"), {
     desc: "Draw a Mermaid diagram in a pane: one opens beside this pane, or the one `pane` names is redrawn. Answers where it is.",
     effect: "write",
     parameters: [
@@ -197,30 +196,22 @@ provide(
     ],
     examples: [
       { args: ["flowchart LR\n  ask --> draw --> look"], desc: "Show a flowchart beside this pane." },
-      { args: [{ source: "sequenceDiagram\n  A->>B: hi", pane: 7 }], desc: "Redraw pane 7 with another diagram." },
+      { args: [{ source: "sequenceDiagram\n  A->>B: hi", pane: "%7" }], desc: "Redraw pane %7 with another diagram." },
       { args: [{ path: "diagram.mmd", title: "How it works" }], desc: "Draw the Mermaid in a file." },
     ],
     notes: [
       "Mermaid's flowchart, sequence, class, state, ER, gantt, pie, mindmap, timeline and the rest of Mermaid 12 are Pele's to draw.",
     ],
-  },
-  (first: unknown, second: unknown) => shown(first, second),
-);
+  callback: (first: unknown, second: unknown) => shown(first, second) });
 
-provide(
-  plugin.prefixed("render"),
-  {
+fn.set(self.plugin.prefixed("render"), {
     desc: "Pele's SVG for a Mermaid diagram: CSS variables and all, so it themes wherever it is put. Nothing is shown.",
     effect: "read",
     parameters: [["string", "source"]],
     examples: [{ args: ["flowchart LR\n  a --> b"], desc: "Answers {svg, type, width, height}." }],
-  },
-  (first: unknown, second: unknown) => asSvg(first, second),
-);
+  callback: (first: unknown, second: unknown) => asSvg(first, second) });
 
-provide(
-  plugin.prefixed("save"),
-  {
+fn.set(self.plugin.prefixed("save"), {
     desc: "Write a diagram's SVG to a file, answering its path: Pele's own, themeable anywhere.",
     effect: "write",
     parameters: [
@@ -231,6 +222,4 @@ provide(
       { args: ["flowchart LR\n  a --> b", "diagram.svg"] },
       { args: [{ source: "sequenceDiagram\n  A->>B: hi", out: "docs/diagram.svg" }] },
     ],
-  },
-  (first: unknown, second: unknown) => saved(first, second),
-);
+  callback: (first: unknown, second: unknown) => saved(first, second) });

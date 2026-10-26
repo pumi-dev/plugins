@@ -36,7 +36,7 @@ not done yet.
 
 pumi already knows, and the queue only reads it:
 
-- **`done`** — the pane's program reported it over (`@agent_status`, OSC 7501: an agent's turn,
+- **`done`** — the pane's program reported it over (`@agent.status`, OSC 7501: an agent's turn,
   a tool that reports itself), **or** its shell has the terminal again
   (`pane_foreground_pgid == pane_pid`), which is what a plain `make test` looks like. A `blocked`
   program (one waiting for permission) is not done.
@@ -65,7 +65,7 @@ started.
 
 A TypeScript package: pumi's Bun host runs it in a worker of its own while the app is open, so the
 queue is while the app is open too, and a worker that is restarted loses what it held (a job's pane
-is its record). Waiting is event-driven — `option.changed` on `@agent_status`,
+is its record). Waiting is event-driven — `pane.changed` on the pane's `@agent.status`,
 `pane_foreground_pgid`, `pane_current_command` and `pane_dead`, `terminal.closed` and
 `pane.closed` end a wait — and a bar looks at the panes it waits for twice a second while it has
 work, now and then when it has none, for the ones that never fired an event. A job that runs in the
@@ -78,4 +78,4 @@ bunx tsc --noEmit           # the types
 ```
 
 `pumi wait-pane` (the tmux package) is the same idea on the command line, for a shell that can
-block: `pumi wait-pane -t %3 --until '#{==:#{@agent_status},done}' && ./next`.
+block: `pumi wait-pane -t %3 --until '#{==:#{@agent.status},done}' && ./next`.
