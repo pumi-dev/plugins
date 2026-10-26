@@ -6,7 +6,7 @@
 // Every call is answered asynchronously, so `advance()` looks at the panes and is run one look at a
 // time: an event, a tick and a job's end all ask for the same thing, and two looks at once would
 // start a job twice.
-import { ApiError, notify, option, pane, plugin } from "pumi";
+import { ApiError, option, request, self, workspace, type Pane } from "pumi";
 import {
   Armed,
   clock,
@@ -17,6 +17,7 @@ import {
   isSettled,
   parseAgent,
   parseJob,
+  paneId,
   shown,
   type Facts,
   type Job,
@@ -38,10 +39,15 @@ const armed = new Armed();
 
 // ---- what a pane says of itself
 
+/** The pane `at`, as the SDK's model of it. */
+function model(at: number): Pane | null {
+  return workspace.getPane(`%${at}`);
+}
+
 /** A pane's option, or `null` when it has none (or the app says no). */
 async function optionOf(at: number, name: string): Promise<unknown> {
   try {
-    return await option.get(name, { pane: at });
+    return await option.get(name, { scope: "pane", id: `%${at}` });
   } catch {
     return null;
   }
@@ -63,7 +69,7 @@ async function numberOf(at: number, name: string): Promise<number | null> {
  */
 async function factsOf(at: number): Promise<Facts> {
   const [status, dead, foreground, shell] = await Promise.all([
-    textOf(at, "@agent_status"),
+    textOf(at, "@agent.status"),
     optionOf(at, "pane_dead"),
     numberOf(at, "pane_foreground_pgid"),
     numberOf(at, "pane_pid"),
@@ -78,8 +84,8 @@ async function exitOf(at: number): Promise<number | null> {
 /** The panes there are. */
 async function panesNow(): Promise<number[]> {
   try {
-    const list = await pane.list();
-    return Array.isArray(list) ? list.filter((at): at is number => typeof at === "number") : [];
+    const list = await workspace.panes();
+    return list.map((pane) => paneId(pane.id)).filter((at): at is number => at !== null);
   } catch {
     // No answer is no panes: a pane that closed, a look that came too late.
     return [];
@@ -94,8 +100,9 @@ async function present(at: number): Promise<boolean> {
 /** The pane the queue runs jobs for, as its caller has it. */
 async function currentPane(): Promise<number> {
   try {
-    const at = await pane.get();
-    return typeof at?.id === "number" ? at.id : 0;
+    await workspace.ready;
+    const at = workspace.currentPane;
+    return at === null ? 0 : (paneId(at.id) ?? 0);
   } catch {
     return 0;
   }
@@ -128,11 +135,11 @@ async function say(job: Job): Promise<void> {
   if (state.kind === "done") {
     const said =
       state.status === 0
-        ? notify(`queue: ${job.label} ✓ ${clock(state.took)}`, "info")
-        : notify(`queue: ${job.label} exited ${state.status ?? "?"} after ${clock(state.took)}`, "warn");
+        ? request.open({ kind: "notification", title: `queue: ${job.label} ✓ ${clock(state.took)}`, level: "info" })
+        : request.open({ kind: "notification", title: `queue: ${job.label} exited ${state.status ?? "?"} after ${clock(state.took)}`, level: "warn" });
     await said.catch(() => undefined);
   } else if (state.kind === "failed") {
-    await notify(`queue: ${job.label} failed: ${state.why}`, "error").catch(() => undefined);
+    await request.open({ kind: "notification", title: `queue: ${job.label} failed: ${state.why}`, level: "error" }).catch(() => undefined);
   }
 }
 
@@ -179,7 +186,7 @@ async function look(): Promise<void> {
   try {
     if (await step()) await syncViews();
   } catch (err) {
-    console.error(`${plugin.prefix}: looking at the queue threw:`, err);
+    console.error(`${self.plugin.prefix}: looking at the queue threw:`, err);
   }
 }
 
@@ -242,7 +249,7 @@ async function start(job: Job): Promise<void> {
   const run = job.run;
   if (run.kind === "pane") {
     try {
-      await pane.call(run.pane, "input", { text: `${job.command}\r` });
+      await model(run.pane)?.input({ text: `${job.command}\r` });
       armed.stamp(run.pane, now);
       job.state = { kind: "running", pane: run.pane, at: now };
     } catch (err) {
@@ -255,11 +262,12 @@ async function start(job: Job): Promise<void> {
     const args: Record<string, unknown> = { command: job.command };
     if (cwd !== null) args.cwd = cwd;
     try {
-      const opened = await pane.open("terminal", args, { kind: "tiled", split: "down", focus: false });
+      const opened = await workspace.openPane("terminal", args, { kind: "tiled", split: "down", focus: false });
       // Its output stays for the user when it is over, until the queue is cleared.
-      await option.set("remain_on_exit", await flag("keep", true), { pane: opened.id }).catch(() => undefined);
-      job.opened = opened.id;
-      job.state = { kind: "running", pane: opened.id, at: now };
+      await option.set("remain_on_exit", await flag("keep", true), { scope: "pane", id: opened.id }).catch(() => undefined);
+      const at = paneId(opened.id);
+      job.opened = at;
+      job.state = { kind: "running", pane: at, at: now };
     } catch (err) {
       settle(job, { kind: "failed", why: message(err) }, now);
     }
@@ -295,7 +303,7 @@ function shell(job: Job, now: number): void {
       }
       await advance();
     })
-    .catch((err) => console.error(`${plugin.prefix}: ${message(err)}`));
+    .catch((err) => console.error(`${self.plugin.prefix}: ${message(err)}`));
 }
 
 /** Keep the last line a headless job printed, for its bar. */
@@ -415,7 +423,7 @@ export function cancelJob(id: number): boolean {
 export async function clearJobs(): Promise<number> {
   const over = jobs.filter((job) => isSettled(job.state));
   for (const job of over) {
-    if (job.opened !== null && (await present(job.opened))) await pane.close(job.opened).catch(() => undefined);
+    if (job.opened !== null && (await present(job.opened))) await model(job.opened)?.close().catch(() => undefined);
   }
   const before = jobs.length;
   jobs = jobs.filter((job) => !isSettled(job.state));
