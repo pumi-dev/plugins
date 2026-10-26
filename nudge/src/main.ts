@@ -9,7 +9,7 @@
 // pane's id is the notice's group, so a second notice for a pane replaces the first instead of
 // piling up. When the state moves on — you answered it, or looked at the result — the request is
 // closed and its notice goes.
-import { call, emit, fn, on, option, request, self, type PumiEvent } from "pumi";
+import { emit, fn, on, option, request, self, type PumiEvent } from "pumi";
 import { headline, isStatus, level, news, urgency, wanted, where, type Status, type Toggles } from "./notice.ts";
 
 /** How long a state must hold before it is told: a result the app shows you at once is not news. */
@@ -55,18 +55,29 @@ async function current(pane: number): Promise<string> {
   return (await saidBy(pane, "@agent.status")) ?? "";
 }
 
+/** What a notification carries of its own: the OS's notice, and what a click on it is. */
+interface Notice {
+  title: string;
+  detail?: string;
+  level?: "info" | "warn" | "error";
+  notification: {
+    group?: string;
+    sound?: string;
+    urgency?: "low" | "normal" | "critical";
+    data?: Record<string, unknown>;
+  };
+}
+
 /**
- * Opens `notice` as a notification for `pane`, and answers the request's id.
+ * Opens `notice` as a notification for `pane` (`request.open`), and answers the request's id.
  *
- * TODO(api-server): `request.open`'s `notification` fields (`group`, `sound`, `urgency`, `data`)
- * are in the export (`api/pumi-api.next.json`) but not in the generated `request.open` type
- * (`runtime/app/worker/sdk/api.types.gen.ts`), so the call is made through `call`.
+ * The request is asked as a variable, not written into the call: the generated `request.open`
+ * type (`runtime/app/worker/sdk/api.types.gen.ts`) does not carry the export's `notification`
+ * fields yet, and the server keeps them (`crates/pumid/src/api/requests.rs`).
  */
-function open(
-  notice: { title: string; detail?: string; level?: "info" | "warn" | "error"; notification: Record<string, unknown> },
-  pane?: number,
-): Promise<string> {
-  return call("request.open", [{ kind: "notification", ...notice }, pane === undefined ? {} : { pane: `%${pane}` }]);
+function open(notice: Notice, pane?: number): Promise<string> {
+  const asked = { kind: "notification" as const, ...notice };
+  return request.open(asked, pane === undefined ? {} : { pane: `%${pane}` });
 }
 
 /** The group is the pane: one notice per pane, and what a newer one replaces. */

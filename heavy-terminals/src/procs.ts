@@ -30,8 +30,8 @@ export async function processes(): Promise<Procs> {
   for (const each of Array.isArray(listed) ? listed : []) {
     const one = (each ?? {}) as { pid?: unknown; parentPid?: unknown; cpu?: unknown; rss?: unknown };
     if (typeof one.pid !== "number" || typeof one.parentPid !== "number") continue;
-    // TODO(api-server): `process.list` answers a process's pid, parent, command and cwd, and not the
-    // CPU or the memory it uses: every cost here is 0 until it does.
+    // `cpu` is `ps`'s `%cpu` and `rss` its kilobytes-to-bytes, as the server reads them; a process
+    // whose line the table lacks costs nothing.
     procs.set(one.pid, {
       ppid: one.parentPid,
       cpu: typeof one.cpu === "number" ? one.cpu : 0,
