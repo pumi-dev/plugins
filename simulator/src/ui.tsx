@@ -9,7 +9,7 @@ import { release, stream } from "./main.ts"
 export function Device({ pane, focused }: RendererProps) {
   const plugin = usePlugin() ?? "amresyd/simulator"
   const key = `${plugin.replace("/", ".")}.udid`
-  const wanted = String(usePane(pane)?.options?.[key] ?? "")
+  const wanted = String(usePane(pane.id)?.options?.[key] ?? "")
   const [attempt, setAttempt] = useState(0)
   const [url, setUrl] = useState<string>()
   const [error, setError] = useState<string>()

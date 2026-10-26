@@ -5,12 +5,12 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { command, file, notify, option, pane, paths, plugin, provide, type Pane } from "pumi"
+import { fn, option, paths, request, self, workspace, type Pane } from "pumi"
 
 /** The pane option naming the device: what `pane.open`'s args set (`amresyd.simulator.udid`). */
-const UDID = plugin.prefixed("udid")
+const UDID = self.plugin.prefixed("udid")
 /** The block this plugin defines: `amresyd.simulator.device`. */
-const BLOCK = plugin.prefixed("device")
+const BLOCK = self.plugin.prefixed("device")
 /** Where a helper's address is: serve-sim writes it under the temp dir, keyed by device. */
 const SERVE_SIM_STATE = join(tmpdir(), "serve-sim")
 
@@ -219,7 +219,7 @@ async function entrypoint(nodePath: string): Promise<string> {
   const dir = join(paths.cache, "streamer")
   const bin = join(dir, "node_modules", "serve-sim", "dist", "serve-sim.js")
   if (existsSync(bin)) return bin
-  const version = String((await option.get(plugin.prefixed("version"))) || "0.1.48")
+  const version = String((await option.get("version")) || "0.1.48")
   await mkdir(dir, { recursive: true })
   await writeFile(join(dir, "package.json"), JSON.stringify({ name: "pumi-simulator-streamer", private: true, version: "0.0.0", dependencies: { "serve-sim": version } }, null, 2))
   // npm beside the Node that runs it, else Bun: the app's own executable is pumi, not Bun, so
@@ -233,7 +233,7 @@ async function entrypoint(nodePath: string): Promise<string> {
       ? [bun, "install", "--no-progress"]
       : []
   if (!argv.length) throw new Error("no npm or bun to install serve-sim with")
-  notify(`Simulator: installing serve-sim ${version}…`)
+  void request.open({ kind: "notification", title: `Simulator: installing serve-sim ${version}…` })
   const installed = await run(argv, { cwd: dir, timeout: 300_000, env: { PATH: `${dirname(nodePath)}:${process.env.PATH ?? ""}` } })
   if (!existsSync(bin)) throw new Error(`could not install serve-sim ${version}: ${lastLines([installed.err, installed.out].join("\n").split("\n"))}`)
   return bin
@@ -241,7 +241,7 @@ async function entrypoint(nodePath: string): Promise<string> {
 
 /** A Node to run serve-sim with: the option, then PATH, then the usual places (nvm, Homebrew). */
 async function node(): Promise<string> {
-  const chosen = String((await option.get(plugin.prefixed("node"))) || "").trim()
+  const chosen = String((await option.get("node")) || "").trim()
   if (chosen) {
     if (!existsSync(chosen)) throw new Error(`the "node" option points at ${chosen}, which is not there`)
     return chosen
@@ -285,7 +285,7 @@ async function pump(readable: ReadableStream<Uint8Array>, into: string[]): Promi
 async function launch(udid: string, name: string): Promise<Stream> {
   const executable = await node()
   const bin = await entrypoint(executable)
-  const base = Number((await option.get(plugin.prefixed("port"))) || 3210)
+  const base = Number((await option.get("port")) || 3210)
   const port = freePort(Number.isFinite(base) ? base : 3210)
   const log: string[] = []
   logs.set(udid, log)
@@ -413,7 +413,7 @@ export async function release(udid: string): Promise<void> {
   holding.delete(udid)
   const pending = stopping.get(udid)
   if (pending) clearTimeout(pending)
-  const seconds = Number((await option.get(plugin.prefixed("keepalive"))) ?? 120)
+  const seconds = Number((await option.get("keepalive")) ?? 120)
   const wait = Math.max(0, Number.isFinite(seconds) ? seconds : 120)
   if (wait === 0) {
     stopping.delete(udid)
@@ -465,7 +465,7 @@ export async function screenshot(wanted?: string, open = true): Promise<string> 
   const path = join(paths.cache, `${device.name.replace(/[^\w.-]+/g, "_")}-${Date.now()}.png`)
   const ran = await simctl(["io", device.udid, "screenshot", "--type=png", path], 60_000)
   if (ran.code !== 0 || !existsSync(path)) throw new Error(firstLine(ran.err) || `could not take a screenshot of ${device.name}`)
-  if (open) await file.open(path)
+  if (open) await workspace.openPane("file", { path }, { kind: "tiled", split: "right" })
   return path
 }
 
@@ -473,34 +473,34 @@ export async function screenshot(wanted?: string, open = true): Promise<string> 
 export async function open(wanted?: string): Promise<Pane> {
   const device = await pick(wanted)
   if (device.state !== "Booted") {
-    notify(`Simulator: booting ${device.name}…`)
+    void request.open({ kind: "notification", title: `Simulator: booting ${device.name}…` })
     await boot(device.udid)
   }
-  return pane.open(BLOCK, { [UDID]: device.udid }, { split: "right", size: "45%" })
+  return workspace.openPane(BLOCK, { [UDID]: device.udid }, { kind: "tiled", split: "right", size: "45%" })
 }
 
 // What the plugin registers.
 
-command("open", async () => {
+fn.set("open", { desc: "Open a booted simulator in a pane beside this one." }, async () => {
   await open()
 })
 
-command("stop", async () => {
+fn.set("stop", { desc: "Stop every simulator stream this plugin runs." }, async () => {
   const udids = new Set([...holding.keys(), ...children.keys(), ...ours.keys()])
-  if (!udids.size) return notify("Simulator: nothing is streaming")
+  if (!udids.size) return void request.open({ kind: "notification", title: "Simulator: nothing is streaming" })
   for (const udid of udids) await stop(udid, true)
-  notify(`Simulator: stopped ${udids.size === 1 ? "the stream" : `${udids.size} streams`}`)
+  void request.open({ kind: "notification", title: `Simulator: stopped ${udids.size === 1 ? "the stream" : `${udids.size} streams`}` })
 })
 
-command("screenshot", async () => {
+fn.set("screenshot", { desc: "A PNG of a booted simulator's screen, shown in a pane." }, async () => {
   await screenshot()
 })
 
 // For agents and other plugins: `pumi call amresyd.simulator.devices`.
 
-provide(plugin.prefixed("devices"), { desc: "The iOS simulators on this machine, with their runtime and state.", effect: "read", returns: "Array" }, () => devices())
-provide(
-  plugin.prefixed("stream"),
+fn.set("devices", { desc: "The iOS simulators on this machine, with their runtime and state.", effect: "read", returns: "Array" }, () => devices())
+fn.set(
+  "stream",
   {
     desc: "Serve-sim's addresses for a booted device, starting the streamer if need be.",
     effect: "read",
@@ -510,8 +510,8 @@ provide(
   },
   (device?: string) => stream(device),
 )
-provide(
-  plugin.prefixed("screenshot"),
+fn.set(
+  "screenshot",
   {
     desc: "A PNG of a device's screen, and its path.",
     effect: "write",

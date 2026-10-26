@@ -9,7 +9,7 @@
 // the window. What a plan is and how it is read is `providers/`; what the bar shows of it is
 // `model.ts` and `settings.ts`, which `ui.tsx` shares.
 
-import { command, notify, on, option, plugin, provide, storage, ui } from "pumi";
+import { fn, on, option, request, self, ui } from "pumi";
 
 import { gather } from "./gather.ts";
 import { http, MACHINE } from "./host.ts";
@@ -73,7 +73,7 @@ async function read(): Promise<Snapshot> {
       });
       snapshot = next;
       ui.post("usage", next);
-      void storage.set(CACHE, next).catch(() => undefined);
+      void option.set(CACHE, next).catch(() => undefined);
       if (current.alert) void alerts(next, current);
       return next;
     } finally {
@@ -95,7 +95,7 @@ async function alerts(next: Snapshot, settings: Settings): Promise<void> {
     if (alerted.has(id)) continue;
     alerted.add(id);
     const reset = resetText(top, Date.now(), "countdown");
-    await notify(`${reading.name}'s ${top.title.toLowerCase()} limit is ${Math.round(percent(top.used))}% used${reset ? `, ${reset} left` : ""}`, "warn");
+    await request.open({ kind: "notification", title: `${reading.name}'s ${top.title.toLowerCase()} limit is ${Math.round(percent(top.used))}% used${reset ? `, ${reset} left` : ""}`, level: "warn" });
   }
 }
 
@@ -126,16 +126,16 @@ export async function refresh(): Promise<Snapshot> {
   return read();
 }
 
-command("refresh", () => read());
+fn.set("refresh", { desc: "Read the plans again now." }, () => read());
 
 /** Takes the bar away, or brings it back; the side bar's section stays either way. */
-command("toggle", async () => {
+fn.set("toggle", { desc: "Show or hide the plans in the status bar." }, async () => {
   const show = await option.get("show");
-  await option.set("show", show === false, { save: true });
+  await option.set("show", show === false);
 });
 
-provide(
-  plugin.prefixed("report"),
+fn.set(
+  "report",
   {
     desc: "How much of each plan is left, as the status bar has it: the plans signed in on this Mac, their limit windows, when each resets, and why a read failed if it did.",
     parameters: [],
@@ -145,14 +145,14 @@ provide(
 );
 
 // A change of any of its own options is followed at once: the plans, the colours, the clock.
-on("option.changed", { match: `${plugin.prefix}*`, desc: "read the plans with the new settings" }, () => {
+on("option.changed", { match: `${self.plugin.prefix}*`, desc: "read the plans with the new settings" }, () => {
   void read().catch((err) => console.error(`usage: ${message(err)}`));
 });
 
 // The first paint has the last numbers, from before this run of the app.
 void (async () => {
   try {
-    const cached = await storage.get<Snapshot>(CACHE);
+    const cached = (await option.get(CACHE)) as Snapshot | null;
     if (cached?.readings?.length) {
       snapshot = cached;
       ui.post("usage", cached);

@@ -7,7 +7,7 @@
 // titles of every agent in it, the one in front first. A tab you named yourself is left alone
 // (`names.ts`); `amresyd.tab_rename.rename` takes it back.
 import { join } from "node:path";
-import { command, format, notify, on, option, Pane, paths, plugin, session as sessions, storage, Tab, tab as tabs } from "pumi";
+import { call, fn, on, option, paths, request, self, workspace, type PaneId, type TabId, type PumiEvent } from "pumi";
 import { Namer, Unavailable } from "./namer.ts";
 import { Names } from "./names.ts";
 import { basename, clean, key, topic } from "./titles.ts";
@@ -19,8 +19,14 @@ const RETRY_MS = 10 * 60 * 1000;
 /** At most this many agents' titles go to the model for one tab. */
 const MAX_TITLES = 6;
 
-const namer = new Namer(join(plugin.dir, "swift", "namer.swift"), paths.cache);
+const namer = new Namer(join(self.plugin.dir, "swift", "namer.swift"), paths.cache);
 const names = new Names();
+/** A tab's id as the API has it (`@2`), from the number this package keeps of it. */
+const tabRef = (tab: number): TabId => `@${tab}`;
+
+/** The number a tab's id names (`@2` is `2`). */
+const numberOf = (id: string): number => Number(id.slice(id.indexOf("/") + 1).replace(/^[%@$]/, ""));
+
 /** Names already answered, by `key(topics)`: the same titles are not asked about twice. */
 const answers = new Map<string, string>();
 /** What each tab was last named from, so a title that changes nothing asks nothing. */
@@ -33,13 +39,13 @@ let unavailableUntil = 0;
 /** Startup: the names kept from the last run, then every tab named. Not awaited at the top, so the
  * worker is ready at once; every handler waits for it. */
 const ready = (async () => {
-  names.load((await storage.get<Record<string, string>>("named")) ?? {});
+  names.load((await option.get("named")) ?? {});
   await everyTab();
 })();
 ready.catch((e) => console.error("tab-rename: starting failed:", e));
 
 async function save(): Promise<void> {
-  await storage.set("named", names.toJSON());
+  await option.set("named", names.toJSON());
 }
 
 async function maxWords(): Promise<number> {
@@ -49,22 +55,19 @@ async function maxWords(): Promise<number> {
 
 /** What the agents in `tab` work on, the one in front first; empty when none says. */
 async function topics(tab: number): Promise<string[]> {
-  const [panes, front] = await Promise.all([new Tab(tab).panes(), format.eval("#{pane_id}", { tab }).catch(() => "")]);
-  const seen = await Promise.all(
-    panes.map(async (p) => {
-      const [title, agent, status, cwd] = await Promise.all([
-        p.options.get<string | null>("title"),
-        p.options.get<string | null>("@agent"),
-        p.options.get<string | null>("@agent_status"),
-        p.options.get<string | null>("pane_current_path"),
-      ]);
-      if (!agent && !status) return null;
-      const said = topic(title ?? "", agent ?? "", basename(cwd ?? ""));
-      return said ? { said, front: `%${p.id}` === front } : null;
-    }),
-  );
-  const ordered = seen.filter((s) => s !== null).sort((a, b) => Number(b.front) - Number(a.front));
-  return [...new Set(ordered.map((s) => s.said))].slice(0, MAX_TITLES);
+  const front = workspace.getTab(tabRef(tab))?.activePane?.id ?? "";
+  const panes = await workspace.panes({ tab: tabRef(tab) }).catch(() => []);
+  const said = panes.map((pane) => {
+    const options = (pane.options ?? {}) as Record<string, unknown>;
+    const text = (name: string): string | null => (typeof options[name] === "string" ? (options[name] as string) : null);
+    const agent = text("@agent");
+    const status = text("@agent.status");
+    if (!agent && !status) return null;
+    const words = topic(text("title") ?? "", agent ?? "", basename(text("pane_current_path") ?? ""));
+    return words ? { said: words, front: pane.id === front } : null;
+  });
+  const ordered = said.filter((each) => each !== null).sort((a, b) => Number(b.front) - Number(a.front));
+  return [...new Set(ordered.map((each) => each.said))].slice(0, MAX_TITLES);
 }
 
 /** Names `tab` from its agents' titles, unless it is someone else's or nothing changed. */
@@ -87,13 +90,13 @@ async function name(tab: number, force = false): Promise<void> {
     // You may have named it while the model thought.
     if (!names.mine(tab) || names.ours.get(tab) === answer) return;
     names.naming(tab, answer);
-    await tabs.rename(tab, answer);
+    await call("tab.update", tabRef(tab), { name: answer });
     await save();
   } catch (e) {
     asked.delete(tab);
     if (e instanceof Unavailable) {
       unavailableUntil = Date.now() + RETRY_MS;
-      await notify(`tab-rename: ${e.message}`, "warn");
+      await request.open({ kind: "notification", title: `tab-rename: ${e.message}`, level: "warn" });
     } else {
       console.error(`tab-rename: naming tab @${tab} failed:`, e);
     }
@@ -117,55 +120,61 @@ function soon(tab: number): void {
 }
 
 /** The tab a pane is in, if it is tiled or floating in one. */
-async function tabOf(pane: number): Promise<number | null> {
-  try {
-    return (await new Pane(pane).tab())?.id ?? null;
-  } catch {
-    return null;
-  }
+async function tabOf(pane: PaneId): Promise<number | null> {
+  await workspace.ready.catch(() => {});
+  const tab = workspace.getPane(pane)?.tab;
+  return tab ? numberOf(tab.id) : null;
 }
 
 const desc = "name the tab after its agents";
-on("option.changed", { match: ["title", "@agent", "@agent_status"], desc }, async (e) => {
-  if (e.data.scope !== "pane") return;
-  // A status changing says nothing new unless the pane just became an agent's.
-  if (e.data.name === "@agent_status" && e.data.old) return;
-  const tab = await tabOf(Number(e.data.id));
+on("pane.changed", { desc }, async (event: PumiEvent) => {
+  if (typeof event.pane !== "string") return;
+  const keys: string[] = event.data?.keys ?? [];
+  // A status changing says nothing new unless the pane just became an agent's, and a move names
+  // the tab it went to.
+  const named = keys.some((key) => key === "options.title" || key === "options.@agent");
+  const brief = keys.includes("options.@agent.status");
+  const moved = keys.includes("place");
+  if (!named && !brief && !moved) return;
+  const tab = await tabOf(event.pane);
   if (tab !== null) soon(tab);
 });
-on("pane.moved", { desc }, async (e) => {
-  if (e.pane === undefined) return;
-  const tab = await tabOf(e.pane);
-  if (tab !== null) soon(tab);
-});
-on("tab.renamed", { desc: "tell your names from tab-rename's" }, async (e) => {
+on("tab.changed", { desc: "tell your names from tab-rename's" }, async (event: PumiEvent) => {
   await ready.catch(() => {});
-  const id = Number(e.tab);
-  if (!Number.isFinite(id)) return;
-  // Which name it has now is what the event matched (empty: its automatic one, back again).
-  const given = e.match || null;
-  names.renamed(id, given);
+  const keys: string[] = event.data?.keys ?? [];
+  if (!keys.includes("name") || typeof event.data?.tab !== "string") return;
+  const id = numberOf(event.data.tab);
+  // Which name it has now is the tab's own (`null`: its automatic one, back again).
+  const given = (event.data?.patch as { name?: unknown } | undefined)?.name;
+  names.renamed(id, typeof given === "string" && given !== "" ? given : null);
   await save();
   // Given back its automatic name: it is the package's again, so it is named now.
-  if (!given) {
+  if (typeof given !== "string" || given === "") {
     asked.delete(id);
     soon(id);
   }
 });
-on("tab.closed", { desc: "forget a closed tab" }, async (e) => {
+on("tab.closed", { desc: "forget a closed tab" }, async (event: PumiEvent) => {
   await ready.catch(() => {});
-  const id = Number(e.data.tab ?? e.tab);
+  if (typeof event.data?.tab !== "string") return;
+  const id = numberOf(event.data.tab);
   names.closed(id);
   asked.delete(id);
   clearTimeout(timers.get(id));
   timers.delete(id);
   await save();
 });
-on("option.changed", { match: plugin.prefixed("max_words"), desc: "name every tab again" }, () => everyTab());
+on("option.changed", { match: self.plugin.prefixed("max_words"), desc: "name every tab again" }, () => everyTab());
 
-command("rename", async (args?: { tab?: number }) => {
+fn.set("rename", { desc: "Name the tab after its agents again, taking it back from you.", parameters: [["table", "args"]] }, async (args?: { tab?: string }) => {
   await ready.catch(() => {});
-  const tab = typeof args?.tab === "number" ? args.tab : (await tabs.get()).id;
+  const given = typeof args?.tab === "string" ? numberOf(args.tab) : undefined;
+  const tab = given ?? (await (async () => {
+    await workspace.ready;
+    const front = workspace.currentTab;
+    return front ? numberOf(front.id) : undefined;
+  })());
+  if (tab === undefined) throw new Error("tab-rename: no tab in front to name");
   names.claim(tab);
   unavailableUntil = 0;
   await name(tab, true);
@@ -173,11 +182,10 @@ command("rename", async (args?: { tab?: number }) => {
 
 /** Names every tab that is the package's, as at startup. */
 async function everyTab(): Promise<void> {
+  await workspace.ready.catch(() => {});
   const all: { id: number; name: string | null }[] = [];
-  for (const session of await sessions.list()) {
-    for (const tab of await tabs.list(session)) {
-      all.push({ id: tab.id, name: (await tabs.get(tab.id)).name ?? null });
-    }
+  for (const session of workspace.sessions) {
+    for (const tab of session.tabs) all.push({ id: numberOf(tab.id), name: tab.name ?? null });
   }
   names.seed(all);
   await save();
