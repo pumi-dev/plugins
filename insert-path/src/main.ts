@@ -6,7 +6,7 @@
 // What is here is the logic: the key that opens it, the float it opens, and what it is opened with.
 // `ui.tsx` draws the picker; the walk, the matching and the quoting are `entries.ts`, `match.ts` and
 // `path.ts`.
-import { call, fn, on, option, request, self, workspace, type PaneId } from "pumi";
+import { fn, on, option, request, self, workspace, type PaneId, type Pane } from "pumi";
 
 /** What the picker's float is opened with. */
 export interface PickerArgs {
@@ -44,21 +44,21 @@ async function height(): Promise<number> {
   return typeof rows === "number" && Number.isFinite(rows) ? Math.max(1, Math.round(rows)) : 18;
 }
 
-/** The caller's pane, or `undefined` when there is none. */
-async function currentPane(): Promise<PaneId | undefined> {
+/** The caller's pane. */
+async function currentPane(): Promise<Pane | null> {
   try {
     await workspace.ready;
-    return workspace.currentPane?.id;
+    return workspace.currentPane;
   } catch {
-    return undefined;
+    return null;
   }
 }
 
 /** The picker's pane, if one is open. */
-async function picker(): Promise<PaneId | undefined> {
+async function picker(): Promise<Pane | undefined> {
   try {
     const [first] = await workspace.panes({ block: self.plugin.prefixed("picker") });
-    return first?.id;
+    return first;
   } catch {
     return undefined;
   }
@@ -75,13 +75,12 @@ export async function args(): Promise<PickerArgs> {
 
 /** Close the picker, wherever it is. */
 async function close(): Promise<void> {
-  const open = await picker();
-  if (open !== undefined) await call("pane.close", [open]);
+  await (await picker())?.close();
 }
 
 /** Open the picker over the tab of `event.pane`, or of the current pane. Whether it opened. */
 async function open(event: { pane?: PaneId } = {}): Promise<boolean> {
-  const term = typeof event?.pane === "string" ? event.pane : await currentPane();
+  const term = typeof event?.pane === "string" ? event.pane : (await currentPane())?.id;
   if (term === undefined) {
     await request.open({ kind: "notification", title: "insert-path: no pane to pick a path for", level: "error" });
     return false;
