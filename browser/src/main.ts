@@ -11,7 +11,7 @@
 // (`amresyd.browser.page.navigate`, `pane.call` of one reaching it), and what a caller reads of a
 // pane is that option and the `title` it reports. What is here is what the app and other callers
 // reach; `ui.tsx` draws the page.
-import { ApiError, call, fn, option, self, ui } from "pumi";
+import { ApiError, call, fn, option, self, ui, workspace } from "pumi";
 
 /** The pane option a page is on and goes to: the block's own (`amresyd.browser.url`). */
 const PAGE = "url";
@@ -48,7 +48,8 @@ async function open(args: unknown, place: Place): Promise<string> {
   const home = await option.get("browser.home_url").catch(() => null);
   const url = typeof asked === "string" && asked !== "" ? asked : typeof home === "string" ? home : "";
   // The block's option, set as it opens: the page the pane starts on.
-  return call("pane.open", BLOCK, { [PAGE]: url }, place);
+  const opened = await workspace.openPane(BLOCK, { [PAGE]: url }, place);
+  return opened.id;
 }
 
 /** An option of the page in `id`, as the page left it. */

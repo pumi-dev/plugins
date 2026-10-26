@@ -8,7 +8,7 @@
 // for: `amresyd.agent_overview.open` opens it (its command `open` in the palette, its menu item
 // under View), `amresyd.agent_overview.list` answers with the agents as JSON, and the `key` option
 // binds a chord to it.
-import { call, fn, menu, on, option, self } from "pumi";
+import { call, fn, menu, on, option, self, workspace } from "pumi";
 
 import { Overview, type State } from "./overview.ts";
 import { message, open } from "./open.ts";
@@ -16,46 +16,40 @@ import { message, open } from "./open.ts";
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
 /**
- * The server's panes, tabs and sessions, as the model reads them: `pane.list` is every pane in
- * layout order, and `pane.get` answers each one's options with it.
+ * The server's panes, tabs and sessions, as the model reads them: `workspace.panes` is every pane
+ * in layout order, each with its own tab and session.
  */
 async function readState(): Promise<State> {
-  const listed: string[] = await call("session.list");
-  const spaces = await Promise.all(listed.map((id) => call("session.get", id)));
+  await workspace.ready;
+  const spaces = workspace.sessions;
   /** Which session a tab is in. */
   const owned = new Map<string, string>();
   const tabs: State["tabs"] = [];
   for (const space of spaces) {
-    for (const id of space.tabs) {
-      owned.set(id, space.id);
-      const info = await call("tab.get", id);
-      tabs.push({ id, session: space.id, name: info.name ?? "" });
+    for (const tab of space.tabs) {
+      owned.set(tab.id, space.id);
+      // Its name is the one field the models of a session's tabs are not listed with.
+      const info = await call("tab.get", tab.id);
+      tabs.push({ id: tab.id, session: space.id, name: info.name ?? "" });
     }
   }
-  /** The pane in front: the current session's current tab's active one. */
-  const front = await call("session.get", null);
-  const current = front.activeTab === null ? null : await call("tab.get", front.activeTab);
-  const ids: string[] = await call("pane.list", {});
-  const panes: State["panes"] = await Promise.all(
-    ids.map(async (id) => {
-      const info = await call("pane.get", id);
-      const options = (info.options ?? {}) as Record<string, unknown>;
-      const at = info.tab === null ? null : info.tab;
-      return {
-        id,
-        tab: at,
-        session: at === null ? null : (owned.get(at) ?? null),
-        title: text(options["title"]),
-        cwd: text(options["pane_current_path"]),
-        options,
-      };
-    }),
-  );
+  const panes: State["panes"] = (await workspace.panes()).map((pane) => {
+    const options = (pane.options ?? {}) as Record<string, unknown>;
+    const at = pane.tab?.id ?? null;
+    return {
+      id: pane.id,
+      tab: at,
+      session: at === null ? null : (owned.get(at) ?? null),
+      title: text(options["title"]),
+      cwd: text(options["pane_current_path"]),
+      options,
+    };
+  });
   return {
     spaces: spaces.map((each) => ({ id: each.id, name: each.name })),
     tabs,
     panes,
-    here: current?.activePane ?? null,
+    here: workspace.currentTab?.activePane?.id ?? null,
   };
 }
 

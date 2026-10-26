@@ -3,8 +3,8 @@
 // the server.
 //
 // An agent says what it is doing itself (OSC 7501, docs/v2/23 §6): the host keeps a pane's records
-// as `@program_status` and the most demanding state among them as `@agent_status`. Who the agent is
-// (`@agent`: `pi`, `claude`, …) and which conversation it is in (`@agent_session`) the agent's hook
+// as `@program_status` and the most demanding state among them as `@agent.status`. Who the agent is
+// (`@agent`: `pi`, `claude`, …) and which conversation it is in (`@agent.session`) the agent's hook
 // writes. Nothing here reads a screen or a process.
 
 import {
@@ -31,7 +31,7 @@ export interface Agent {
   why: string;
   /** What it last said, when it said more than its state. */
   message: string;
-  /** `@agent_session`: the conversation it is in, when the agent's hook knows. */
+  /** `@agent.session`: the conversation it is in, when the agent's hook knows. */
   conversation: string;
   cwd: string;
   command: string;

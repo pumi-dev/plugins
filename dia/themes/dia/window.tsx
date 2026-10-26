@@ -8,38 +8,41 @@
 // After the Dia browser. From this package's `theme.lua`, which extended the default theme: the
 // parts it copied from there went with the CSS renderer, so this window is drawn in full.
 import { useEffect, useRef, useState } from "react"
+import { Icon, call, useTheme } from "pumi"
 import {
-  Icon,
-  call,
   commands,
-  num,
   renderView,
-  useBinding,
   useApp,
+  useBinding,
   useComponents,
-  useContributions,
   useFocusedPane,
   useLayout,
   useLocal,
   usePane,
-  usePaneView,
+  useRenderer,
   useSession,
   useSessions,
+  useSlot,
   useTabs,
-  useTheme,
   useWindow,
-  useWindowChrome,
   windowContext,
+  type Pane as WindowPane,
+  type Session as WindowSession,
+  type Tab as WindowTab,
   type Tree,
-  type WindowPane,
-  type WindowTab,
-  type WindowSession,
-} from "pumi"
+} from "pumi/theme"
 
 type TabRow = WindowTab
 
 const swallow = (err: unknown) => console.error(String(err))
 const NO_PANES: WindowPane[] = []
+
+/** The window's own chrome, as a theme that draws a title bar needs it. */
+function useChrome() {
+  const window = useWindow()
+  const lights = window.trafficLights
+  return { fullscreen: window.fullscreened, active: window.active, trafficLights: lights, inset: lights ? lights.x + lights.width + 12 : 0 }
+}
 
 /** A tab's status, as a dot: its own agent's state. */
 function Dot({ status, size = 7 }: { status?: string; size?: number }) {
@@ -78,7 +81,7 @@ function PaneIcon({ pane }: { pane?: WindowPane }) {
   const t = useTheme()
   const status = pane?.agent_status
   if (status && status !== "idle" && status !== "unknown") return <Dot status={status} />
-  const kind = pane?.kind ?? "terminal"
+  const kind = pane?.block ?? "terminal"
   const name = kind === "browser" ? "tool_web" : kind === "document" ? "code" : "terminal"
   return <Icon name={name} size={15} color={t["dia.inkMuted"]} />
 }
@@ -88,15 +91,15 @@ function Segment({ pane, tab, active }: { pane: WindowPane; tab: TabRow; active:
   const t = useTheme()
   const focused = useFocusedPane()
   const [hovered, setHovered] = useState(false)
-  const title = pane.terminal_title || pane.label || pane.kind
+  const title = pane.terminal_title || pane.label || pane.block
   const on = active && focused === pane.pane_id
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => {
-        if (!active) call("tab.select", { tab: num(tab.tab_id) }).catch(swallow)
-        call("pane.select", { to: num(pane.pane_id) }).catch(swallow)
+        if (!active) call("tab.focus", tab.tab_id, {}).catch(swallow)
+        call("pane.focus", pane.pane_id, {}).catch(swallow)
       }}
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexGrow: 1, flexBasis: 0, minWidth: 0, height: 28, paddingLeft: 6, paddingRight: 4, borderRadius: 6 }}
     >
@@ -108,7 +111,7 @@ function Segment({ pane, tab, active }: { pane: WindowPane; tab: TabRow; active:
       <div
         onClick={(event: any) => {
           event?.stopPropagation?.()
-          call("pane.close", num(pane.pane_id), true).catch(swallow)
+          call("pane.close", pane.pane_id).catch(swallow)
         }}
         style={{ display: "flex", width: 18, height: 18, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 4, opacity: hovered ? 1 : 0, hover: { backgroundColor: t.active } }}
       >
@@ -130,10 +133,10 @@ function Tab({ tab, index, active }: { tab: TabRow; index: number; active: boole
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onMouseDown={(event: any) => {
-        if (event?.button === 1) call("tab.close", num(tab.tab_id), true).catch(swallow)
+        if (event?.button === 1) call("tab.close", tab.tab_id).catch(swallow)
       }}
       onClick={() => {
-        if (!active) call("tab.select", { tab: num(tab.tab_id) }).catch(swallow)
+        if (!active) call("tab.focus", tab.tab_id, {}).catch(swallow)
       }}
       style={{
         display: "flex",
@@ -162,7 +165,7 @@ function Tab({ tab, index, active }: { tab: TabRow; index: number; active: boole
           <div
             onClick={(event: any) => {
               event?.stopPropagation?.()
-              call("tab.close", num(tab.tab_id), true).catch(swallow)
+              call("tab.close", tab.tab_id).catch(swallow)
             }}
             style={{ display: "flex", width: 20, height: 20, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 5, opacity: hovered ? 1 : 0, hover: { backgroundColor: t.active } }}
           >
@@ -225,7 +228,7 @@ function Agents() {
           title={`${count(status)} ${status}`}
           onClick={() => {
             const next = agents.find((agent) => agent.agent_status === status)
-            if (next) call("pane.select", { to: num(next.pane_id) }).catch(swallow)
+            if (next) call("pane.focus", next.pane_id, {}).catch(swallow)
           }}
           style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, cursor: "pointer" }}
         >
@@ -241,7 +244,7 @@ function Agents() {
 function Foot() {
   const t = useTheme()
   const session = useSession()
-  const { views } = useContributions("status")
+  const { views } = useSlot("status")
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 26, flexShrink: 0, paddingLeft: 6, paddingRight: 6 }}>
       <Agents />
@@ -333,15 +336,15 @@ function Sessions({ at, close }: { at: { x: number; y: number }; close(): void }
 /** The sidebar: the traffic lights' row, the pinned tiles, the folders, the tabs, the foot. */
 function Sidebar({ width, setWidth, pinned, setPinned }: { width: number; setWidth(w: number): void; pinned: string | null; setPinned(id: string | null): void }) {
   const t = useTheme()
-  const chrome = useWindowChrome()
+  const chrome = useChrome()
   const sessions = useSessions()
   const tabs = useTabs()
   const here = useSession()
   const window = useWindow()
-  const { views } = useContributions("panel")
-  const { views: titlebar } = useContributions("window.titlebar")
+  const { views } = useSlot("panel")
+  const { views: titlebar } = useSlot("window.titlebar")
   const [sessions_at, setSessionsAt] = useState<{ x: number; y: number } | null>(null)
-  const open = views.find((view) => `${view.pkg}/${view.id}` === pinned)
+  const open = views.find((view) => `${view.plugin}/${view.id}` === pinned)
   const tiles = views.filter((view) => view.icon)
   return (
     <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 6, width, flexShrink: 0, minWidth: 0, paddingLeft: 6, paddingRight: 6 }}>
@@ -355,7 +358,7 @@ function Sidebar({ width, setWidth, pinned, setPinned }: { width: number; setWid
       {tiles.length ? (
         <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 6, flexShrink: 0 }}>
           {tiles.map((view) => {
-            const id = `${view.pkg}/${view.id}`
+            const id = `${view.plugin}/${view.id}`
             const active = pinned === id
             return (
               <div
@@ -421,7 +424,7 @@ function Sidebar({ width, setWidth, pinned, setPinned }: { width: number; setWid
 function Toolbar() {
   const t = useTheme()
   const window = useWindow()
-  const chrome = useWindowChrome()
+  const chrome = useChrome()
   const [sidebar, setSidebar] = useLocal("dia.sidebar", true)
   const focused = useFocusedPane()
   const tree = useLayout()
@@ -534,23 +537,23 @@ export function Layout({ tab }: { tab?: string }) {
 export function Pane({ pane: id, focused }: { pane: string; focused: boolean; zoomed: boolean }) {
   const t = useTheme()
   const pane = usePane(id)
-  const view = usePaneView(pane?.kind)
+  const view = useRenderer(pane?.block)
   const [hovered, setHovered] = useState(false)
-  const { views: strips } = useContributions("pane.strip")
-  const { views: toolbar, actions } = useContributions("pane.toolbar")
-  const { views: overlays } = useContributions("pane.overlay")
+  const { views: strips } = useSlot("pane.strip")
+  const { views: toolbar, actions } = useSlot("pane.toolbar")
+  const { views: overlays } = useSlot("pane.overlay")
   const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === pane?.tab_id) ?? NO_PANES)
   const zoomed = useApp((s) => s.snapshot?.layouts.find((l) => l.tab_id === pane?.tab_id)?.zoomed ?? false)
-  const title = pane?.terminal_title || pane?.label || pane?.kind || ""
-  const open = (split: "right" | "down") => call("pane.open", "terminal", {}, { split, beside: num(id) }).catch(swallow)
+  const title = pane?.terminal_title || pane?.label || pane?.block || ""
+  const open = (split: "right" | "down") => call("pane.open", "terminal", {}, { split, beside: id }).catch(swallow)
   const body =
-    pane?.kind === "terminal" || !pane ? (
+    pane?.block === "terminal" || !pane ? (
       <terminal pane={id} autoFocus={focused} style={{ flexGrow: 1, minWidth: 0, minHeight: 0 }} />
     ) : view ? (
       renderView(view, { pane: id })
     ) : (
       <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" }}>
-        <text style={{ color: t.faint }}>{`Nothing draws ${pane.kind} panes`}</text>
+        <text style={{ color: t.faint }}>{`Nothing draws ${pane.block} panes`}</text>
       </div>
     )
   return (
@@ -558,7 +561,7 @@ export function Pane({ pane: id, focused }: { pane: string; focused: boolean; zo
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onMouseDown={() => {
-        if (!focused) call("pane.select", { to: num(id) }).catch(swallow)
+        if (!focused) call("pane.focus", id, {}).catch(swallow)
       }}
       style={{
         display: "flex",
@@ -575,7 +578,7 @@ export function Pane({ pane: id, focused }: { pane: string; focused: boolean; zo
       <div
         title={title}
         // A double press on the strip zooms the pane, as it always did.
-        onDoubleClick={() => call("pane.setZoom", num(id), "toggle").catch(swallow)}
+        onDoubleClick={() => call("pane.update", id, { zoom: "toggle" }).catch(swallow)}
         style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 28, flexShrink: 0, paddingLeft: 8, paddingRight: 4 }}
       >
         <div style={{ display: "flex", width: 14, height: 14, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -585,7 +588,7 @@ export function Pane({ pane: id, focused }: { pane: string; focused: boolean; zo
         <div style={{ flexGrow: 1 }} />
         {strips.map((strip) => renderView(strip, { pane: id }))}
         {actions.map((action) => (
-          <Button key={`${action.pkg}/${action.id}`} icon={action.icon ?? "ellipsis"} title={action.title} onClick={() => action.run({ pane: id })} />
+          <Button key={`${action.plugin}/${action.id}`} icon={action.icon ?? "ellipsis"} title={action.title} onClick={() => action.run({ pane: id })} />
         ))}
         {toolbar.map((contributed) => renderView(contributed, { pane: id }))}
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1, flexShrink: 0, opacity: focused || hovered ? 1 : 0 }}>
@@ -596,16 +599,16 @@ export function Pane({ pane: id, focused }: { pane: string; focused: boolean; zo
               icon={zoomed ? "minimize" : "maximize"}
               title={zoomed ? "Unzoom" : "Zoom"}
               size={13}
-              onClick={() => call("pane.setZoom", num(id), "toggle").catch(swallow)}
+              onClick={() => call("pane.update", id, { zoom: "toggle" }).catch(swallow)}
             />
           ) : null}
-          <Button icon="close" title="Close Pane" size={13} onClick={() => call("pane.close", num(id), true).catch(swallow)} />
+          <Button icon="close" title="Close Pane" size={13} onClick={() => call("pane.close", id).catch(swallow)} />
         </div>
       </div>
       <div style={{ display: "flex", flexGrow: 1, minWidth: 0, minHeight: 0, position: "relative" }}>
         {body}
         {overlays.map((overlay) => (
-          <div key={`${overlay.pkg}/${overlay.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+          <div key={`${overlay.plugin}/${overlay.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
             {renderView(overlay, { pane: id })}
           </div>
         ))}

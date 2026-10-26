@@ -1,5 +1,5 @@
 // Opening the dashboard: go to the pane it is already in, else make the tab.
-import { call, self } from "pumi";
+import { self, workspace } from "pumi";
 
 /** The block, as the manifest's `pumi.contributes.blocks` lists it (`agent-overview.overview`). */
 export const VIEW = "overview";
@@ -7,15 +7,15 @@ export const VIEW = "overview";
 /** Open the overview in a tab of its own: go to the one that is open, else make the tab. */
 export async function open(): Promise<boolean> {
   try {
-    const [there]: string[] = await call("pane.list", { block: self.plugin.prefixed(VIEW) });
+    const [there] = await workspace.panes({ block: self.plugin.prefixed(VIEW) });
     if (there !== undefined) {
-      await call("pane.focus", there, {});
+      await there.focus();
       return true;
     }
-    await call("pane.open", self.plugin.prefixed(VIEW), {}, { kind: "tab", name: "agents" });
+    await workspace.openPane(self.plugin.prefixed(VIEW), {}, { kind: "tab", name: "agents" });
     return true;
   } catch (err) {
-    await call("request.open", { kind: "notification", title: `agent overview: ${message(err)}`, level: "error" });
+    await workspace.openRequest({ kind: "notification", title: `agent overview: ${message(err)}`, level: "error" });
     return false;
   }
 }

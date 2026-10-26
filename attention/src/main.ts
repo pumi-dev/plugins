@@ -6,7 +6,7 @@
 // `idle`, `error`), which agents' hooks report (`pumi skill setup` installs them). A notice says
 // how many are blocked once each time the count goes up; the Dock bounce and the badge come with
 // the system mod (phase 4). What is said is `count.ts`'s rule; this reads the panes.
-import { call, on, option, request, self } from "pumi";
+import { on, option, self, workspace } from "pumi";
 import { count, said } from "./count.ts";
 
 /** How many were blocked at the last look, so the notice is said once each time it goes up. */
@@ -19,8 +19,7 @@ async function bounce(): Promise<string> {
 
 /** How many panes' agents are blocked. */
 async function blocked(): Promise<number> {
-  const ids: string[] = await call("pane.list", {});
-  const panes = await Promise.all(ids.map((id) => call("pane.get", id)));
+  const panes = await workspace.panes();
   return count(panes.map((each) => each.traits?.agent?.status ?? null));
 }
 
@@ -31,7 +30,7 @@ async function update(): Promise<void> {
   // Ahead of the notice: two agents blocked in the same turn fire two events, and the second look
   // is then not of a count that went up.
   waiting = now;
-  if (words && (await bounce()) !== "none") await request.open({ kind: "notification", title: words, level: "warn" });
+  if (words && (await bounce()) !== "none") await workspace.openRequest({ kind: "notification", title: words, level: "warn" });
 }
 
 const desc = "count the agents waiting for you";

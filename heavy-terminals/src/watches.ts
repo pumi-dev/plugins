@@ -1,6 +1,6 @@
 // Every terminal's last checks, and the panes whose foreground job was suspended: what measuring
 // finds, and what being heavy does to a pane.
-import { call, option, request } from "pumi";
+import { option, workspace } from "pumi";
 import { flag, number } from "./options.ts";
 import { usage, type Procs } from "./procs.ts";
 
@@ -41,9 +41,9 @@ export class Watches {
       autoSleep: await flag("auto_sleep", false),
     };
     // An answer with no list of panes (`null`) is no panes: this round measures nothing.
-    const terminals: string[] = (await call("pane.list", { block: "terminal" })) ?? [];
+    const terminals = await workspace.panes({ block: "terminal" });
     const seen = new Set<string>();
-    for (const id of terminals) {
+    for (const { id } of terminals) {
       seen.add(id);
       try {
         await this.measure(id, procs, bars);
@@ -58,22 +58,22 @@ export class Watches {
 
   /** Suspend a pane's foreground job: ctrl+z, as a person would type it. */
   async sleep(id: string): Promise<void> {
-    await call("pane.call", id, "input", { keys: ["ctrl+z"] });
+    await workspace.getPane(id)?.input({ keys: ["ctrl+z"] });
     this.sleeping.add(id);
     await option.set("@heavy", "asleep", { scope: "pane", id });
   }
 
   /** Wake it: `fg` and Enter. */
   async wake(id: string): Promise<void> {
-    await call("pane.call", id, "input", { text: "fg\r" });
+    await workspace.getPane(id)?.input({ text: "fg\r" });
     this.sleeping.delete(id);
     await option.set("@heavy", null, { scope: "pane", id });
   }
 
   /** One terminal: its tree's cost, whether that is heavy, and what being heavy does. */
   private async measure(id: string, procs: Procs, bars: Bars): Promise<void> {
-    const pane = await call("pane.get", id);
-    const pid = pane.process?.pid;
+    const pane = workspace.getPane(id);
+    const pid = pane?.process?.pid;
     if (typeof pid !== "number") return;
     const { cpu, rss } = usage(procs, pid);
     let watch = this.watched.get(id);
@@ -88,7 +88,7 @@ export class Watches {
         watch.alerted = true;
         const cost = `${Math.round(cpu)}% cpu, ${Math.round(rss / 1_048_576)} MB`;
         await option.set("@heavy", cost, { scope: "pane", id });
-        await request.open({ kind: "notification", title: `${id} is heavy: ${cost}`, level: "warn" });
+        await workspace.openRequest({ kind: "notification", title: `${id} is heavy: ${cost}`, level: "warn" });
         if (bars.autoSleep) await this.sleep(id);
       }
     } else if (!heavy) {

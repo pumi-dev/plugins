@@ -4,7 +4,7 @@
 // No view: it reads its options, measures every terminal on a timer of its own, and provides
 // `sleep` and `wake` (`amresyd.heavy_terminals.sleep` and `.wake`), which a user command of tmux's,
 // `pumi call`, or a script reaches.
-import { ApiError, call, fn, self } from "pumi";
+import { ApiError, fn, self, workspace } from "pumi";
 import { number } from "./options.ts";
 import { processes } from "./procs.ts";
 import { Watches } from "./watches.ts";
@@ -21,11 +21,7 @@ async function paneOf(asked: unknown): Promise<string | null> {
     const named = idOf(table.pane) ?? (typeof table.args === "string" ? idOf(table.args) : null);
     if (named !== null) return named;
   }
-  try {
-    return (await call("pane.get", null)).id;
-  } catch {
-    return null;
-  }
+  return workspace.currentPane?.id ?? null;
 }
 
 /** A pane id written as a person or a user command writes one (`3`, `"%3"`), as the API's `%3`. */

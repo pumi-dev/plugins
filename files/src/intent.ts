@@ -3,7 +3,7 @@
 // opening a file: in a file pane (`file.open`, drawn by whichever plugin fits it), a terminal pane
 // running the user's editor, or whatever app owns it.
 import { dirname } from "node:path";
-import { call, self } from "pumi";
+import { self, workspace } from "pumi";
 import type { Transfer } from "./ops.ts";
 import * as ops from "./ops.ts";
 import type { Panel } from "./panel.ts";
@@ -111,8 +111,8 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
   const editor = panel.settings.editor.trim();
   const command = editor === "" ? `"\${EDITOR:-vi}" ${quote(path)}` : `${editor} ${quote(path)}`;
   try {
-    if (panel.settings.openWith === "pane") await call("pane.open", "file", { path }, place);
-    else await call("pane.open", "terminal", { command, cwd: dirname(path) }, place);
+    if (panel.settings.openWith === "pane") await workspace.openPane("file", { path }, place);
+    else await workspace.openPane("terminal", { command, cwd: dirname(path) }, place);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
     console.error(`${self.plugin.prefix}: cannot open ${path}: ${why}`);

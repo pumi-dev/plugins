@@ -1,21 +1,18 @@
 // The header's tabs, every session's: one group a session, a hairline between groups, no names.
 // A tab is the theme's `Tab` (the default's), so a `Tab` a theme restyles shows here too.
 import { Fragment } from "react"
+import { Icon, call, useTheme } from "pumi"
 import {
-  Icon,
-  call,
   commands,
-  num,
   useApp,
   useComponents,
   useSessions,
   useSession,
-  useTheme,
   useThemeOption,
   useWindow,
   windowContext,
   type Snapshot,
-} from "pumi"
+} from "pumi/theme"
 
 /** A tab row, as the snapshot has it. */
 type Row = Snapshot["tabs"][number]
@@ -53,7 +50,7 @@ export function TabBar({ session }: { session?: string }) {
                 // (which is on release), so the session is the right one by then.
                 onMouseDown={() => {
                   if (tab.workspace_id === here?.workspace_id) return
-                  call("session.select", { session: num(tab.workspace_id) }).catch(() => {})
+                  call("session.focus", tab.workspace_id, {}).catch(() => {})
                 }}
               >
                 <C.Tab tab={tab.tab_id} index={index} active={tab.tab_id === here?.active_tab_id} />

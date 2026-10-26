@@ -3,7 +3,7 @@
 // loud rather than thrown: the panel reports it and stays where it was.
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { clipboard, fs, on, request } from "pumi";
+import { clipboard, fs, on, workspace } from "pumi";
 import * as git from "./git.ts";
 import * as relpath from "./relpath.ts";
 
@@ -20,7 +20,8 @@ export interface Transfer {
 /** Asks the user `body` and answers what they chose (`null` when it closed unanswered), waiting
  * for the request to close. */
 async function ask(body: Record<string, unknown>): Promise<unknown> {
-  const id: string = await request.open(body);
+  const asked = await workspace.openRequest(body);
+  const id = asked.id;
   return new Promise((resolve) => {
     const off = on("request.closed", { match: id }, (e) => {
       off();
@@ -34,7 +35,7 @@ function failed(what: string, err: unknown): void {
   const why = err instanceof Error ? err.message : String(err);
   console.error(`files: ${what}: ${why}`);
   try {
-    void request.open({ kind: "notification", title: `files: ${what}: ${why}`, level: "error" });
+    void workspace.openRequest({ kind: "notification", title: `files: ${what}: ${why}`, level: "error" });
   } catch {
     // A test has no app to tell.
   }

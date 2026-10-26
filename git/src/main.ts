@@ -9,7 +9,7 @@
 // page's model and the exports `ui.tsx` calls. The page is pushed, not asked for: each time the
 // panel changes the whole view is posted (`ui.post`, at most once a tick), and the window draws the
 // last one it has the moment the sidebar opens — nothing is read on the way.
-import { call, fn, on, option, paths, self, ui } from "pumi";
+import { call, fn, on, option, paths, self, ui, workspace } from "pumi";
 
 import { panel } from "./panel.ts";
 import * as git from "./git.ts";
@@ -243,17 +243,17 @@ async function showDiff(spec: DiffSpec, title: string): Promise<void> {
   if (root === null) return;
   const value = JSON.stringify({ ...spec, root, title } satisfies Shown);
   try {
-    const here = await call("pane.get", null).catch(() => null);
+    const here = workspace.currentPane;
     const tab = here?.place.kind === "tiled" ? here.place.tab : null;
     if (diffPane !== null) {
-      const there = await call("pane.get", diffPane).catch(() => null);
+      const there = workspace.getPane(diffPane);
       if (there && there.block === self.plugin.prefixed("diff") && there.place.kind === "tiled" && (tab === null || there.place.tab === tab)) {
         await option.set("diff", value, { scope: "pane", id: diffPane });
         await option.set("title", title, { scope: "pane", id: diffPane });
         return;
       }
     }
-    const opened: string = await call("pane.open", self.plugin.prefixed("diff"), {}, { kind: "tab", name: title });
+    const opened = (await workspace.openPane(self.plugin.prefixed("diff"), {}, { kind: "tab", name: title })).id;
     diffPane = opened;
     await option.set("diff", value, { scope: "pane", id: opened });
     await option.set("title", title, { scope: "pane", id: opened });
@@ -304,7 +304,7 @@ export async function patchOf(value: string): Promise<{ patch: string; error: st
 /** A line of a diff pressed: the file, at that line, in the editor. */
 export async function reveal(root: string, path: string, line: number | null): Promise<void> {
   try {
-    await call("pane.open", "file", { path: `${root}/${path}`, ...(line === null ? {} : { line }) }, { kind: "tiled", split: "right" });
+    await workspace.openPane("file", { path: `${root}/${path}`, ...(line === null ? {} : { line }) }, { kind: "tiled", split: "right" });
   } catch (err) {
     console.error(`git: open: ${message(err)}`);
   }
@@ -380,7 +380,8 @@ async function start(): Promise<void> {
 /** The directory of the pane the user is in, as the window will ask for it when the page opens. */
 async function directory(): Promise<string> {
   try {
-    const current = await call("pane.get", null);
+    const current = workspace.currentPane;
+    if (current === null) return process.cwd();
     const path = await option.get("pane_current_path", { scope: "pane", id: current.id });
     if (typeof path === "string" && path !== "") return path;
   } catch {

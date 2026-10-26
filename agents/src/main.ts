@@ -9,7 +9,7 @@
 // and its state `status.ts`'s. What is here is the logic: the model, read from the API when an agent
 // asks (`readState`) for the guide and the recipes, and the two functions another package, a script
 // or a hook calls. The guide is `context/guide.md`, the same text `pumi skill show` prints.
-import { call, fn, option, self } from "pumi";
+import { call, fn, option, self, workspace } from "pumi";
 
 import { compose, map, onFor, settings, type When } from "./context.ts";
 import { line } from "./restore.ts";
@@ -19,51 +19,49 @@ import { read, type Given, type PaneGiven, type Snapshot, type TabGiven } from "
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
 /**
- * The model as the API answers it: every session, its tabs, and every pane with the options that
- * say what it is. `pane.list` is every pane, in layout order within a tab.
+ * The model as the workspace has it: every session, its tabs, and every pane with the options that
+ * say what it is. `workspace.panes` is every pane, in layout order within a tab.
  */
 async function readState(): Promise<Snapshot> {
-  const listed: string[] = await call("session.list");
-  const now = await call("session.get", null);
-  const sessions = await Promise.all(listed.map((id) => call("session.get", id)));
+  await workspace.ready;
+  const sessions = workspace.sessions;
+  const now = workspace.currentSession?.id ?? null;
 
   /** Which session a tab is in. */
   const owner = new Map<string, string>();
   const tabs: TabGiven[] = [];
+  const current = workspace.currentTab?.id ?? null;
   for (const each of sessions) {
-    for (const [index, id] of each.tabs.entries()) {
-      owner.set(id, each.id);
-      const info = await call("tab.get", id);
-      tabs.push({ id: num(id), space: num(each.id), index, label: info.name ?? "", focused: id === now.activeTab });
+    for (const [index, tab] of each.tabs.entries()) {
+      owner.set(tab.id, each.id);
+      // Its name is the one field the models of a session's tabs are not listed with.
+      const info = await call("tab.get", tab.id);
+      tabs.push({ id: num(tab.id), space: num(each.id), index, label: info.name ?? "", focused: tab.id === current });
     }
   }
 
-  const ids: string[] = await call("pane.list", {});
-  const panes: PaneGiven[] = await Promise.all(
-    ids.map(async (id) => {
-      const info = await call("pane.get", id);
-      const options = (info.options ?? {}) as Record<string, unknown>;
-      const at = info.tab;
-      return {
-        id: num(id),
-        block: info.block,
-        tab: at === null ? null : num(at),
-        space: at === null ? null : num(owner.get(at) ?? ""),
-        title: text(options["title"]),
-        cwd: text(options["pane_current_path"]),
-        label: text(options["@label"]),
-        options,
-        focused: id === now.activeTab,
-      };
-    }),
-  );
+  const panes: PaneGiven[] = (await workspace.panes()).map((pane) => {
+    const options = (pane.options ?? {}) as Record<string, unknown>;
+    const at = pane.tab?.id ?? null;
+    return {
+      id: num(pane.id),
+      block: pane.block,
+      tab: at === null ? null : num(at),
+      space: at === null ? null : num(owner.get(at) ?? ""),
+      title: text(options["title"]),
+      cwd: text(options["pane_current_path"]),
+      label: text(options["@label"]),
+      options,
+      focused: pane.id === workspace.currentPane?.id,
+    };
+  });
 
   const given: Given = {
     spaces: sessions.map((each) => ({
       id: num(each.id),
       label: each.name,
-      current: each.activeTab === null ? null : num(each.activeTab),
-      focused: each.id === now.id,
+      current: each.activeTab === null ? null : num(each.activeTab.id),
+      focused: each.id === now,
     })),
     tabs,
     panes,

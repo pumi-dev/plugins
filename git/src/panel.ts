@@ -5,7 +5,7 @@
 // It looks again when the work tree changes (`watch.ts`, minus what git ignores), when the window
 // says the user is in another directory, and after every action it takes. A look that finds what
 // the last one found changes nothing, so nothing is posted and nothing is drawn.
-import { call, option } from "pumi";
+import { option, workspace } from "pumi";
 import * as git from "./git.ts";
 import type { Change, Commit, CommitMode, Remote, Sync } from "./git.ts";
 import * as state from "./state.ts";
@@ -347,7 +347,7 @@ export class Panel {
     const root = this.root;
     if (root === null) return;
     try {
-      await call("pane.open", "file", { path: `${root}/${path}` }, { kind: "tiled", split: "right", focus: false });
+      await workspace.openPane("file", { path: `${root}/${path}` }, { kind: "tiled", split: "right", focus: false });
     } catch (err) {
       this.say(false, `open failed: ${message(err)}`);
       this.changed();
