@@ -18,8 +18,6 @@ interface Bridge {
   theme: Record<string, string>;
   onTheme(f: (tokens: Record<string, string>) => void): () => void;
   call(name: string, ...args: unknown[]): Promise<any>;
-  option(name: string, opts?: Record<string, unknown>): Promise<any>;
-  setOption(name: string, value: unknown, opts?: Record<string, unknown>): Promise<any>;
   menu(items: MenuItem[], at?: { x: number; y: number }): Promise<number | null>;
 }
 
@@ -80,7 +78,7 @@ if (!pumi) {
 }
 
 const args = (pumi.args ?? {}) as { pane?: unknown; path?: unknown; focused?: unknown };
-const pane = Number(args.pane);
+const pane = typeof args.pane === "string" ? args.pane : "";
 /** Whether the pane is the window's current one, as `ui.tsx` last said. */
 let paneFocused = args.focused !== false;
 /** `amresyd/monaco` is `amresyd.monaco.`: its options, its functions. */
@@ -284,16 +282,16 @@ function report(what: { dirty?: boolean; text?: boolean; title?: boolean }): voi
   const dirty = isDirty(current);
   if (what.dirty && dirty !== toldDirty) {
     toldDirty = dirty;
-    pumi!.setOption(`${prefix}dirty`, dirty, { pane }).catch(swallow);
+    pumi!.call("option.set", [`${prefix}dirty`, dirty, { scope: "pane", id: pane }]).catch(swallow);
   }
   if (what.title && current) {
-    pumi!.call("pane.call", pane, "report", { title: basename(current.path) }).catch(swallow);
+    pumi!.call("pane.call", [pane, "report", { body: { title: basename(current.path) } }]).catch(swallow);
   }
   if (what.text) {
     clearTimeout(textTimer);
     textTimer = setTimeout(() => {
       const value = current?.model.getValue() ?? "";
-      pumi!.call("pane.call", pane, "report", { text: value.slice(0, TEXT_LIMIT) }).catch(swallow);
+      pumi!.call("pane.call", [pane, "report", { body: { text: value.slice(0, TEXT_LIMIT) } }]).catch(swallow);
     }, 800);
   }
 }
@@ -304,7 +302,7 @@ editor.onDidChangeCursorSelection(() => {
     const model = editor.getModel();
     const parts = (editor.getSelections() ?? []).filter((s) => !s.isEmpty()).map((s) => model?.getValueInRange(s) ?? "");
     const selection = parts.length ? parts.join(model?.getEOL() ?? "\n").slice(0, TEXT_LIMIT) : null;
-    pumi!.call("pane.call", pane, "report", { selection }).catch(swallow);
+    pumi!.call("pane.call", [pane, "report", { body: { selection } }]).catch(swallow);
   }, 300);
 });
 
@@ -436,13 +434,13 @@ async function dropped(paths: string[]): Promise<void> {
   for (const path of paths.slice(0, -1)) if (!files.has(path)) await show(path).catch(swallow);
   const last = paths[paths.length - 1];
   await show(last);
-  pumi!.setOption("path", last, { pane }).catch(swallow);
+  pumi!.call("option.set", ["path", last, { scope: "pane", id: pane }]).catch(swallow);
 }
 
 // ---- focus: a press in the page makes its pane the window's current one
 
 editor.onDidFocusEditorText(() => {
-  if (!paneFocused) pumi.call("pane.select", { pane }).catch(swallow);
+  if (!paneFocused) pumi.call("pane.focus", [pane]).catch(swallow);
 });
 // The disk may have moved while the app was elsewhere.
 window.addEventListener("focus", () => {
@@ -453,7 +451,7 @@ window.addEventListener("focus", () => {
 
 /** Where in its file the pane is to be (the core's `at`: `file.open`'s line, a `reveal`). */
 function at(): Promise<{ path: string; line?: number; column?: number } | null> {
-  return pumi!.call("pane.call", pane, "at").catch(() => null);
+  return pumi!.call("pane.call", [pane, "at"]).catch(() => null);
 }
 
 /** What the pane was asked to show (`file.open`, `reveal`): a file, a line. */

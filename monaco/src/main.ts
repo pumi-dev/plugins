@@ -1,8 +1,8 @@
 // monaco: a code editor for the core's `file` panes — Monaco, VS Code's editor, in a page of the
 // plugin's own (`web/`, built from `page/` by `bun scripts/build.ts`), drawn by `ui.tsx`'s
 // `Editor`. Its manifest's `renderers.file` claims every file (`*`), so a file opened anywhere
-// (`pumi open`, `file.open`, the project tree, the palette) is drawn here unless a viewer that fits
-// it better is enabled, or the pane's `@pane_renderer` names another.
+// (`pumi open`, the project tree, the palette) is drawn here unless a viewer that fits it better is
+// enabled, or the pane's `@viewer`/"@pane_renderer" names another.
 //
 //   pumi open src/main.rs                                       # on the right of this pane
 //   pumi open --line 42 --with amresyd/monaco notes.md          # at line 42, in this editor
@@ -14,7 +14,7 @@
 // when the block's `reveal` says there is one.
 import { dirname } from "node:path";
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
-import { ApiError, call, command, notify, option, provide, plugin } from "pumi";
+import { ApiError, call, fn, option, request, self, ui, type PaneId } from "pumi";
 
 /** The core's block for a file, which the editor draws. */
 const BLOCK = "file";
@@ -23,44 +23,47 @@ const LIMIT = 16 * 1024 * 1024;
 /** How long `save` waits for the page to hand over its text. */
 const SAVE_WAIT = 8000;
 
+/** The channel this plugin's pages hear their pane's methods on (`ui.tsx`'s `useChannelListener`). */
+const PAGE = "page";
+
 /** Who waits for each pane's save, settled when its page writes (or says it can't). */
-const saving = new Map<number, { resolve(path: string): void; reject(err: Error): void }[]>();
+const saving = new Map<PaneId, { resolve(path: string): void; reject(err: Error): void }[]>();
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** A pane a call names: `7`, `"%7"`, `{ pane: 7 }`; undefined for none. */
-function paneOf(what: unknown): number | undefined {
+/** A pane a call names: `"%7"`, `{ pane: "%7" }` (or `7`, which is `%7`); undefined for none. */
+function paneOf(what: unknown): PaneId | undefined {
   const named = typeof what === "object" && what !== null ? (what as { pane?: unknown }).pane : what;
   if (named === undefined || named === null) return undefined;
-  const id = typeof named === "number" ? named : typeof named === "string" ? Number(named.replace(/^%/, "")) : NaN;
-  if (!Number.isInteger(id)) throw new ApiError("invalid_params", `not a pane: ${String(named)}`);
+  const id = typeof named === "number" ? `%${named}` : named;
+  if (typeof id !== "string" || !/^(?:[A-Za-z0-9._-]+\/)?%[1-9][0-9]*$/.test(id)) throw new ApiError("invalid_params", `not a pane: ${String(named)}`);
   return id;
 }
 
 /** The current pane, as the app has it; null when there is none. */
-async function here(): Promise<{ id: number; block: string } | null> {
-  const info = await call("pane.get").catch(() => null);
-  if (!info || typeof info.id !== "number") return null;
+async function here(): Promise<{ id: PaneId; block: string } | null> {
+  const info = await call("pane.get", [null]).catch(() => null);
+  if (!info || typeof info.id !== "string") return null;
   return { id: info.id, block: String(info.block) };
 }
 
-async function isEditor(id: number): Promise<boolean> {
-  const info = await call("pane.get", id).catch(() => null);
+async function isEditor(id: PaneId): Promise<boolean> {
+  const info = await call("pane.get", [id]).catch(() => null);
   return info?.block === BLOCK;
 }
 
 /** Writes the file pane `id` shows (the current pane without one) and answers its path; a pane
  *  that is not a file pane is an error only when it was named. */
-export async function save(id?: number): Promise<{ pane: number; path: string } | null> {
+export async function save(id?: PaneId): Promise<{ pane: PaneId; path: string } | null> {
   const named = id !== undefined;
   const target = id ?? (await here())?.id;
   if (target === undefined || !(await isEditor(target))) {
     if (named) throw new ApiError("invalid_params", `pane ${target} is not a file pane`);
     return null;
   }
-  const path = await option.get("path", { pane: target }).catch(() => "");
+  const path = await option.get("path", { scope: "pane", id: target }).catch(() => "");
   if (typeof path !== "string" || path === "") throw new ApiError("invalid_params", `pane ${target} shows no file`);
   let waiter: { resolve(path: string): void; reject(err: Error): void } | undefined;
   const written = new Promise<string>((resolve, reject) => {
@@ -75,7 +78,9 @@ export async function save(id?: number): Promise<{ pane: number; path: string } 
     waiter?.reject(new ApiError("timeout", `the editor in pane ${target} did not answer: is it drawn in a window, by this plugin?`));
   }, SAVE_WAIT);
   try {
-    await call("pane.call", target, "save", {});
+    // The page draws the text and hands it back through plain text: nothing asks it through the
+    // wire, which would be this same function.
+    ui.post(PAGE, { pane: target, method: "save" });
     return { pane: target, path: await written };
   } finally {
     clearTimeout(timer);
@@ -83,7 +88,7 @@ export async function save(id?: number): Promise<{ pane: number; path: string } 
 }
 
 /** Settles whoever waits for pane `id`'s save. */
-function settle(id: number, outcome: { path: string } | { error: Error }): void {
+function settle(id: PaneId, outcome: { path: string } | { error: Error }): void {
   const list = saving.get(id) ?? [];
   saving.delete(id);
   for (const w of list) {
@@ -110,7 +115,7 @@ export async function read(path: string): Promise<{ text: string; mtime: number;
 }
 
 /** Writes `text` to `path` for the page of pane `id`, and answers when the file now changed. */
-export function write(id: number, path: string, text: string): { mtime: number } {
+export function write(id: PaneId, path: string, text: string): { mtime: number } {
   try {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, text);
@@ -120,13 +125,13 @@ export function write(id: number, path: string, text: string): { mtime: number }
   } catch (err) {
     const error = new ApiError("exception", `${path}: ${message(err)}`);
     settle(id, { error });
-    void notify(`Could not save ${path}: ${message(err)}`, "error");
+    void request.open({ kind: "notification", title: `Could not save ${path}: ${message(err)}`, level: "error" });
     throw error;
   }
 }
 
 /** The page of pane `id` had nothing to save. */
-export function unsaved(id: number, why: string): null {
+export function unsaved(id: PaneId, why: string): null {
   settle(id, { error: new ApiError("invalid_params", `pane ${id}: ${why}`) });
   return null;
 }
@@ -134,36 +139,34 @@ export function unsaved(id: number, why: string): null {
 // ---- what the app reaches: `save` is the manifest's command (`<D-s>`) and the function a script
 // or an agent calls, so it is provided with its parameter rather than through `command`.
 
-provide(
-  plugin.prefixed("save"),
-  {
-    desc: "Save the file a file pane the editor draws shows (the current pane without one). Answers the pane and the path written.",
-    effect: "write",
-    parameters: [["number", "pane"]],
-    examples: [{ args: [7] }, { args: [{ pane: 7 }] }, { args: [], desc: "The current pane, if it is a file pane." }],
-    returns: "`{pane, path}`, or null when the current pane is not a file pane.",
-  },
-  (first?: unknown) => save(paneOf(first)),
-);
+fn.set(self.plugin.prefixed("save"), {
+  desc: "Save the file a file pane the editor draws shows (the current pane without one). Answers the pane and the path written.",
+  effect: "write",
+  parameters: [["string", "pane"]],
+  examples: [{ args: ["%7"] }, { args: [{ pane: "%7" }] }, { args: [], desc: "The current pane, if it is a file pane." }],
+  returns: "`{pane, path}`, or null when the current pane is not a file pane.",
+  callback: (first?: unknown) => save(paneOf(first)),
+});
 
 /** Runs one of Monaco's actions in the file pane `what` names, or the current one. */
 async function act(what: unknown, id: string): Promise<null> {
   const target = paneOf(what) ?? (await here())?.id;
   if (target === undefined || !(await isEditor(target))) return null;
-  await call("pane.call", target, "action", { id });
+  ui.post(PAGE, { pane: target, method: "action", args: { id } });
   return null;
 }
 
-command("find", (what?: unknown) => act(what, "actions.find"));
-command("goToLine", (what?: unknown) => act(what, "editor.action.gotoLine"));
-command("commands", (what?: unknown) => act(what, "editor.action.quickCommand"));
+// The manifest's commands, which is what gives them their titles and keys.
+fn.set(self.plugin.prefixed("find"), { desc: "Find in the file the editor draws.", callback: (what?: unknown) => act(what, "actions.find") });
+fn.set(self.plugin.prefixed("goToLine"), { desc: "Go to a line of the file the editor draws.", callback: (what?: unknown) => act(what, "editor.action.gotoLine") });
+fn.set(self.plugin.prefixed("commands"), { desc: "Show the editor's own commands.", callback: (what?: unknown) => act(what, "editor.action.quickCommand") });
 
 /** Flips one of the plugin's boolean options, kept in settings.json as Settings keeps it. */
 async function toggle(key: string): Promise<boolean> {
   const next = !(await option.get(key));
-  await option.set(key, next, { save: true });
+  await option.set(key, next);
   return next;
 }
 
-command("toggleWordWrap", () => toggle("word_wrap"));
-command("toggleMinimap", () => toggle("minimap"));
+fn.set(self.plugin.prefixed("toggleWordWrap"), { desc: "Wrap the editor's long lines at the pane's edge.", callback: () => toggle("word_wrap") });
+fn.set(self.plugin.prefixed("toggleMinimap"), { desc: "Draw the file in miniature along the pane's right edge.", callback: () => toggle("minimap") });
