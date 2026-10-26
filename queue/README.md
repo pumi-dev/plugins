@@ -77,5 +77,6 @@ bun test                       # the pure logic: no pumi running
 bunx tsc --noEmit           # the types
 ```
 
-`pumi wait-pane` (the tmux package) is the same idea on the command line, for a shell that can
-block: `pumi wait-pane -t %3 --until '#{==:#{@agent.status},done}' && ./next`.
+A shell that blocks has the CLI's own words: `pumi wait %3` waits until that pane's program ends
+and exits with its status (`--for 10m` for its own limit), and `queue.add` with `{"after": "%3"}`
+is the same wait for a pane's agent: `pumi call queue.add '{"command":"./next","after":"%3"}'`.

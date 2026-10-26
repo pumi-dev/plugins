@@ -112,7 +112,7 @@ export type Run =
   | { kind: "new" }
   /** `sh -c`, in the app, with no terminal (its output's last line is kept). */
   | { kind: "shell" }
-  /** Typed into an existing terminal, as `send-keys` does. */
+  /** Typed into an existing terminal, as `pane input` does. */
   | { kind: "pane"; pane: number };
 
 /** `"new"`, `"shell"`, or a pane (`"%3"`, `3`). */

@@ -15,7 +15,7 @@ pumi call local.marmaide.draw 'flowchart LR
   ask[the question] --> draw[marmaide draws]
   draw --> look[you look]'                       # a pane opens beside this one; the answer says which (%12)
 
-pumi call local.marmaide.draw '{"path": "figure.mmd", "pane": 12}'   # redraw that pane, not doubled
+pumi call local.marmaide.draw '{"path": "figure.mmd", "pane": "%12"}'   # redraw that pane, not doubled
 pumi call local.marmaide.save '{"source": "graph TD\n  a --> b", "out": "figure.svg"}'
 pumi call local.marmaide.render '{"path": "figure.mmd"}' | jq -r .svg  # the SVG, without drawing it
 ```

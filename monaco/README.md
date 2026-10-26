@@ -15,13 +15,13 @@ every file opened in a pane is drawn here unless an enabled viewer fits it bette
 ## Open one
 
 ```sh
-pumi open src/main.rs                        # on the right of this pane; -v below, --tab, --float
+pumi open src/main.rs                        # on the right of this pane; --split below, --tab @2
 pumi open --line 42 src/main.rs              # at line 42
-pumi open --with amresyd/monaco notes.md     # this editor, whatever else fits it
-pumi call amresyd.monaco.save 7              # pane 7's file, to disk
+pumi pane update %7 --options '{"@pane_renderer":"amresyd/monaco"}'   # this editor, whatever else fits it
+pumi call amresyd.monaco.save %7             # pane 7's file, to disk
 ```
 
-`pumi open` is `pane.open` of a `file` block (see `pumi api show pane.open`): it shows the file in a file pane of
+`pumi open` is `pane.open` of a `file` block (see `pumi help pane.open`): it shows the file in a file pane of
 the tab already showing it, else a new one. The pane's `path` option is the file (setting it
 opens that one there, and a pane comes back with it); `dirty` (`amresyd.monaco.dirty`) says the
 file has unsaved changes. `pane.call(pane, "read")` answers the file's text, and `"selection"`

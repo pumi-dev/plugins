@@ -12,5 +12,5 @@ Windows 98 as a pumi UI theme.
 
 ```sh
 pumi plugin add ./win98
-pumi call option.set ui_theme win98
+pumi option set ui_theme win98
 ```

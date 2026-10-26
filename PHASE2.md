@@ -135,7 +135,7 @@ bun test                      # the logic tests, if any
 node -e 'JSON.parse(require("fs").readFileSync("package.json"))'
 ```
 
-Do **not** run `pumi pack add`/`del`, do not start the app, and do not touch git: the app is one
+Do **not** run `pumi plugin add`/`remove`, do not start the app, and do not touch git: the app is one
 process for the whole machine, and the integration pass adds every package at the end.
 
 Read these before you write anything:

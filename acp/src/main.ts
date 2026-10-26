@@ -207,7 +207,7 @@ class Link {
     if (text !== "") await this.command({ type: "context", id: crypto.randomUUID(), text });
   }
 
-  /** Holds a `pumi agent take --wait` for this pane while it is idle: a queued message is a prompt. */
+  /** Holds a `pumi agent take %3 --wait` for this pane while it is idle: a queued message is a prompt. */
   #take(name: string, session: string | undefined): void {
     if (!session || this.#taking) return;
     const pane = this.pane;

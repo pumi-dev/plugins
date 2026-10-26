@@ -55,7 +55,7 @@ preview server: this plugin never proxies it, and nothing should.
 - **Simulator: stop streaming** — stops every streamer this plugin started.
 - **Simulator: screenshot** — a PNG of the device's screen, shown in a pane.
 
-For agents and other plugins (`pumi api list | grep simulator`). The plugin activates on startup, so
+For agents and other plugins (`pumi registry list fn | grep simulator`). The plugin activates on startup, so
 these exist as soon as the app is up — no pane has to be open first:
 
 ```sh

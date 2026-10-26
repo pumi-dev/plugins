@@ -20,7 +20,7 @@ native: this is the plugin beside it.
 ```sh
 pumi call amresyd.browser.open '{"url":"https://pumi.dev"}'   # beside this pane
 pumi call amresyd.browser.openTab '{"url":"example.com"}'     # in a tab of its own
-pumi call pane.open amresyd.browser.page '{"url":"https://example.com"}' '{"split":"right"}'
+pumi pane open amresyd.browser.page '{"url":"https://example.com"}' --split right
 ```
 
 `amresyd.browser.page` is the block a pane holds, and `Page` in `src/ui.tsx` draws it. Its own
@@ -48,9 +48,9 @@ engine and one home page for both browsers.
 `navigate`, `back`, `forward`, `reload`, which the manifest declares:
 
 ```sh
-pumi call pane.call 3 read          # "example.com\nexample.com/docs/a" — the name, then the address
-pumi call pane.call 3 selection     # null: nothing of another site's document is readable here
-pumi call pane.call 3 input '{"text":"example.com/next"}'   # typed into the address bar, and Enter
+pumi pane read %3          # "example.com\nexample.com/docs/a" — the name, then the address
+pumi pane selection %3     # null: nothing of another site's document is readable here
+pumi pane input %3 --text 'example.com/next'   # typed into the address bar, and Enter
 ```
 
 `read` and `selection` answer from what the page **reported** to its pane (`pane.call` `report`,
@@ -60,13 +60,13 @@ which the server's own block keeps), and `input` arrives at the view as `pane.ca
 same way; the package's provided functions are the short road, and are what a caller reads by:
 
 ```sh
-pumi call pane.call 3 navigate '{"url":"example.com"}'   # the block's own method
-pumi call amresyd.browser.navigate 3 'example.com'        # or {pane: 3, url: "example.com"}
-pumi call amresyd.browser.back 3
-pumi call amresyd.browser.forward 3
-pumi call amresyd.browser.reload 3
-pumi call amresyd.browser.url 3      # the pane's `url` option
-pumi call amresyd.browser.title 3    # the `title` the page reports
+pumi pane navigate %3 '{"url":"example.com"}'   # the block's own method
+pumi call amresyd.browser.navigate %3 'example.com'   # or {pane: "%3", url: "example.com"}
+pumi call amresyd.browser.back %3
+pumi call amresyd.browser.forward %3
+pumi call amresyd.browser.reload %3
+pumi call amresyd.browser.url %3      # the pane's `url` option
+pumi call amresyd.browser.title %3    # the `title` the page reports
 ```
 
 ## What it cannot do, and why

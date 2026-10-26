@@ -27,11 +27,11 @@ once it is under the bars again the count starts over.
 ## Sleep and wake
 
 ```sh
-pumi call amresyd.heavy_terminals.sleep --pane '%3'
-pumi call amresyd.heavy_terminals.wake  --pane '%3'
+pumi call amresyd.heavy_terminals.sleep '%3'
+pumi call amresyd.heavy_terminals.wake  '%3'
 ```
 
-The pane goes as an id (`3`), a table (`{"pane":3}`), a user command's `"%3"`, or not at all, for
+The pane goes as an id (`"%3"`), a table (`{"pane":"%3"}`), a user command's `"%3"`, or not at all, for
 the current pane. `sleep` types ctrl+z into it, as a person would, and leaves `@heavy` = `asleep`;
 `wake` types `fg` and Enter, and takes `@heavy` away. Sleeping is ctrl+z, not a kill: the job
 stops where it was and gets no CPU, and `fg` puts it back in the foreground.

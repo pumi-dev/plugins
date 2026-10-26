@@ -24,7 +24,7 @@ export function Device({ pane, focused }: RendererProps) {
         if (!live) return void release(started.udid)
         held.current = started.udid
         setUrl(started.url)
-        // The pane's title in its bar, and in `pumi list-panes`.
+        // The pane's title in its bar, and in `pumi pane list`.
         void call("pane.call", pane.id, "report", { title: started.name }).catch(() => {})
       })
       .catch((failed: unknown) => {

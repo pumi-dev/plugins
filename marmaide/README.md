@@ -7,14 +7,14 @@ keep drawing on the same pane as the answer changes.
 
 ```sh
 pumi plugin add ~/Kitchen/pumi-plugins/marmaide    # or a copy of this directory
-pumi plugin reload marmaide
+pumi plugin update marmaide
 
 pumi call local.marmaide.draw 'flowchart LR
   ask --> draw --> look'
 ```
 
 (`local.marmaide.` while the package is linked from disk; `amresyd.marmaide.` once it is
-installed. `pumi call api.getInfo` lists what a package provides.)
+installed. `pumi registry list fn` lists what a package provides.)
 
 ## What it needs
 
@@ -35,7 +35,7 @@ Any caller — an agent's `pumi call`, a script, another package, a JSON-RPC cli
 ```sh
 pumi call local.marmaide.draw 'flowchart LR
   a --> b'
-pumi call local.marmaide.draw '{"path": "figure.mmd", "pane": 12}'
+pumi call local.marmaide.draw '{"path": "figure.mmd", "pane": "%12"}'
 pumi call local.marmaide.render 'sequenceDiagram
   A->>B: hi' | jq -r .svg
 ```
@@ -46,7 +46,7 @@ shape, `{source, path}`, writes `source` to `path` too.
 
 ## Options
 
-Settings → Plugins → **marmaide** (all of them are also `pumi call option.set`):
+Settings → Plugins → **marmaide** (all of them are also `pumi option set`):
 
 | Option | | |
 | --- | --- | --- |

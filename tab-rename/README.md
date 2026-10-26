@@ -17,7 +17,7 @@ skipped, and the same titles are never asked about twice.
 ## Your names win
 
 A tab you named yourself (the tab bar, `pumi tab update`) is left alone. Give it back
-its automatic name (`pumi tab update @2 name=`) or run **Tab Rename: name this tab after its agents**
+its automatic name (`pumi tab update @2 --name ''`) or run **Tab Rename: name this tab after its agents**
 (`amresyd.tab_rename.rename`, with `{ tab }` or the current tab) and it is named by its agents
 again.
 

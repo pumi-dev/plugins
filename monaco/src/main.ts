@@ -5,8 +5,8 @@
 // enabled, or the pane's `@viewer`/"@pane_renderer" names another.
 //
 //   pumi open src/main.rs                                       # on the right of this pane
-//   pumi open --line 42 --with amresyd/monaco notes.md          # at line 42, in this editor
-//   pumi call amresyd.monaco.save 7                             # the file pane 7 shows, to disk
+//   pumi open --line 42 notes.md                                # at line 42, in this editor
+//   pumi call amresyd.monaco.save %7                            # the file pane %7 shows, to disk
 //
 // The page holds the text; this holds the disk. The page reads and writes through the exports
 // below (`read`, `write`, its `<prefix>rpc`), and learns what to show from its pane: the core's

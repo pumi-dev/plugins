@@ -2,8 +2,8 @@
 //
 //   pumi call amresyd.browser.open '{"url":"https://pumi.dev"}'   # a page beside this one
 //   pumi call amresyd.browser.openTab '{"url":"example.com"}'
-//   pumi call amresyd.browser.navigate 3 'example.com'            # the page in pane 3
-//   pumi call amresyd.browser.back 3
+//   pumi call amresyd.browser.navigate %3 'example.com'           # the page in pane %3
+//   pumi call amresyd.browser.back %3
 //
 // The window's webview keeps the page's own state (`useWebview`: its address, its title,
 // whether it is loading, whether it can go back), so the package keeps none of it: a navigable
@@ -32,7 +32,7 @@ function addressOf(first: unknown, second: unknown): string {
   return url;
 }
 
-/** The pane a call names — `back(3)`, `back({ pane: 3 })` or `back("%3")`, as `pumi call` writes
+/** The pane a call names — `back("%3")`, `back({ pane: "%3" })` or `back(3)`, as `pumi call` writes
  * each of them — as its wire id. */
 function paneOf(what: unknown): string {
   const named = typeof what === "object" && what !== null ? (what as { pane?: unknown }).pane : what;
