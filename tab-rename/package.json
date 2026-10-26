@@ -1,0 +1,46 @@
+{
+  "name": "pumi-tab-rename",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "Names each tab after what its agents are working on, with Apple's on-device model.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "tab-rename",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "max_words": {
+          "type": "number",
+          "default": 3,
+          "label": "Words in a name",
+          "desc": "How many words a tab's name may have.",
+          "min": 1,
+          "max": 6,
+          "step": 1
+        }
+      },
+      "commands": [
+        {
+          "id": "rename",
+          "title": "Tab Rename: name this tab after its agents"
+        }
+      ]
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
