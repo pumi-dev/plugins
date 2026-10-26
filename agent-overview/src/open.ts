@@ -1,27 +1,21 @@
 // Opening the dashboard: go to the pane it is already in, else make the tab.
-import { notify, pane, plugin } from "pumi";
+import { call, self } from "pumi";
 
 /** The block, as the manifest's `pumi.contributes.blocks` lists it (`agent-overview.overview`). */
 export const VIEW = "overview";
 
-/** Whether `name` is a pane's id: `pane.list` answers with ids, or with closed panes when asked. */
-function id(name: unknown): number | undefined {
-  return typeof name === "number" ? name : undefined;
-}
-
 /** Open the overview in a tab of its own: go to the one that is open, else make the tab. */
 export async function open(): Promise<boolean> {
   try {
-    const [there] = await pane.list({ block: plugin.prefixed(VIEW) });
-    const found = id(there);
-    if (found !== undefined) {
-      await pane.select({ pane: found });
+    const [there]: string[] = await call("pane.list", { block: self.plugin.prefixed(VIEW) });
+    if (there !== undefined) {
+      await call("pane.focus", there, {});
       return true;
     }
-    await pane.open(plugin.prefixed(VIEW), {}, { kind: "tab", name: "agents" });
+    await call("pane.open", self.plugin.prefixed(VIEW), {}, { kind: "tab", name: "agents" });
     return true;
   } catch (err) {
-    await notify(`agent overview: ${message(err)}`, "error");
+    await call("request.open", { kind: "notification", title: `agent overview: ${message(err)}`, level: "error" });
     return false;
   }
 }

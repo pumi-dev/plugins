@@ -18,10 +18,10 @@ import {
 
 /** One agent pane: who, where, and what it is doing. */
 export interface Agent {
-  pane: number;
-  session: number;
+  pane: string;
+  session: string;
   sessionName: string;
-  tab: number;
+  tab: string;
   tabName: string;
   /** `@agent`: the program's own name for itself (`pi`, `claude`, …), or the app that last
    * reported if it has none. */
@@ -43,29 +43,29 @@ export interface Agent {
 /** A pane, a tab and a session, as both halves have them before the model is built: the window's
  * own, or what the server's `pane.list` finds. */
 export interface PaneState {
-  id: number;
+  id: string;
   /** The tab it is tiled in; none for a float, a slot or a detached pane. */
-  tab: number | null;
+  tab: string | null;
   /** The session its tab is in. */
-  session: number | null;
+  session: string | null;
   /** Its `title` option, as the program wrote it. */
   title: string;
   /** Its `pane_current_path`. */
   cwd: string;
-  /** Its options: `@agent`, `@agent_status`, `@program_status`, `@agent_session`, … */
+  /** Its options: `@agent`, `@agent.status`, `@program_status`, `@agent.session`, … */
   options: Record<string, unknown>;
 }
 
 /** A tab: its session and its name. */
 export interface TabState {
-  id: number;
-  session: number;
+  id: string;
+  session: string;
   name: string;
 }
 
 /** A session. */
 export interface SpaceState {
-  id: number;
+  id: string;
   name: string;
 }
 
@@ -74,7 +74,7 @@ export interface State {
   spaces: SpaceState[];
   tabs: TabState[];
   panes: PaneState[];
-  here: number | null;
+  here: string | null;
 }
 
 /** The last segment of its directory: what a row can afford to show. */
@@ -118,7 +118,7 @@ export class Overview {
   constructor(
     /** In the order the table shows them: what wants the user first, then by session and tab. */
     readonly agents: Agent[] = [],
-    readonly currentPane: number | null = null,
+    readonly currentPane: string | null = null,
   ) {}
 
   /**
@@ -128,7 +128,7 @@ export class Overview {
   static fromState(state: State | undefined): Overview {
     if (!state) return new Overview([], null);
     /** A tab's place: its session, the session's name, and its own. */
-    const places = new Map<number, { session: number; sessionName: string; tabName: string }>();
+    const places = new Map<string, { session: string; sessionName: string; tabName: string }>();
     const nameOf = new Map(state.spaces.map((each) => [each.id, each.name]));
     for (const tab of state.tabs) {
       places.set(tab.id, { session: tab.session, sessionName: nameOf.get(tab.session) ?? "", tabName: tab.name });
@@ -143,7 +143,7 @@ export class Overview {
       const options = pane.options;
       const option = (key: string) => str(options[key]).trim();
       const records = Array.isArray(options["@program_status"]) ? (options["@program_status"] as unknown[]) : undefined;
-      const { status, why } = statusOf(option("@agent_status"), records);
+      const { status, why } = statusOf(option("@agent.status"), records);
       const agent = option("@agent");
       // A shell nobody has reported on is not an agent; a program that said what it is doing is one
       // even when it never named itself.
@@ -161,7 +161,7 @@ export class Overview {
         status,
         why,
         message,
-        conversation: option("@agent_session"),
+        conversation: option("@agent.session"),
         cwd: pane.cwd.trim() !== "" ? pane.cwd : option("pane_current_path"),
         command: option("pane_current_command"),
         title: stripTitle(pane.title),
@@ -172,9 +172,9 @@ export class Overview {
       (a, b) =>
         rank(a.status) - rank(b.status) ||
         compare(a.sessionName, b.sessionName) ||
-        a.session - b.session ||
+        compare(a.session, b.session) ||
         compare(a.tabName, b.tabName) ||
-        a.pane - b.pane,
+        compare(a.pane, b.pane),
     );
     return new Overview(agents, state.here);
   }
@@ -204,8 +204,8 @@ export class Overview {
   }
 
   /** The sessions the agents are in, in table order, each with its agents. */
-  groups(filter: Filter, query: string): { session: number; name: string; agents: Agent[] }[] {
-    const groups: { session: number; name: string; agents: Agent[] }[] = [];
+  groups(filter: Filter, query: string): { session: string; name: string; agents: Agent[] }[] {
+    const groups: { session: string; name: string; agents: Agent[] }[] = [];
     for (const agent of this.visible(filter, query)) {
       const group = groups.find((each) => each.session === agent.session);
       if (group) group.agents.push(agent);
@@ -215,7 +215,7 @@ export class Overview {
   }
 }
 
-/** `@agent_status`, corrected by the records behind it: a host that predates `error` said `done`
+/** `@agent.status`, corrected by the records behind it: a host that predates `error` said `done`
  * for one, and the record still tells. `why` is what the protocol's `kind` says it waits for. */
 export function statusOf(word: string, records: unknown[] | undefined): { status: Status; why: string } {
   const record = worst(records);
