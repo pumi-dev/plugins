@@ -6,9 +6,9 @@
 // detached, so the agent outlives the app; the worker is a client of each host's socket
 // (`wire.ts`), as any other could be. It relays the conversation to the pane's renderer
 // (`ui.post`), serves it to anyone (`conversation.read`/`send`, `conversation.changed`), and keeps
-// the pane an agent like a terminal's: `@agent`, `@agent_status` (by `pane.report`),
-// `@agent_session`, `@agent_model`, `@agent_conversation`, and its permission prompts asked through
-// `agent.request`, so any UI can answer them. After the app or the server starts again it finds the
+// the pane an agent like a terminal's: `@agent`, `@agent.status` (by `pane.call`'s `report`),
+// `@agent.session`, `@agent.model`, `@agent.conversation`, and its permission prompts asked through
+// `request.open`, so any UI can answer them. After the app or the server starts again it finds the
 // hosts again, or starts new ones that load the session.
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, openSync, readdirSync } from "node:fs";
@@ -16,7 +16,7 @@ import { createConnection, type Socket } from "node:net";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { ApiError, agent, command, conversationNames, emit, notify, on, option, pane, paths, plugin, provide, ui } from "pumi";
+import { ApiError, agent, call, conversationNames, emit, fn, on, option, paths, request, self, ui, workspace } from "pumi";
 
 import { follow, type Update } from "../../lib/conversation/src/change.ts";
 import { optionOf, type Ack, type Command, type Cursor, type Transcript } from "../../lib/conversation/src/model.ts";
@@ -25,20 +25,32 @@ import { agentTable, installed, launchOf, resumeLine, searchPath, type AgentDef 
 import { lineReader } from "./rpc.ts";
 import { socketPath, type FromHost, type HostSpec, type HostState, type ToHost } from "./wire.ts";
 
-/** What an ACP pane takes besides hidden context: queued messages at a turn's end, and while idle. */
-const ACCEPTS = ["queue", "wake"];
-/** The pane options an ACP pane keeps (beside the `@agent*` ones every agent has). */
-const CWD = "@acp_cwd";
+/** The pane options an ACP pane keeps (beside the `@agent.*` ones every agent has). */
+const CWD = "@acp.cwd";
 /** How its first session begins, until it has one: `new` or `pick`. */
-const MODE = "@acp_mode";
+const MODE = "@acp.mode";
 const AGENT = "@agent";
-const SESSION = "@agent_session";
-const MODEL = "@agent_model";
-const CONVERSATION = "@agent_conversation";
+const SESSION = "@agent.session";
+const MODEL = "@agent.model";
+const CONVERSATION = "@agent.conversation";
 
-const chatBlock = () => plugin.prefixed("chat");
+const chatBlock = () => self.plugin.prefixed("chat");
 const hostsDir = () => join(paths.state, "hosts");
-const names = () => conversationNames(plugin.id);
+const names = () => conversationNames(self.plugin.id);
+
+/** A pane's id as the API has it (`%3`), from the number this package keeps of it. */
+const paneRef = (pane: number): string => `%${pane}`;
+
+/** The number a pane's id names (`%3` is `3`). */
+const numberOf = (id: string): number => Number(id.slice(id.indexOf("/") + 1).replace(/^[%@$]/, ""));
+
+/** The pane a function was called from, or why there is none. */
+async function here(): Promise<number> {
+  await workspace.ready;
+  const pane = workspace.currentPane;
+  if (!pane) throw new ApiError("not_found", "acp: no pane in front to work from");
+  return numberOf(pane.id);
+}
 
 /** The agents table, with the user's additions. */
 async function table(): Promise<Record<string, AgentDef>> {
@@ -46,9 +58,12 @@ async function table(): Promise<Record<string, AgentDef>> {
 }
 
 const optionOn = async <T>(name: string, id: number): Promise<T | undefined> => {
-  const value = await option.get(name, { pane: id }).catch(() => null);
+  const value = await option.get(name, { scope: "pane", id: paneRef(id) }).catch(() => null);
   return value === null || value === "" ? undefined : (value as T);
 };
+
+/** One of pane `id`'s own options, set. */
+const setOn = (name: string, value: unknown, id: number): Promise<null> => option.set(name, value, { scope: "pane", id: paneRef(id) });
 
 // ── One pane's link to its host ──────────────────────────────────────────────────────────────
 
@@ -59,8 +74,8 @@ class Link {
   transcript: Transcript | undefined;
   closed = false;
   #acks = new Map<string, (ack: Ack) => void>();
-  /** The core's request for each permission the transcript asks (`agent.request`), by permission id. */
-  asked = new Map<string, number | null>();
+  /** The core's request for each permission the transcript asks (`request.open`), by permission id. */
+  asked = new Map<string, string | null>();
   /** The option a view picked for a permission, so the core's request is answered the same. */
   picked = new Map<string, string>();
   #reported: { status?: string; session?: string; model?: string; title?: string } = {};
@@ -121,7 +136,7 @@ class Link {
     ui.post(`update.${this.pane}`, update);
     const cursor: Cursor = { epoch: next.epoch, seq: next.seq };
     const changes = update.type === "changes" ? update.changes : [];
-    void emit("conversation.changed", { pane: this.pane, changes, cursor }, { pane: this.pane }).catch(() => {});
+    void emit("conversation.changed", { pane: paneRef(this.pane), changes, cursor }, { pane: paneRef(this.pane) }).catch(() => {});
     void this.#sync();
   }
 
@@ -133,23 +148,23 @@ class Link {
     const status = t?.status;
     if (status && status !== was.status) {
       was.status = status;
-      await pane.report(id, `state=${status}:app=acp`).catch(() => {});
+      await call("pane.call", paneRef(id), "report", { body: `state=${status}:app=acp` }).catch(() => {});
     }
     const session = this.state?.session ?? t?.session?.id;
     if (session && session !== was.session) {
       was.session = session;
-      await option.set(SESSION, session, { pane: id }).catch(() => {});
+      await setOn(SESSION, session, id).catch(() => {});
     }
     const modelOption = t ? optionOf(t, "model") : undefined;
     const model = modelOption ? currentName(modelOption) : t?.session?.model;
     if (model && model !== was.model) {
       was.model = model;
-      await option.set(MODEL, model, { pane: id }).catch(() => {});
+      await setOn(MODEL, model, id).catch(() => {});
     }
     const title = t?.session?.title || this.state?.name;
     if (title && title !== was.title) {
       was.title = title;
-      await pane.call(id, "report", { title }).catch(() => {});
+      await call("pane.call", paneRef(id), "report", { title }).catch(() => {});
     }
     if (t) await this.#requests(t);
     void this.#told().catch(() => {});
@@ -183,19 +198,13 @@ class Link {
 
   /** Asks the core what the agent should know now, and hands it to the host for its next prompt. */
   async #tell(event: "start" | "prompt", name: string, session: string | undefined, resumed = false): Promise<void> {
-    const turn = {
-      agent: name,
-      event,
-      ...(session ? { session } : {}),
-      accepts: ACCEPTS,
-      ...(resumed ? { resumed } : {}),
-    };
-    const answer = await agent.turn(this.pane, turn).catch((err) => {
+    const said = await agent.turn(paneRef(this.pane), { event, ...(resumed ? { resumed } : {}) }).catch((err) => {
       console.error(`acp: agent.turn for ${this.pane}: ${err?.message ?? err}`);
-      return null;
+      return [] as string[];
     });
-    const text = answer?.context;
-    if (text) await this.command({ type: "context", id: crypto.randomUUID(), text });
+    // What pumi has for the agent: each contribution is a paragraph of it.
+    const text = said.filter((one) => typeof one === "string" && one !== "").join("\n\n");
+    if (text !== "") await this.command({ type: "context", id: crypto.randomUUID(), text });
   }
 
   /** Holds a `pumi agent take --wait` for this pane while it is idle: a queued message is a prompt. */
@@ -242,8 +251,8 @@ class Link {
     if (!this.#swept) {
       // Requests left from before the app started again whose permission has gone wait for nothing.
       this.#swept = true;
-      for (const r of await agent.requests(this.pane).catch(() => [])) {
-        if (!t.permissions.some((p) => p.title === r.title)) await agent.answer(Number(r.id), null).catch(() => false);
+      for (const r of await workspace.requests({ pane: paneRef(this.pane) }).catch(() => [])) {
+        if (!t.permissions.some((p) => p.title === r.title)) await request.close(r.id).catch(() => null);
       }
     }
     for (const permission of t.permissions) {
@@ -254,33 +263,32 @@ class Link {
         kind: "permission" as const,
         title: permission.title,
         ...(permission.detail ? { detail: permission.detail } : {}),
-        ...(tool ? { tool: { name: tool.title, input: tool.input } } : {}),
+        ...(tool ? { tool: tool.title } : {}),
         options: permission.options.map((o) => ({ id: o.id, label: o.label, kind: o.kind })),
       };
       // One left from before the app started again is the same request: keep it.
-      const pending = await agent.requests(this.pane).catch(() => []);
-      const same = pending.find((r: any) => r.title === ask.title && JSON.stringify((r.options ?? []).map((o: any) => o.id)) === JSON.stringify(ask.options.map((o) => o.id)));
-      const made = same ? Number(same.id) : await agent.request(this.pane, ask, { wait: false, timeout: 0 }).catch(() => null);
-      const request = typeof made === "number" ? made : null;
-      if (this.asked.has(permission.id)) this.asked.set(permission.id, request);
-      else if (request !== null) {
+      const pending = await workspace.requests({ pane: paneRef(this.pane) }).catch(() => []);
+      const same = pending.find((r) => r.title === ask.title && JSON.stringify((r.options ?? []).map((o: any) => o.id)) === JSON.stringify(ask.options.map((o) => o.id)));
+      const opened = same ? same.id : await request.open(ask, { pane: paneRef(this.pane) }).catch(() => null);
+      if (this.asked.has(permission.id)) this.asked.set(permission.id, opened);
+      else if (opened !== null) {
         // It was answered or withdrawn while the request was being made.
         const option = this.picked.get(permission.id);
         this.picked.delete(permission.id);
-        await agent.answer(request, option ? { option } : null).catch(() => false);
+        await request.close(opened, option ? { answer: { option } } : {}).catch(() => null);
       }
     }
-    for (const [permission, request] of [...this.asked]) {
+    for (const [permission, asked] of [...this.asked]) {
       if (t.permissions.some((p) => p.id === permission)) continue;
       this.asked.delete(permission);
       const option = this.picked.get(permission);
       this.picked.delete(permission);
-      if (request !== null) await agent.answer(request, option ? { option } : null).catch(() => false);
+      if (asked !== null) await request.close(asked, option ? { answer: { option } } : {}).catch(() => null);
     }
   }
 
   /** The core's request `request` was answered elsewhere: answer the agent the same. */
-  answered(request: number, answer: unknown): void {
+  answered(request: string, answer: unknown): void {
     const option = answer && typeof answer === "object" ? (answer as { option?: unknown }).option : undefined;
     for (const [permission, asked] of this.asked) {
       if (asked !== request) continue;
@@ -317,8 +325,8 @@ async function bun(): Promise<string> {
 async function startHost(id: number, spec: HostSpec): Promise<void> {
   mkdirSync(hostsDir(), { recursive: true, mode: 0o700 });
   const log = openSync(join(hostsDir(), `${id}.log`), "a");
-  const child = spawn(await bun(), [join(plugin.dir, "src", "host.ts"), JSON.stringify(spec)], {
-    cwd: plugin.dir,
+  const child = spawn(await bun(), [join(self.plugin.dir, "src", "host.ts"), JSON.stringify(spec)], {
+    cwd: self.plugin.dir,
     detached: true,
     stdio: ["ignore", log, log],
     env: { ...process.env, BUN_BE_BUN: "1" },
@@ -393,7 +401,7 @@ async function stopHost(id: number): Promise<void> {
 
 /** Every ACP pane gets its host; a host whose pane is gone is stopped. */
 async function reconcile(): Promise<void> {
-  const ours = (await pane.list({ block: chatBlock() })).map((p) => Number(p));
+  const ours = (await workspace.panes({ block: chatBlock() })).map((each) => numberOf(each.id));
   for (const id of ours) void ensure(id).catch((err) => console.error(`acp: pane ${id}: ${err?.message ?? err}`));
   const dirs = [hostsDir(), join("/tmp", `pumi-acp-${process.getuid?.() ?? 0}`)].filter((dir) => existsSync(dir));
   for (const dir of dirs) {
@@ -405,15 +413,17 @@ async function reconcile(): Promise<void> {
 }
 
 on("pane.closed", (e) => {
-  if (e.data?.block === chatBlock()) void stopHost(Number(e.data.pane));
+  if (e.data?.block === chatBlock()) void stopHost(numberOf(String(e.pane)));
 });
 on("pane.opened", async (e) => {
-  const id = Number(e.data?.pane);
-  if ((await optionOn<string>(CONVERSATION, id)) === plugin.id) void ensure(id).catch(() => {});
+  const id = numberOf(String(e.pane));
+  if ((await optionOn<string>(CONVERSATION, id)) === self.plugin.id) void ensure(id).catch(() => {});
 });
-on("agent.resolved", async (e) => {
-  const each = await links.get(Number(e.data?.pane))?.catch(() => undefined);
-  each?.answered(Number(e.data?.id), e.data?.answer);
+on("request.closed", async (e) => {
+  const pane = typeof e.data?.pane === "string" ? numberOf(e.data.pane) : undefined;
+  if (pane === undefined) return;
+  const each = await links.get(pane)?.catch(() => undefined);
+  each?.answered(String(e.data?.request), e.data?.answer);
 });
 
 /** Where a new pane starts: the given directory, else the focused pane's. */
@@ -434,51 +444,51 @@ interface OpenArgs {
 
 /** An ACP pane beside `beside`: with `agent` it starts at once, else it asks which. */
 async function openPane(args: OpenArgs | undefined, mode: "new" | "pick" | "load", session?: string): Promise<number> {
-  const beside = args?.pane ?? (await pane.get().catch(() => undefined))?.id;
+  const beside = args?.pane ?? (await workspace.ready.then(() => (workspace.currentPane ? numberOf(workspace.currentPane.id) : undefined)));
   const near = typeof beside === "number" && Number.isInteger(beside) ? beside : undefined;
   const cwd = await cwdFrom(args?.cwd, near);
-  const opened = await pane.open(chatBlock(), {}, near !== undefined ? { beside: near } : {});
-  const id = Number(opened);
-  await option.set(CONVERSATION, plugin.id, { pane: id });
-  await option.set(CWD, cwd, { pane: id });
-  await option.set(MODE, mode === "load" ? "new" : mode, { pane: id });
-  if (session) await option.set(SESSION, session, { pane: id });
+  const opened = await workspace.openPane(chatBlock(), {}, near !== undefined ? { kind: "tiled", beside: paneRef(near) } : { kind: "tiled" });
+  const id = numberOf(opened.id);
+  await setOn(CONVERSATION, self.plugin.id, id);
+  await setOn(CWD, cwd, id);
+  await setOn(MODE, mode === "load" ? "new" : mode, id);
+  if (session) await setOn(SESSION, session, id);
   if (args?.agent) await begin(id, args.agent, cwd, mode === "pick" ? "pick" : "new");
   return id;
 }
 
-command("new", (args?: OpenArgs) => openPane(args, "new"));
-command("open", (args?: OpenArgs) => openPane(args, "pick"));
+fn.set("new", { desc: "An ACP pane beside the current one, its agent started at once.", parameters: [["table", "args"]] }, (args?: OpenArgs) => openPane(args, "new"));
+fn.set("open", { desc: "An ACP pane beside the current one, to pick an agent and a session in.", parameters: [["table", "args"]] }, (args?: OpenArgs) => openPane(args, "pick"));
 
 /** The busy states a handoff waits out. */
 const BUSY = new Set(["working", "blocked"]);
 
 /** A terminal agent's session, continued in an ACP pane in its place: once its turn is over, its TUI is closed. */
-command("handoff", async (args?: { pane?: number }) => {
-  const from = args?.pane ?? (await pane.get()).id;
+fn.set("handoff", { desc: "A terminal agent's session, continued in an ACP pane in its place.", parameters: [["table", "args"]] }, async (args?: { pane?: number }) => {
+  const from = args?.pane ?? (await here());
   const name = await optionOn<string>(AGENT, from);
   const session = await optionOn<string>(SESSION, from);
-  if ((await optionOn<string>(CONVERSATION, from)) === plugin.id) throw new ApiError("invalid_params", "acp: this is an ACP pane already");
-  if (!name || !session) throw new ApiError("invalid_params", "acp: the pane has no agent session to continue (`@agent` and `@agent_session`)");
+  if ((await optionOn<string>(CONVERSATION, from)) === self.plugin.id) throw new ApiError("invalid_params", "acp: this is an ACP pane already");
+  if (!name || !session) throw new ApiError("invalid_params", "acp: the pane has no agent session to continue (`@agent` and `@agent.session`)");
   if (!(await table())[name]) throw new ApiError("not_found", `acp: no ACP command for \`${name}\``);
-  for (let waited = 0; BUSY.has((await optionOn<string>("@agent_status", from)) ?? ""); waited += 500) {
-    if (waited === 0) void notify(`acp: waiting for ${name} to finish its turn`);
+  for (let waited = 0; BUSY.has((await optionOn<string>("@agent.status", from)) ?? ""); waited += 500) {
+    if (waited === 0) void request.open({ kind: "notification", title: `acp: waiting for ${name} to finish its turn` });
     if (waited > 120_000) throw new ApiError("timeout", `acp: ${name} is still busy`);
     await Bun.sleep(500);
   }
   const cwd = await cwdFrom(undefined, from);
   const id = await openPane({ pane: from, cwd }, "load", session);
   // One process owns a session: the TUI goes (closing its pane hangs it up) before the host loads it.
-  await pane.close(from);
+  await call("pane.close", paneRef(from));
   await Bun.sleep(1000);
   await begin(id, name, cwd, "new");
   return id;
 });
 
 /** An ACP pane's session, continued in its agent's own TUI in a terminal in its place. */
-command("back", async (args?: { pane?: number }) => {
-  const from = args?.pane ?? (await pane.get()).id;
-  if ((await optionOn<string>(CONVERSATION, from)) !== plugin.id) throw new ApiError("invalid_params", "acp: this is not an ACP pane");
+fn.set("back", { desc: "An ACP pane's session, continued in its agent's own TUI in a terminal in its place.", parameters: [["table", "args"]] }, async (args?: { pane?: number }) => {
+  const from = args?.pane ?? (await here());
+  if ((await optionOn<string>(CONVERSATION, from)) !== self.plugin.id) throw new ApiError("invalid_params", "acp: this is not an ACP pane");
   const name = (await optionOn<string>(AGENT, from)) ?? "";
   const session = await optionOn<string>(SESSION, from);
   const recipe = (await table())[name]?.resume;
@@ -486,10 +496,10 @@ command("back", async (args?: { pane?: number }) => {
   if (!line) throw new ApiError("invalid_params", `acp: no way to resume ${name || "this agent"}'s session in a terminal`);
   const cwd = (await optionOn<string>(CWD, from)) ?? homedir();
   await stopHost(from);
-  const opened = await pane.open("terminal", { cwd }, { beside: from });
-  await pane.call(opened, "input", { text: `${line}\r` });
-  await pane.close(from);
-  return Number(opened);
+  const opened = await workspace.openPane("terminal", { cwd }, { kind: "tiled", beside: paneRef(from), split: "right" });
+  await call("pane.call", opened.id, "input", { text: `${line}\r` });
+  await call("pane.close", paneRef(from));
+  return numberOf(opened.id);
 });
 
 // ── The conversation, for anyone ─────────────────────────────────────────────────────────────
@@ -501,7 +511,7 @@ async function transcriptOf(id: number): Promise<Transcript | undefined> {
   return each?.transcript;
 }
 
-provide(
+fn.set(
   names().read,
   {
     desc: "An ACP pane's conversation: the whole of it (`{snapshot, cursor}`), or nothing new when `since` is where it stands (`{changes: [], cursor}`).",
@@ -520,7 +530,7 @@ provide(
   },
 );
 
-provide(
+fn.set(
   names().send,
   {
     desc: "Send an ACP pane's agent a command (lib/conversation's `Command`: a prompt, a cancel, an answer, an option); answers the host's `Ack`.",
@@ -544,10 +554,10 @@ export async function agents(): Promise<{ id: string; name: string; installed: b
 /** Starts pane `id`'s agent in `cwd`: a new session, or the agent's list to pick from. */
 export async function begin(id: number, name: string, cwd: string, mode: "new" | "pick"): Promise<void> {
   if (!(await table())[name]) throw new ApiError("not_found", `acp: no agent \`${name}\``);
-  await option.set(CONVERSATION, plugin.id, { pane: id });
-  await option.set(CWD, await cwdFrom(cwd, undefined), { pane: id });
-  if (!(await optionOn<string>(SESSION, id))) await option.set(MODE, mode, { pane: id });
-  await option.set(AGENT, name, { pane: id });
+  await setOn(CONVERSATION, self.plugin.id, id);
+  await setOn(CWD, await cwdFrom(cwd, undefined), id);
+  if (!(await optionOn<string>(SESSION, id))) await setOn(MODE, mode, id);
+  await setOn(AGENT, name, id);
   await ensure(id);
 }
 
@@ -591,7 +601,7 @@ export async function login(id: number): Promise<void> {
   const words = (await table())[name]?.login;
   if (!words) throw new ApiError("not_found", `acp: no sign-in command for ${name}`);
   const cwd = (await optionOn<string>(CWD, id)) ?? homedir();
-  await pane.open("terminal", { command: words, cwd }, { beside: id, split: "down" });
+  await workspace.openPane("terminal", { command: words, cwd }, { kind: "tiled", beside: paneRef(id), split: "down" });
 }
 
 void reconcile().catch((err) => console.error(`acp: ${err?.message ?? err}`));

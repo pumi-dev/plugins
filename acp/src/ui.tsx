@@ -4,7 +4,7 @@
 // conversation, which the worker relays (`update.<pane>`, folded with `follow`) beside the host's
 // own state (`state.<pane>`).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useChannel, useChannelListener, useMetrics, usePane, useTheme, type RefLike, type RendererProps } from "pumi";
+import { useChannel, useChannelListener, useMetrics, useTheme, type PaneId, type RendererProps } from "pumi";
 
 import { follow, type Update } from "../../lib/conversation/src/change.ts";
 import type { Command, Transcript } from "../../lib/conversation/src/model.ts";
@@ -17,17 +17,17 @@ function swallow(err: unknown): void {
   console.error(`acp: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** A pane's number: a renderer is given a ref (`{ id: 3 }`), which a hook takes; the worker wants the number. */
-function paneId(pane: RefLike): number {
-  return typeof pane === "number" ? pane : pane.id;
+/** A pane's number: the worker names panes by it (`%3` is `3`). */
+function paneId(pane: PaneId): number {
+  return Number(pane.slice(pane.indexOf("/") + 1).replace(/^[%@$]/, ""));
 }
 
 /** The `chat` block's renderer: one ACP agent's pane. */
 export function Chat({ pane, focused }: RendererProps) {
-  const id = paneId(pane);
-  const options = usePane(pane)?.options ?? {};
+  const id = paneId(pane.id);
+  const options = pane.options ?? {};
   if (typeof options["@agent"] !== "string" || options["@agent"] === "") {
-    return <Chooser id={id} cwd={String(options["@acp_cwd"] ?? "")} mode={options["@acp_mode"] === "pick" ? "pick" : "new"} focused={focused} />;
+    return <Chooser id={id} cwd={String(options["@acp.cwd"] ?? "")} mode={options["@acp.mode"] === "pick" ? "pick" : "new"} focused={focused} />;
   }
   return <Live id={id} focused={focused} />;
 }
