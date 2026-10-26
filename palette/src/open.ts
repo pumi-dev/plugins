@@ -1,10 +1,9 @@
-// A file the palette chose: opened as `pumi open` does (`file.open`), in a file pane on the right
-// of the current pane, or the file pane in the tab showing it already, drawn by whichever enabled
-// plugin fits it. A file a text editor cannot show — an image, a PDF, a video, an archive — goes to
+// A file the palette chose: opened as `pumi open` does (`pane.open` of a `file` block), a file pane
+// on the right of the current pane, drawn by whichever enabled plugin fits it. A file a text editor cannot show — an image, a PDF, a video, an archive — goes to
 // `fs.open`, the desktop's own viewer for it, unless a viewer of its own kind is enabled (one
 // whose `match` fits it better than `*`).
 import { basename } from "node:path";
-import { file, fs } from "pumi";
+import { call, fs, registry } from "pumi";
 
 /** The kinds the desktop opens better than a text editor does. */
 const VIEWERS = new Set([
@@ -25,11 +24,11 @@ export function viewed(path: string): boolean {
 /** Opens `path` in a file pane, or with the desktop when only an editor of every file would draw it. */
 export async function openChosen(path: string): Promise<void> {
   if (viewed(path)) {
-    const viewers = await file.viewers(path).catch(() => []);
-    if (!viewers.some((v) => v.fit > 0)) {
-      await fs.open({ path });
+    const viewers = (await registry.list("viewer", { path }).catch(() => [])) as { fit?: number }[];
+    if (!viewers.some((v) => (v.fit ?? 0) > 0)) {
+      await fs.open(path);
       return;
     }
   }
-  await file.open(path);
+  await call("pane.open", ["file", { path }, { kind: "tiled", split: "right" }]);
 }

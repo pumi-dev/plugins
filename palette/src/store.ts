@@ -1,9 +1,10 @@
 // What the palette remembers between openings, and between runs: how often each command ran (so a
 // command the user reaches for often comes first among equals), the queries that ran (so ↑ can
 // bring one back), and the files opened lately (so an empty search leads with them). The core keeps
-// them in `~/.config/pumi/palette.json`; a package keeps the same three fields in its own storage,
-// which the server holds, so they survive the plugin host moving to another app.
-import { storage } from "pumi";
+// them in `~/.config/pumi/palette.json`; a package keeps the same three fields as one of its own
+// options, in the plugin scope, which the server holds, so they survive the plugin host moving to
+// another app.
+import { option } from "pumi";
 
 /** How many queries ↑ walks back through. */
 export const MAX_HISTORY = 50;
@@ -43,7 +44,7 @@ function parse(value: unknown): Store {
 /** The store as it stands. */
 export async function load(): Promise<Store> {
   try {
-    return parse(await storage.get(KEY));
+    return parse(await option.get(KEY));
   } catch {
     return { used: {}, history: [], files: [] };
   }
@@ -53,7 +54,7 @@ export async function load(): Promise<Store> {
  * without its history, it just forgets it. */
 export async function save(store: Store): Promise<void> {
   try {
-    await storage.set(KEY, { used: store.used, history: store.history.slice(-MAX_HISTORY), files: store.files.slice(0, MAX_RECENT_FILES) });
+    await option.set(KEY, { used: store.used, history: store.history.slice(-MAX_HISTORY), files: store.files.slice(0, MAX_RECENT_FILES) });
   } catch (err) {
     console.error(`palette: keeping its history failed: ${err instanceof Error ? err.message : String(err)}`);
   }

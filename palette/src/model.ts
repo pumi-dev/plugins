@@ -9,7 +9,7 @@
 // `ui.tsx` draws what `view()` answers; every gesture comes back here (a key typed, a row picked),
 // and answers the rows as they are afterwards.
 import { homedir } from "node:os";
-import { on, option, pane } from "pumi";
+import { call, on, option } from "pumi";
 
 import { Index, dirOf, nameOf, relativePath, rootFor, type Hit } from "./files.ts";
 import { openChosen } from "./open.ts";
@@ -93,7 +93,7 @@ class Model {
     this.cwd = await this.directory();
     this.ready = true;
     this.switch(this.opening ?? "commands");
-    on("menu.changed", { desc: "the palette follows the commands there are" }, () => void this.refresh());
+    on("registry.changed", { match: "menu", desc: "the palette follows the commands there are" }, () => void this.refresh());
   }
 
   /** The commands changed under it: they are listed again. */
@@ -122,9 +122,9 @@ class Model {
   /** The directory the palette searches: the one the current pane is in. */
   private async directory(): Promise<string> {
     try {
-      const current = await pane.get();
-      const id = typeof current?.id === "number" ? current.id : undefined;
-      const path = await option.get("pane_current_path", id === undefined ? {} : { pane: id });
+      const current = await call("pane.get", [null]);
+      const id = typeof current?.id === "string" ? current.id : undefined;
+      const path = await option.get("pane_current_path", id === undefined ? { scope: "global" } : { scope: "pane", id });
       return typeof path === "string" ? path : "";
     } catch {
       return "";
