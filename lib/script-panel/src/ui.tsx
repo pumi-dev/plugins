@@ -3,7 +3,7 @@
 // focus (its directory is what is listed) and re-reads when one of the package's options changes;
 // the walk and the running are `main.ts`'s, answered as data.
 import { useEffect, useState } from "react";
-import { Icon, useEvent, useFocusedPane, useMetrics, usePlugin, useTheme } from "pumi";
+import { Icon, useEvent, useMetrics, usePane, usePlugin, useTab, useTheme } from "pumi";
 
 import { run, type Page } from "./main.ts";
 
@@ -30,7 +30,7 @@ function plural(n: number, noun: string): string {
 export function ScriptPage({ load, options = [], noun = "script" }: ScriptPageProps) {
   const t = useTheme();
   const m = useMetrics();
-  const focused = useFocusedPane();
+  const focused = usePane(useTab()?.activePane?.id);
   const cwd = focused?.cwd ?? "/";
   // The package's options: one changing re-reads the page. The window names them with the prefix
   // the package's own options have (`amresyd.npm_scripts.show_command`).
