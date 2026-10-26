@@ -1,7 +1,7 @@
 // What the strip's two buttons do, each reading its pane afresh: Fork opens `pi --fork <session>`
 // in a pane beside that one, in the same directory; Copy puts the session's id, path and directory
 // on the clipboard.
-import { call, clipboard, type PaneId } from "pumi";
+import { clipboard, workspace, type PaneId } from "pumi";
 
 import { Session } from "./session.ts";
 import { setting } from "./settings.ts";
@@ -13,7 +13,7 @@ export async function fork(at: PaneId): Promise<void> {
   const args: Record<string, unknown> = { command };
   if (session.cwd !== null) args.cwd = session.cwd;
   const split = (await setting("side", "right")) === "down" ? "down" : "right";
-  await call("pane.open", ["terminal", args, { beside: at, split }]);
+  await workspace.openPane("terminal", args, { beside: at, split });
 }
 
 /** Puts the session's id, path and directory on the clipboard, and says what it put there. */

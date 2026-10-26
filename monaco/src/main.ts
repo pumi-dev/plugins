@@ -14,7 +14,7 @@
 // when the block's `reveal` says there is one.
 import { dirname } from "node:path";
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
-import { ApiError, call, fn, option, request, self, ui, type PaneId } from "pumi";
+import { ApiError, call, fn, option, request, self, ui, workspace, type PaneId } from "pumi";
 
 /** The core's block for a file, which the editor draws. */
 const BLOCK = "file";
@@ -44,14 +44,14 @@ function paneOf(what: unknown): PaneId | undefined {
 
 /** The current pane, as the app has it; null when there is none. */
 async function here(): Promise<{ id: PaneId; block: string } | null> {
-  const info = await call("pane.get", [null]).catch(() => null);
-  if (!info || typeof info.id !== "string") return null;
-  return { id: info.id, block: String(info.block) };
+  await workspace.ready.catch(() => undefined);
+  const pane = workspace.currentPane;
+  return pane === null ? null : { id: pane.id, block: String(pane.block) };
 }
 
 async function isEditor(id: PaneId): Promise<boolean> {
-  const info = await call("pane.get", [id]).catch(() => null);
-  return info?.block === BLOCK;
+  await workspace.ready.catch(() => undefined);
+  return workspace.getPane(id)?.block === BLOCK;
 }
 
 /** Writes the file pane `id` shows (the current pane without one) and answers its path; a pane

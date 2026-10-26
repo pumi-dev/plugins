@@ -15,7 +15,7 @@
 // - `save {source | path, out}` writes that SVG to a file and answers its path.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { call, fn, option, self, type PaneId } from "pumi";
+import { fn, option, self, workspace, type PaneId } from "pumi";
 import { agents as agentsOf, attach, type About, type Agent } from "./agents.ts";
 import { fail, message } from "./errors.ts";
 import type { Node } from "./nodes.ts";
@@ -65,8 +65,8 @@ function sourceOf(args: Args): string {
 /** The caller's pane, when it has one. */
 async function here(): Promise<PaneId | null> {
   try {
-    const current = await call("pane.get", [null]);
-    return typeof current?.id === "string" ? current.id : null;
+    await workspace.ready;
+    return workspace.currentPane?.id ?? null;
   } catch {
     return null;
   }
@@ -81,17 +81,19 @@ async function shown(first: unknown, second: unknown) {
   const source = sourceOf(args);
   const drawn = await picture(source);
   const target = typeof args.pane === "string" ? args.pane : null;
-  let id = target;
-  if (id === null) {
+  let id: PaneId;
+  if (target === null) {
     const beside = await here();
     const asked = args.place;
     const place =
       asked !== null && typeof asked === "object" && !Array.isArray(asked)
         ? asked
         : { kind: "tiled", ...(beside === null ? {} : { beside }), split: "right", size: "45%" };
-    id = (await call("pane.open", [self.plugin.prefixed("diagram"), { source }, place])) as PaneId;
+    id = (await workspace.openPane(self.plugin.prefixed("diagram"), { source }, place)).id;
     const title = typeof args.title === "string" && args.title !== "" ? args.title : drawn.kind;
     await option.set("title", title, { scope: "pane", id });
+  } else {
+    id = target;
   }
   // The view of that pane reads this, now and after a restart; setting it is what tells it to
   // draw again.

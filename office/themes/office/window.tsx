@@ -806,7 +806,7 @@ function Rename({ seat, onClose }: { seat: Seat; onClose(): void }) {
   const t = useTheme()
   const [value, setValue] = useState(seat.tab.label && !/^\d+$/.test(seat.tab.label) ? seat.tab.label : "")
   const done = (name: string) => {
-    call("tab.rename", num(seat.tab.tab_id), name.trim() || null).catch(swallow)
+    call("tab.update", seat.tab.tab_id, { name: name.trim() || null }).catch(swallow)
     onClose()
   }
   return (
@@ -964,7 +964,7 @@ function Hud({ shelf, look, decorating, onShelf, onLook, onEmote, onDecorate }: 
             key={status}
             onClick={() => {
               const next = agents.find((a) => a.agent_status === status)
-              if (next) call("pane.select", { pane: num(next.pane_id) }).catch(swallow)
+              if (next) call("pane.focus", next.pane_id).catch(swallow)
             }}
             style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, height: 26, paddingLeft: 10, paddingRight: 10, borderRadius: 13, cursor: status === "blocked" ? "pointer" : "default", backgroundColor: status === "blocked" ? "#ef476f33" : "#ffffff12" }}
           >
@@ -1073,8 +1073,8 @@ export function Office() {
     later(2600, () => setEmote((now) => (now === glyph ? null : now)))
   }
   const sit = (seat: Seat) => {
-    call("tab.select", { tab: num(seat.tab.tab_id) }).catch(swallow)
-    if (seat.pane) call("pane.select", { pane: num(seat.pane.pane_id) }).catch(swallow)
+    call("tab.focus", seat.tab.tab_id).catch(swallow)
+    if (seat.pane) call("pane.focus", seat.pane.pane_id).catch(swallow)
     g.stop()
     setShelf(false)
     setDecorating(false)
@@ -1084,7 +1084,7 @@ export function Office() {
     setSitting(null)
     setFocus((n) => n + 1)
   }
-  const newDesk = (pod: Pod) => call("pane.open", "terminal", {}, { kind: "tab", session: num(pod.session.workspace_id) }).catch(swallow)
+  const newDesk = (pod: Pod) => call("pane.open", "terminal", {}, { kind: "tab", session: pod.session.workspace_id }).catch(swallow)
   const useProp = (prop: Prop) => {
     if (prop.id === "shelf") setShelf((v) => !v)
     else if (prop.id === "coffee") {
@@ -1433,7 +1433,7 @@ export function Office() {
                   },
                 ]
               : []),
-            { label: "Close desk", icon: "close", danger: true, run: () => call("tab.close", num(menu.seat.tab.tab_id)).catch(swallow) },
+            { label: "Close desk", icon: "close", danger: true, run: () => call("tab.close", menu.seat.tab.tab_id).catch(swallow) },
           ]}
         />
       ) : null}

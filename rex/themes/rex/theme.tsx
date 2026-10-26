@@ -50,9 +50,9 @@ function Pills({ session }: { session?: string }) {
         return (
           <div
             key={tab.tab_id}
-            onClick={() => call("tab.select", { tab: num(tab.tab_id) }).catch((err: unknown) => console.error(`rex: ${String(err)}`))}
+            onClick={() => call("tab.focus", tab.tab_id).catch((err: unknown) => console.error(`rex: ${String(err)}`))}
             onAuxClick={(e: any) => {
-              if (e?.isRightClick) call("tab.close", num(tab.tab_id), true).catch(() => {})
+              if (e?.isRightClick) call("tab.close", tab.tab_id).catch(() => {})
             }}
             style={{
               display: "flex",

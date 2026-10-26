@@ -7,7 +7,7 @@
 // This is the package's logic half, in its worker: the trigger bound in the root key table as
 // its option says, the panes remembered as they are used, the float the switcher opens in, and
 // what `ui.tsx` asks of it as it draws — the cards, the pane a card picks, and the one it closes.
-import { call, fn, on, request, self, type PaneId } from "pumi";
+import { fn, on, option, request, self, workspace, type PaneId } from "pumi";
 
 import type { Card } from "./cards.ts";
 import { fromTrigger } from "./keys.ts";
@@ -26,13 +26,13 @@ let bound: string | null = null;
 async function bind(): Promise<void> {
   const wanted = await trigger();
   if (bound === wanted) return;
-  const found = await call("option.get", ["keys", { scope: "global" }]);
+  const found = await option.get("keys", { scope: "global" });
   const root: Keys = found && typeof found === "object" && !Array.isArray(found) ? { ...(found as Keys) } : {};
   const table = { ...(root.root ?? {}) };
   if (bound !== null) delete table[bound];
   table[wanted] = { call: self.plugin.prefixed("switch"), args: [] };
   bound = wanted;
-  await call("option.set", ["keys", { ...root, root: table }, { scope: "global" }]).catch((err: unknown) =>
+  await option.set("keys", { ...root, root: table }, { scope: "global" }).catch((err: unknown) =>
     console.error(`${self.plugin.prefix}: binding ${wanted} threw:`, err),
   );
 }
@@ -72,7 +72,8 @@ export interface Opened {
 export async function load(keep?: PaneId, at = 0): Promise<Opened> {
   const asked = await settings();
   const found = await makeCards(asked, recently());
-  const wanted = keep ?? (await call("pane.get", [null]))?.id;
+  await workspace.ready;
+  const wanted = keep ?? workspace.currentPane?.id;
   const index = found.findIndex((card) => card.pane === wanted);
   return {
     cards: found,
@@ -85,7 +86,8 @@ export async function load(keep?: PaneId, at = 0): Promise<Opened> {
 /** Goes to `to`, whichever tab its pane is in, and closes the float `from`. */
 export async function pick(to: PaneId, from: PaneId): Promise<void> {
   try {
-    await call("pane.focus", [to]);
+    await workspace.ready;
+    await workspace.getPane(to)?.focus();
   } catch (err) {
     request.open({ kind: "notification", title: `pane-switcher: ${message(err)}`, level: "error" });
   }
@@ -95,7 +97,8 @@ export async function pick(to: PaneId, from: PaneId): Promise<void> {
 /** Closes the pane a card shows. */
 export async function closePane(at: PaneId): Promise<void> {
   try {
-    await call("pane.close", [at]);
+    await workspace.ready;
+    await workspace.getPane(at)?.close();
   } catch (err) {
     request.open({ kind: "notification", title: `pane-switcher: ${message(err)}`, level: "error" });
   }
@@ -104,7 +107,8 @@ export async function closePane(at: PaneId): Promise<void> {
 /** Closes the float itself: a pane picked, or nothing left to pick. */
 export async function dismiss(from: PaneId): Promise<void> {
   try {
-    await call("pane.close", [from]);
+    await workspace.ready;
+    await workspace.getPane(from)?.close();
   } catch {
     // It is going anyway.
   }
@@ -125,11 +129,9 @@ function message(err: unknown): string {
  * is replaced. */
 async function open(): Promise<boolean> {
   try {
-    for (const other of await call("pane.list", [{ block: self.plugin.prefixed("switcher") }])) {
-      if (typeof other === "string") await call("pane.close", [other]);
-    }
+    for (const other of await workspace.panes({ block: self.plugin.prefixed("switcher") })) await other.close();
     const asked = await settings();
-    await call("pane.open", [self.plugin.prefixed("switcher"), {}, place(asked)]);
+    await workspace.openPane(self.plugin.prefixed("switcher"), {}, place(asked));
     return true;
   } catch (err) {
     request.open({ kind: "notification", title: `pane-switcher: ${message(err)}`, level: "error" });

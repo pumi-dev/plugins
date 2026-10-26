@@ -1,7 +1,7 @@
 // Which panes the switcher's scope and order ask for, and what each pane says of itself — its block
 // (which picks the card's icon), its title or the program in it, its `tab.pane` number and
 // directory, and its agent's state.
-import { call, option, self, type Layout, type PaneId, type SessionId, type TabId } from "pumi";
+import { option, self, workspace, type Layout, type PaneId, type TabId } from "pumi";
 
 import { kindIcon, MAX_CARDS, MAX_PREVIEWS, ordered, tilde, type Card } from "./cards.ts";
 import type { Settings } from "./settings.ts";
@@ -26,15 +26,13 @@ function leaves(layout: Layout | undefined, out: PaneId[]): void {
 
 /** The tabs the scope asks for. */
 async function tabs(settings: Settings): Promise<TabId[]> {
-  if (settings.scope === "tab") return [(await call("tab.get", [null])).id];
-  if (settings.scope === "all") {
-    const found: TabId[] = [];
-    for (const one of (await call("session.list", [])) as SessionId[]) {
-      found.push(...((await call("session.get", [one])).tabs as TabId[]));
-    }
-    return found;
+  await workspace.ready;
+  if (settings.scope === "tab") {
+    const here = workspace.currentTab;
+    return here === null ? [] : [here.id];
   }
-  return (await call("session.get", [null])).tabs as TabId[];
+  if (settings.scope === "all") return workspace.sessions.flatMap((session) => session.tabs.map((tab) => tab.id));
+  return (workspace.currentSession?.tabs ?? []).map((tab) => tab.id);
 }
 
 /** The panes the settings ask for, with the block each holds: laid out in a tab or floating over
@@ -43,11 +41,10 @@ async function panes(settings: Settings): Promise<{ pane: PaneId; block: string 
   const found: { pane: PaneId; block: string }[] = [];
   const own = self.plugin.prefixed("switcher");
   for (const at of await tabs(settings)) {
-    for (const each of (await call("pane.list", [{ tab: at }])) as PaneId[]) {
-      const { block, place } = await call("pane.get", [each]);
-      if (place.kind !== "tiled" && place.kind !== "float") continue;
-      if (block === own) continue;
-      found.push({ pane: each, block });
+    for (const pane of await workspace.panes({ tab: at })) {
+      if (pane.place?.kind !== "tiled" && pane.place?.kind !== "float") continue;
+      if (pane.block === own) continue;
+      found.push({ pane: pane.id, block: pane.block });
     }
   }
   return found;
@@ -58,11 +55,12 @@ async function panes(settings: Settings): Promise<{ pane: PaneId; block: string 
 async function where(at: PaneId, numbered: boolean): Promise<string> {
   if (!numbered) return "";
   try {
-    const pane = await call("pane.get", [at]);
-    if (pane.tab === null) return "";
-    const tab = await call("tab.get", [pane.tab]);
+    await workspace.ready;
+    const pane = workspace.getPane(at);
+    const tab = pane?.tab;
+    if (!pane || tab === null || tab === undefined) return "";
     const found: PaneId[] = [];
-    leaves(tab.layout as Layout, found);
+    leaves(tab.layout, found);
     return `${tab.index}.${found.indexOf(at)}`;
   } catch {
     return "";

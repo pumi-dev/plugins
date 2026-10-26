@@ -3,7 +3,7 @@
 // An agent's hook marks its pane with the option `@agent`; a pane whose program is a shell is not
 // an agent (its `pane_current_command` says one), whatever marked it. The note goes to the agents'
 // core plugin's `@agent_inbox`, a list of attachments it hands its agent with the next message.
-import { call, option, type PaneId } from "pumi";
+import { option, workspace, type PaneId } from "pumi";
 import type { Node } from "./nodes.ts";
 
 /** The agents' inbox (the agents core plugin's `@agent_inbox`) and how much it keeps. */
@@ -38,16 +38,16 @@ export interface About {
 export async function agents(here: PaneId): Promise<Agent[]> {
   const tabOf = async (id: PaneId): Promise<string | null> => {
     try {
-      const { place } = await call("pane.get", [id]);
-      const tab = (place as { kind?: string; tab?: string } | null)?.tab;
-      return typeof tab === "string" ? tab : null;
+      await workspace.ready;
+      const tab = workspace.getPane(id)?.tab;
+      return tab === null || tab === undefined ? null : tab.id;
     } catch {
       return null;
     }
   };
   let ids: PaneId[];
   try {
-    ids = ((await call("pane.list", [{}])) ?? []).filter((id: unknown): id is PaneId => typeof id === "string");
+    ids = (await workspace.panes()).map((pane) => pane.id);
   } catch {
     return [];
   }
