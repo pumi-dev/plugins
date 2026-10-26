@@ -4,7 +4,7 @@
 // `useSessions` and their options), read through `overview.ts`; a press goes to a pane with
 // `pane.focus`.
 import { useMemo, useState } from "react";
-import { Icon, call, useMetrics, usePane, usePanes, useSessions, useTab, useTabs, useTheme } from "pumi";
+import { Icon, useMetrics, usePane, usePanes, useSessions, useTab, useTabs, useTheme, workspace } from "pumi";
 
 import { Overview as Model, folder, path, place, type Agent } from "./overview.ts";
 import { FILTERS, filterLabel, needsYou, statusLabel, type Filter, type Status } from "./status.ts";
@@ -48,7 +48,7 @@ export function Overview() {
   /** A press on an agent: the first picks it, the second goes to its pane. */
   const press = (agent: Agent) => {
     if (picked === agent.pane) {
-      void call("pane.focus", agent.pane, {}).catch(swallow);
+      void workspace.getPane(agent.pane)?.focus().catch(swallow);
       return;
     }
     setPicked(agent.pane);
@@ -195,7 +195,7 @@ function Brief({ agent }: { agent: Agent }) {
         <text style={{ fontSize: 12, color: tone }}>{statusLabel(agent.status)}</text>
         <div style={{ flexGrow: 1 }} />
         <div
-          onClick={() => void call("pane.focus", agent.pane, {}).catch(swallow)}
+          onClick={() => void workspace.getPane(agent.pane)?.focus().catch(swallow)}
           style={{ display: "flex", paddingLeft: 8, paddingRight: 8, height: 24, alignItems: "center", borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: t.active, hover: { backgroundColor: t.hover } }}
         >
           <text style={{ fontSize: 12, color: t.text }}>Go to the pane</text>
