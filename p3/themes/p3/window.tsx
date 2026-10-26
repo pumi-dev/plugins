@@ -107,7 +107,7 @@ function paneTitle(p: PaneLike): string {
 }
 
 /** A tab's name: the one it was given, or else its focused pane's. */
-const tabTitle = (named: string | undefined, p: PaneLike | undefined) => (named && !/^\d+$/.test(named) ? named : p ? paneTitle(p) : "New thread")
+const tabTitle = (named: string | null | undefined, p: PaneLike | undefined) => (named && !/^\d+$/.test(named) ? named : p ? paneTitle(p) : "New thread")
 
 /** A worktree's folder name (`avid-storm`). */
 const shortName = (path: string) => path.replace(/\/+$/, "").split("/").pop() || path
@@ -149,7 +149,7 @@ const STATUS_WORD: Record<string, string> = { working: "Working", blocked: "Need
 // ── Small parts ────────────────────────────────────────────────────────────────────────────────
 
 /** A project's tag: its initials on a small chip; a session without a name gets a dashed box. */
-const ProjectTag = memo(function ProjectTag({ label }: { label?: string }) {
+const ProjectTag = memo(function ProjectTag({ label }: { label?: string | null }) {
   const t = useTheme()
   if (!label) return <div style={{ width: 13, height: 12, flexShrink: 0, borderRadius: 3, borderWidth: 1, borderStyle: "dashed", borderColor: t["p3.tagNone"] }} />
   return (
@@ -540,7 +540,7 @@ const NO_PANES: PaneInfo[] = []
  * its menu: the tab's, its focused pane's, its session's. It drags (onto a pane, to join that
  * tab), and a pane dropped on it moves into it.
  */
-const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: named, worktree, front }: { tab: string; session: string; project: string; label: string; worktree?: string; front: boolean }) {
+const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: named, worktree, front }: { tab: string; session: string; project: string; label: string | null; worktree?: string; front: boolean }) {
   const t = useTheme()
   const C = useComponents()
   const window = useWindow()

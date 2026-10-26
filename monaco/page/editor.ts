@@ -489,7 +489,7 @@ applyTheme(pumi.theme ?? {});
 pumi.onTheme(applyTheme);
 // The plugin's own options; the font came in `args` and follows through `configure`.
 const names: (keyof Config)[] = ["tab_size", "word_wrap", "minimap"];
-void Promise.all(names.map((name) => pumi.option(`${prefix}${name}`).catch(() => undefined))).then((values) => {
+void Promise.all(names.map((name) => pumi.call("option.get", [`${prefix}${name}`, { scope: "plugin", plugin: pumi.plugin }]).catch(() => undefined))).then((values) => {
   const read: Partial<Config> = {};
   names.forEach((name, i) => {
     if (values[i] !== undefined && values[i] !== null) (read as Record<string, unknown>)[name] = values[i];
@@ -499,6 +499,6 @@ void Promise.all(names.map((name) => pumi.option(`${prefix}${name}`).catch(() =>
 const first = typeof args.path === "string" ? args.path : "";
 void (async () => {
   const wanted = await at();
-  const path = wanted?.path || ((await pumi.option("path", { pane }).catch(() => null)) as string | null) || first;
+  const path = wanted?.path || ((await pumi.call("option.get", ["path", { scope: "pane", id: pane }]).catch(() => null)) as string | null) || first;
   await show(path ?? "", wanted?.path === path ? wanted : undefined);
 })();

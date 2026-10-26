@@ -10,7 +10,6 @@ import {
   commands,
   confirm,
   num,
-  openRemote,
   prompt,
   renderView,
   run,
@@ -171,7 +170,6 @@ function DesktopIcons({ top }: { top: number }) {
   const icons: { id: string; art: string; label: string; open(): void }[] = [
     { id: "computer", art: "computer", label: "My Computer", open: () => go("new_workspace") },
     { id: "dos", art: "dos", label: "MS-DOS Prompt", open: () => go("new_tab") },
-    { id: "network", art: "globe", label: "Network Neighborhood", open: () => openRemote(window.id) },
     ...(browser ? [{ id: "web", art: "globe", label: "Internet Explorer", open: () => go(BROWSER) }] : []),
     { id: "recycle", art: "recycle", label: "Recycle Bin", open: () => go("reopen_closed") },
   ]
@@ -654,7 +652,6 @@ function StartMenu({ close }: { close(): void }) {
       group: "main",
       items: [
         ...(palette ? [act("palette", "Commands…", () => go(PALETTE), { icon: "search", keys: keysOf(PALETTE) })] : []),
-        act("remote", "Computer…", () => openRemote(window.id), { icon: "globe" }),
       ],
     }),
     act("help", "Help", () => go("help"), { icon: "help", group: "main" }),

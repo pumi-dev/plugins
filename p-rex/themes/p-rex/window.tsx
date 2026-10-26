@@ -372,7 +372,7 @@ function TabStrip() {
  * on the others while hovered) lists its panes. It drags, and takes a pane dropped on it, as its
  * row in the side bar does.
  */
-const TopTab = memo(function TopTab({ tab: id, session, label: named, front }: { tab: string; session: string; label: string; front: boolean }) {
+const TopTab = memo(function TopTab({ tab: id, session, label: named, front }: { tab: string; session: string; label: string | null; front: boolean }) {
   const t = useTheme()
   const window = useWindow()
   const [hovered, setHovered] = useState(false)
@@ -808,7 +808,7 @@ const SessionHeading = memo(function SessionHeading({ session: id, label, folded
  * (its focused pane's tile, the most urgent agent's state), its name, and its rename, menu, drag
  * and drop.
  */
-function useTabItem(id: string, named: string) {
+function useTabItem(id: string, named: string | null) {
   const t = useTheme()
   const focused = useFocusedPane(id)
   const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === id && (p.place as { kind?: string } | undefined)?.kind !== "float") ?? NO_PANES)
@@ -833,7 +833,7 @@ function useTabItem(id: string, named: string) {
  * double click renames it, a right click (or the `…`) opens its menu. It drags (onto a pane, to
  * join that tab), and a pane dropped on it moves into it.
  */
-const TabRow = memo(function TabRow({ tab: id, session, label: named, worktree, front }: { tab: string; session: string; label: string; worktree?: string; front: boolean }) {
+const TabRow = memo(function TabRow({ tab: id, session, label: named, worktree, front }: { tab: string; session: string; label: string | null; worktree?: string; front: boolean }) {
   const t = useTheme()
   const C = useComponents()
   const window = useWindow()

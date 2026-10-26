@@ -295,7 +295,7 @@ export function Label({ children, color, bold, style }: { children: ReactNode; c
 }
 
 /** A tab's name as its window says it: its own, or `Tab n` for one not named. */
-export function tabName(tab: { label?: string; number?: number } | undefined, index?: number): string {
+export function tabName(tab: { label?: string | null; number?: number } | undefined, index?: number): string {
   if (tab?.label && !/^\d+$/.test(tab.label)) return tab.label
   return `Tab ${index !== undefined ? index + 1 : (tab?.number ?? "")}`.trim()
 }

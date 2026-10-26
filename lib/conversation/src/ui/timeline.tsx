@@ -2,7 +2,7 @@
 // show; "Show earlier" brings the page before. Thoughts fold, tool cards fold (a change or a
 // failure starts open), a plan is a checklist.
 import { useState } from "react";
-import { Icon, useMetrics, useTheme } from "pumi";
+import { Icon, useFont, useMetrics, useTheme } from "pumi";
 
 import type { Entry, PlanItem, Tool, ToolContent, Transcript } from "../model.ts";
 import { imageSource, outputShown, patchOf, toolKindIcon, toolLine, toolOpensByDefault, toolStatusIcon, turnLine, visibleEntries } from "../view.ts";
@@ -51,6 +51,35 @@ export function Timeline({ transcript, pageSize = 60, onLink }: TimelineProps) {
   );
 }
 
+/**
+ * Text as the chat draws it: a `<text>` a line, a plain paragraph's or a terminal's.
+ *
+ * TODO(api-server): `<markdown>`, `<diff>` and `<code>` are no longer elements the app draws
+ * (`runtime/app/jsx-runtime.ts` lists `div`, `text`, `img`, `svg`, `terminal`, …), so an agent's
+ * markdown, a tool's patch and a command's output are drawn as their plain text: no emphasis, no
+ * links to press, no diff colours and no line numbers. `onLink` waits for the element to come back.
+ */
+function Prose({ text, muted = false, mono = false, style }: { text: string; muted?: boolean; mono?: boolean; style?: Record<string, unknown> }) {
+  const t = useTheme();
+  const m = useMetrics();
+  const font = useFont();
+  const line = {
+    fontSize: mono ? m.fontSize - 1 : m.fontSize,
+    color: muted ? t.muted : t.text,
+    ...(mono ? { fontFamily: font.family, whiteSpace: "nowrap" as const } : {}),
+    ...style,
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+      {text.split("\n").map((each, at) => (
+        <text key={at} style={line}>
+          {each === "" ? " " : each}
+        </text>
+      ))}
+    </div>
+  );
+}
+
 export interface EntryViewProps {
   entry: Entry;
   onLink?(url: string): void;
@@ -60,21 +89,19 @@ export interface EntryViewProps {
 export function EntryView({ entry, onLink }: EntryViewProps) {
   const t = useTheme();
   const m = useMetrics();
-  const text = useTextTheme();
-  const link = onLink ? (e: { value?: string }) => e.value && onLink(e.value) : undefined;
   switch (entry.kind) {
     case "user":
       return (
         <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-end" }}>
           <div style={{ display: "flex", flexDirection: "column", maxWidth: "85%", paddingLeft: 10, paddingRight: 10, paddingTop: 6, paddingBottom: 6, borderRadius: m.radius, backgroundColor: t.selected }}>
-            <markdown source={entry.text ?? ""} theme={text} onLinkClick={link} />
+            <Prose text={entry.text ?? ""} />
           </div>
         </div>
       );
     case "agent":
       return (
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <markdown source={entry.text ?? ""} theme={text} onLinkClick={link} />
+          <Prose text={entry.text ?? ""} />
           {entry.clipped ? <Clipped /> : null}
         </div>
       );
@@ -121,7 +148,6 @@ function Clipped() {
 /** The agent's reasoning, folded to one line until pressed. */
 export function Thought({ entry }: { entry: Entry }) {
   const t = useTheme();
-  const text = useTextTheme();
   const [open, setOpen] = useState(false);
   const first = (entry.text ?? "").trim().split("\n")[0] ?? "";
   return (
@@ -142,7 +168,7 @@ export function Thought({ entry }: { entry: Entry }) {
       </Press>
       {open ? (
         <div style={{ display: "flex", flexDirection: "column", paddingLeft: 15, borderLeftWidth: 1, borderColor: t.border }}>
-          <markdown source={entry.text ?? ""} theme={{ ...text, text: text.textMuted }} />
+          <Prose text={entry.text ?? ""} muted />
         </div>
       ) : null}
     </div>
@@ -191,13 +217,12 @@ export function ToolCard({ tool }: { tool: Tool }) {
 export function ToolPart({ part, running = false }: { part: ToolContent; running?: boolean }) {
   const t = useTheme();
   const m = useMetrics();
-  const text = useTextTheme();
   switch (part.type) {
     case "text":
-      return <markdown source={part.text} theme={text} />;
+      return <Prose text={part.text} />;
     case "diff": {
       const patch = patchOf(part);
-      return patch === "" ? <text style={{ fontSize: 12, color: t.faint }}>{`${part.path}: no change`}</text> : <diff patch={patch} wordDiff maxLines={400} theme={text} />;
+      return patch === "" ? <text style={{ fontSize: 12, color: t.faint }}>{`${part.path}: no change`}</text> : <Prose text={patch} mono style={{ maxHeight: 320 }} />;
     }
     case "terminal":
       return (
@@ -205,7 +230,9 @@ export function ToolPart({ part, running = false }: { part: ToolContent; running
           {part.output === "" ? (
             <text style={{ fontSize: 12, color: t.faint }}>No output yet</text>
           ) : (
-            <code code={outputShown(part.output, running)} theme={text} style={{ padding: 6, borderRadius: m.radiusSmall, backgroundColor: t.editor, maxHeight: 320, overflowY: "scroll" }} />
+            <div style={{ padding: 6, borderRadius: m.radiusSmall, backgroundColor: t.editor, maxHeight: 320, overflowY: "scroll" }}>
+              <Prose text={outputShown(part.output, running)} mono />
+            </div>
           )}
           {part.exitCode !== undefined ? <text style={{ fontSize: 11, color: part.exitCode === 0 ? t.faint : t.error }}>{`exit ${part.exitCode}`}</text> : null}
         </div>
