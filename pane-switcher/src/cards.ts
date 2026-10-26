@@ -1,6 +1,7 @@
 // The cards the switcher shows: what one card is made of, and the order the cards go in. What a
 // card says of its pane is read from the app (`panes.ts`); the shape of a card and how the cards
 // are ranked is here, where it is read without the app.
+import type { PaneId } from "pumi";
 
 /** How many cards are worth drawing, and how many are worth a screen: a switcher with more panes
  * than this is a picker's job. */
@@ -10,7 +11,7 @@ export const MAX_PREVIEWS = 20;
 /** One pane, as a card shows it. */
 export interface Card {
   /** The pane it is. */
-  pane: number;
+  pane: PaneId;
   /** Its block (`terminal`, `amresyd.browser.page`, …). */
   kind: string;
   /** Its title, or what it runs, or its block. */
@@ -40,9 +41,9 @@ export function kindIcon(kind: string): string {
 
 /** `cards` in the order to show them: the most recent first when `byRecent`, and the rest as they
  * came (a tab's layout order). Sorting is stable, so a pane nobody has visited keeps its place. */
-export function ordered<T extends { pane: number }>(cards: T[], recent: number[], byRecent: boolean): T[] {
+export function ordered<T extends { pane: PaneId }>(cards: T[], recent: PaneId[], byRecent: boolean): T[] {
   if (!byRecent) return [...cards];
-  const rank = (at: number) => {
+  const rank = (at: PaneId) => {
     const seen = recent.indexOf(at);
     return seen < 0 ? Number.MAX_SAFE_INTEGER : seen;
   };
