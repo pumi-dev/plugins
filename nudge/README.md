@@ -3,7 +3,7 @@
 A notification from the OS the moment an agent stops to wait for you or finishes a turn, so a long
 turn does not need the window watched.
 
-An agent reports what it is doing as it goes (OSC 7501, which `pumi skill setup` installs the hooks
+An agent reports what it is doing as it goes (OSC 7501, which `pumi skill add` installs the hooks
 for), and the core keeps it on the pane as `@agent.status`. This watches that word:
 
 | State | The notice |

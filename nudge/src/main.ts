@@ -3,7 +3,7 @@
 // opens no pane, so it has no `ui.tsx` for the window to draw.
 //
 // An agent's state is its pane's `@agent.status` (one word: `working`, `blocked`, `done`, `idle`,
-// `error`), which the agents' hooks report (`pumi skill setup` installs them). A change to
+// `error`), which the agents' hooks report (`pumi skill add` installs them). A change to
 // `blocked` or `done` (and `error`, when asked for) is posted with `request.open` as a
 // notification: the pane goes with it, so a click can show it where the app supports one, and the
 // pane's id is the notice's group, so a second notice for a pane replaces the first instead of

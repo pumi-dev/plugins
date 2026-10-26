@@ -11,7 +11,7 @@ reads `Key Binding Fix` and `Screenshot UI Redesign` instead of `Tab 1`, `Tab 2`
 Each time an agent's pane title changes (pi's `π - <session> - <folder>`, Claude Code's
 `✳ <summary>`), the tab it is in is named again from the titles of every agent in it, the one in
 front first. A pane counts as an agent's when it has `@agent` or `@agent.status`
-(`pumi skill setup` installs the hooks). Titles that name no task (`π - pumi`, `Claude Code`) are
+(`pumi skill add` installs the hooks). Titles that name no task (`π - pumi`, `Claude Code`) are
 skipped, and the same titles are never asked about twice.
 
 ## Your names win

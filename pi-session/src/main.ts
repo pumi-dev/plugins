@@ -3,7 +3,7 @@
 // path and directory on the clipboard.
 //
 // A pane is pi's when its agent's hook said so: `@agent` is `pi` and `@agent.session` is set
-// (`pumi skill setup pi`). The buttons are `ui.tsx`'s (the manifest's `contributes.slots.
+// (`pumi skill add pi`). The buttons are `ui.tsx`'s (the manifest's `contributes.slots.
 // pane.toolbar`), which draws them on those panes alone; what they do is here.
 import type { PaneId } from "pumi";
 

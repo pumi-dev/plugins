@@ -231,7 +231,7 @@ export class Bridge {
     const file = locate(this.spec.format, this.spec.id, this.#where());
     if (!file) {
       if (this.#waiting === undefined) {
-        const said = this.#options.session ? `Waiting for ${this.spec.label} to write its session file…` : `Waiting for ${this.spec.label} to say which session it is in (its hook: \`pumi skill setup ${this.spec.id}\`)…`;
+        const said = this.#options.session ? `Waiting for ${this.spec.label} to write its session file…` : `Waiting for ${this.spec.label} to say which session it is in (its hook: \`pumi skill add ${this.spec.id}\`)…`;
         const notice = noticeChange(said, "info", this.producer);
         this.#waiting = notice.type === "push" ? notice.entry.id : undefined;
         this.#push(notice);

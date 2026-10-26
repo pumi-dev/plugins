@@ -3,7 +3,7 @@
 // `ui.tsx` for the window to draw.
 //
 // An agent's state is its pane's `traits.agent.status` (one word: `working`, `blocked`, `done`,
-// `idle`, `error`), which agents' hooks report (`pumi skill setup` installs them). A notice says
+// `idle`, `error`), which agents' hooks report (`pumi skill add` installs them). A notice says
 // how many are blocked once each time the count goes up; the Dock bounce and the badge come with
 // the system mod (phase 4). What is said is `count.ts`'s rule; this reads the panes.
 import { on, option, self, workspace } from "pumi";
