@@ -200,12 +200,10 @@ bun test
 macOS and Linux: the pairing reads `/etc/ssh` and writes `~/.ssh/authorized_keys`, which is where a
 POSIX sshd looks. (Heeler has Windows Hosts of its own; this plugin does not cover them.)
 
-**A note on the typecheck.** The plugin runs in the released pumi app (0.42.0) and uses the SDK that
-app ships: `provide`, `notify`, `plugin.prefixed`, numeric pane ids. The pumi checkout beside this
-repository is mid-move to the v-next SDK (`fn.set`, string ids, `self.plugin`), so `tsc` against that
-checkout reports those SDK moves for every package in this repository, this one included — not
-runtime errors. The live plugin loads and runs; the port to the new SDK is a separate change once
-pumi settles.
+**A note on the typecheck.** The plugin is written against the pumi checkout beside this
+repository: the SDK it ships (`fn.set`, `option.set`, `workspace` models, prefixed string ids —
+`%3`, `@2`, `$1`, `+7`), not the one the released app (0.42.0) had. `./node_modules/.bin/tsc
+--noEmit` against that checkout is the check that matters, and it is clean.
 
 Ported from Heeler's herdr plugin (Apache-2.0, `plugin/` of
 [ZingerLittleBee/Heeler](https://github.com/ZingerLittleBee/Heeler)): the Pairing Code envelope, keys,
