@@ -6,7 +6,7 @@ what changed. It draws nothing: **the agents sidebar is the app theme's**
 (`runtime/app/app/theme/default.tsx`, `cmd+b`), and this package has no `slots`.
 
 ```sh
-pumi pack add ~/Kitchen/pumi-plugins/agents   # links it; it starts with the app
+pumi plugin add ~/Kitchen/pumi-plugins/agents   # links it; it starts with the app
 ```
 
 ## What an agent is told
@@ -34,7 +34,7 @@ reads off the API (`session.get`, `tab.get`, `pane.list` and each pane's options
 after a compaction), only what changed at a prompt, nothing when nothing changed.
 
 An agent that is turned off, or the master switch, and it is told nothing. Its own reports —
-`@agent.status`, `@program_status` (OSC 7501) — are what the map says of it; the hook that
+`@agent.status` (OSC 7501) — are what the map says of it; the hook that
 reports them, and the `restore_command` a pane comes back with, are `pumi skill`'s.
 
 ## Options
