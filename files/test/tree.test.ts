@@ -526,3 +526,20 @@ test("a project inside a repository starts at its root, and git's state is on th
   expect(rowOf(panel.rows(), entryKey("crates/one/src/lib.rs")).color).toBe("added");
   expect(rowOf(panel.rows(), entryKey("crates/one/src")).color).toBe("added");
 });
+
+test("a project shown again comes back with the folders it had open", () => {
+  const one = scratch("one");
+  write(one, "src/main.rs", "main");
+  const two = scratch("two");
+  write(two, "lib/x.rs", "x");
+  const panel = panelIn(one);
+  panel.refresh(one);
+  panel.state.expanded.add("src");
+  // A folder deeper in the same project is the same tree: nothing closes.
+  panel.refresh(join(one, "src"));
+  expect(keys(panel.rows())).toEqual([entryKey(""), entryKey("src"), entryKey("src/main.rs")]);
+  panel.refresh(two);
+  expect(keys(panel.rows())).toEqual([entryKey(""), entryKey("lib")]);
+  panel.refresh(one);
+  expect(keys(panel.rows())).toEqual([entryKey(""), entryKey("src"), entryKey("src/main.rs")]);
+});

@@ -3,7 +3,7 @@
 // focus (its directory is what is listed) and re-reads when one of the package's options changes;
 // the walk and the running are the package's `main.ts`'s, answered as data: `load` and `run` come
 // from it as props, since a library's `main.ts` is not a page of its own.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon, useEvent, useHover, useMetrics, usePane, usePlugin, useTab, useTheme } from "pumi";
 
 import type { Group, Item, Page } from "./main.ts";
@@ -53,7 +53,11 @@ export function ScriptPage({ load, run, options = [], noun = "script" }: ScriptP
   const t = useTheme();
   const m = useMetrics();
   const focused = usePane(useTab()?.activePane?.id);
-  const cwd = focused?.cwd ?? "/";
+  // A pane with no directory of its own yet (a tab just opened) is not somewhere the user went:
+  // the page stays where it was rather than reading `/` and then reading it all again.
+  const last = useRef<string | null>(null);
+  if (focused?.cwd && focused.cwd !== "/") last.current = focused.cwd;
+  const cwd = last.current ?? "/";
   // The package's options: one changing re-reads the page. The window names them with the prefix
   // the package's own options have (`amresyd.npm_scripts.show_command`).
   const id = usePlugin() ?? "";

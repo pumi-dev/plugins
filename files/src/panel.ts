@@ -65,6 +65,9 @@ export const DEFAULT_SETTINGS: Settings = {
 /** How many rows the search shows: the best of them, which is all a list of matches is read for. */
 const FILTER_LIMIT = 500;
 
+/** How many projects the panel remembers the open folders of, besides the one it shows. */
+const LEFT_PROJECTS = 20;
+
 export class Panel {
   tree: Tree;
   state: State = initialState();
@@ -87,6 +90,11 @@ export class Panel {
   /** The pane whose directory the panel follows, when one is known: a file opens beside it. */
   followedPane: number | null = null;
   private listeners = new Set<() => void>();
+  /** Whether a pane's directory has pointed the panel anywhere yet: until then its root is only
+   *  where the worker started, which holds nothing. */
+  private pointed = false;
+  /** The projects shown before, by root, as they were left: oldest first. */
+  private left = new Map<string, { state: State; selection: string | null }>();
 
   constructor(root: string) {
     this.tree = new Tree(root);
@@ -146,16 +154,27 @@ export class Panel {
 
   /**
    * Points the panel at `cwd`: the same project is only read again, another one is a new tree with
-   * the same settings, clipboard and cursor.
+   * the same settings and clipboard. A project shown before comes back as it was left: its open
+   * folders and its cursor.
    */
   refresh(cwd: string): void {
     const wanted = new Tree(cwd);
-    if (wanted.root === this.tree.root) {
+    // The same project, or a folder inside it that is no repository of its own (a file opened from
+    // a project that is not in git has its folder as its pane's directory): the tree stays.
+    const inside = this.pointed && !wanted.hasGitRepo && holds(this.tree.root, wanted.root);
+    this.pointed = true;
+    if (wanted.root === this.tree.root || inside) {
       this.rescan();
       return;
     }
+    this.left.set(this.tree.root, { state: this.state, selection: this.selection });
+    const back = this.left.get(wanted.root);
+    this.left.delete(wanted.root);
     this.tree = wanted;
-    this.state = initialState();
+    this.state = back?.state ?? initialState();
+    this.selection = back?.selection ?? null;
+    // Kept for the most recent projects only.
+    while (this.left.size > LEFT_PROJECTS) this.left.delete(this.left.keys().next().value!);
   }
 
   /** Reads git's state and the disk again. */
