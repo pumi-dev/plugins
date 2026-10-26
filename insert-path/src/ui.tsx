@@ -3,7 +3,7 @@
 // program and closes. The walk, the matching and the quoting are pure modules; what it was opened
 // with, and what typing into the terminal does, is the worker's (`main.ts`).
 import { useEffect, useState } from "react";
-import { Icon, call, useMetrics, useTheme, type Ref } from "pumi";
+import { Icon, call, useMetrics, useTheme, type PaneId } from "pumi";
 
 import type { PickerArgs } from "./main.ts";
 import { args as opened } from "./main.ts";
@@ -31,8 +31,8 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 
 /** Types `text` into pane `id`. `say` tells the user when it cannot: an insert does, a cancel does
  * not (the terminal it was opened from may be gone by then). */
-function type(id: number, text: string, say = true): void {
-  call("pane.call", id, "input", { text }).catch((err: unknown) => {
+function type(id: PaneId, text: string, say = true): void {
+  call("pane.call", [id, "input", { text }]).catch((err: unknown) => {
     if (say) console.error(`insert-path: ${message(err)}`);
   });
 }
@@ -47,7 +47,7 @@ function iconName(extension: string | null): string | null {
 }
 
 /** The picker's own view: the header, the matches, and the field. */
-export function Picker({ pane }: { pane: Ref }) {
+export function Picker({ pane }: { pane: PaneId }) {
   const t = useTheme();
   const m = useMetrics();
   const [config, setConfig] = useState<PickerArgs | undefined>(undefined);
@@ -85,14 +85,14 @@ export function Picker({ pane }: { pane: Ref }) {
   const insert = (text: string) => {
     setDone(true);
     if (term !== undefined) type(term, quoting ? quote(text) : text);
-    call("pane.close", pane).catch(() => {});
+    call("pane.close", [pane]).catch(() => {});
   };
 
   /** Closes without picking; a bare trigger key is typed back so what was typed still lands. */
   const dismiss = () => {
     setDone(true);
     if (term !== undefined && query === "" && cancel !== null) type(term, cancel, false);
-    call("pane.close", pane).catch(() => {});
+    call("pane.close", [pane]).catch(() => {});
   };
 
   const refilter = (text: string) => {

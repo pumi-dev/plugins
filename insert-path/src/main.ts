@@ -6,12 +6,12 @@
 // What is here is the logic: the key that opens it, the float it opens, and what it is opened with.
 // `ui.tsx` draws the picker; the walk, the matching and the quoting are `entries.ts`, `match.ts` and
 // `path.ts`.
-import { call, notify, on, option, pane, plugin, provide } from "pumi";
+import { call, fn, on, option, request, self, workspace, type PaneId } from "pumi";
 
 /** What the picker's float is opened with. */
 export interface PickerArgs {
   /** The terminal pane the path is typed into. */
-  pane?: number;
+  pane?: PaneId;
   /** The directory it lists; the package's own working directory without. */
   cwd?: string;
   /** Wrap the path in quotes when a shell would split it (`true` without). */
@@ -45,20 +45,20 @@ async function height(): Promise<number> {
 }
 
 /** The caller's pane, or `undefined` when there is none. */
-async function currentPane(): Promise<number | undefined> {
+async function currentPane(): Promise<PaneId | undefined> {
   try {
-    const current = await pane.get();
-    return typeof current?.id === "number" ? current.id : undefined;
+    await workspace.ready;
+    return workspace.currentPane?.id;
   } catch {
     return undefined;
   }
 }
 
 /** The picker's pane, if one is open. */
-async function picker(): Promise<number | undefined> {
+async function picker(): Promise<PaneId | undefined> {
   try {
-    const [first] = (await pane.list({ block: plugin.prefixed("picker") })) ?? [];
-    return typeof first === "number" ? first : undefined;
+    const [first] = await workspace.panes({ block: self.plugin.prefixed("picker") });
+    return first?.id;
   } catch {
     return undefined;
   }
@@ -76,14 +76,14 @@ export async function args(): Promise<PickerArgs> {
 /** Close the picker, wherever it is. */
 async function close(): Promise<void> {
   const open = await picker();
-  if (open !== undefined) await pane.close(open);
+  if (open !== undefined) await call("pane.close", [open]);
 }
 
 /** Open the picker over the tab of `event.pane`, or of the current pane. Whether it opened. */
-async function open(event: { pane?: number } = {}): Promise<boolean> {
-  const term = typeof event?.pane === "number" ? event.pane : await currentPane();
+async function open(event: { pane?: PaneId } = {}): Promise<boolean> {
+  const term = typeof event?.pane === "string" ? event.pane : await currentPane();
   if (term === undefined) {
-    await notify("insert-path: no pane to pick a path for", "error");
+    await request.open({ kind: "notification", title: "insert-path: no pane to pick a path for", level: "error" });
     return false;
   }
   await close();
@@ -95,52 +95,58 @@ async function open(event: { pane?: number } = {}): Promise<boolean> {
     // not, so there is nothing to type back.
     cancel: bare(pressed) ? pressed : null,
   };
-  const cwd = await option.get("pane_current_path", { pane: term });
+  const cwd = await option.get("pane_current_path", { scope: "pane", id: term });
   if (typeof cwd === "string" && cwd !== "") args.cwd = cwd;
   opened = args;
   // `row` anchors it under the tabline; without it the host centers the float in the tab, and a
   // press outside it dismisses it.
   try {
-    await pane.open(plugin.prefixed("picker"), args, {
+    await workspace.openPane(self.plugin.prefixed("picker"), args, {
       kind: "float",
       width: "28%",
       height: await height(),
       row: 1,
-      zindex: 60,
+      zIndex: 60,
       focus: false,
       dismiss: ["press"],
     });
   } catch (err) {
-    await notify(`insert-path: ${message(err)}`, "error");
+    await request.open({ kind: "notification", title: `insert-path: ${message(err)}`, level: "error" });
     return false;
   }
   return true;
+}
+
+/** The server's key tables, as its `keys` option holds them. */
+type Keys = Record<string, Record<string, { call: string; args: unknown[] }>>;
+
+/** The terminal's key table, with `pressed` bound and `previous` taken out. */
+async function bindInto(pressed: string, previous: string | null): Promise<Keys> {
+  const found = await option.get("keys", { scope: "global" });
+  const root: Keys = found && typeof found === "object" && !Array.isArray(found) ? { ...(found as Keys) } : {};
+  const table = { ...(root.terminal ?? {}) };
+  if (previous !== null) delete table[previous];
+  table[pressed] = { call: self.plugin.prefixed("open"), args: [] };
+  return { ...root, terminal: table };
 }
 
 /** Bind `trigger` in the terminal's key table, and unbind the last one. */
 async function bind(): Promise<void> {
   const pressed = await trigger();
   if (bound === pressed) return;
-  // `key.set` has no disposer of its own: the last trigger is unbound here, and the app undoes what
-  // is left when the plugin stops.
-  if (bound !== null) {
-    const previous = bound;
-    bound = null;
-    await call("key.del", "terminal", previous).catch((err: unknown) => console.error(`insert-path: key.del ${previous}: ${message(err)}`));
-  }
+  // The `keys` option has no disposer of its own: the last trigger is unbound here, and the app
+  // undoes what is left when the plugin stops.
+  const previous = bound;
+  bound = null;
   try {
-    await call("key.set", "terminal", pressed, (event: { pane?: number }) => void open(event), { desc: "Insert a path…" });
+    await option.set("keys", await bindInto(pressed, previous), { scope: "global" });
     bound = pressed;
   } catch (err) {
     // Nothing is recorded, so the next change asks again rather than thinking it is bound.
-    console.error(`insert-path: key.set ${pressed}: ${message(err)}`);
+    console.error(`insert-path: keys ${pressed}: ${message(err)}`);
   }
 }
 
 void bind();
-on("option.changed", { match: plugin.prefixed("trigger"), desc: "insert-path follows its trigger" }, () => bind());
-provide(
-  plugin.prefixed("open"),
-  { desc: "Open the path picker over the current tab.", examples: [{ args: [] }] },
-  (event: { pane?: number } = {}) => open(event ?? {}),
-);
+on("option.changed", { match: self.plugin.prefixed("trigger"), desc: "insert-path follows its trigger" }, () => bind());
+fn.set(self.plugin.prefixed("open"), { desc: "Open the path picker over the current tab.", callback: (event: { pane?: PaneId } = {}) => open(event ?? {}) });
