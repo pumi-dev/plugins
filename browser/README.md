@@ -34,7 +34,7 @@ The command's address is its argument (`{ url }`, or a plain string), else the a
 | | |
 | --- | --- |
 | the toolbar | back, forward, reload (stop while it loads; disabled where there is nowhere to go), the address, the page's name, devtools |
-| the keys | `cmd+l` the address, `cmd+r` reload, `cmd+[` back, `cmd+]` forward — the view's own, while it has the keyboard (they are not in Settings → Keys: a key there runs a command, and these are the page's) |
+| the keys | `cmd+l` the address, `cmd+r` reload, `cmd+[` back, `cmd+]` forward on macOS; `ctrl+l`, `ctrl+r` or F5, `alt+left`, `alt+right` on Windows and Linux — the view's own, while it has the keyboard (they are not in Settings → Keys: a key there runs a command, and these are the page's) |
 | the address bar | what the app's own resolves: a URL, a host (`example.com`, `localhost:3000`) as an address, anything else as a search of `browser.search_url` |
 | `url` (option, pane, block) | the page the pane is on. Setting it navigates that pane; the page writes it back as it goes |
 | the state | the address is the pane's `url` option and the name is its `title`, which the page reports: panes that come back come back where they were |

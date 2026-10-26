@@ -103,17 +103,17 @@ fn.set(
 );
 fn.set(
   "page.back",
-  { desc: "Step back in a page's history, as `cmd+[` does.", effect: "write", parameters: [["string", "pane"]] },
+  { desc: "Step back in a page's history, as `cmd+[` does (`alt+left` on Windows and Linux).", effect: "write", parameters: [["string", "pane"]] },
   (pane: unknown) => tell(paneOf(pane), "back"),
 );
 fn.set(
   "page.forward",
-  { desc: "Step forward in a page's history, as `cmd+]` does.", effect: "write", parameters: [["string", "pane"]] },
+  { desc: "Step forward in a page's history, as `cmd+]` does (`alt+right` on Windows and Linux).", effect: "write", parameters: [["string", "pane"]] },
   (pane: unknown) => tell(paneOf(pane), "forward"),
 );
 fn.set(
   "page.reload",
-  { desc: "Load the page again, as `cmd+r` does.", effect: "write", parameters: [["string", "pane"]] },
+  { desc: "Load the page again, as `cmd+r` does (`ctrl+r` or F5 on Windows and Linux).", effect: "write", parameters: [["string", "pane"]] },
   (pane: unknown) => tell(paneOf(pane), "reload"),
 );
 fn.set(
@@ -154,7 +154,7 @@ fn.set(
 fn.set(
   "back",
   {
-    desc: "Step back in a page's history, as `cmd+[` does.",
+    desc: "Step back in a page's history, as `cmd+[` does (`alt+left` on Windows and Linux).",
     effect: "write",
     parameters: [["number", "pane"]],
     examples: [{ args: [3] }, { args: [{ pane: 3 }] }],
@@ -170,7 +170,7 @@ fn.set(
 fn.set(
   "forward",
   {
-    desc: "Step forward in a page's history, as `cmd+]` does.",
+    desc: "Step forward in a page's history, as `cmd+]` does (`alt+right` on Windows and Linux).",
     effect: "write",
     parameters: [["number", "pane"]],
     examples: [{ args: [3] }, { args: [{ pane: 3 }] }],
@@ -186,7 +186,7 @@ fn.set(
 fn.set(
   "reload",
   {
-    desc: "Load the page again, as `cmd+r` does.",
+    desc: "Load the page again, as `cmd+r` does (`ctrl+r` or F5 on Windows and Linux).",
     effect: "write",
     parameters: [["number", "pane"]],
     examples: [{ args: [3] }],

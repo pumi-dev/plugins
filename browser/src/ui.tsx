@@ -56,6 +56,22 @@ interface Told {
 }
 
 /** The `page` block's renderer: a webview filling the pane, with the toolbar over it. */
+/** The view's own keys: macOS's (`cmd+l`, `cmd+r`, `cmd+[`, `cmd+]`), elsewhere a browser's on
+ *  Windows and Linux (`ctrl+l`, `ctrl+r` and F5, `alt+left`, `alt+right`). */
+const MAC = process.platform === "darwin";
+function pageKey(e: any): "address" | "reload" | "back" | "forward" | null {
+  const key = e?.key ?? "";
+  const m = e?.modifiers ?? {};
+  if (MAC) {
+    if (!m.cmd) return null;
+    return key === "l" ? "address" : key === "r" ? "reload" : key === "[" ? "back" : key === "]" ? "forward" : null;
+  }
+  if (key === "f5" && !m.ctrl && !m.alt) return "reload";
+  if (m.ctrl && !m.alt) return key === "l" ? "address" : key === "r" ? "reload" : null;
+  if (m.alt && !m.ctrl && !m.shift) return key === "left" ? "back" : key === "right" ? "forward" : null;
+  return null;
+}
+
 export function Page({ pane, block }: RendererProps) {
   const t = useTheme();
   // Its block names its prefix (`amresyd.browser.page` is `amresyd.browser.`), which its own
@@ -140,27 +156,12 @@ export function Page({ pane, block }: RendererProps) {
       autoFocus
       tabIndex={0}
       onKeyDown={(e: any) => {
-        const chord = e?.key ?? "";
-        if (chord === "r" && e?.modifiers?.cmd) {
-          e?.preventDefault?.();
-          webview(handle, "reload");
-          return;
-        }
-        if (chord === "[" && e?.modifiers?.cmd) {
-          e?.preventDefault?.();
-          webview(handle, "back");
-          return;
-        }
-        if (chord === "]" && e?.modifiers?.cmd) {
-          e?.preventDefault?.();
-          webview(handle, "forward");
-          return;
-        }
-        if (chord === "l" && e?.modifiers?.cmd) {
-          e?.preventDefault?.();
-          // The field takes the keyboard by being made again with `autoFocus`.
-          setDraft(view?.url ?? "");
-        }
+        const action = pageKey(e);
+        if (!action) return;
+        e?.preventDefault?.();
+        // The field takes the keyboard by being made again with `autoFocus`.
+        if (action === "address") setDraft(view?.url ?? "");
+        else webview(handle, action);
       }}
       style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", minWidth: 0, minHeight: 0, backgroundColor: t.editor, color: t.text }}
     >
