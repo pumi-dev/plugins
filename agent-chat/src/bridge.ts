@@ -1,11 +1,11 @@
 // One agent pane's conversation, as the chat has it: its session file followed into a `Producer`
-// (lib/conversation), the hook's `@agent_status` merged in, prompts typed into its terminal (or
-// queued behind the running turn), and the requests pumi holds for it (`agent.request`) shown as
+// (lib/conversation), the hook's `@agent.status` merged in, prompts typed into its terminal (or
+// queued behind the running turn), and the requests pumi holds for it (`request.open`) shown as
 // the conversation's. The TUI stays the session's only owner: this reads its file and types into
 // its terminal, nothing else.
 import { readFileSync, statSync } from "node:fs";
 
-import { agent as agents, emit, pane as panes, ui, type AgentRequest } from "pumi";
+import { call, emit, request, ui } from "pumi";
 
 import { ChangeError, CommandLedger, noticeChange, Producer, type Change, type Update } from "../../lib/conversation/src/change.ts";
 import { cursorOf, describeInput, emptyTranscript, randomId, type Ack, type Command, type Cursor, type Image, type Permission, type PermissionKind, type SessionInfo, type SlashCommand, type Status, type Transcript } from "../../lib/conversation/src/model.ts";
@@ -20,6 +20,16 @@ import { PiParser } from "./parse/pi.ts";
 import { assistantTimestamp, EMPTY, Live, liveFileOf, parseLive } from "./live.ts";
 import { Tail } from "./tail.ts";
 import { UPDATE, type Changed, type PaneUpdate } from "./topics.ts";
+
+/** A permission a pane's agent asked for, as `request.opened` carries it. */
+export interface Asked {
+  request: string;
+  pane: string | null;
+  kind: string;
+  title: string;
+  detail: string | null;
+  options: unknown[];
+}
 
 /** The pane options a bridge follows: what the hooks set. */
 export interface PaneOptions {
@@ -70,8 +80,8 @@ export class Bridge {
   #delivering = false;
   /** Prompts shown before the session file says them: entry id and text. */
   #echoes: { entry: string; text: string }[] = [];
-  /** The request behind each permission shown: `agent.request`'s id. */
-  #requests = new Map<string, number>();
+  /** The request behind each permission shown: `request.open`'s id. */
+  #requests = new Map<string, string>();
   #ledger = new CommandLedger();
   #disposed = false;
   /** The slash commands the agent takes (`commands.ts`), and when they were read. */
@@ -373,7 +383,7 @@ export class Bridge {
       update.type === "changes"
         ? { pane: this.pane, changes: update.changes, cursor: update.to, from: update.from }
         : { pane: this.pane, changes: [], cursor: cursorOf(update.transcript), from: null };
-    emit("conversation.changed", changed, { pane: this.pane }).catch((err) => console.warn(`agent-chat: conversation.changed: ${err?.message ?? err}`));
+    emit("conversation.changed", changed, { pane: `%${this.pane}` }).catch((err) => console.warn(`agent-chat: conversation.changed: ${err?.message ?? err}`));
   }
 
   // ── Status ──────────────────────────────────────────────────────────────────────────────────
@@ -412,20 +422,26 @@ export class Bridge {
         return { id: command.id };
       }
       case "cancel":
-        await panes.call(this.pane, "input", { text: this.spec.cancel });
+        await call("pane.call", `%${this.pane}`, "input", { text: this.spec.cancel });
         return { id: command.id };
       case "unqueue":
         this.#push({ type: "queue", queue: this.transcript.queue.filter((each) => each.id !== command.queued) });
         return { id: command.id };
       case "answer": {
-        const request = this.#requests.get(command.permissionId);
-        if (request === undefined) return { id: command.id, rejected: "That request is no longer waiting." };
-        const counted = await agents.answer(request, { option: command.optionId });
-        if (!counted) this.resolved(request);
-        return counted ? { id: command.id } : { id: command.id, rejected: "It was answered already, or it ended." };
+        const asked = this.#requests.get(command.permissionId);
+        if (asked === undefined) return { id: command.id, rejected: "That request is no longer waiting." };
+        try {
+          await request.close(asked, { answer: { option: command.optionId } });
+        } catch {
+          this.resolved(asked);
+          return { id: command.id, rejected: "It was answered already, or it ended." };
+        }
+        return { id: command.id };
       }
       case "setOption":
         return { id: command.id, rejected: `${this.spec.label}'s settings are changed in its terminal.` };
+      case "context":
+        return { id: command.id, rejected: "A terminal agent's context goes through its own hook." };
     }
   }
 
@@ -456,13 +472,13 @@ export class Bridge {
     this.#syncStatus();
     try {
       for (const paste of pastes) {
-        await panes.call(this.pane, "input", { paste });
+        await call("pane.call", `%${this.pane}`, "input", { paste });
         await Bun.sleep(IMAGE_DELAY);
       }
       const writes = promptWrites(text);
-      if (text !== "") await panes.call(this.pane, "input", writes.body);
+      if (text !== "") await call("pane.call", `%${this.pane}`, "input", writes.body);
       await Bun.sleep(SUBMIT_DELAY);
-      await panes.call(this.pane, "input", writes.submit);
+      await call("pane.call", `%${this.pane}`, "input", writes.submit);
       return { id };
     } catch (err) {
       this.#settled();
@@ -484,23 +500,26 @@ export class Bridge {
     void this.#deliver(next.id, next.text, next.images ?? []).then(() => this.#drain());
   }
 
-  // ── Requests (`agent.request`) ──────────────────────────────────────────────────────────────
+  // ── Requests (`request.open`) ───────────────────────────────────────────────────────────────
 
   /** A request pumi holds for this pane: shown as the conversation's permission. */
-  requested(request: AgentRequest): void {
-    const id = `request:${request.id}`;
+  requested(asked: Asked): void {
+    const id = `request:${asked.request}`;
     if (this.#requests.has(id) || this.transcript.permissions.some((each) => each.id === id)) return;
-    const options = (request.options ?? []).map((option) => ({ id: option.id, label: option.label, kind: option.kind as PermissionKind }));
+    const options = (asked.options ?? [])
+      .map((each) => each as { id?: unknown; label?: unknown; kind?: unknown })
+      .filter((each): each is { id: string; label: string; kind?: unknown } => typeof each.id === "string" && typeof each.label === "string")
+      .map((each) => ({ id: each.id, label: each.label, kind: each.kind as PermissionKind }));
     if (options.length === 0) return;
-    const detail = request.detail ?? describeInput(request.tool?.input) ?? undefined;
-    const permission: Permission = { id, title: request.title, options, ...(detail ? { detail } : {}) };
-    this.#requests.set(id, request.id);
+    const detail = asked.detail ?? undefined;
+    const permission: Permission = { id, title: asked.title, options, ...(detail ? { detail } : {}) };
+    this.#requests.set(id, asked.request);
     this.#push({ type: "permissionAsked", permission });
     this.#syncStatus();
   }
 
   /** A request ended (answered here or elsewhere, timed out, withdrawn). */
-  resolved(request: number): void {
+  resolved(request: string): void {
     const id = `request:${request}`;
     this.#requests.delete(id);
     if (this.transcript.permissions.some((each) => each.id === id)) this.#push({ type: "permissionResolved", id });

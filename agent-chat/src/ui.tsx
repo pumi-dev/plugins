@@ -4,7 +4,7 @@
 // conversation is the worker's (`main.ts` `read`, `send`); the view follows its batches, on the
 // channel in the plugin host's windows and by the convention's event in any app's.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { conversationNames, Icon, IconButton, useChannelListener, useEvent, useMetrics, usePane, usePlugin, useTheme, type RefLike, type RendererProps } from "pumi";
+import { conversationNames, Icon, IconButton, useChannelListener, useEvent, useMetrics, usePane, usePlugin, useTheme, type PaneId, type RendererProps } from "pumi";
 
 import { follow, type Update } from "../../lib/conversation/src/change.ts";
 import type { Transcript } from "../../lib/conversation/src/model.ts";
@@ -18,16 +18,16 @@ function swallow(err: unknown): void {
   console.error(`agent-chat: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** A pane's number: a view is given a ref (`{ id: 3 }`), which a hook takes; the worker wants the number. */
-function paneId(pane: RefLike): number {
-  return typeof pane === "number" ? pane : pane.id;
+/** A pane's number: the worker names panes by it (`%3` is `3`). */
+function paneId(pane: PaneId): number {
+  return Number(pane.slice(pane.indexOf("/") + 1).replace(/^[%@$]/, ""));
 }
 
 /**
  * The `pane.toolbar` slot's view: on an agent pane the chat reads, the button that flips it,
  * drawn as one of the pane's own (`IconButton`, the theme's).
  */
-export function Toolbar({ pane }: { pane: RefLike }) {
+export function Toolbar({ pane }: { pane: PaneId }) {
   const t = useTheme();
   const plugin = usePlugin() ?? "";
   const options = (usePane(pane)?.options ?? {}) as Record<string, unknown>;
@@ -53,9 +53,9 @@ export function Toolbar({ pane }: { pane: RefLike }) {
  * `@pane_renderer`, or nothing else draws terminals) is drawn as the terminal it is.
  */
 export function Chat({ pane, focused }: RendererProps) {
-  const spec = agentSpec(((usePane(pane)?.options ?? {}) as Record<string, unknown>)["@agent"]);
-  if (!spec) return <terminal pane={pane} autoFocus={focused} />;
-  return <PaneChat pane={paneId(pane)} focused={focused} />;
+  const spec = agentSpec(((usePane(pane.id)?.options ?? {}) as Record<string, unknown>)["@agent"]);
+  if (!spec) return <terminal pane={pane.id} autoFocus={focused} />;
+  return <PaneChat pane={paneId(pane.id)} focused={focused} />;
 }
 
 /** The pane's conversation, followed from the worker: a snapshot first, then each batch. */
@@ -121,7 +121,7 @@ function useTranscript(pane: number): Transcript | undefined {
 
 /** One agent pane's chat. */
 function PaneChat({ pane, focused }: { pane: number; focused: boolean }) {
-  const options = (usePane(pane)?.options ?? {}) as Record<string, unknown>;
+  const options = (usePane(`%${pane}`)?.options ?? {}) as Record<string, unknown>;
   const spec = agentSpec(options["@agent"]);
   const transcript = useTranscript(pane);
   const showTerminal = () => void setChat(pane, false).catch(swallow);
