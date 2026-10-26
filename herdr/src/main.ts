@@ -15,7 +15,7 @@
 // It also binds herdr's default keys in the prefix table (keys.ts), as herdr has them.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { on, option, paths, plugin, type PumiEvent } from "pumi";
+import { on, option, paths, self, type PumiEvent } from "pumi";
 import { serve as serveClient } from "./client.ts";
 import { install as installKeys } from "./keys.ts";
 import type { Listener } from "./listen.ts";
@@ -25,22 +25,17 @@ import { onEvent, serve as serveApi } from "./server.ts";
 import type { Json } from "./types.ts";
 
 /** The events herdr's clients hear about: everything that changes the model, every program ending,
- * and the option that says what an agent is doing (herdr's `pane.agent_status_changed`). */
+ * and what an agent is doing (`pane.changed`, which carries the pane's `@agent.status`). */
 const EVENTS = [
-  "session.created",
+  "session.opened",
   "session.closed",
-  "session.renamed",
-  "session.focused",
+  "session.changed",
   "tab.opened",
   "tab.closed",
-  "tab.focused",
-  "tab.renamed",
+  "tab.changed",
   "pane.opened",
   "pane.closed",
-  "pane.focused",
-  "terminal.closed",
-  "layout.changed",
-  "option.changed",
+  "pane.changed",
 ];
 
 /** The option naming the herdr session pumi also answers as. */
@@ -116,7 +111,7 @@ mkdirSync(data, { recursive: true });
 dataListeners = await serveIn(data, grid);
 await serveSession(grid);
 await installKeys();
-on("option.changed", { match: plugin.prefixed(SESSION), desc: "herdr's session sockets follow herdr.session" }, () => {
+on("option.changed", { match: self.plugin.prefixed(SESSION), desc: "herdr's session sockets follow herdr.session" }, () => {
   void serveSession(grid).catch((err) => log(`${SESSION}: ${why(err)}`));
 });
 on(EVENTS, { desc: "herdr's socket: the model changing" }, (event: PumiEvent) => {

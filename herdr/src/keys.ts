@@ -30,7 +30,7 @@ function runs(name: string, args: Json[]): Binding["call"] {
 /** The four ways a pane is split, as the API names them. */
 const DIRECTIONS = { L: "left", R: "right", U: "up", D: "down" } as const;
 
-function split(side: "left" | "down"): Binding["call"] {
+function split(side: "right" | "down"): Binding["call"] {
   return runs("pane.open", ["terminal", {}, { split: side }]);
 }
 

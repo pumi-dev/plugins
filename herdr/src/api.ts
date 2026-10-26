@@ -6,7 +6,7 @@
 // Nothing here keeps a screen: a pane's text is `pane.call`'s `read`, its keys are `{"keys": […]}` on
 // the same call (the host encodes them for the modes the program set), and what an agent is doing
 // is the pane's `@agent`/`@agent_status` (OSC 7501), which the host decides.
-import { call } from "pumi";
+import { call, option, workspace, type Pane, type Session, type Tab } from "pumi";
 import { terminal, workspace as workspaceId } from "./ids.ts";
 import { find } from "./methods.ts";
 import { HERDR_PROTOCOL, HERDR_VERSION, codes, result, type Code } from "./protocol.ts";
@@ -24,6 +24,32 @@ import {
   type SplitDirection,
 } from "./types.ts";
 import { View } from "./view.ts";
+
+/** A pane's id, as the API has it: herdr reads numbers, the wire takes `%3`. */
+export function paneRef(number: number): string {
+  return `%${number}`;
+}
+
+/** The pane `number` names, as the SDK's model of it: its methods are the API's calls. */
+function paneModel(number: number): Pane {
+  const pane = workspace.getPane(paneRef(number));
+  if (pane === null) throw new Fail(codes.PANE_NOT_FOUND, `pane not found: ${number}`);
+  return pane;
+}
+
+/** The tab `number` names, as the SDK's model of it. */
+function tabModel(number: number): Tab {
+  const tab = workspace.getTab(`@${number}`);
+  if (tab === null) throw new Fail(codes.TAB_NOT_FOUND, `tab not found: ${number}`);
+  return tab;
+}
+
+/** The session `number` names, as the SDK's model of it. */
+function sessionModel(number: number): Session {
+  const session = workspace.getSession(`$${number}`);
+  if (session === null) throw new Fail(codes.WORKSPACE_NOT_FOUND, `workspace not found: ${number}`);
+  return session;
+}
 
 /** herdr's error: a code and a message. */
 export class Fail extends Error {
@@ -121,13 +147,6 @@ function launch(p: Params): Record<string, Json> {
   return args;
 }
 
-/** The pane `pane.open` answered with. */
-function opened(answer: Json): number {
-  if (typeof answer === "number") return answer;
-  const id = isObject(answer) ? answer.id : undefined;
-  return typeof id === "number" ? id : 0;
-}
-
 function workspaceOf(v: View, p: Params): number {
   const id = p.str("workspace_id");
   const workspace = v.session(id);
@@ -161,8 +180,9 @@ async function paneInfo(pane: number): Promise<PaneInfo> {
  * or visible variant. */
 async function read(pane: number, lines: number | undefined): Promise<string> {
   try {
-    const text = await ask("pane.call", pane, "read", { lines: lines ?? 80 });
-    return typeof text === "string" ? text : "";
+    await workspace.ready;
+    const answered = await paneModel(pane).read({ source: "recent", lines: lines ?? 80 });
+    return typeof answered?.text === "string" ? answered.text : "";
   } catch {
     return "";
   }
@@ -171,11 +191,19 @@ async function read(pane: number, lines: number | undefined): Promise<string> {
 /** Keys by name, encoded for the modes the pane's program set (the host does that). */
 async function keys(pane: number, names: string[]): Promise<void> {
   if (names.length === 0) return;
-  await ask("pane.call", pane, "input", { keys: names });
+  await paneModel(pane).input({ keys: names });
 }
 
 async function write(pane: number, text: string): Promise<void> {
-  await ask("pane.call", pane, "input", { text });
+  await paneModel(pane).input({ text });
+}
+
+/** Opens a pane with `block`, `args` and `place`, and answers the number herdr reads it by. */
+async function openPane(block: string, args: Json, place: Record<string, Json>): Promise<number> {
+  await workspace.ready;
+  const made = await workspace.openPane(block, args, place);
+  const v = await view();
+  return v.pane(made.id) ?? 0;
 }
 
 /** Runs one request. */
@@ -209,7 +237,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       const text = body === undefined ? title : `${title}: ${body}`;
       let shown = true;
       try {
-        await ask("message.notify", text, "info", {});
+        await workspace.openRequest({ kind: "notification", title: text, level: "info" });
       } catch {
         shown = false;
       }
@@ -228,8 +256,8 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "workspace.rename": {
       let v = await view();
       const workspace = workspaceOf(v, p);
-      if (method === "workspace.focus") await ask("session.select", { session: workspace });
-      if (method === "workspace.rename") await ask("session.rename", workspace, p.str("label").trim());
+      if (method === "workspace.focus") await sessionModel(workspace).focus();
+      if (method === "workspace.rename") await sessionModel(workspace).update({ name: p.str("label").trim() });
       v = await view();
       return result("workspace_info", { workspace: v.workspaceInfo(workspace) ?? null });
     }
@@ -237,7 +265,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       const place: Record<string, Json> = { kind: "session", focus: p.bool("focus", true) };
       const label = p.optStr("label");
       if (label !== undefined) place.name = label;
-      const pane = opened(await ask("pane.open", "terminal", launch(p), place));
+      const pane = await openPane("terminal", launch(p), place);
       const v = await view();
       const tab = v.panes.get(pane)?.tab ?? 0;
       const workspace = v.sessionOfTab(tab)?.id ?? 0;
@@ -250,7 +278,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "workspace.close": {
       const v = await view();
       const workspace = workspaceOf(v, p);
-      await ask("session.close", workspace);
+      await sessionModel(workspace).close();
       return result("ok");
     }
     case "tab.list": {
@@ -266,10 +294,10 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "tab.rename": {
       let v = await view();
       const tab = tabOf(v, p);
-      if (method === "tab.focus") await ask("tab.select", { tab });
+      if (method === "tab.focus") await tabModel(tab).focus();
       if (method === "tab.rename") {
         const label = p.str("label").trim();
-        await ask("tab.rename", tab, label === "" ? null : label);
+        await tabModel(tab).update({ name: label === "" ? null : label });
       }
       v = await view();
       return result("tab_info", { tab: v.tabInfo(tab) ?? null });
@@ -277,10 +305,10 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "tab.create": {
       let v = await view();
       const place: Record<string, Json> = { kind: "tab", focus: p.bool("focus", true) };
-      if (p.optStr("workspace_id") !== undefined) place.session = workspaceOf(v, p);
+      if (p.optStr("workspace_id") !== undefined) place.session = `$${workspaceOf(v, p)}`;
       const label = p.optStr("label");
       if (label !== undefined) place.name = label;
-      const pane = opened(await ask("pane.open", "terminal", launch(p), place));
+      const pane = await openPane("terminal", launch(p), place);
       v = await view();
       const tab = v.panes.get(pane)?.tab ?? 0;
       return result("tab_created", { tab: v.tabInfo(tab) ?? null, root_pane: v.paneInfo(pane, 0) ?? null });
@@ -288,7 +316,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "tab.close": {
       const v = await view();
       const tab = tabOf(v, p);
-      await ask("tab.close", tab);
+      await tabModel(tab).close();
       return result("ok");
     }
     case "pane.list": {
@@ -314,23 +342,21 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "pane.clear": {
       const v = await view();
       const pane = paneOf(v, p.str("pane_id"));
-      if (method === "pane.focus") {
-        await ask("pane.select", { pane });
-      }
+      if (method === "pane.focus") await paneModel(pane).focus();
       if (method === "pane.rename") {
         const label = p.optStr("label")?.trim();
-        await ask("option.set", "@label", label === undefined || label === "" ? null : label, { pane });
+        await option.set("@label", label === undefined || label === "" ? null : label, { scope: "pane", id: paneRef(pane) });
       }
       if (method === "pane.zoom") {
         const tab = v.panes.get(pane)?.tab;
         const zoomed = tab === undefined ? false : (v.tabs.get(tab)?.zoomed ?? false);
         const asked = p.get("zoomed");
         const want = typeof asked === "boolean" ? asked : !zoomed;
-        await ask("pane.resize", pane, { zoom: want });
+        await paneModel(pane).update({ zoom: want });
         return result("pane_zoom", { pane_id: v.paneId(pane), zoomed: want });
       }
       if (method === "pane.clear") {
-        await ask("pane.call", pane, "clear_history");
+        await call("pane.call", [paneRef(pane), "clear_history"]);
         return result("ok");
       }
       return result("pane_info", { pane: await paneInfo(pane) });
@@ -353,7 +379,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
         target = current;
       }
       const direction: SplitDirection = enumParam(p, "direction", ["right", "down"] as const) ?? "right";
-      const place: Record<string, Json> = { beside: target, split: direction, focus: p.bool("focus", false) };
+      const place: Record<string, Json> = { beside: paneRef(target), split: direction, focus: p.bool("focus", false) };
       const ratio = p.get("ratio");
       if (typeof ratio === "number") place.size = `${Math.round((1 - ratio) * 100)}%`;
       const args = launch(p);
@@ -361,7 +387,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
         const cwd = v.panes.get(target)?.options.pane_current_path;
         if (cwd !== undefined) args.cwd = cwd;
       }
-      const pane = opened(await ask("pane.open", "terminal", args, place));
+      const pane = await openPane("terminal", args, place);
       return result("pane_info", { pane: await paneInfo(pane) });
     }
     case "pane.process_info": {
@@ -382,7 +408,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "pane.close": {
       const v = await view();
       const pane = paneOf(v, p.str("pane_id"));
-      await ask("pane.close", pane);
+      await paneModel(pane).close();
       return result("ok");
     }
     case "pane.read":
@@ -429,7 +455,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       let v = await view();
       const pane = paneOf(v, p.str("target"));
       if (method === "agent.focus") {
-        await ask("pane.select", { pane });
+        await paneModel(pane).focus();
         v = await view();
       }
       const agent: AgentInfo | undefined = v.agentInfo(pane);
@@ -440,7 +466,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       const v = await view();
       const pane = paneOf(v, p.str("pane_id"));
       const agent = p.optStr("agent");
-      if (agent !== undefined) await ask("option.set", "@agent", agent, { pane });
+      if (agent !== undefined) await option.set("@agent", agent, { scope: "pane", id: paneRef(pane) });
       const state = p.optStr("state");
       if (state !== undefined) {
         // The state is the pane's program status, which the host keeps (OSC 7501): said as the
@@ -450,7 +476,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
         const named = agent !== undefined && isApp(agent) ? agent : undefined;
         const report =
           known === "unknown" ? "state=clear" : named === undefined ? `state=${known}` : `state=${known}:app=${named}`;
-        await ask("pane.report", pane, report);
+        await paneModel(pane).report({ body: report });
       }
       return result("ok");
     }
@@ -503,20 +529,34 @@ export function keepSgr(text: string): string {
   return out + rest;
 }
 
-/** A core event, as the host hands it over. */
+/** A core event, as the host hands it over: the object it is about by its prefixed id (`%3`). */
 export interface CoreEvent {
   event: string;
-  pane?: number;
-  tab?: number;
-  session?: number;
+  pane?: string | null;
+  tab?: string | null;
+  session?: string | null;
   data?: Json;
 }
 
+/** The number a prefixed id names (`%3`, `@2`, `$1`); nothing for anything else. */
+export function numberOf(id: Json | undefined): number | undefined {
+  if (typeof id !== "string") return undefined;
+  const found = /^(?:[A-Za-z0-9._-]+\/)?[$@%]([1-9][0-9]*)$/.exec(id);
+  if (found === null) return undefined;
+  const number = Number(found[1]);
+  return Number.isInteger(number) ? number : undefined;
+}
+
+/** The pane an event says it is about, by its number. */
+export function paneNumber(id: Json | undefined): number | undefined {
+  return numberOf(id);
+}
+
+/** The pane, tab or session an event's data names, by its prefixed id. */
 function idIn(value: Json | undefined): number | undefined {
   if (typeof value === "number") return value;
   if (!isObject(value)) return undefined;
-  const id = value.id;
-  return typeof id === "number" ? id : undefined;
+  return numberOf(value.id);
 }
 
 /**
@@ -527,35 +567,48 @@ export function translate(now: View, before: View, event: CoreEvent): Envelope[]
   const envelope = (snake: string, data: Record<string, Json>): Envelope => ({ event: snake, data: { ...data, type: snake } });
   const data = isObject(event.data) ? event.data : {};
   // pumi puts the object an event is about beside it (`pane`, `tab`, `session`) and in its data.
-  const pane = event.pane ?? idIn(data.pane);
-  const tab = event.tab ?? idIn(data.tab);
-  const session = event.session ?? idIn(data.session);
+  const pane = numberOf(event.pane) ?? idIn(data.pane);
+  const tab = numberOf(event.tab) ?? idIn(data.tab);
+  const session = numberOf(event.session) ?? idIn(data.session);
+  // What changed, as the `<noun>.changed` events name it: `title`, `options.@label`, …
+  const keys: string[] = Array.isArray(data.keys) ? data.keys.filter((k): k is string => typeof k === "string") : [];
+  const changed = (...want: string[]): boolean => keys.some((key) => want.some((one) => key === one || (one.endsWith("*") && key.startsWith(one.slice(0, -1)))));
   switch (event.event) {
-    case "session.created": {
+    case "session.opened": {
       const workspace = session === undefined ? undefined : now.workspaceInfo(session);
       return workspace === undefined ? [] : [envelope("workspace_created", { workspace })];
     }
     case "session.closed":
       return session === undefined ? [] : [envelope("workspace_closed", { workspace_id: workspaceId(session) })];
-    case "session.renamed": {
-      const workspace = session === undefined ? undefined : now.workspaceInfo(session);
-      return workspace === undefined ? [] : [envelope("workspace_renamed", { workspace_id: workspace.workspace_id, label: workspace.label })];
+    case "session.changed": {
+      if (changed("name")) {
+        const workspace = session === undefined ? undefined : now.workspaceInfo(session);
+        return workspace === undefined ? [] : [envelope("workspace_renamed", { workspace_id: workspace.workspace_id, label: workspace.label })];
+      }
+      // The tab in front of it, which is herdr's `workspace_focused`.
+      if (changed("activeTab")) return session === undefined ? [] : [envelope("workspace_focused", { workspace_id: workspaceId(session) })];
+      return [];
     }
-    case "session.focused":
-      return session === undefined ? [] : [envelope("workspace_focused", { workspace_id: workspaceId(session) })];
     case "tab.opened": {
       const info = tab === undefined ? undefined : now.tabInfo(tab);
       return info === undefined ? [] : [envelope("tab_created", { tab: info })];
     }
     case "tab.closed":
       return tab === undefined ? [] : [envelope("tab_closed", { tab_id: before.tabId(tab) })];
-    case "tab.focused": {
+    case "tab.changed": {
       const info = tab === undefined ? undefined : now.tabInfo(tab);
-      return info === undefined ? [] : [envelope("tab_focused", { tab_id: info.tab_id, workspace_id: info.workspace_id })];
-    }
-    case "tab.renamed": {
-      const info = tab === undefined ? undefined : now.tabInfo(tab);
-      return info === undefined ? [] : [envelope("tab_renamed", { tab_id: info.tab_id, workspace_id: info.workspace_id, label: info.label })];
+      if (info === undefined) return [];
+      const out: Envelope[] = [];
+      if (changed("name")) out.push(envelope("tab_renamed", { tab_id: info.tab_id, workspace_id: info.workspace_id, label: info.label }));
+      if (changed("activePane")) out.push(envelope("tab_focused", { tab_id: info.tab_id, workspace_id: info.workspace_id }));
+      if (changed("layout", "index", "zoom")) out.push(envelope("layout_updated", { tab_id: info.tab_id, workspace_id: info.workspace_id }));
+      // The pane brought forward, which is herdr's `pane_focused`.
+      const active = idIn(isObject(data.patch) ? data.patch.activePane : undefined);
+      if (changed("activePane") && active !== undefined) {
+        const at = now.paneInfo(active, revision(active));
+        if (at !== undefined) out.push(envelope("pane_focused", { pane_id: at.pane_id, tab_id: at.tab_id, workspace_id: at.workspace_id }));
+      }
+      return out;
     }
     case "pane.opened": {
       const info = pane === undefined ? undefined : now.paneInfo(pane, 0);
@@ -563,42 +616,26 @@ export function translate(now: View, before: View, event: CoreEvent): Envelope[]
     }
     case "pane.closed":
       return pane === undefined ? [] : [envelope("pane_closed", { pane_id: before.paneId(pane), terminal_id: terminal(pane) })];
-    case "pane.focused": {
-      const info = pane === undefined ? undefined : now.paneInfo(pane, revision(pane));
-      return info === undefined
-        ? []
-        : [envelope("pane_focused", { pane_id: info.pane_id, tab_id: info.tab_id, workspace_id: info.workspace_id })];
-    }
-    case "terminal.closed":
-      return pane === undefined ? [] : [envelope("pane_exited", { pane_id: now.paneId(pane) })];
-    case "layout.changed": {
-      const info = tab === undefined ? undefined : now.tabInfo(tab);
-      return info === undefined ? [] : [envelope("layout_updated", { tab_id: info.tab_id, workspace_id: info.workspace_id })];
-    }
-    case "option.changed": {
-      const name = data.name;
-      const at = idIn(data.id);
-      if (at === undefined) return [];
-      if (name === "@agent_status") {
-        const info = now.paneInfo(at, revision(at));
-        if (info === undefined) return [];
-        return [
-          {
-            event: "pane.agent_status_changed",
-            data: {
-              pane_id: info.pane_id,
-              workspace_id: info.workspace_id,
-              agent_status: info.agent_status,
-              agent: info.agent ?? null,
-            },
+    case "pane.changed": {
+      if (pane === undefined) return [];
+      const info = now.paneInfo(pane, revision(pane));
+      if (info === undefined) return [];
+      const out: Envelope[] = [];
+      // What an agent is doing is the pane's `@agent.status`, and its trait's field with it.
+      if (changed("options.@agent.status", "traits.agent.status")) {
+        out.push({
+          event: "pane.agent_status_changed",
+          data: {
+            pane_id: info.pane_id,
+            workspace_id: info.workspace_id,
+            agent_status: info.agent_status,
+            agent: info.agent ?? null,
           },
-        ];
+        });
       }
-      if (name === "title" || name === "@label" || name === "pane_current_path") {
-        const info = now.paneInfo(at, revision(at));
-        return info === undefined ? [] : [envelope("pane_updated", { pane: info })];
-      }
-      return [];
+      if (changed("title", "options.@label", "options.pane_current_path")) out.push(envelope("pane_updated", { pane: info }));
+      if (changed("exitCode")) out.push(envelope("pane_exited", { pane_id: now.paneId(pane) }));
+      return out;
     }
     default:
       return [];
