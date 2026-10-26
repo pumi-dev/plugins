@@ -5,7 +5,7 @@
 //
 // Nothing here keeps a screen: a pane's text is `pane.call`'s `read`, its keys are `{"keys": […]}` on
 // the same call (the host encodes them for the modes the program set), and what an agent is doing
-// is the pane's `@agent`/`@agent_status` (OSC 7501), which the host decides.
+// is the pane's `@agent`/`@agent.status` (OSC 7501), which the host decides.
 import { call, option, workspace, type Pane, type Session, type Tab } from "pumi";
 import { terminal, workspace as workspaceId } from "./ids.ts";
 import { find } from "./methods.ts";

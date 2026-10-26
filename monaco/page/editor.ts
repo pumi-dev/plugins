@@ -449,12 +449,12 @@ window.addEventListener("focus", () => {
 
 // ---- what `ui.tsx` reaches
 
-/** Where in its file the pane is to be (the core's `at`: `file.open`'s line, a `reveal`). */
+/** Where in its file the pane is to be (the core's `at`: `pane.open`'s line, a `reveal`). */
 function at(): Promise<{ path: string; line?: number; column?: number } | null> {
   return pumi!.call("pane.call", [pane, "at"]).catch(() => null);
 }
 
-/** What the pane was asked to show (`file.open`, `reveal`): a file, a line. */
+/** What the pane was asked to show (`pane.open`, `reveal`): a file, a line. */
 async function pull(): Promise<void> {
   const wanted = await at();
   if (wanted?.path) await show(wanted.path, wanted);

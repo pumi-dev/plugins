@@ -6,7 +6,7 @@
 //
 // No screen is kept here and nothing detects agents. A pane's text is `pane.call`'s `read`; its keys
 // are `{"keys": […]}` on the same call, which the host encodes; and what an agent is doing is the
-// pane's `@agent`/`@agent_status`, which the host keeps from the program's own reports (OSC 7501).
+// pane's `@agent`/`@agent.status`, which the host keeps from the program's own reports (OSC 7501).
 //
 // Both are served in pumi's data directory and, under the name the `session` option gives, where
 // herdr keeps a named session (`~/.config/herdr/sessions/<name>/`), so herdr's CLI and its apps find

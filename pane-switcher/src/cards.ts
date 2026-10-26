@@ -18,7 +18,7 @@ export interface Card {
   title: string;
   /** Its `tab.pane` number and its directory, or its page. */
   detail: string;
-  /** An agent's state, when one reported its pane (`@agent_status`). */
+  /** An agent's state, when one reported its pane (`@agent.status`). */
   status: string;
   /** Whether the card draws its pane's screen. */
   preview: boolean;

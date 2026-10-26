@@ -10,7 +10,7 @@ session `$5` is `w5`, its tab `@7` is `w5:t7`, its pane `%9` is `w5:p9`, termina
 
 Nothing here keeps a screen: `pane.read` is the core's own text (`pane.call`'s `read`), keys are
 `{"keys": […]}` on the same call, and what an agent is doing is the pane's
-`@agent`/`@agent_status` (OSC 7501). Methods herdr serves from its own TUI, plugins or remotes
+`@agent`/`@agent.status` (OSC 7501). Methods herdr serves from its own TUI, plugins or remotes
 answer `unsupported`.
 
 The sockets are in pumi's data directory — `$PUMI_DATA_DIR`, else
@@ -37,7 +37,7 @@ the two cannot share state.
 | --- | --- |
 | `ping` | herdr 0.9.4, protocol 22, and what it can do (`live_handoff`, `health_check`) |
 | `server.stop` | stops pumi's core (`server.kill`) |
-| `notification.show` | a notice: `message.notify` |
+| `notification.show` | a notice: `request.open` |
 | `session.snapshot` | workspaces, tabs, panes, agents, and who has the focus |
 | `workspace.list`, `.get`, `.focus`, `.rename`, `.create`, `.close` | pumi's sessions (`session.*`) |
 | `tab.list`, `.get`, `.focus`, `.rename`, `.create`, `.close` | pumi's tabs (`tab.*`) |
