@@ -1,5 +1,5 @@
 // The rule, on its own: which states are said, what the notice says, and when it is news. The
-// app's side of it — reading every pane's `@agent_status` and posting the notice — is main.ts.
+// app's side of it — reading every pane's `@agent.status` and posting the notice — is main.ts.
 import { expect, test } from "bun:test";
 import { headline, isStatus, level, news, urgency, wanted, where, who } from "../src/notice.ts";
 

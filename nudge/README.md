@@ -4,7 +4,7 @@ A notification from the OS the moment an agent stops to wait for you or finishes
 turn does not need the window watched.
 
 An agent reports what it is doing as it goes (OSC 7501, which `pumi skill setup` installs the hooks
-for), and the core keeps it on the pane as `@agent_status`. This watches that word:
+for), and the core keeps it on the pane as `@agent.status`. This watches that word:
 
 | State | The notice |
 | --- | --- |
@@ -46,7 +46,7 @@ permission prompt happens when you ask for it rather than when an agent needs yo
 answer in System Settings → Notifications → pumi, so try it once: with notifications off for pumi
 nothing is shown, and posting one does not say so.
 
-The notification is the API's (`message.notify`), so it shows wherever pumi does — the OS's
+The notification is a request (`request.open`, `kind: "notification"`), so it shows wherever pumi does — the OS's
 notification centre on macOS, Windows and Linux. A notice sent with a pane can be clicked to show
 that pane where the app handles the click; the notice itself is posted either way.
 

@@ -34,7 +34,7 @@ export function Toolbar({ pane }: { pane: PaneId }) {
   const spec = agentSpec(options["@agent"]);
   if (!spec) return null;
   const chat = options["@pane_renderer"] === plugin;
-  const asking = options["@agent_status"] === "blocked";
+  const asking = options["@agent.status"] === "blocked";
   const tip = chat ? `Show ${spec.label}'s terminal` : asking ? `${spec.label} is asking: show the chat` : `Show ${spec.label} as a chat`;
   return (
     <IconButton
@@ -128,7 +128,7 @@ function PaneChat({ pane, focused }: { pane: number; focused: boolean }) {
   // One function per pane, so the composer asks again only when the query changes.
   const findFiles = useCallback((query: string) => mentions(pane, query), [pane]);
   // The agent waits on its terminal for something pumi was not asked (no request): say so.
-  const askingThere = options["@agent_status"] === "blocked" && (transcript?.permissions.length ?? 0) === 0;
+  const askingThere = options["@agent.status"] === "blocked" && (transcript?.permissions.length ?? 0) === 0;
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", flexShrink: 0 }}>

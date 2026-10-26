@@ -4,7 +4,7 @@
 // Agent goes Blocked or Done: herdr runs its `notify-hook.js` on every `pane.agent_status_changed`,
 // which waits out a debounce, re-checks the pane, and encrypts the details with the Device's
 // Notification Key before posting them to Heeler's relay. pumi runs no herdr plugin and no hooks, so
-// that hook lives here instead, over pumi's own `@agent_status` (OSC 7501): the same wait, the same
+// that hook lives here instead, over pumi's own `@agent.status` (OSC 7501): the same wait, the same
 // re-check, the same envelope, the same relay.
 //
 // What Heeler itself writes is unchanged: its Notification Registration, `notifications.json` in the
@@ -255,12 +255,12 @@ async function look(pane: number): Promise<{ status: string; paneId: string; age
   };
 }
 
-/** One pane's hook at a time: a burst of `@agent_status` reports (a program re-reporting, a pane
+/** One pane's hook at a time: a burst of `@agent.status` reports (a program re-reporting, a pane
  * with several) must not race its own debounce and send the same push twice. Later reports queue
  * behind the one running; each then sees the marker the one before it wrote. */
 const chains = new Map<string, Promise<void>>();
 
-/** The `@agent_status` hook: a pane's status changed to `status`. */
+/** The `@agent.status` hook: a pane's status changed to `status`. */
 export function status(pane: number, status: string): void {
   const hook = settings;
   if (hook === undefined) return;
@@ -291,7 +291,7 @@ function paneId(pane: number): string {
 
 /**
  * What herdr's event hook does, in order: cheap exits, the debounce, the re-check, and the push.
- * `status` is the new `@agent_status`; the re-check is what is sent.
+ * `status` is the new `@agent.status`; the re-check is what is sent.
  */
 async function announce(hook: Settings, pane: number, status: string): Promise<void> {
   if (hook.state === undefined) return;

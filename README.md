@@ -49,7 +49,7 @@ pumi plugin reload                                    # the app picks up a rebui
 
 Options are in Settings under each package's name (`npm_scripts.max_depth`,
 `pi_session.side`, …). `pi-session` needs pi's hook (`pumi skill setup pi`), which records
-`@agent` and `@agent_session` on the pane.
+`@agent` and `@agent.session` on the pane.
 
 ## Test
 

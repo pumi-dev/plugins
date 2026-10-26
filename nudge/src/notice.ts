@@ -2,7 +2,7 @@
 // whether a state is news. `main.ts` reads the panes and posts what this decides, so a test can
 // decide too.
 
-/** The states of `@agent_status` that are news. */
+/** The states of `@agent.status` that are news. */
 export type Status = "blocked" | "done" | "error";
 
 /** The switches, by the state they are for. */

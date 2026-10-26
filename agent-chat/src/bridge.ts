@@ -73,7 +73,7 @@ export class Bridge {
   #retry: ReturnType<typeof setTimeout> | undefined;
   #retryWait = 500;
   #waiting: string | undefined;
-  /** What `@agent_status` says. */
+  /** What `@agent.status` says. */
   #status: Status;
   /** Set while a prompt just typed waits for the agent to say it is working. */
   #awaiting: ReturnType<typeof setTimeout> | undefined;
@@ -159,13 +159,13 @@ export class Bridge {
   optionChanged(name: string, value: unknown): void {
     const text = typeof value === "string" && value !== "" ? value : undefined;
     switch (name) {
-      case "@agent_status":
+      case "@agent.status":
         this.#status = statusOf(value);
         if (this.#status === "working") this.#settled();
         this.#syncStatus();
         this.#drain();
         return;
-      case "@agent_model": {
+      case "@agent.model": {
         this.#options.model = text;
         const session = this.transcript.session;
         if (session && text && session.model !== text) this.#push({ type: "session", session: { ...session, model: text } });
@@ -180,10 +180,10 @@ export class Bridge {
         if (session) this.#push({ type: "session", session: { ...session, cwd: text } });
         return;
       }
-      case "@agent_session":
-      case "@agent_transcript": {
+      case "@agent.session":
+      case "@agent.transcript": {
         const before = { ...this.#options };
-        if (name === "@agent_session") this.#options.session = text;
+        if (name === "@agent.session") this.#options.session = text;
         else this.#options.transcript = text;
         if (before.session === this.#options.session && before.transcript === this.#options.transcript) return;
         // A new session (`/clear`, a resume): another file. A path given for the session it was in already is the same one.
@@ -376,7 +376,7 @@ export class Bridge {
 
   #publish(update: Update): void {
     ui.post(UPDATE, { pane: this.pane, update } satisfies PaneUpdate);
-    // The conversation convention (`@agent_conversation`): `{pane, changes, cursor}`, and `from`
+    // The conversation convention (`@agent.conversation`): `{pane, changes, cursor}`, and `from`
     // for a reader that follows batch by batch. A snapshot (a new epoch) moves the cursor's epoch:
     // a reader reads again.
     const changed: Changed =

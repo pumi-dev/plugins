@@ -10,14 +10,14 @@ reads `Key Binding Fix` and `Screenshot UI Redesign` instead of `Tab 1`, `Tab 2`
 
 Each time an agent's pane title changes (pi's `π - <session> - <folder>`, Claude Code's
 `✳ <summary>`), the tab it is in is named again from the titles of every agent in it, the one in
-front first. A pane counts as an agent's when it has `@agent` or `@agent_status`
+front first. A pane counts as an agent's when it has `@agent` or `@agent.status`
 (`pumi skill setup` installs the hooks). Titles that name no task (`π - pumi`, `Claude Code`) are
 skipped, and the same titles are never asked about twice.
 
 ## Your names win
 
-A tab you named yourself (the tab bar, `rename-window`, `tab.rename`) is left alone. Give it back
-its automatic name (`tab.rename(tab, null)`) or run **Tab Rename: name this tab after its agents**
+A tab you named yourself (the tab bar, `pumi tab update`) is left alone. Give it back
+its automatic name (`pumi tab update @2 name=`) or run **Tab Rename: name this tab after its agents**
 (`amresyd.tab_rename.rename`, with `{ tab }` or the current tab) and it is named by its agents
 again.
 

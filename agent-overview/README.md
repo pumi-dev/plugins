@@ -23,8 +23,8 @@ pane.
 ## Where it reads it
 
 It reads nothing on its own. An agent says what it is doing itself, over OSC 7501, and the host
-keeps that on the pane: `@program_status` for its records, `@agent_status` for the most demanding of
-them, `@agent` and `@agent_session` for who it is and which conversation it is in — what
+keeps that on the pane: `@program_status` for its records, `@agent.status` for the most demanding of
+them, `@agent` and `@agent.session` for who it is and which conversation it is in — what
 `pumi skill setup` writes. The dashboard is the window's own state: it draws the app's panes, tabs
 and sessions as they are (`usePanes`, `useTabs`, `useSessions`), so it moves when they do, without
 reading anything on a clock.

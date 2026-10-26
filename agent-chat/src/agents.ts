@@ -34,7 +34,7 @@ export function agentSpec(agent: unknown): AgentSpec | undefined {
   return typeof agent === "string" ? AGENTS[agent] : undefined;
 }
 
-/** `@agent_status` as the conversation has it: the hooks say `idle`, `working`, `blocked`, `done`. */
+/** `@agent.status` as the conversation has it: the hooks say `idle`, `working`, `blocked`, `done`. */
 export function statusOf(value: unknown): Status {
   switch (value) {
     case "working":

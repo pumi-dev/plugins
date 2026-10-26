@@ -27,8 +27,8 @@ shows, the TUI keeps running under it, and **Terminal** gives it back exactly as
   again as it was when the option goes. The option is kept with the pane, so a pane that showed
   the chat shows it again after a restart, read again from its file. A terminal pane with no agent
   the chat reads is drawn as the terminal it is.
-- **Reading.** The session file is `@agent_transcript` when the agent's hook gave it. Otherwise it
-  is worked out from `@agent_session` and the pane's directory (`src/locate.ts`):
+- **Reading.** The session file is `@agent.transcript` when the agent's hook gave it. Otherwise it
+  is worked out from `@agent.session` and the pane's directory (`src/locate.ts`):
   - Claude: `~/.claude/projects/<encoded cwd>/<id>.jsonl`, falling back to any project folder,
     since a resumed session stays where it began.
   - Codex: `~/.codex/sessions/**/rollout-*<id>.jsonl`.
@@ -38,10 +38,10 @@ shows, the TUI keeps running under it, and **Terminal** gives it back exactly as
   (`src/tail.ts`). One parser per agent (`src/parse/`) turns records into lib/conversation's
   changes. A file that does not exist yet is looked for again until it does, since Claude writes
   it with the first prompt.
-- **Following the session.** A new `@agent_session` or `@agent_transcript` (`/clear`, a resume)
+- **Following the session.** A new `@agent.session` or `@agent.transcript` (`/clear`, a resume)
   starts the new file. pi's file is a tree: the chat shows the branch its last entry is on and
   reads again when pi moves to another branch.
-- **Status** is the hook's `@agent_status`.
+- **Status** is the hook's `@agent.status`.
 - **Sending.** A prompt goes in as a bracketed paste, then Enter, and only while the agent waits
   for one. A one-line `/command` is typed rather than pasted. While the agent works, prompts are
   queued in the chat and sent in order when it is done; Stop sends Escape. A prompt shows at once
@@ -67,7 +67,7 @@ shows, the TUI keeps running under it, and **Terminal** gives it back exactly as
   Claude's permission prompts with Settings → "Answer permissions in pumi". When the agent is
   `blocked` with no request (it is asking in its own terminal), the chat says so and offers
   **Show the terminal**.
-- **Serving the conversation.** Every agent pane it reads gets `@agent_conversation` set to this
+- **Serving the conversation.** Every agent pane it reads gets `@agent.conversation` set to this
   package, unless another package already serves it. Then anything can read the conversation and
   send to it:
   - `<prefix>conversation.read(pane, since?)`
