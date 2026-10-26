@@ -11,7 +11,7 @@
 // What is listed is what can be run from here: a menu item by calling the function it holds, a
 // binding the same. A menu item that opens a block of the app's own (`open`) has no way in from a
 // package, so it opens the block as a float of its own instead — see the report.
-import { call, option, registry } from "pumi";
+import { call, option, registry, workspace } from "pumi";
 import { humanizeActionName } from "./score.ts";
 
 /** A menu item, as `registry.list("menu")` says it (the host's `Menu`). */
@@ -158,7 +158,7 @@ async function shown(open: Open): Promise<unknown> {
   const place: Record<string, unknown> = { kind: "float" };
   if (typeof open.width === "number") place.width = `${open.width}px`;
   if (typeof open.height === "number") place.height = `${open.height}px`;
-  return call("pane.open", [open.view, open.args ?? {}, place]);
+  return workspace.openPane(open.view, open.args ?? {}, place);
 }
 
 /** A menu's separator: `-name-`. */

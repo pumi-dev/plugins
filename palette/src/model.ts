@@ -9,7 +9,7 @@
 // `ui.tsx` draws what `view()` answers; every gesture comes back here (a key typed, a row picked),
 // and answers the rows as they are afterwards.
 import { homedir } from "node:os";
-import { call, on, option } from "pumi";
+import { on, option, workspace } from "pumi";
 
 import { Index, dirOf, nameOf, relativePath, rootFor, type Hit } from "./files.ts";
 import { openChosen } from "./open.ts";
@@ -122,8 +122,8 @@ class Model {
   /** The directory the palette searches: the one the current pane is in. */
   private async directory(): Promise<string> {
     try {
-      const current = await call("pane.get", [null]);
-      const id = typeof current?.id === "string" ? current.id : undefined;
+      await workspace.ready;
+      const id = workspace.currentPane?.id;
       const path = await option.get("pane_current_path", id === undefined ? { scope: "global" } : { scope: "pane", id });
       return typeof path === "string" ? path : "";
     } catch {

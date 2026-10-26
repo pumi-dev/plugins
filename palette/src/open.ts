@@ -3,7 +3,7 @@
 // `fs.open`, the desktop's own viewer for it, unless a viewer of its own kind is enabled (one
 // whose `match` fits it better than `*`).
 import { basename } from "node:path";
-import { call, fs, registry } from "pumi";
+import { fs, registry, workspace } from "pumi";
 
 /** The kinds the desktop opens better than a text editor does. */
 const VIEWERS = new Set([
@@ -30,5 +30,5 @@ export async function openChosen(path: string): Promise<void> {
       return;
     }
   }
-  await call("pane.open", ["file", { path }, { kind: "tiled", split: "right" }]);
+  await workspace.openPane("file", { path }, { kind: "tiled", split: "right" });
 }

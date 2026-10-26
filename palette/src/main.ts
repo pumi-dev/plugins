@@ -10,7 +10,7 @@
 //
 // The model is `model.ts` (what is typed, the rows a query keeps, and what ↑ walks); `ui.tsx` draws
 // it. Every gesture comes back here, and answers the rows as they are afterwards.
-import { call, fn, request, self, type PaneId } from "pumi";
+import { fn, request, self, workspace, type Pane } from "pumi";
 
 import { model, type Mode, type PaletteView } from "./model.ts";
 
@@ -39,10 +39,10 @@ function message(err: unknown): string {
 }
 
 /** The palette's float, if one is up. */
-async function shown(): Promise<PaneId | null> {
+async function shown(): Promise<Pane | null> {
   try {
-    const [there] = await call("pane.list", [{ block: self.plugin.prefixed("main") }]);
-    return typeof there === "string" ? there : null;
+    const [there] = await workspace.panes({ block: self.plugin.prefixed("main") });
+    return there ?? null;
   } catch {
     return null;
   }
@@ -51,12 +51,11 @@ async function shown(): Promise<PaneId | null> {
 /** Opens the palette in `mode`, as a new float (replacing one that is up). */
 async function open(mode: Mode): Promise<boolean> {
   try {
-    const up = await shown();
-    if (up !== null) await call("pane.close", [up]).catch(() => {});
+    await (await shown())?.close().catch(() => {});
     model.opening = mode;
     model.done = false;
     await model.start();
-    await call("pane.open", [self.plugin.prefixed("main"), { mode }, PLACE]);
+    await workspace.openPane(self.plugin.prefixed("main"), { mode }, PLACE);
     return true;
   } catch (err) {
     await request.open({ kind: "notification", title: `palette: ${message(err)}`, level: "error" });
@@ -67,8 +66,7 @@ async function open(mode: Mode): Promise<boolean> {
 /** Closes the palette, if one is up. */
 async function close(): Promise<void> {
   model.done = true;
-  const up = await shown();
-  if (up !== null) await call("pane.close", [up]).catch(() => {});
+  await (await shown())?.close().catch(() => {});
 }
 
 /** `cmd+shift+p`: the commands, or the way out of a palette that is up. */
