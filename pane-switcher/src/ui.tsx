@@ -5,7 +5,7 @@
 // handles neither key nor click itself. The panes, the keys a card picks and the float it closes
 // are `main.ts`'s: the view asks it and draws the answer.
 import { useEffect, useRef, useState } from "react";
-import { Icon, useMetrics, useTheme, type RendererProps } from "pumi";
+import { Icon, useMetrics, useTheme, type PaneId } from "pumi";
 
 import { kindIcon } from "./cards.ts";
 import { chord, keyed, type Action } from "./keys.ts";
@@ -27,7 +27,7 @@ interface Scrolls {
 
 /** The `switcher` block's renderer: a card per pane, the highlight on the one a key or a click
  * picks. */
-export function Switcher({ pane }: RendererProps) {
+export function Switcher({ pane }: { pane: PaneId }) {
   const t = useTheme();
   const m = useMetrics();
   const [opened, setOpened] = useState<Opened | undefined>(undefined);
@@ -75,8 +75,8 @@ export function Switcher({ pane }: RendererProps) {
   /** Goes to the pane card `index` shows, and closes the switcher. */
   const commit = async (index: number) => {
     const card = shown[index];
-    if (card) await pick(card.pane, pane.id);
-    else await dismiss(pane.id);
+    if (card) await pick(card.pane, pane);
+    else await dismiss(pane);
   };
 
   /** Closes the pane card `index` shows and reads the rest again, closing the switcher when there
@@ -88,7 +88,7 @@ export function Switcher({ pane }: RendererProps) {
     const next = await load(card.pane, index);
     setOpened(next);
     setAt(next.at);
-    if (next.cards.length === 0) await dismiss(pane.id);
+    if (next.cards.length === 0) await dismiss(pane);
   };
 
   /** A key the switcher answers: what it does, and nothing behind it acts on the key too. */
