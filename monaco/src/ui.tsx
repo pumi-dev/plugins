@@ -5,7 +5,7 @@
 // `reveal`, `action`), and whether its pane is the window's current one. `Toolbar` puts the
 // unsaved mark, and a save, in the pane's title bar.
 import { useEffect, useState } from "react";
-import { IconButton, useChannelListener, useFont, useOption, usePane, usePlugin, useTheme, webview, WebView, type PaneId } from "pumi";
+import { IconButton, useChannelListener, useFont, useOption, usePane, usePlugin, useTheme, webview, WebView, type PaneId, type RendererProps } from "pumi";
 import { save } from "./main.ts";
 
 /** The plugin's prefix, `amresyd.monaco.`: its options'. */
@@ -49,7 +49,8 @@ interface Asked {
 }
 
 /** The renderer of the core's `file` block. */
-export function Editor({ pane, focused }: { pane: PaneId; focused: boolean }) {
+export function Editor({ pane: model, focused }: RendererProps) {
+  const pane = model.id;
   const prefix = usePrefix();
   const handle = `monaco-${pane}`;
   const each = usePane(pane);

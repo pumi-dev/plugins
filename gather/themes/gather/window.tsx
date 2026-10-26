@@ -685,7 +685,7 @@ function Pane({ pane: id, focused }: { pane: string; focused: boolean; zoomed: b
   // Every block is drawn by the renderer a plugin gives it, terminals included (`useRenderer`):
   // the terminal's is the bundled plugin `pumi/terminal`.
   const body: ReactNode = !pane ? null : renderer ? (
-    renderView(renderer, { pane: id, block: pane.block, focused })
+    renderView(renderer, { pane, block: pane.block, focused })
   ) : (
     <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" }}>
       <text style={{ color: t.faint }}>{`Nothing draws ${pane.block} blocks`}</text>
