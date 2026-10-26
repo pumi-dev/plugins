@@ -4,9 +4,10 @@
 // and its buttons, and a folded group is a header with a chevron. What the user does goes to the
 // API (`call`), which is the only way a window moves the panes.
 import { useMemo, useState } from "react";
-import { Icon, call, useDraggable, useDroppable, useFocusedPane, useMetrics, usePanes, useSession, useSessions, useTab, useTabs, useTheme } from "pumi";
+import { Icon, call, useDraggable, useDroppable, useMetrics, usePane, usePanes, useSession, useSessions, useTab, useTabs, useTheme } from "pumi";
 
 import { fromWindow } from "./adapt.ts";
+import { paneRef, sessionRef, tabRef } from "./ids.ts";
 import type { Pane, Space, Tab } from "./snapshot.ts";
 import { bold, shown, word, type State } from "./status.ts";
 import { detail, icon as kindIcon, rows, spaceLabel, tabLabel, title, type Row, type Shape } from "./tree.ts";
@@ -42,7 +43,7 @@ export function Agents() {
   const panes = usePanes();
   const session = useSession();
   const tab = useTab();
-  const pane = useFocusedPane();
+  const pane = usePane(useTab()?.activePane?.id);
   const model = useMemo(() => fromWindow({ sessions, tabs, panes, session, tab, pane }), [sessions, tabs, panes, session, tab, pane]);
   const [query, setQuery] = useState("");
   const [foldedSpaces, setFoldedSpaces] = useState<number[]>([]);
@@ -76,8 +77,8 @@ export function Agents() {
         ? (model.spaces.find((each) => each.id === rename.id)?.label ?? "")
         : (model.tabs.find((each) => each.id === rename.id)?.label ?? "");
     if (label === "" || label === before.trim()) return;
-    if (rename.kind === "space") call("session.rename", rename.id, label).catch(swallow);
-    else call("tab.rename", rename.id, label).catch(swallow);
+    if (rename.kind === "space") call("session.update", sessionRef(rename.id), { name: label }).catch(swallow);
+    else call("tab.update", tabRef(rename.id), { name: label }).catch(swallow);
   };
 
   return (
@@ -540,35 +541,35 @@ function iconOf(name: string): string {
 // ---- what a click does: the API's own calls
 
 function goTo(pane: number): Promise<unknown> {
-  return call("pane.select", { pane }).catch(swallow);
+  return call("pane.focus", paneRef(pane), {}).catch(swallow);
 }
 
 function goToTab(tab: number): Promise<unknown> {
-  return call("tab.select", { tab }).catch(swallow);
+  return call("tab.focus", tabRef(tab), {}).catch(swallow);
 }
 
 function selectSpace(space: number): Promise<unknown> {
-  return call("session.select", { session: space }).catch(swallow);
+  return call("session.focus", sessionRef(space), {}).catch(swallow);
 }
 
 function newSpace(): Promise<unknown> {
-  return call("session.create", {}).catch(swallow);
+  return call("pane.open", "terminal", {}, { kind: "session", focus: false }).catch(swallow);
 }
 
 function newTab(space: number): Promise<unknown> {
-  return call("pane.open", "terminal", {}, { kind: "tab", session: space }).catch(swallow);
+  return call("pane.open", "terminal", {}, { kind: "tab", session: sessionRef(space) }).catch(swallow);
 }
 
 function closePane(pane: number): Promise<unknown> {
-  return call("pane.close", pane).catch(swallow);
+  return call("pane.close", paneRef(pane)).catch(swallow);
 }
 
 function closeTab(tab: number): Promise<unknown> {
-  return call("tab.select", { tab }).then(() => call("tab.close", tab)).catch(swallow);
+  return call("tab.focus", tabRef(tab), {}).then(() => call("tab.close", tabRef(tab))).catch(swallow);
 }
 
 function removeSpace(space: number): Promise<unknown> {
-  return call("session.select", { session: space }).then(() => call("session.close", space)).catch(swallow);
+  return call("session.focus", sessionRef(space), {}).then(() => call("session.close", sessionRef(space))).catch(swallow);
 }
 
 /** What a row drags. */
@@ -587,12 +588,12 @@ function dragged(data: unknown): Dragged {
 function dropOnSpace(space: Space, data: unknown): boolean {
   const it = dragged(data);
   if (it.tab !== undefined) {
-    void call("tab.setPlace", it.tab, { session: space.id }).catch(swallow);
+    void call("tab.update", tabRef(it.tab), { session: sessionRef(space.id) }).catch(swallow);
     return true;
   }
   const into = space.current ?? space.tabs[0]?.id;
   if (it.pane !== undefined && into !== undefined) {
-    void call("pane.setPlace", it.pane, { tab: into }).catch(swallow);
+    void call("pane.update", paneRef(it.pane), { place: { tab: tabRef(into) } }).catch(swallow);
     return true;
   }
   return false;
@@ -602,11 +603,11 @@ function dropOnSpace(space: Space, data: unknown): boolean {
 function dropOnTab(tab: Tab, data: unknown): boolean {
   const it = dragged(data);
   if (it.pane !== undefined) {
-    void call("pane.setPlace", it.pane, { tab: tab.id }).catch(swallow);
+    void call("pane.update", paneRef(it.pane), { place: { tab: tabRef(tab.id) } }).catch(swallow);
     return true;
   }
   if (it.tab !== undefined) {
-    void call("tab.setPlace", it.tab, { session: tab.space, index: tab.index }).catch(swallow);
+    void call("tab.update", tabRef(it.tab), { session: sessionRef(tab.space), index: tab.index }).catch(swallow);
     return true;
   }
   return false;
@@ -616,6 +617,6 @@ function dropOnTab(tab: Tab, data: unknown): boolean {
 function dropOnPane(pane: Pane, data: unknown): boolean {
   const it = dragged(data);
   if (it.pane === undefined || it.pane === pane.id) return false;
-  void call("pane.setPlace", it.pane, { swap: pane.id }).catch(swallow);
+  void call("pane.update", paneRef(it.pane), { place: { swap: paneRef(pane.id) } }).catch(swallow);
   return true;
 }

@@ -1,5 +1,5 @@
 // What an agent is doing, read the way the core sidebar reads it (core/agents/src/sidebar.rs):
-// `@agent_status` is one word, and `@program_status` is every program's own report, of which the
+// `@agent.status` is one word, and `@program_status` is every program's own report, of which the
 // most urgent is the one that speaks for the pane. The words and marks are the theme's: `agent.…`
 // tokens and `ui.stateMark`, which is what `pumi_core::card::lines` drew.
 import type { Pane, Program, Snapshot } from "./snapshot.ts";
@@ -46,7 +46,7 @@ export function program(pane: Pane): Program | undefined {
   return best;
 }
 
-/** The word a pane goes by: `@agent_status`'s, with a `done` whose program failed read as `error`. */
+/** The word a pane goes by: `@agent.status`'s, with a `done` whose program failed read as `error`. */
 export function state(pane: Pane): State {
   switch (pane.status) {
     case "working":

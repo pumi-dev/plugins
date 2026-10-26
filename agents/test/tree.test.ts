@@ -101,7 +101,7 @@ test("a tab's name matches the whole tab, panes and all", () => {
 test("the attention section folds to its header, and a quiet pumi has none", () => {
   expect(said(rows(snap(), shape({ attention: true })).slice(0, 1))).toEqual(["attention blocked 1"]);
   const quiet = state();
-  quiet.panes[3]!.options["@agent_status"] = "working";
+  quiet.panes[3]!.options["@agent.status"] = "working";
   quiet.panes[3]!.options["@program_status"] = [{ id: "", state: "working" }];
   expect(rows(read(quiet), shape()).some((row) => row.kind.startsWith("attention"))).toBe(false);
 });
