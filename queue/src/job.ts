@@ -205,7 +205,6 @@ export function parseJob(id: number, args: unknown, now: number, origin: number)
   }
   if (!args || typeof args !== "object") throw new Error(`queue.add takes a command or a table, not ${show(args)}`);
   const spec = args as Record<string, unknown>;
-  // TODO(api): command.trim: Commands are functions with manifest palette metadata.
   const command = typeof spec.command === "string" ? spec.command.trim() : "";
   if (command === "") throw new Error("queue.add needs a `command`");
   return made(id, command, spec, now, origin);
