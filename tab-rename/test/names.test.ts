@@ -11,7 +11,7 @@ test("a tab it named stays its own; a tab you named is left alone", () => {
   ]);
   expect([names.mine(1), names.mine(2), names.mine(3)]).toEqual([true, false, true]);
 
-  // Its own rename comes back as `tab.renamed` and changes nothing.
+  // Its own rename comes back as `tab.changed` with `name` and changes nothing.
   names.naming(3, "Theme Cleanup");
   names.renamed(3, "Theme Cleanup");
   expect(names.mine(3)).toBe(true);
