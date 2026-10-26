@@ -1,9 +1,10 @@
 # pumi-plugins
 
-Community packages for [pumi](../pumi). Each directory is one package ([pumi.dev/docs/packages](https://pumi.dev/docs/packages/)): its
-wasm UI plugin (`ui/`, gpui compiled to `wasm32-wasip2`) that the app runs, and its data. The
-server runs no package code: a package declares its options, places its
-panes and registers its autocmds from its plugin's `init`.
+Community packages for [pumi](../pumi). Each directory is one package
+([pumi.dev/docs/packages](https://pumi.dev/docs/packages/)): TypeScript on Bun, whose
+`package.json`'s `pumi` key is its manifest — what it contributes, without running it. Its
+`src/main.ts` runs in a worker (the logic: functions, events, options), and its `src/ui.tsx`
+draws in the window; both `import … from "pumi"`.
 
 | Package | What it does | What it draws |
 | --- | --- | --- |
@@ -14,8 +15,8 @@ panes and registers its autocmds from its plugin's `init`.
 | `scripts` | Every `package.json` script in the current repository, workspaces included, and every shell script beside them; click to run. Which kinds are listed is an option, both on by default | a section of the side bar (`panel`) |
 | `pi-session` | Buttons on every pi pane's strip: Fork opens `pi --fork <session>` beside it, Copy copies the session | buttons in the strip (`pane.strip`) on pi panes |
 | `pumi-dog` | A little dog walking along the status bar | a dog in the status bar (`status`) |
-| `insert-path` | Type `/` in a terminal and pick a file: a floating fuzzy picker types the path in | a float over the tab (a `views` pane) |
-| `pane-switcher` | Alt-Tab for panes: a row of cards showing what each pane holds, to pick one | a float over the window (a `views` pane) |
+| `insert-path` | Type `/` in a terminal and pick a file: a floating fuzzy picker types the path in | a float over the tab (its own block) |
+| `pane-switcher` | Alt-Tab for panes: a row of cards showing what each pane holds, to pick one | a float over the window (its own block) |
 | `agent-overview` | Every agent in this pumi in one place: who is working, who is blocked, and where; click a row to go to its pane | a tab of its own |
 | `queue` | Commands that run one at a time, each after the pane it waits for is done; one bar under each pane with its jobs | a bar (`pane.strip`) on the panes that have work |
 | `perf` | How the app is doing: CPU, memory, frames, core plugins and the busiest threads, from `app.perf` (Cmd-Alt-P) | a float over the whole window, in a corner |
@@ -26,38 +27,38 @@ panes and registers its autocmds from its plugin's `init`.
 `lib/script-panel` is what the `scripts` page is built on: the walk, the grouped list, running a
 script in a terminal.
 
-## Build
-
-This repository sits beside a pumi checkout (`../pumi`), whose `crates/pumi-plugin` is the
-SDK. The toolchain and the `wasm32-wasip2` target are pinned (`rust-toolchain.toml`,
-`.cargo/config.toml`), so building is:
-
-```sh
-cargo build --release                                  # every package's ui/ component
-cargo test --target aarch64-apple-darwin --workspace   # their logic, natively
-```
-
-The components land in `target/wasm32-wasip2/release/<crate>.wasm`; the app finds a
-package's component there, through the link `pumi pack add` makes.
-
 ## Install
 
+This repository sits beside a pumi checkout (`../pumi`), whose `runtime/app` is the SDK. Link
+it into every package's `node_modules` first:
+
 ```sh
-pumi pack add ~/Kitchen/pumi-plugins/scripts           # links it; the app runs its component, which declares its options
-pumi plugin reload                                    # the app picks up a rebuilt component
+bun tools/link.mjs                     # the SDK's types as @pumid/types, once and after adding a package
+bun install                            # a package's own npm dependencies
 ```
 
-Options are in Settings under each package's name (`npm_scripts.max_depth`,
-`pi_session.side`, …). `pi-session` needs pi's hook (`pumi skill add pi`), which records
-`@agent` and `@agent.session` on the pane.
+Then, in the pumi checkout, a package is added by its directory: `pumi plugin add` links it and
+the app starts it; `pumi plugin dev` runs it as you edit it; `pumi plugin update` picks up a
+change; and `pumi plugin logs <name>` shows its output.
+
+```sh
+pumi plugin add ./scripts              # links it; the app runs its worker and draws its slots
+pumi plugin dev ./scripts              # or: reload it on every save, while you work on it
+```
+
+Its options are in Settings under each package's name (`npm_scripts.max_depth`,
+`pi_session.side`, …), or as `pumi option set`. `pi-session` needs pi's hook
+(`pumi skill add pi`), which records `@agent` and `@agent.session` on the pane.
 
 ## Test
 
-Each package's logic is tested natively, with the build above:
+Each package's logic is tested on its own, with no pumi running:
 
 ```sh
-cargo test --target aarch64-apple-darwin --workspace
+bun test                               # every package's (bun tools/all.mjs)
+cd <pkg> && bun test                   # one package's
+cd <pkg> && ./node_modules/.bin/tsc --noEmit -p .   # its types
 ```
 
-The headless Lua specs are gone with the server's Lua: what a package does with
-the API is only exercised in the app.
+What a package does with the API itself is exercised in the app, with
+`pumi plugin dev`.
