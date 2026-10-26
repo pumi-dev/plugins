@@ -35,7 +35,7 @@ export function state(): Given {
         label: "",
         options: {
           "@agent": "claude",
-          "@agent_status": "working",
+          "@agent.status": "working",
           title: "π - claude",
           pane_current_path: "/Users/me/Kitchen/pumi",
         },
@@ -58,7 +58,7 @@ export function state(): Given {
         label: "",
         options: {
           "@agent": "pi",
-          "@agent_status": "blocked",
+          "@agent.status": "blocked",
           "@program_status": [{ id: "", state: "blocked", kind: "permission", msg: "Bash(npm publish)?" }],
           title: "π - site",
           pane_current_path: "/Users/me/work/site",

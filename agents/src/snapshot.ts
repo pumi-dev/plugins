@@ -36,7 +36,7 @@ export interface Pane {
   label: string;
   /** `@agent`: the agent's own name for itself (`pi`, `claude`, …). */
   agent: string;
-  /** `@agent_status`: one word, the most urgent of its programs'. */
+  /** `@agent.status`: one word, the most urgent of its programs'. */
   status: string;
   /** `@program_status`: what each program in it said. */
   program: Program[];
@@ -81,7 +81,7 @@ export interface PaneGiven {
   cwd: string;
   /** Its `@label`. */
   label: string;
-  /** Its options: `@agent`, `@agent_status`, `@program_status`, … */
+  /** Its options: `@agent`, `@agent.status`, `@program_status`, … */
   options: Record<string, unknown>;
 }
 
@@ -156,7 +156,7 @@ export function read(given: Given): Snapshot {
       cwd: each.cwd,
       label: each.label,
       agent: str(said["@agent"]),
-      status: str(said["@agent_status"]),
+      status: str(said["@agent.status"]),
       program: programs(said["@program_status"]),
     };
     if (each.tab !== null) inTab.set(each.tab, [...(inTab.get(each.tab) ?? []), made]);

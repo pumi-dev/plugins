@@ -1,4 +1,4 @@
-// What an agent is doing, read the way the core does: `@agent_status` is one word, and
+// What an agent is doing, read the way the core does: `@agent.status` is one word, and
 // `@program_status` is every program's own report, of which the most urgent is the one that speaks
 // for the pane. All that is drawn of it is in the map, as a word after the pane's title.
 import type { Pane, Program } from "./snapshot.ts";
@@ -40,7 +40,7 @@ export function program(pane: Pane): Program | undefined {
   return best;
 }
 
-/** The word a pane goes by: `@agent_status`'s, with a `done` whose program failed read as `error`. */
+/** The word a pane goes by: `@agent.status`'s, with a `done` whose program failed read as `error`. */
 export function state(pane: Pane): State {
   switch (pane.status) {
     case "working":

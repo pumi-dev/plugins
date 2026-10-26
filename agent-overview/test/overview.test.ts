@@ -9,12 +9,12 @@ function overview(): Overview {
   return Overview.fromState(state());
 }
 
-const panes = (agents: { pane: number }[]) => agents.map((agent) => agent.pane);
+const panes = (agents: { pane: string }[]) => agents.map((agent) => agent.pane);
 
 test("only panes in tabs are agents", () => {
   const all = overview();
-  expect(panes(all.agents)).toEqual([100, 101, 200]);
-  expect(all.currentPane).toBe(100);
+  expect(panes(all.agents)).toEqual(["%100", "%101", "%200"]);
+  expect(all.currentPane).toBe("%100");
 });
 
 test("what wants the user comes first", () => {
@@ -49,12 +49,12 @@ test("a done whose record failed is a failure", () => {
 test("filters and a query narrow the list", () => {
   const all = overview();
   const ids = (filter: Parameters<Overview["visible"]>[0], query: string) => panes(all.visible(filter, query));
-  expect(ids("needs-you", "")).toEqual([100, 101]);
-  expect(ids("idle", "")).toEqual([200]);
+  expect(ids("needs-you", "")).toEqual(["%100", "%101"]);
+  expect(ids("idle", "")).toEqual(["%200"]);
   expect(ids("working", "")).toEqual([]);
-  expect(ids("all", "claude")).toEqual([100]);
-  expect(ids("all", "pumi claude")).toEqual([100]);
-  expect(ids("all", "review")).toEqual([200]);
+  expect(ids("all", "claude")).toEqual(["%100"]);
+  expect(ids("all", "pumi claude")).toEqual(["%100"]);
+  expect(ids("all", "review")).toEqual(["%200"]);
 
   const groups = all.groups("all", "");
   expect(groups.map((group) => group.name)).toEqual(["main", "work"]);
@@ -63,8 +63,8 @@ test("filters and a query narrow the list", () => {
 
 test("a search finds an agent by its conversation and its title", () => {
   const all = overview();
-  expect(panes(all.visible("all", "conv-1"))).toEqual([100]);
-  expect(panes(all.visible("all", "π"))).toEqual([200]);
+  expect(panes(all.visible("all", "conv-1"))).toEqual(["%100"]);
+  expect(panes(all.visible("all", "π"))).toEqual(["%200"]);
 });
 
 test("a record's state fills in what the option did not say", () => {

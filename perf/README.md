@@ -30,7 +30,7 @@ Rows turn yellow past 10% of a core and red past half.
 Overlay** and `pumi call amresyd.perf.toggle` (`local.perf.toggle` while it is linked from disk).
 It floats over the whole window (`relative: "client"`) in `perf.corner`, takes neither the
 keyboard nor the pointer, and is as tall as what it shows: it moves its own pane
-(`pane.setPlace`) when a row comes or goes.
+(`pane.update`) when a row comes or goes.
 
 | Option | | |
 | --- | --- | --- |

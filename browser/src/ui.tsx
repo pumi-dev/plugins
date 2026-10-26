@@ -4,7 +4,7 @@
 // `url` option and writes it back as it goes, and reports what the page says of itself, which is
 // what the package's `url`, `title` and `read` answer with.
 import { useEffect, useRef, useState } from "react";
-import { Icon, WebView, call, useEvent, useMetrics, useOption, usePane, useTheme, useWebview, webview, type RendererProps } from "pumi";
+import { Icon, WebView, call, useChannelListener, useMetrics, useOption, usePane, useTheme, useWebview, webview, type RendererProps } from "pumi";
 
 import { hostOf, normalize, resolve } from "./address.ts";
 
@@ -47,9 +47,10 @@ function Button({ icon, tip, on, enabled = true }: { icon: string; tip: string; 
   );
 }
 
-/** What the page in a pane hears of `pane.call`: its block's methods, and the protocol's `input`. */
-interface Called {
-  pane: number;
+/** What the page in a pane hears from its worker: its block's methods (`pane.call`), and the
+ * protocol's `input`. */
+interface Told {
+  pane: string;
   method: string;
   args?: { url?: unknown; text?: unknown; paste?: unknown };
 }
@@ -61,12 +62,13 @@ export function Page({ pane, block }: RendererProps) {
   // options start with.
   const PAGE = `${block.slice(0, block.lastIndexOf(".") + 1)}url`;
   // The page itself: one in the app, named by the pane it is in.
-  const handle = `${pane.server ? `${pane.server}/` : ""}${pane.id}`;
   const id = pane.id;
+  const handle = id;
   const view = useWebview(handle);
-  const each = usePane(pane);
-  const home = useOption<string>("browser.home_url");
-  const search = useOption<string>("browser.search_url") ?? SEARCH;
+  const each = usePane(id);
+  const [home] = useOption<string>("browser.home_url");
+  const [chosen] = useOption<string>("browser.search_url");
+  const search = chosen ?? SEARCH;
   const start = (each?.options ?? {})[PAGE] as string | undefined;
   /** The page the option names as the pane opens: what the webview loads first. */
   const opening = start ? resolve(start, search) : null;
@@ -104,7 +106,7 @@ export function Page({ pane, block }: RendererProps) {
   useEffect(() => {
     if (start === src) return;
     agreed.current = src;
-    call("option.set", PAGE, src, { pane: id }).catch(swallow);
+    call("option.set", PAGE, src, { scope: "pane", id }).catch(swallow);
   }, [src, PAGE, id, start]);
 
   // Where the page went by itself — a step back, a redirect, a link followed inside it: the address
@@ -114,25 +116,21 @@ export function Page({ pane, block }: RendererProps) {
   }, [view?.url]);
 
   // The block's methods (`navigate`, `back`, `forward`, `reload`), and the protocol's `input`:
-  // what is typed into the address bar, and Enter with it.
-  useEvent<Called>(
-    "pane.called",
-    (e) => {
-      if (e.data.pane !== id) return;
-      const method = e.data.method;
-      if (method === "navigate") goes(String(e.data.args?.url ?? ""));
-      else if (method === "input") goes(String(e.data.args?.text ?? e.data.args?.paste ?? ""));
-      else if (method === "back" || method === "forward" || method === "reload") webview(handle, method);
-    },
-    { match: block },
-  );
+  // what is typed into the address bar, and Enter with it. Its functions run in the worker
+  // (`pane.call` reaches `amresyd.browser.page.<method>`), which posts them here.
+  useChannelListener("page", (data: Told) => {
+    if (data?.pane !== id) return;
+    if (data.method === "navigate") goes(String(data.args?.url ?? ""));
+    else if (data.method === "input") goes(String(data.args?.text ?? data.args?.paste ?? ""));
+    else if (data.method === "back" || data.method === "forward" || data.method === "reload") webview(handle, data.method);
+  });
 
   // What the page says of itself, reported to its pane: `read` answers the name and the address,
   // `selection` nothing of another site's document, and the pane's title is the page's name.
   useEffect(() => {
     if (!view) return;
     const title = view.title || (view.url ? hostOf(view.url) : "");
-    call("pane.call", id, "report", { title, text: `${title}\n${view.url}`, selection: null }).catch(swallow);
+    call("pane.call", id, "describe", { title, text: `${title}\n${view.url}`, selection: null }).catch(swallow);
   }, [view?.url, view?.title, id]);
 
   const title = view?.title || (view?.url ? hostOf(view.url) : "") || "Browser";

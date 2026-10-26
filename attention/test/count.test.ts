@@ -1,7 +1,7 @@
-// The rule, on its own: what counts as waiting, when that is said, and what `@attention` is. The
-// app's side of it — reading every pane's `@agent_status` and posting the notice — is main.ts.
+// The rule, on its own: what counts as waiting, and when that is said. The
+// app's side of it — reading every pane's agent trait and posting the notice — is main.ts.
 import { expect, test } from "bun:test";
-import { attention, count, said } from "../src/count.ts";
+import { count, said } from "../src/count.ts";
 
 test("a blocked agent counts; working, done, idle and no report do not", () => {
   expect(count(["blocked", "working", "blocked", "done", "idle", "error", null, undefined])).toBe(2);
@@ -20,10 +20,4 @@ test("more waiting say so; a count that does not go up says nothing", () => {
 test("a count that cleared and blocked again says so again", () => {
   expect(said(1, 0)).toBeNull();
   expect(said(0, 1)).toBe("An agent is waiting for you");
-});
-
-test("@attention is the count, and nothing while none wait", () => {
-  expect(attention(0)).toBeNull();
-  expect(attention(1)).toBe(1);
-  expect(attention(3)).toBe(3);
 });

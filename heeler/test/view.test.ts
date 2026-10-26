@@ -17,8 +17,8 @@ const state: Json = {
   ],
   panes: [
     { id: 1, type: "terminal", place: { kind: "tiled", tab: 7 }, activity: {}, options: { title: "zsh", pane_current_path: "/tmp", pane_pid: 42, pane_tty: "/dev/ttys001" } },
-    { id: 2, type: "terminal", place: { kind: "tiled", tab: 7 }, options: { "@agent": "claude", "@agent_status": "working", "@label": "worker" } },
-    { id: 3, type: "terminal", place: { kind: "tiled", tab: 8 }, options: { "@agent_status": "error", "@program_status": [{ state: "done" }] } },
+    { id: 2, type: "terminal", place: { kind: "tiled", tab: 7 }, options: { "@agent": "claude", "@agent.status": "working", "@label": "worker" } },
+    { id: 3, type: "terminal", place: { kind: "tiled", tab: 8 }, options: { "@agent.status": "error", "@program_status": [{ state: "done" }] } },
     { id: 4, type: "terminal", place: { kind: "tiled", tab: 9 }, options: {} },
     { id: 90, type: "terminal", place: { kind: "float", tab: 7 }, options: {} },
   ],

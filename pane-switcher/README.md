@@ -17,7 +17,7 @@ over the window, dimming what is under them, one per pane, as a task switcher sh
 Each card is drawn from what the pane itself says: the app's own screen of the pane above
 (`<preview>`, the grid the app parsed from the pane's bytes, scaled to the card — nothing is
 attached and nothing is resized to take it), then the pane's title or the program in it, its
-`tab.pane` number and directory, and the agent's state when one reported it (`@agent_status`).
+`tab.pane` number and directory, and the agent's state when one reported it (`@agent.status`).
 A card's icon is its pane's block (`terminal`, or a plugin's).
 The highlight starts on the pane you are in; the cards are in most-recently-used order, so the
 next one is where you were before. The trigger pressed again moves the highlight on instead of
@@ -54,7 +54,7 @@ window changes size. `backdrop` dims what is under it and takes the presses ther
 so the switcher handles neither key nor click itself. `focus: false` keeps it from becoming the
 pane it is switching from: the tab's own state is untouched until a card is picked.
 
-The trigger is mapped in the root key table (`key.set`) as its option says, and follows `trigger`
+The trigger is mapped in the root key table (the server's `keys` option) as its option says, and follows `trigger`
 when it changes: the key it was bound to is unmapped, and the new one mapped, in its place. The
 switcher is the block `switcher` (`contributes.blocks`), drawn by `ui.tsx`'s `Switcher`. The cards
 are read as the switcher opens: a switcher is momentary, so nothing of it is kept. Its logic is

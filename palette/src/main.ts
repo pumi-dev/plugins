@@ -10,7 +10,7 @@
 //
 // The model is `model.ts` (what is typed, the rows a query keeps, and what ↑ walks); `ui.tsx` draws
 // it. Every gesture comes back here, and answers the rows as they are afterwards.
-import { command, notify, pane, plugin, provide, type PlaceSpec } from "pumi";
+import { fn, request, self, workspace, type Pane } from "pumi";
 
 import { model, type Mode, type PaletteView } from "./model.ts";
 
@@ -22,7 +22,7 @@ export type { Mode, PaletteView, Row } from "./model.ts";
  * pane (`focus: false`), so the terminal it was opened from keeps its place; its input takes the
  * keyboard all the same. Above everything else, since it is asked for by a key from anywhere.
  */
-export const PLACE: PlaceSpec = {
+export const PLACE = {
   kind: "float",
   relative: "client",
   width: "60%",
@@ -31,7 +31,7 @@ export const PLACE: PlaceSpec = {
   dismiss: ["escape", "press"],
   focus: false,
   focusable: true,
-  zindex: 100,
+  zIndex: 100,
 };
 
 function message(err: unknown): string {
@@ -39,10 +39,10 @@ function message(err: unknown): string {
 }
 
 /** The palette's float, if one is up. */
-async function shown(): Promise<number | null> {
+async function shown(): Promise<Pane | null> {
   try {
-    const [there] = await pane.list({ block: plugin.prefixed("main") });
-    return typeof there === "number" ? there : null;
+    const [there] = await workspace.panes({ block: self.plugin.prefixed("main") });
+    return there ?? null;
   } catch {
     return null;
   }
@@ -51,15 +51,14 @@ async function shown(): Promise<number | null> {
 /** Opens the palette in `mode`, as a new float (replacing one that is up). */
 async function open(mode: Mode): Promise<boolean> {
   try {
-    const up = await shown();
-    if (up !== null) await pane.close(up).catch(() => {});
+    await (await shown())?.close().catch(() => {});
     model.opening = mode;
     model.done = false;
     await model.start();
-    await pane.open(plugin.prefixed("main"), { mode }, PLACE);
+    await workspace.openPane(self.plugin.prefixed("main"), { mode }, PLACE);
     return true;
   } catch (err) {
-    await notify(`palette: ${message(err)}`, "error");
+    await request.open({ kind: "notification", title: `palette: ${message(err)}`, level: "error" });
     return false;
   }
 }
@@ -67,8 +66,7 @@ async function open(mode: Mode): Promise<boolean> {
 /** Closes the palette, if one is up. */
 async function close(): Promise<void> {
   model.done = true;
-  const up = await shown();
-  if (up !== null) await pane.close(up).catch(() => {});
+  await (await shown())?.close().catch(() => {});
 }
 
 /** `cmd+shift+p`: the commands, or the way out of a palette that is up. */
@@ -131,8 +129,6 @@ export async function pick(at: number): Promise<{ close: boolean; view: PaletteV
   return { close: true, view: model.view() };
 }
 
-command("toggle", () => toggle());
-command("go_to_file", () => open("files"));
-
-provide(plugin.prefixed("toggle"), { desc: "Show or hide the palette: every command there is.", examples: [{ args: [] }] }, () => toggle());
-provide(plugin.prefixed("go_to_file"), { desc: "Show the palette on the project's files.", examples: [{ args: [] }] }, () => open("files"));
+// Its two commands are the manifest's, which is also what gives them their titles and keys.
+fn.set(self.plugin.prefixed("toggle"), { desc: "Show or hide the palette: every command there is.", callback: () => toggle() });
+fn.set(self.plugin.prefixed("go_to_file"), { desc: "Show the palette on the project's files.", callback: () => open("files") });

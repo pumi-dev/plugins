@@ -21,7 +21,7 @@ pumi open --with amresyd/monaco notes.md     # this editor, whatever else fits i
 pumi call amresyd.monaco.save 7              # pane 7's file, to disk
 ```
 
-`pumi open` is `file.open` (see `pumi api show file.open`): it shows the file in a file pane of
+`pumi open` is `pane.open` of a `file` block (see `pumi api show pane.open`): it shows the file in a file pane of
 the tab already showing it, else a new one. The pane's `path` option is the file (setting it
 opens that one there, and a pane comes back with it); `dirty` (`amresyd.monaco.dirty`) says the
 file has unsaved changes. `pane.call(pane, "read")` answers the file's text, and `"selection"`

@@ -8,7 +8,7 @@
 //
 // Everything answers plain JSON: Settings reads it, and so does a terminal.
 
-import { clipboard, notify, provide } from "pumi";
+import { clipboard, fn, request } from "pumi";
 import type { SshHost } from "./host.ts";
 import type { Pairing } from "./pair.ts";
 import { qrRows } from "./pairing/qr.ts";
@@ -36,8 +36,8 @@ function addressesOf(value: unknown): string[] | undefined {
 }
 
 export function provideFunctions(deps: FunctionDeps): void {
-  provide(
-    "heeler.status",
+  fn.set(
+    "status",
     {
       desc: "The heeler Host: the machine's SSH (the port and `/etc/ssh` fingerprint a code pins), this account, the herdr session, and the pairing state.",
       effect: "read",
@@ -52,8 +52,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     }),
   );
 
-  provide(
-    "heeler.pair.status",
+  fn.set(
+    "pair.status",
     {
       desc: "The Pairing surface: candidate addresses (the one to pre-check marked), the port, the host key fingerprint, the tailnet, and a live code's QR.",
       effect: "read",
@@ -63,8 +63,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     () => deps.pairing.status(),
   );
 
-  provide(
-    "heeler.pair.confirm",
+  fn.set(
+    "pair.confirm",
     {
       desc: "Mint the Pairing Code for these addresses (or the pre-checked ones) and answer the code, its QR as text rows, and when it expires.",
       effect: "write",
@@ -74,8 +74,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     (value: unknown) => deps.pairing.confirm(addressesOf(value)),
   );
 
-  provide(
-    "heeler.pair.poll",
+  fn.set(
+    "pair.poll",
     {
       desc: "Check the live code: the device that just enrolled, an expiry, or still waiting.",
       effect: "read",
@@ -85,8 +85,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     () => deps.pairing.poll(),
   );
 
-  provide(
-    "heeler.pair.cancel",
+  fn.set(
+    "pair.cancel",
     {
       desc: "End the live pairing ceremony and remove its Bootstrap Key line.",
       effect: "write",
@@ -96,8 +96,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     () => deps.pairing.cancel(),
   );
 
-  provide(
-    "heeler.pair.revoke",
+  fn.set(
+    "pair.revoke",
     {
       desc: "Revoke the Device Key that just enrolled, removing its authorized_keys line.",
       effect: "write",
@@ -107,8 +107,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     () => deps.pairing.revoke(),
   );
 
-  provide(
-    "heeler.pair.copy",
+  fn.set(
+    "pair.copy",
     {
       desc: "Put the live Pairing Code on the clipboard, as the `c` key does in Heeler's pairing popup.",
       effect: "write",
@@ -123,8 +123,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     },
   );
 
-  provide(
-    "heeler.pair.qr",
+  fn.set(
+    "pair.qr",
     {
       desc: "Draw any text as a QR, as text rows: the Tailscale sign-in URL, a Pairing Code, a link.",
       effect: "read",
@@ -134,8 +134,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     (text: unknown) => (typeof text === "string" ? { text, qr: qrRows(text) } : { error: "heeler.pair.qr needs text" }),
   );
 
-  provide(
-    "heeler.host.restart",
+  fn.set(
+    "host.restart",
     {
       desc: "Re-probe the machine's SSH and refresh what the shim reads (after an SSH port change).",
       effect: "write",
@@ -145,8 +145,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     () => deps.restartHost(),
   );
 
-  provide(
-    "heeler.host.key",
+  fn.set(
+    "host.key",
     {
       desc: "The SSH host key's OpenSSH fingerprint, the one every Pairing Code pins.",
       effect: "read",
@@ -156,8 +156,8 @@ export function provideFunctions(deps: FunctionDeps): void {
     () => ({ fingerprint: deps.host().fingerprint ?? null }),
   );
 
-  provide(
-    "heeler.say",
+  fn.set(
+    "say",
     {
       desc: "Say something in pumi's notifications, for a plugin's own checks.",
       effect: "write",
@@ -166,7 +166,7 @@ export function provideFunctions(deps: FunctionDeps): void {
     },
     async (text: unknown) => {
       if (typeof text !== "string") return false;
-      await notify(text, "info", {});
+      await request.open({ kind: "notification", title: text, level: "info" });
       return true;
     },
   );

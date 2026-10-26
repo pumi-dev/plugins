@@ -9,7 +9,7 @@
 // What is here is the logic: opening, placing and closing the float, the key that toggles it, and
 // the numbers read from the app. What the numbers mean and how the rows are laid out is
 // `report.ts`'s; `ui.tsx` draws them.
-import { call, command, menu, notify, on, option, pane, plugin } from "pumi";
+import { call, fn, menu, on, option, request, self, workspace } from "pumi";
 
 import { place } from "./place.ts";
 import { EMPTY, heightOf, reportOf, type Report } from "./report.ts";
@@ -60,10 +60,9 @@ export async function at(): Promise<ReturnType<typeof place>> {
 }
 
 /** The overlays open now. */
-async function openPanes(): Promise<number[]> {
+async function openPanes() {
   try {
-    const listed = (await pane.list({ block: plugin.prefixed(VIEW) })) ?? [];
-    return listed.filter((id): id is number => typeof id === "number");
+    return await workspace.panes({ block: self.plugin.prefixed(VIEW) });
   } catch (err) {
     console.error(`perf: ${message(err)}`);
     return [];
@@ -74,15 +73,15 @@ async function openPanes(): Promise<number[]> {
 async function toggle(): Promise<boolean> {
   const open = await openPanes();
   if (open.length > 0) {
-    for (const overlay of open) await pane.close(overlay).catch(() => {});
+    for (const overlay of open) await overlay.close().catch(() => {});
     return false;
   }
   const where = await at();
   try {
-    await pane.open(plugin.prefixed(VIEW), { height: heightOf(await report()) }, where);
+    await workspace.openPane(self.plugin.prefixed(VIEW), { height: heightOf(await report()) }, where);
     return true;
   } catch (err) {
-    await notify(`perf: ${message(err)}`, "error");
+    await request.open({ kind: "notification", title: `perf: ${message(err)}`, level: "error" });
     return false;
   }
 }
@@ -92,44 +91,44 @@ async function replace(): Promise<void> {
   const where = await at();
   for (const overlay of await openPanes()) {
     try {
-      await pane.setPlace(overlay, where);
+      await overlay.update({ place: where });
     } catch (err) {
       console.error(`perf: ${message(err)}`);
     }
   }
 }
 
+/** The server's key tables, as its `keys` option holds them. */
+type Keys = Record<string, Record<string, { call: string; args: unknown[] }>>;
+
 /** The trigger last bound in the global key table, so the next one can unbind it. */
 let bound: string | null = null;
 
-/** Unbinds the trigger bound last, if any: `key.del` has no disposer of its own. */
-async function unbind(): Promise<void> {
-  if (bound === null) return;
-  const previous = bound;
-  bound = null;
-  // A key that is not bound, or a table that is gone, is `not_found`: there is nothing to undo.
-  await call("key.del", "global", previous).catch((err: unknown) => console.error(`perf: key.del ${previous}: ${message(err)}`));
-}
-
-/** Bind `trigger` in the global key table, and unbind the last one. */
+/** Binds `trigger` in the global key table, and unbinds the last one. The `keys` option has no
+ * disposer of its own: the app takes every key a plugin made away when the plugin stops. */
 async function bind(): Promise<void> {
   const value = await option.get("trigger").catch(() => null);
   const trigger = typeof value === "string" && value !== "" ? value : DEFAULT_TRIGGER;
   if (bound === trigger) return;
-  await unbind();
+  const found = await option.get("keys", { scope: "global" });
+  const root: Keys = found && typeof found === "object" && !Array.isArray(found) ? { ...(found as Keys) } : {};
+  const table = { ...(root.global ?? {}) };
+  if (bound !== null) delete table[bound];
+  table[trigger] = { call: self.plugin.prefixed("toggle"), args: [] };
   try {
-    await call("key.set", "global", trigger, () => void toggle(), { desc: "Toggle the performance overlay" });
+    await option.set("keys", { ...root, global: table }, { scope: "global" });
     bound = trigger;
   } catch (err) {
     // Nothing is recorded, so the next change asks again rather than thinking it is bound.
-    console.error(`perf: key.set ${trigger}: ${message(err)}`);
+    console.error(`perf: keys ${trigger}: ${message(err)}`);
   }
 }
 
-command("toggle", () => toggle());
-menu.add("View.Performance Overlay", { call: plugin.prefixed("toggle") }, { desc: "How the app is doing: CPU, memory, frames, core plugins, threads." });
+// The manifest's command, which is what gives it its title and key.
+fn.set(self.plugin.prefixed("toggle"), { desc: "Toggle the performance overlay", callback: () => toggle() });
+menu.set("View.Performance Overlay", { fn: self.plugin.prefixed("toggle"), title: "Performance Overlay", desc: "How the app is doing: CPU, memory, frames, core plugins, threads." });
 void bind();
-on("option.changed", { match: plugin.prefixed("*"), desc: "perf follows its options" }, () => {
+on("option.changed", { match: self.plugin.prefixed("*"), desc: "perf follows its options" }, () => {
   void bind();
   void replace();
 });

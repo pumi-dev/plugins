@@ -7,7 +7,7 @@
 // What is here is the logic: the panel (`panel.ts`, which decides), what a gesture carries out
 // (`intent.ts`, which acts), the watch on the disk, and the options. `ui.tsx` draws the rows it is
 // answered with, and asks again as the pane in front moves, on a slow clock, and after every gesture.
-import { command, on, option, plugin } from "pumi";
+import { call, fn, on, option, self } from "pumi";
 
 import { perform } from "./intent.ts";
 import { panel, type Panel } from "./panel.ts";
@@ -227,11 +227,11 @@ export async function reread(had = -1): Promise<View | null> {
 // ---- what the app reaches
 
 /** `cmd+shift+e`, as the app's own key does: the sidebar, which is where the page is. */
-command("toggle", () => command.run("toggle_sidebar"));
+fn.set("toggle", { desc: "Open the files sidebar." }, () => call("toggle_sidebar"));
 
 /** `cmd+f`: the filter box, and the keyboard in it. */
-command("filter", async () => {
-  await command.run("toggle_sidebar");
+fn.set("filter", { desc: "Open the files sidebar and filter its tree." }, async () => {
+  await call("toggle_sidebar");
   searching(true);
 });
 
@@ -240,7 +240,7 @@ on(
   "option.changed",
   {
     match: ["hide_gitignore", "hide_hidden", "file_icons", "folder_icons", "git_status", "auto_fold_dirs", "indent_size", "open_with", "editor"].map(
-      (key) => plugin.prefixed(key),
+      (key) => self.plugin.prefixed(key),
     ),
     desc: "the tree follows its options",
   },

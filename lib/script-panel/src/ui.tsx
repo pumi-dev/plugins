@@ -4,7 +4,7 @@
 // the walk and the running are the package's `main.ts`'s, answered as data: `load` and `run` come
 // from it as props, since a library's `main.ts` is not a page of its own.
 import { useEffect, useState } from "react";
-import { Icon, useEvent, useFocusedPane, useHover, useMetrics, usePlugin, useTheme } from "pumi";
+import { Icon, useEvent, useHover, useMetrics, usePane, usePlugin, useTab, useTheme } from "pumi";
 
 import type { Group, Item, Page } from "./main.ts";
 import { shortDetail, splitLabel } from "./text.ts";
@@ -52,7 +52,7 @@ function plural(n: number, noun: string): string {
 export function ScriptPage({ load, run, options = [], noun = "script" }: ScriptPageProps) {
   const t = useTheme();
   const m = useMetrics();
-  const focused = useFocusedPane();
+  const focused = usePane(useTab()?.activePane?.id);
   const cwd = focused?.cwd ?? "/";
   // The package's options: one changing re-reads the page. The window names them with the prefix
   // the package's own options have (`amresyd.npm_scripts.show_command`).

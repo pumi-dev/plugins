@@ -7,7 +7,7 @@
 // disk, is the worker's (`main.ts`, `panel.ts`, `intent.ts`): a key, a click and a drop each go
 // there and answer the rows as they are afterwards.
 import { Fragment, memo, useEffect, useRef, useState } from "react";
-import { Icon, useAppearance, useDraggable, useDroppable, useFocusedPane, useInterval, useMetrics, usePane, useTheme } from "pumi";
+import { Icon, useAppearance, useDraggable, useDroppable, useInterval, useMetrics, usePane, useTab, useTheme } from "pumi";
 
 import { activate, adding, cancelled, chose, committed, dropped, filtered, firstMatch, load, named, pressed, reread, searching, type View } from "./main.ts";
 import { adopt } from "./adopt.ts";
@@ -58,7 +58,7 @@ interface RowActions {
 /** The `panel` slot's view: the tree of the focused pane's directory. Only the directory is read
  *  here, so a pane's title or status changing draws nothing of the tree. */
 export function Tree() {
-  const focused = usePane(useFocusedPane());
+  const focused = usePane(useTab()?.activePane?.id);
   return <TreeAt cwd={focused?.cwd ?? "/"} />;
 }
 

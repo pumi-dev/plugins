@@ -1,9 +1,9 @@
 // What the buttons know of their pane, read when it acts so it is never stale: the session pi's hook
-// reported (`@agent_session`: an id, or the path of a session file) and the pane's directory. pi
+// reported (`@agent.session`: an id, or the path of a session file) and the pane's directory. pi
 // names its session files `<time>_<id>.jsonl`, their first record `{"type": "session", "id": …}`.
 import { closeSync, openSync, readSync } from "node:fs";
 
-import { option } from "pumi";
+import { option, type PaneId } from "pumi";
 
 /** A pi pane's session, as the hook reported it. */
 export class Session {
@@ -15,12 +15,12 @@ export class Session {
   ) {}
 
   /** The session of `pane`, or why it has none. */
-  static async of(pane: number): Promise<Session> {
+  static async of(pane: PaneId): Promise<Session> {
     const text = async (name: string) => {
-      const value = await option.get(name, { pane });
+      const value = await option.get(name, { scope: "pane", id: pane });
       return typeof value === "string" && value !== "" ? value : null;
     };
-    const value = await text("@agent_session");
+    const value = await text("@agent.session");
     if (value === null) throw new Error("pi has not said which session it is in");
     return new Session(value, await text("pane_current_path"));
   }

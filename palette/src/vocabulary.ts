@@ -2,20 +2,19 @@
 // app's every action, with its keys, by the host (`{type:"actions"}`); a package is not, so the list
 // is put together from the two places the app publishes its vocabulary:
 //
-//   menu.list("")  every menu the app and the packages put up — the header's buttons, a pane's strip,
-//                  the menu bar's menus — each item with its label, its key and what it runs
-//   key.list("")   every key table: the host's prefix keys, the packages' (a manifest's `keys` land
-//                  in `root`), each binding with the function it calls and what it is for. The key
-//                  tables have no noun in the SDK; it is a call, as a plugin's own keys are.
+//   registry.list("menu")  every menu the app and the packages put up — the header's buttons, a
+//                  pane's strip, the menu bar's menus — each item with its label, its key and what
+//                  it runs
+//   registry.list("key")   every key binding: the host's prefix keys, the packages' (a manifest's
+//                  `keys` land in `root`), each with the function it calls and its arguments
 //
-// What is listed is what can be run from here: a menu item is run with `menu.exec`, a binding by
-// calling the function it holds. A menu item that opens a block of the app's own (`open`) has no
-// way in from a package, and a binding to a command line needs the tmux package to run it, so
-// neither is listed — see the report.
-import { call, menu, option, pane, type PlaceSpec } from "pumi";
+// What is listed is what can be run from here: a menu item by calling the function it holds, a
+// binding the same. A menu item that opens a block of the app's own (`open`) has no way in from a
+// package, so it opens the block as a float of its own instead — see the report.
+import { call, option, registry, workspace } from "pumi";
 import { humanizeActionName } from "./score.ts";
 
-/** A menu item, as `menu.list` says it (the host's `Menu`). */
+/** A menu item, as `registry.list("menu")` says it (the host's `Menu`). */
 interface MenuItem {
   name: string;
   label?: string | null;
@@ -59,11 +58,11 @@ export async function vocabulary(): Promise<Action[]> {
   for (const item of await tree()) collect(item, [], actions, byCall);
   const prefix = await prefixChord();
   for (const binding of await bindings()) {
-    const name = binding.call?.call;
+    const name = binding.call ?? undefined;
     if (name === undefined || name === "") continue;
     // A menu item that runs the same function with the same arguments is the better row: it knows
     // its own label. The key it is also bound to goes on that row.
-    const already = byCall.get(signature(name, binding.call?.args));
+    const already = byCall.get(signature(name, binding.args));
     if (already !== undefined) {
       const chord = prettyChord(binding.key);
       if (chord !== "" && !already.keys.includes(chord)) already.keys.push(chord);
@@ -74,13 +73,13 @@ export async function vocabulary(): Promise<Action[]> {
     const keys = chord === "" ? [] : [binding.table === "prefix" ? `${prefix} ${chord}` : chord];
     const action: Action = {
       name,
-      label: binding.desc ?? humanizeActionName(name),
+      label: humanizeActionName(name),
       keys,
       context: binding.table === "root" ? null : binding.table,
-      run: () => invoke(name, binding.call?.args),
+      run: () => invoke(name, binding.args),
     };
     actions.push(action);
-    byCall.set(signature(name, binding.call?.args), action);
+    byCall.set(signature(name, binding.args), action);
   }
   actions.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return actions;
@@ -94,7 +93,7 @@ function signature(name: string, args: unknown): string {
 /** The prefix key, as a person reads it (`ctrl+b`), which the prefix table's keys follow. */
 async function prefixChord(): Promise<string> {
   try {
-    const said = await option.get("prefix");
+    const said = await option.get("prefix", { scope: "global" });
     return typeof said === "string" && said !== "" ? prettyChord(said) : "ctrl+b";
   } catch {
     return "ctrl+b";
@@ -104,25 +103,24 @@ async function prefixChord(): Promise<string> {
 /** The menu tree, or nothing when the host has none yet. */
 async function tree(): Promise<MenuItem[]> {
   try {
-    return (await menu.list("")) as MenuItem[];
+    return (await registry.list("menu", { name: "" })) as unknown as MenuItem[];
   } catch {
     return [];
   }
 }
 
-/** A key binding, as `key.list` says it (the host's `Binding`): the table and key it is, and what
- * it runs. */
+/** A key binding, as `registry.list("key")` says it: the table and key it is, and what it runs. */
 interface Binding {
   table: string;
   key: string;
-  desc?: string | null;
-  call?: { call: string; args?: unknown } | null;
+  call?: string | null;
+  args?: unknown;
 }
 
-/** The key tables, or nothing. */
+/** Every key binding, or nothing. */
 async function bindings(): Promise<Binding[]> {
   try {
-    return (await call("key.list", "")) as Binding[];
+    return (await registry.list("key", {})) as unknown as Binding[];
   } catch {
     return [];
   }
@@ -146,10 +144,10 @@ function collect(item: MenuItem, above: string[], into: Action[], byCall: Map<st
     label: item.label ?? name,
     keys: item.keys === null || item.keys === undefined || item.keys === "" ? [] : [item.keys],
     context: above[0] ?? null,
-    // An item that opens a block is not `menu.exec`'s to run ("the app shows it where it was
-    // chosen"), so the block is opened here instead: as a float over the tab, which is as close to
-    // the app's popover as a package gets.
-    run: () => (open === null ? menu.exec(escapePath(path)) : shown(open)),
+    // A menu item is the function it holds, called with the arguments it was given. One that opens
+    // a block has no function of its own, so the block is opened here instead: as a float over the
+    // tab, which is as close to the app's popover as a package gets.
+    run: () => (open === null ? invoke(item.call?.call ?? "", item.call?.args) : shown(open)),
   };
   into.push(action);
   if (item.call?.call !== undefined) byCall.set(signature(item.call.call, item.call.args), action);
@@ -157,20 +155,15 @@ function collect(item: MenuItem, above: string[], into: Action[], byCall: Map<st
 
 /** Opens the block a menu item shows, over the tab, at about the size the item asked for. */
 async function shown(open: Open): Promise<unknown> {
-  const place: PlaceSpec = { kind: "float" };
+  const place: Record<string, unknown> = { kind: "float" };
   if (typeof open.width === "number") place.width = `${open.width}px`;
   if (typeof open.height === "number") place.height = `${open.height}px`;
-  return pane.open(open.view, open.args ?? {}, place);
+  return workspace.openPane(open.view, open.args ?? {}, place);
 }
 
 /** A menu's separator: `-name-`. */
 function isSeparator(name: string): boolean {
   return name.length > 2 && name.startsWith("-") && name.endsWith("-");
-}
-
-/** A menu path as `menu.exec` takes it: a dot in a name is escaped, a dot is a step down. */
-function escapePath(path: string[]): string {
-  return path.map((part) => part.replace(/\./g, "\\.")).join(".");
 }
 
 /** Calls a function a binding holds, with the arguments it was given: a list of them in order, or

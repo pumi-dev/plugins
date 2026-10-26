@@ -3,7 +3,7 @@
 // `fit` to put it back. A click on a node asks for a note, which is queued for an agent; the
 // rendering, the nodes and the inbox are the worker's (`main.ts`, `picture.ts`, `agents.ts`).
 import { useEffect, useState } from "react";
-import { Icon, useMetrics, usePane, usePlugin, useTheme, type Metrics, type RendererProps, type Tokens } from "pumi";
+import { Icon, useMetrics, usePane, usePlugin, useTheme, type Metrics, type PaneId, type Tokens } from "pumi";
 
 import { agents as agentsOf, drawn, note, type Shown } from "./main.ts";
 import type { Agent } from "./agents.ts";
@@ -45,10 +45,10 @@ function diagramTheme(t: Tokens, m: Metrics): AppTheme {
 }
 
 /** The `diagram` block: the picture, the zoom it is at, and the caption row under it. */
-export function Diagram({ pane }: RendererProps) {
+export function Diagram({ pane }: { pane: PaneId }) {
   const t = useTheme();
   const m = useMetrics();
-  const owner = pane.id;
+  const owner = pane;
   const each = usePane(pane);
   const prefix = usePrefix();
   /** The source the pane's options say: a redraw is a new value of it. */

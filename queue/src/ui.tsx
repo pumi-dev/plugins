@@ -4,12 +4,19 @@
 // a clock the queue itself sets the pace of: twice a second while it has work, now and then when it
 // has none.
 import { useEffect, useRef, useState } from "react";
-import { call, useInterval, useMetrics, useTheme, type Ref } from "pumi";
+import { useInterval, useMetrics, useTheme, workspace, type PaneId } from "pumi";
 
+import { paneId } from "./job.ts";
 import { bar, cancel, look, running, type BarRow } from "./main.ts";
 
 /** A row of the bar, in pixels: a winbar's row is 24. */
 const ROW = 24;
+
+/** Goes to the pane a job is in (`%3`), making it the current one. */
+async function go(target: number): Promise<void> {
+  await workspace.ready;
+  await workspace.getPane(`%${target}`)?.focus();
+}
 
 /** A throw the bar cannot answer: said in the log, not drawn over the window. */
 function swallow(err: unknown): void {
@@ -17,10 +24,10 @@ function swallow(err: unknown): void {
 }
 
 /** The `pane.strip` slot's view: the queue's jobs for `pane`, or nothing at all. */
-export function Bar({ pane }: { pane: Ref }) {
+export function Bar({ pane }: { pane: PaneId }) {
   const t = useTheme();
   const m = useMetrics();
-  const owner = pane.id;
+  const owner = paneId(pane) ?? 0;
   const [rows, setRows] = useState<BarRow[]>([]);
   const [work, setWork] = useState(false);
   const alive = useRef(true);
@@ -76,7 +83,7 @@ export function Bar({ pane }: { pane: Ref }) {
       {first.target !== null ? (
         <div
           aria-label="Go to the pane this job is in"
-          onClick={() => void call("pane.select", { pane: first.target }).catch(swallow)}
+          onClick={() => void go(first.target!).catch(swallow)}
           style={{ display: "flex", flexShrink: 0, cursor: "pointer" }}
         >
           <text style={{ fontSize: 10, color: t.muted }}>→</text>

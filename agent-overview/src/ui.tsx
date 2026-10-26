@@ -2,9 +2,9 @@
 // by name, a row per agent, and — beside it — the agent picked, its place and why it waits, or every
 // agent as a table by session. The agents are the app's own panes (`usePanes`, `useTabs`,
 // `useSessions` and their options), read through `overview.ts`; a press goes to a pane with
-// `pane.select`.
+// `pane.focus`.
 import { useMemo, useState } from "react";
-import { Icon, call, useFocusedPane, useMetrics, usePanes, useSessions, useTabs, useTheme } from "pumi";
+import { Icon, useMetrics, usePane, usePanes, useSessions, useTab, useTabs, useTheme, workspace } from "pumi";
 
 import { Overview as Model, folder, path, place, type Agent } from "./overview.ts";
 import { FILTERS, filterLabel, needsYou, statusLabel, type Filter, type Status } from "./status.ts";
@@ -20,16 +20,16 @@ export function Overview() {
   const panes = usePanes();
   const tabs = useTabs();
   const sessions = useSessions();
-  const focused = useFocusedPane();
+  const focused = usePane(useTab()?.activePane?.id);
   const model = useMemo(
     () =>
       Model.fromState({
         spaces: sessions.map((each) => ({ id: each.id, name: each.name })),
-        tabs: tabs.map((each) => ({ id: each.id, session: each.session, name: each.name })),
+        tabs: tabs.map((each) => ({ id: each.id, session: each.session.id, name: each.name ?? "" })),
         panes: panes.map((each) => ({
           id: each.id,
-          tab: each.tab ?? null,
-          session: each.session ?? null,
+          tab: each.tab?.id ?? null,
+          session: each.session.id,
           title: each.title ?? "",
           cwd: each.cwd ?? "",
           options: each.options,
@@ -40,7 +40,7 @@ export function Overview() {
   );
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [picked, setPicked] = useState<number | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
 
   const visible = model.visible(filter, query);
   const chosen = visible.find((agent) => agent.pane === picked);
@@ -48,7 +48,7 @@ export function Overview() {
   /** A press on an agent: the first picks it, the second goes to its pane. */
   const press = (agent: Agent) => {
     if (picked === agent.pane) {
-      void call("pane.select", { pane: agent.pane }).catch(swallow);
+      void workspace.getPane(agent.pane)?.focus().catch(swallow);
       return;
     }
     setPicked(agent.pane);
@@ -91,7 +91,7 @@ function Rail({
   visible: Agent[];
   filter: Filter;
   query: string;
-  picked: number | null;
+  picked: string | null;
   onFilter(filter: Filter): void;
   onQuery(text: string): void;
   onPress(agent: Agent): void;
@@ -191,11 +191,11 @@ function Brief({ agent }: { agent: Agent }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: m.radius, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Dot status={agent.status} size={10} />
-        <text style={{ fontSize: 15, fontWeight: 600, color: t.text }}>{agent.title || agent.kind || `%${agent.pane}`}</text>
+        <text style={{ fontSize: 15, fontWeight: 600, color: t.text }}>{agent.title || agent.kind || agent.pane}</text>
         <text style={{ fontSize: 12, color: tone }}>{statusLabel(agent.status)}</text>
         <div style={{ flexGrow: 1 }} />
         <div
-          onClick={() => void call("pane.select", { pane: agent.pane }).catch(swallow)}
+          onClick={() => void workspace.getPane(agent.pane)?.focus().catch(swallow)}
           style={{ display: "flex", paddingLeft: 8, paddingRight: 8, height: 24, alignItems: "center", borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: t.active, hover: { backgroundColor: t.hover } }}
         >
           <text style={{ fontSize: 12, color: t.text }}>Go to the pane</text>
@@ -212,7 +212,7 @@ function Brief({ agent }: { agent: Agent }) {
           <text style={{ fontSize: 12, color: t.text }}>{agent.message}</text>
         </div>
       ) : null}
-      <text style={{ fontSize: 10, color: t.faint }}>{`pane %${agent.pane}`}</text>
+      <text style={{ fontSize: 10, color: t.faint }}>{`pane ${agent.pane}`}</text>
     </div>
   );
 }

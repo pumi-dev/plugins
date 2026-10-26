@@ -12,14 +12,14 @@
 // machine's address, port 22, this account, and the session name `pumi`.
 //
 // Nothing here keeps a screen: `pane.read` is the core's own text, keys are `{"keys": […]}` on the
-// same call, and what an agent is doing is the pane's `@agent`/`@agent_status` (OSC 7501).
+// same call, and what an agent is doing is the pane's `@agent`/`@agent.status` (OSC 7501).
 //
 // The user-facing half is Settings: `heeler.pair.*` and `heeler.status` are provided functions
 // (functions.ts), and the QR is answered as text rows so any monospaced view can show it. See
 // README.md for the pieces and PARITY.md for what herdr's own server answers.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { on, option, paths, plugin, type PumiEvent } from "pumi";
+import { on, option, paths, self, type PumiEvent } from "pumi";
 import { status as activityStatus, start as startActivity } from "./activity.ts";
 import { serve as serveClient } from "./client.ts";
 import { provideFunctions } from "./functions.ts";
@@ -42,26 +42,22 @@ import { closed as paneClosed, start as startNotifications, status as statusChan
 import { Pairing } from "./pair.ts";
 import { HEELER_PLUGIN_VERSION } from "./protocol.ts";
 import { dataDir, heelerConfigDir, sessionDir } from "./paths.ts";
+import { paneNumber } from "./api.ts";
 import { onEvent, serve as serveApi } from "./server.ts";
 import type { Json } from "./types.ts";
 
-/** The events herdr's clients hear about: the model changing, a program ending, and what an agent
- * is doing (herdr's `pane.agent_status_changed`). */
+/** The events herdr's clients hear about: everything that changes the model, every program ending,
+ * and what an agent is doing (`pane.changed`, which carries the pane's `@agent.status`). */
 const EVENTS = [
-  "session.created",
+  "session.opened",
   "session.closed",
-  "session.renamed",
-  "session.focused",
+  "session.changed",
   "tab.opened",
   "tab.closed",
-  "tab.focused",
-  "tab.renamed",
+  "tab.changed",
   "pane.opened",
   "pane.closed",
-  "pane.focused",
-  "terminal.closed",
-  "layout.changed",
-  "option.changed",
+  "pane.changed",
 ];
 
 /** The option naming the herdr session pumi also answers as. */
@@ -198,7 +194,7 @@ await writeHostRecord();
 mkdirSync(heelerConfigDir(), { recursive: true, mode: 0o700 });
 
 // Heeler's Agent Notifications: the same push Heeler's herdr plugin sends, over pumi's
-// `@agent_status` (notify.ts), and its Live Activities (activity.ts).
+// `@agent.status` (notify.ts), and its Live Activities (activity.ts).
 const heeler = { session: async () => String((await option.get(SESSION)) ?? "pumi"), state };
 startNotifications(heeler);
 startActivity(heeler);
@@ -208,7 +204,7 @@ await installKeys();
 
 provideFunctions({
   version: HEELER_PLUGIN_VERSION,
-  prefix: plugin.prefix,
+  prefix: self.plugin.prefix,
   state: stateRoot,
   configDir: heelerConfigDir(),
   host: hostStatus,
@@ -224,7 +220,7 @@ provideFunctions({
 
 // ---- following the options
 
-on("option.changed", { match: plugin.prefixed(SESSION), desc: "heeler: the herdr session sockets follow the session option" }, async () => {
+on("option.changed", { match: self.plugin.prefixed(SESSION), desc: "heeler: the herdr session sockets follow the session option" }, async () => {
   try {
     await serveSession(grid);
     await writeHostRecord();
@@ -232,7 +228,7 @@ on("option.changed", { match: plugin.prefixed(SESSION), desc: "heeler: the herdr
     log(`${SESSION}: ${why(err)}`);
   }
 });
-on("option.changed", { match: plugin.prefixed(PORT), desc: "heeler: the advertised SSH port follows the option" }, async () => {
+on("option.changed", { match: self.plugin.prefixed(PORT), desc: "heeler: the advertised SSH port follows the option" }, async () => {
   try {
     advertised = await portSetting();
     sshAnswers = await probeSsh(advertised);
@@ -244,17 +240,19 @@ on("option.changed", { match: plugin.prefixed(PORT), desc: "heeler: the advertis
 
 // ---- Heeler's hooks
 
-on("option.changed", { match: "@agent_status", desc: "Heeler's notifications: an agent's status changed" }, (event: PumiEvent) => {
-  const pane = event.pane;
-  const next = event.data?.new;
-  if (typeof pane === "number" && typeof next === "string") {
-    statusChanged(pane, next);
-    activityStatus(pane, next);
-  }
+// A pane's own options are its changes (`pane.changed`), not the server's (`option.changed`): what
+// an agent is doing arrives as the pane's `options.@agent.status` in its patch.
+on("pane.changed", { desc: "Heeler's notifications: an agent's status changed" }, (event: PumiEvent) => {
+  const at = paneNumber(event.pane);
+  const keys: string[] = event.data?.keys ?? [];
+  const next = (event.data?.patch as { options?: Record<string, unknown> } | undefined)?.options?.["@agent.status"];
+  if (at === undefined || !keys.includes("options.@agent.status") || typeof next !== "string") return;
+  statusChanged(at, next);
+  activityStatus(at, next);
 });
 on("pane.closed", { desc: "Heeler's notifications: a closed pane's marker goes" }, (event: PumiEvent) => {
-  const pane = event.pane ?? Number(event.data?.pane);
-  if (typeof pane === "number" && Number.isFinite(pane)) paneClosed(pane);
+  const at = paneNumber(event.pane);
+  if (at !== undefined) paneClosed(at);
 });
 on(EVENTS, { desc: "herdr's socket: the model changing" }, (event: PumiEvent) => {
   const changed = { event: event.event, pane: event.pane, tab: event.tab, session: event.session, data: event.data as Json };

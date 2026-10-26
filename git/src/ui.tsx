@@ -8,7 +8,7 @@
 // whose unchanged rows are not drawn again, and the commit box keeps its own text. The repository,
 // the lines and every action are the worker's (`main.ts`, `panel.ts`, `tree.ts`).
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Icon, useChannel, useFocusedPane, useMetrics, usePane, usePlugin, useTheme, type RendererProps } from "pumi";
+import { Icon, useChannel, useMetrics, usePane, usePlugin, useTab, useTheme, type RendererProps } from "pumi";
 
 import {
   chose,
@@ -78,7 +78,7 @@ function at(e: any): At {
 /** The `panel` slot's view. Only the focused pane's directory is read here, so a pane's title or
  * status changing draws nothing of the page. */
 export function Git() {
-  const focused = usePane(useFocusedPane());
+  const focused = usePane(useTab()?.activePane?.id);
   const prefix = usePrefix();
   // A pane with no directory of its own (this plugin's diff, a page, nothing focused yet) is not
   // somewhere the user went: the page stays on the repository it was showing.
@@ -782,31 +782,30 @@ function Menu({ at: where, items, close }: { at: At; items: Item[]; close(): voi
 
 // ---- the diff pane
 
-/** The native text elements' colours, from the window's theme: the diff is drawn the way the
- * editor is, on the editor's background, its additions and deletions in the theme's own green and
- * red, so a theme switch redraws it in the new one. */
-function useDiffTheme() {
-  const t = useTheme();
-  const m = useMetrics();
-  return useMemo(
-    () => ({
-      bg: t.editor,
-      border: t.border,
-      text: t.text,
-      textMuted: t.muted,
-      textFaint: t.faint,
-      textDim: t.muted,
-      accent: t.accent,
-      caret: t.accent,
-      codeText: t.text,
-      codeWash: t.surface,
-      diffAdd: t.success,
-      diffDel: t.error,
-      diffHunkBg: t.surface,
-      metrics: { diffTextSize: m.fontSize - 1, diffLineHeight: Math.round((m.fontSize - 1) * 1.6), diffFileHeaderHeight: 30, diffHunkHeaderHeight: 24 },
-    }),
-    [t, m],
-  );
+/** One line of a patch, and what it is: a file's header, a hunk's, an addition, a deletion. */
+export interface PatchLine {
+  /** The file it is in, as its `diff --git` header names it. */
+  file: string | null;
+  kind: "file" | "hunk" | "add" | "del" | "plain";
+  text: string;
+}
+
+/** A patch as lines, each keeping the file it is in. */
+export function patchLines(patch: string): PatchLine[] {
+  const lines: PatchLine[] = [];
+  let file: string | null = null;
+  for (const text of patch.split("\n")) {
+    if (text.startsWith("diff --git ")) {
+      const at = text.indexOf(" b/");
+      file = at >= 0 ? text.slice(at + 3) : text.slice(11);
+      lines.push({ file, kind: "file", text });
+    } else if (text.startsWith("@@")) lines.push({ file, kind: "hunk", text });
+    else if (text.startsWith("+++") || text.startsWith("---") || text.startsWith("index ")) lines.push({ file, kind: "plain", text });
+    else if (text.startsWith("+")) lines.push({ file, kind: "add", text });
+    else if (text.startsWith("-")) lines.push({ file, kind: "del", text });
+    else lines.push({ file, kind: "plain", text });
+  }
+  return lines;
 }
 
 /** This plugin's options carry its prefix (`amresyd.git.`), which is how the pane's own `diff` is
@@ -841,13 +840,13 @@ function summary(patch: string): { files: string[]; added: number; deleted: numb
 }
 
 /** A diff pane: what the page said to show (the pane's `diff` option), read through the worker and
- * drawn by the native `<diff>` — virtualised, syntax-highlighted, word-level, in the theme. What it
- * drew stays up while the next read runs, so a change in the work tree never blanks it. */
+ * drawn here — its files' lines in the theme's own additions and deletions, each file header
+ * folding the lines under it. What it drew stays up while the next read runs, so a change in the
+ * work tree never blanks it. */
 export function Diff({ pane }: RendererProps) {
   const t = useTheme();
   const m = useMetrics();
-  const theme = useDiffTheme();
-  const each = usePane(pane);
+  const each = usePane(pane.id);
   const prefix = usePrefix();
   const value = (each?.options?.[`${prefix}diff`] as string | undefined) ?? "";
   const spec = useMemo<Shown | null>(() => {
@@ -861,7 +860,6 @@ export function Diff({ pane }: RendererProps) {
   const changes = useChannel<ChangesView | undefined>("changes", undefined);
   const stamp = spec?.kind === "work" ? changes?.version ?? 0 : 0;
   const [read, setRead] = useState<{ value: string; patch: string; error: string | null } | null>(null);
-  const [words, setWords] = useState(true);
   const [folded, setFolded] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -881,8 +879,8 @@ export function Diff({ pane }: RendererProps) {
   useEffect(() => setFolded(new Set()), [value]);
 
   const patch = read?.patch ?? "";
+  const lines = useMemo(() => patchLines(patch), [patch]);
   const info = useMemo(() => summary(patch), [patch]);
-  const collapsed = useMemo(() => [...folded], [folded]);
   const many = info.files.length > 1;
   const allFolded = many && folded.size >= info.files.length;
   const path = spec?.kind === "work" ? spec.path : undefined;
@@ -899,7 +897,6 @@ export function Diff({ pane }: RendererProps) {
         {info.added > 0 ? <text style={{ fontSize: 12, color: t.success, whiteSpace: "nowrap" }}>{`+${count(info.added)}`}</text> : null}
         {info.deleted > 0 ? <text style={{ fontSize: 12, color: t.error, whiteSpace: "nowrap" }}>{`−${count(info.deleted)}`}</text> : null}
         <div style={{ flexGrow: 1 }} />
-        <IconButton name="code" label="Highlight the words that changed" on={words} onClick={() => setWords(!words)} />
         {many ? (
           <IconButton
             name={allFolded ? "chevron_down" : "chevron_up_down"}
@@ -923,23 +920,30 @@ export function Diff({ pane }: RendererProps) {
           <text style={{ fontSize: 13, color: t.faint }}>No changes</text>
         </div>
       ) : (
-        <diff
-          patch={patch}
-          wordDiff={words}
-          scroll
-          collapsedPaths={collapsed}
-          theme={theme}
-          onToggleFile={(e: any) => {
-            const file = e?.value;
-            if (typeof file !== "string") return;
-            setFolded((had) => {
-              const next = new Set(had);
-              if (!next.delete(file)) next.add(file);
-              return next;
-            });
-          }}
-          style={{ flexGrow: 1, minHeight: 0, backgroundColor: t.editor, borderRadius: m.radiusSmall }}
-        />
+        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll", backgroundColor: t.editor, borderRadius: m.radiusSmall }}>
+          {lines.map((line, index) => {
+            if (line.file !== null && folded.has(line.file) && line.kind !== "file") return null;
+            const wash = line.kind === "add" ? (t.diffAdd ?? t.active) : line.kind === "del" ? (t.diffDel ?? t.selected) : undefined;
+            return (
+              <div
+                key={index}
+                onClick={
+                  line.file === null || line.kind !== "file"
+                    ? undefined
+                    : () =>
+                        setFolded((had) => {
+                          const next = new Set(had);
+                          if (!next.delete(line.file!)) next.add(line.file!);
+                          return next;
+                        })
+                }
+                style={{ display: "flex", flexShrink: 0, paddingLeft: 8, paddingRight: 8, cursor: line.kind === "file" ? "pointer" : "default", backgroundColor: wash }}
+              >
+                <text style={{ fontSize: m.fontSize - 1, color: line.kind === "file" || line.kind === "hunk" ? t.muted : t.text, whiteSpace: "nowrap" }}>{line.text}</text>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

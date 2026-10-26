@@ -4,75 +4,63 @@
 // No view: it reads its options, measures every terminal on a timer of its own, and provides
 // `sleep` and `wake` (`amresyd.heavy_terminals.sleep` and `.wake`), which a user command of tmux's,
 // `pumi call`, or a script reaches.
-import { ApiError, pane, plugin, provide } from "pumi";
+import { ApiError, fn, self, workspace } from "pumi";
 import { number } from "./options.ts";
 import { processes } from "./procs.ts";
 import { Watches } from "./watches.ts";
 
 const terminals = new Watches();
 
-/** The pane a caller asked about: an id, a table naming one (`{ pane }`), a user command's `"%3"`,
- * or the current pane. */
-async function paneOf(asked: unknown): Promise<number | null> {
+/** The pane a caller asked about, as its wire id: an id, a table naming one (`{ pane }`), a user
+ * command's `"%3"`, or the current pane. */
+async function paneOf(asked: unknown): Promise<string | null> {
   const direct = idOf(asked);
   if (direct !== null) return direct;
   if (asked && typeof asked === "object") {
     const table = asked as { pane?: unknown; args?: unknown };
-    const named = typeof table.pane === "number" ? table.pane : typeof table.args === "string" ? idOf(table.args) : null;
+    const named = idOf(table.pane) ?? (typeof table.args === "string" ? idOf(table.args) : null);
     if (named !== null) return named;
   }
-  try {
-    return (await pane.get()).id;
-  } catch {
-    return null;
-  }
+  return workspace.currentPane?.id ?? null;
 }
 
-/** A pane id written as a person or a user command writes one: `3`, or `"%3"`. */
-function idOf(asked: unknown): number | null {
+/** A pane id written as a person or a user command writes one (`3`, `"%3"`), as the API's `%3`. */
+function idOf(asked: unknown): string | null {
   const text = typeof asked === "number" ? String(asked) : typeof asked === "string" ? asked.trim() : null;
   const digits = text?.replace(/^%/, "") ?? "";
-  return /^\d+$/.test(digits) ? Number(digits) : null;
+  return /^[1-9]\d*$/.test(digits) ? `%${digits}` : null;
 }
 
-provide(
-  plugin.prefixed("sleep"),
-  {
+fn.set("sleep", {
     desc: "Suspend a terminal's foreground job, as ctrl+z would.",
     parameters: [["number", "pane"]],
     examples: [{ args: [] }],
-  },
-  async (asked?: unknown) => {
+  }, async (asked?: unknown) => {
     const id = await paneOf(asked);
     if (id === null) throw new ApiError("invalid_params", "no pane to put to sleep");
     await terminals.sleep(id);
-  },
-);
+  });
 
-provide(
-  plugin.prefixed("wake"),
-  {
+fn.set("wake", {
     desc: "Wake a terminal put to sleep.",
     parameters: [["number", "pane"]],
     examples: [{ args: [] }],
-  },
-  async (asked?: unknown) => {
+  }, async (asked?: unknown) => {
     const id = await paneOf(asked);
     if (id === null) throw new ApiError("invalid_params", "no pane to wake");
     await terminals.wake(id);
-  },
-);
+  });
 
 /** How long to wait between two checks: `interval` seconds, and never a spin. */
 async function interval(): Promise<number> {
   return Math.max(await number("interval", 5), 0.1) * 1000;
 }
 
-/** Whether the package still runs: `plugin.prefix` is read through its connection, which a stop
- * (the app unloading it, `pumi/testing`'s) takes away. */
+/** Whether the package still runs: `self.plugin.prefix` is read through its connection, which a
+ * stop (the app unloading it, `pumi/testing`'s) takes away. */
 function connected(): boolean {
   try {
-    void plugin.prefix;
+    void self.plugin.prefix;
     return true;
   } catch {
     return false;

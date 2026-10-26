@@ -19,14 +19,14 @@ export function Dog() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Its options: the frame rate, the room it walks in, and its height.
-  const speed = useOption<number>(`${prefix}speed`);
-  const track = useOption<number>(`${prefix}track`);
-  const size = useOption<number>(`${prefix}size`);
+  const [speed] = useOption<number>(`${prefix}speed`);
+  const [track] = useOption<number>(`${prefix}track`);
+  const [size] = useOption<number>(`${prefix}size`);
   const settings = read((key) => ({ speed, track, size })[key]);
   // The last bark: a time, which the package sets wherever `bark` is called from.
-  const barkAt = useOption<number>(`${prefix}@bark`);
+  const [barkAt] = useOption<number>(`${prefix}@bark`);
   // Whether it is out: `toggle` sets it off.
-  const out = useOption<boolean>(`${prefix}@dog`);
+  const [out] = useOption<boolean>(`${prefix}@dog`);
 
   useEffect(() => {
     if (barkAt) dog.current = barked(dog.current);

@@ -6,7 +6,7 @@ herdr session named `pumi`.
 One plugin is everything the [Heeler](https://heeler.app) mobile app needs from this machine: it
 serves herdr's API and terminal-attach sockets on pumi's sessions, tabs and panes; it mints the QR
 **Pairing Code** that enrolls a phone into the account's `authorized_keys`; and it sends Heeler's
-**Agent Notifications** and drives its **Live Activities** from an agent's `@agent_status`.
+**Agent Notifications** and drives its **Live Activities** from an agent's `@agent.status`.
 
 The plugin runs **no SSH server of its own** and has **no Tailscale integration**: Heeler connects to
 the machine's OpenSSH (macOS `Remote Login`, or the distro's sshd) exactly as it would to any herdr
@@ -34,7 +34,7 @@ The protocol is herdr's own (v0.9.x, newline-delimited JSON, protocol 22); `ping
 `w5`, its tab `@7` is `w5:t7`, its pane `%9` is `w5:p9`, terminal `term_9`.
 
 Nothing keeps a screen: `pane.read` is the core's own text (`pane.call`'s `read`), keys are
-`{"keys": […]}` on the same call, and what an agent is doing is the pane's `@agent`/`@agent_status`
+`{"keys": […]}` on the same call, and what an agent is doing is the pane's `@agent`/`@agent.status`
 (OSC 7501). Methods herdr serves from its own TUI, plugins or remotes answer `unsupported`, with the
 reason. `PARITY.md` is the method-by-method accounting.
 
@@ -101,7 +101,7 @@ swept at every start and every ceremony. The QR is rendered as block characters
 
 `src/notify.ts`, `src/activity.ts`, `src/seal.ts`.
 
-The same hooks Heeler's herdr plugin runs, over pumi's `@agent_status` instead of herdr's
+The same hooks Heeler's herdr plugin runs, over pumi's `@agent.status` instead of herdr's
 `pane.agent_status_changed`. Heeler writes its Notification Registration to the plugin's config
 directory (`~/.config/herdr/plugins/config/heeler/notifications.json`, the path both this plugin and
 a real herdr's `plugin config-dir heeler` print); the plugin reads it before every push, so a device

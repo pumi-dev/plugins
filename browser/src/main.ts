@@ -6,17 +6,24 @@
 //   pumi call amresyd.browser.back 3
 //
 // The window's webview keeps the page's own state (`useWebview`: its address, its title,
-// whether it is loading, whether it can go back), so the package keeps none of it: a verb is the
-// block's own method (`pane.call`, which the page hears as `pane.called`), and what a caller reads
-// of a pane is its options — `url`, which the page writes back as it goes, and the `title` it
-// reports. What is here is what the app and other callers reach; `ui.tsx` draws the page.
-import { ApiError, call, command, option, pane, plugin, provide, type PlaceSpec } from "pumi";
+// whether it is loading, whether it can go back), so the package keeps none of it: a navigable
+// pane's `url` option is its address, a method of the pane is the block's own function
+// (`amresyd.browser.page.navigate`, `pane.call` of one reaching it), and what a caller reads of a
+// pane is that option and the `title` it reports. What is here is what the app and other callers
+// reach; `ui.tsx` draws the page.
+import { ApiError, call, fn, option, self, ui, workspace } from "pumi";
 
 /** The pane option a page is on and goes to: the block's own (`amresyd.browser.url`). */
 const PAGE = "url";
 
 /** The block a page is in: `amresyd.browser.page`. */
-const BLOCK = plugin.prefixed("page");
+const BLOCK = self.plugin.prefixed("page");
+
+/** The topic the page hears its block's own methods on, in whichever window draws it. */
+const TOPIC = "page";
+
+/** Where a page opens: the app's browser's own place, or a tab's. */
+type Place = Record<string, unknown>;
 
 /** The address a call gives: the second argument, or the first's `url`. */
 function addressOf(first: unknown, second: unknown): string {
@@ -25,43 +32,112 @@ function addressOf(first: unknown, second: unknown): string {
   return url;
 }
 
-/** The pane a call names — `back(3)` or `back({ pane: 3 })`, and `"%3"` too, as `pumi call` writes
- * each of them. */
-function paneOf(what: unknown): number {
+/** The pane a call names — `back(3)`, `back({ pane: 3 })` or `back("%3")`, as `pumi call` writes
+ * each of them — as its wire id. */
+function paneOf(what: unknown): string {
   const named = typeof what === "object" && what !== null ? (what as { pane?: unknown }).pane : what;
-  const id = typeof named === "number" ? named : typeof named === "string" ? Number(named.replace(/^[%]/, "")) : NaN;
-  if (!Number.isInteger(id)) throw new ApiError("not_found", `no browser page in pane ${String(named)}`);
+  const id = typeof named === "number" ? `%${named}` : typeof named === "string" ? (named.startsWith("%") ? named : `%${Number(named)}`) : "";
+  if (!/^(?:[A-Za-z0-9._-]+\/)?%[1-9][0-9]*$/.test(id)) throw new ApiError("not_found", `no browser page in pane ${String(named)}`);
   return id;
 }
 
 /** A page in a pane: beside this one as the app's browser opens, or in a tab of its own. Its address
  * is the argument (`{ url }`), else the app's `browser.home_url`, else the address bar. */
-async function open(args: unknown, place: PlaceSpec): Promise<number> {
+async function open(args: unknown, place: Place): Promise<string> {
   const asked = typeof args === "string" ? args : (args as { url?: unknown } | null)?.url;
   const home = await option.get("browser.home_url").catch(() => null);
   const url = typeof asked === "string" && asked !== "" ? asked : typeof home === "string" ? home : "";
   // The block's option, set as it opens: the page the pane starts on.
-  const opened = await pane.open(BLOCK, { [PAGE]: url }, place);
+  const opened = await workspace.openPane(BLOCK, { [PAGE]: url }, place);
   return opened.id;
 }
 
-command("open", (args?: unknown) => open(args, { split: "right" }));
-command("openTab", (args?: unknown) => open(args, { kind: "tab", name: "Browser" }));
-
 /** An option of the page in `id`, as the page left it. */
-async function said(id: number, name: string): Promise<string> {
-  const value = await option.get(name, { pane: id }).catch(() => null);
+async function said(id: string, name: string): Promise<string> {
+  const value = await option.get(name, { scope: "pane", id }).catch(() => null);
   return typeof value === "string" ? value : "";
 }
 
-/** Asks the page in `id` to do `method`, as `pane.called` tells its renderer to. */
-async function act(id: number, method: string, args?: unknown): Promise<null> {
-  await call("pane.call", id, method, args ?? {});
+/** Tells the page in `id` to do `method`: what only the window's webview can do (go back, reload,
+ * take what was typed). The pane's `url` option is what survives it. */
+function tell(id: string, method: string, args?: unknown): null {
+  ui.post(TOPIC, { pane: id, method, args: args ?? {} });
   return null;
 }
 
-provide(
-  plugin.prefixed("navigate"),
+/** The page in `id` goes to `url`, and answers where it went. */
+async function navigate(id: string, url: string): Promise<string> {
+  await option.set(PAGE, url, { scope: "pane", id });
+  return url;
+}
+
+fn.set("open", { desc: "Open a page beside this one.", effect: "write", returns_schema: { type: "string" } }, (args?: unknown) =>
+  open(args, { split: "right" }),
+);
+fn.set("openTab", { desc: "Open a page in a tab of its own.", effect: "write", returns_schema: { type: "string" } }, (args?: unknown) =>
+  open(args, { kind: "tab", name: "Browser" }),
+);
+
+// The block's own methods: `pane.call("%3", "back")` reaches `amresyd.browser.page.back` with the
+// pane's id first, then the call's arguments.
+
+/** Show a page in a browser pane: it takes what an address bar takes, a URL or a search. */
+async function go(first: unknown, second: unknown): Promise<string> {
+  const id = paneOf(first);
+  const url = addressOf(first, second);
+  return navigate(id, url);
+}
+
+fn.set(
+  "page.navigate",
+  {
+    desc: "Show a page in a browser pane: it takes what an address bar takes, a URL or a search.",
+    effect: "write",
+    parameters: [
+      ["string", "pane"],
+      ["table", "args"],
+    ],
+    returns_schema: { type: "string" },
+  },
+  (pane: unknown, args: unknown) => go(pane, args),
+);
+fn.set(
+  "page.back",
+  { desc: "Step back in a page's history, as `cmd+[` does.", effect: "write", parameters: [["string", "pane"]] },
+  (pane: unknown) => tell(paneOf(pane), "back"),
+);
+fn.set(
+  "page.forward",
+  { desc: "Step forward in a page's history, as `cmd+]` does.", effect: "write", parameters: [["string", "pane"]] },
+  (pane: unknown) => tell(paneOf(pane), "forward"),
+);
+fn.set(
+  "page.reload",
+  { desc: "Load the page again, as `cmd+r` does.", effect: "write", parameters: [["string", "pane"]] },
+  (pane: unknown) => tell(paneOf(pane), "reload"),
+);
+fn.set(
+  "page.input",
+  {
+    desc: "What is typed into a page's address bar: `{text}`, `{paste}`, or `{keys}` with Enter among them.",
+    effect: "write",
+    parameters: [
+      ["string", "pane"],
+      ["table", "args"],
+    ],
+  },
+  (pane: unknown, args: unknown) => tell(paneOf(pane), "input", args),
+);
+fn.set(
+  "page.describe",
+  { desc: "What the page says of itself: its title, its address, and the text it shows.", effect: "read", parameters: [["string", "pane"]] },
+  (pane: unknown) => said(paneOf(pane), PAGE),
+);
+
+// What a caller of the package asks: the same methods, by the names a script knows.
+
+fn.set(
+  "navigate",
   {
     desc: "Show a page in a browser pane: it takes what an address bar takes, a URL or a search.",
     effect: "write",
@@ -69,23 +145,14 @@ provide(
       ["number", "pane"],
       ["string", "url"],
     ],
-    examples: [
-      { args: [3, "example.com"], desc: "Pane 3 goes to https://example.com." },
-      { args: [{ pane: 3, url: "https://pumi.dev" }] },
-    ],
+    examples: [{ args: [3, "pumi.dev"] }, { args: [{ pane: 3 }, "pumi.dev"] }],
     returns: "The address it went to.",
     returns_schema: { type: "string" },
   },
-  async (first: unknown, second: unknown) => {
-    const id = paneOf(first);
-    const url = addressOf(first, second);
-    await act(id, "navigate", { url });
-    return url;
-  },
+  async (first: unknown, second: unknown) => go(first, second),
 );
-
-provide(
-  plugin.prefixed("back"),
+fn.set(
+  "back",
   {
     desc: "Step back in a page's history, as `cmd+[` does.",
     effect: "write",
@@ -96,13 +163,12 @@ provide(
   },
   async (first: unknown) => {
     const id = paneOf(first);
-    await act(id, "back");
+    tell(id, "back");
     return said(id, PAGE);
   },
 );
-
-provide(
-  plugin.prefixed("forward"),
+fn.set(
+  "forward",
   {
     desc: "Step forward in a page's history, as `cmd+]` does.",
     effect: "write",
@@ -113,24 +179,22 @@ provide(
   },
   async (first: unknown) => {
     const id = paneOf(first);
-    await act(id, "forward");
+    tell(id, "forward");
     return said(id, PAGE);
   },
 );
-
-provide(
-  plugin.prefixed("reload"),
+fn.set(
+  "reload",
   {
     desc: "Load the page again, as `cmd+r` does.",
     effect: "write",
     parameters: [["number", "pane"]],
     examples: [{ args: [3] }],
   },
-  (first: unknown) => act(paneOf(first), "reload"),
+  (first: unknown) => tell(paneOf(first), "reload"),
 );
-
-provide(
-  plugin.prefixed("url"),
+fn.set(
+  "url",
   {
     desc: "The address a browser pane is on; empty for a pane that has not left the address bar.",
     effect: "read",
@@ -140,9 +204,8 @@ provide(
   },
   (first: unknown) => said(paneOf(first), PAGE),
 );
-
-provide(
-  plugin.prefixed("title"),
+fn.set(
+  "title",
   {
     desc: "What a browser pane is called: the page's own title, else its host.",
     effect: "read",

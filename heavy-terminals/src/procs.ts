@@ -28,10 +28,12 @@ export async function processes(): Promise<Procs> {
     return procs;
   }
   for (const each of Array.isArray(listed) ? listed : []) {
-    const one = (each ?? {}) as { pid?: unknown; ppid?: unknown; cpu?: unknown; rss?: unknown };
-    if (typeof one.pid !== "number" || typeof one.ppid !== "number") continue;
+    const one = (each ?? {}) as { pid?: unknown; parentPid?: unknown; cpu?: unknown; rss?: unknown };
+    if (typeof one.pid !== "number" || typeof one.parentPid !== "number") continue;
+    // TODO(api-server): `process.list` answers a process's pid, parent, command and cwd, and not the
+    // CPU or the memory it uses: every cost here is 0 until it does.
     procs.set(one.pid, {
-      ppid: one.ppid,
+      ppid: one.parentPid,
       cpu: typeof one.cpu === "number" ? one.cpu : 0,
       rss: typeof one.rss === "number" ? one.rss : 0,
     });

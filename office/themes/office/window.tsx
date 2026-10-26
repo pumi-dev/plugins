@@ -17,7 +17,6 @@ import { Icon, motion, useHover, useNow, useTheme } from "pumi"
 import {
   call,
   commands,
-  num,
   prompt,
   renderView,
   useApp,
@@ -758,7 +757,7 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
           <WideSlot icon="plus" label="New desk" onClick={() => run("new_tab")} />
           <Slot icon="sparkle" label="Decorate" active={decorating} onClick={onDecorate} />
           <Slot icon="layout_sidebar_left" label="Lobby: the players and the plugins' panels (⌘B)" active={lobby} onClick={onLobby} />
-          <Slot icon="blocks" label={`One desk per pane: ${perPane ? "on" : "off"}`} active={perPane === true} onClick={() => call("option.set", "amresyd.office.desk_per_pane", !perPane, { save: true }).catch(swallow)} />
+          <Slot icon="blocks" label={`One desk per pane: ${perPane ? "on" : "off"}`} active={perPane === true} onClick={() => call("option.set", "amresyd.office.desk_per_pane", !perPane, { scope: "plugin", plugin: OFFICE }).catch(swallow)} />
           <Slot icon="settings" label="Settings" onClick={() => run("settings")} />
           <div style={{ width: 2, height: 30, marginLeft: 2, marginRight: 2, backgroundColor: t.slotRing, flexShrink: 0 }} />
           {EMOTES.map((emote, index) => (
@@ -935,9 +934,9 @@ export function Office() {
     later(2400, () => setEmote((now) => (now === glyph ? null : now)))
   }
   const sit = (seat: Seat, pane?: string) => {
-    call("tab.select", { tab: num(seat.tab.tab_id) }).catch(swallow)
+    call("tab.focus", seat.tab.tab_id).catch(swallow)
     const focus = pane ?? seat.pane?.pane_id
-    if (focus) call("pane.select", { pane: num(focus) }).catch(swallow)
+    if (focus) call("pane.focus", focus).catch(swallow)
     g.stop()
     setDecorating(false)
     setSitting(deskKey(seat))
@@ -949,11 +948,11 @@ export function Office() {
   const rename = (seat: Seat) => {
     const label = seat.tab.label && !/^\d+$/.test(seat.tab.label) ? seat.tab.label : ""
     prompt({ title: "Rename desk", detail: seat.pane ? `Names its tab, ${tabTitle(seat)}` : undefined, value: label, placeholder: "A name for this desk", confirm: "Rename" })
-      .then((name) => (name === undefined ? undefined : call("tab.rename", num(seat.tab.tab_id), name.trim() || null)))
+      .then((name) => (name === undefined ? undefined : call("tab.update", seat.tab.tab_id, { name: name.trim() || null })))
       .catch(swallow)
       .finally(() => setFocus((n) => n + 1))
   }
-  const newDesk = (pod: Pod) => call("pane.open", "terminal", {}, { kind: "tab", session: num(pod.session.workspace_id) }).catch(swallow)
+  const newDesk = (pod: Pod) => call("pane.open", "terminal", {}, { kind: "tab", session: pod.session.workspace_id }).catch(swallow)
   const useProp = (prop: Prop) => {
     if (prop.id === "shelf") setLobby((v) => !v)
     else if (prop.id === "coffee") {
@@ -1084,7 +1083,7 @@ export function Office() {
   const visit = (pane: string) => {
     const tab = panes.find((p) => p.pane_id === pane)?.tab_id
     const desk = desks.find((d) => d.seat.pane?.pane_id === pane) ?? desks.find((d) => !d.seat.pane && d.seat.tab.tab_id === tab)
-    if (!desk) return void call("pane.select", { pane: num(pane) }).catch(swallow)
+    if (!desk) return void call("pane.focus", pane).catch(swallow)
     setSitting(null)
     const spot = spots.find((s) => s.key === `desk:${desk.key}`)
     goUse(spot && { ...spot, use: () => sit(desk.seat, pane) })

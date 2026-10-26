@@ -15,7 +15,6 @@ import {
   call,
   commands,
   grouped,
-  num,
   renderView,
   run,
   serverOf,
@@ -98,8 +97,8 @@ const tip = (title: string, command?: string) => {
 /** Shows a session's tab (and a pane of it) in `window`. */
 function goTo(window: ReturnType<typeof useWindow>, session: string, tab?: string, pane?: string) {
   if (window.session !== session) window.show(session)
-  const tabbed = tab ? call(via(tab, "tab.select"), { tab: num(tab) }) : Promise.resolve()
-  tabbed.then(() => pane && call(via(pane, "pane.select"), { pane: num(pane) })).catch(swallow)
+  const tabbed = tab ? call(via(tab, "tab.focus"), tab) : Promise.resolve()
+  tabbed.then(() => pane && call(via(pane, "pane.focus"), pane)).catch(swallow)
 }
 
 // ── Names and tiles ────────────────────────────────────────────────────────────────────────────
@@ -766,7 +765,7 @@ const SessionHeading = memo(function SessionHeading({ session: id, label, folded
   const { renaming, start, input } = useRename({ session: id }, label)
   const { open, show, menu, shown } = useMenu("session.menu", { session: id })
   const newTab = () => {
-    call(via(id, "pane.open"), "terminal", {}, { kind: "tab", session: num(id) })
+    call(via(id, "pane.open"), "terminal", {}, { kind: "tab", session: id })
       .then(() => current || window.show(id))
       .catch(swallow)
   }
@@ -823,7 +822,7 @@ function useTabItem(id: string, named: string) {
   const draggable = useDraggable({ kind: "pumi.tab", tab: id }, { disabled: rename.renaming })
   const drop = useDroppable<{ kind: "pumi.pane"; pane: string }>({
     accept: (data: any): data is { kind: "pumi.pane"; pane: string } => data?.kind === "pumi.pane" && typeof data.pane === "string" && !panes.some((x) => x.pane_id === data.pane) && serverOf(data.pane) === serverOf(id),
-    onDrop: (data) => call(via(data.pane, "pane.setPlace"), num(data.pane), { kind: "tiled", tab: num(id) }).catch(swallow),
+    onDrop: (data) => call(via(data.pane, "pane.update"), data.pane, { place: { kind: "tiled", tab: id } }).catch(swallow),
   })
   return { p, status, label, tile, rename, menu, draggable, drop }
 }
@@ -1230,8 +1229,8 @@ function PaneTitle({ pane: id, focused, zoomed, over, menu }: { pane: string; fo
   const toolbar = useMemo(() => ({ pane: id }), [id])
   if (!p) return null
   const zoomable = zoomed || (!!tree && "axis" in tree)
-  const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: num(id), split: side }).catch(swallow)
-  const zoom = () => call(via(id, "pane.resize"), num(id), { zoom: !zoomed }).catch(swallow)
+  const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: id, split: side }).catch(swallow)
+  const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
   const status = agent?.agent_status || "unknown"
   // An agent's glyph says what it is doing; anything else's is the title's colour.
   const glyphColor = agent && status !== "idle" && status !== "unknown" ? (t[`agent.${status}`] ?? t["rex.title"]) : focused ? t["rex.title"] : t["rex.titleDim"]
@@ -1269,7 +1268,7 @@ function PaneTitle({ pane: id, focused, zoomed, over, menu }: { pane: string; fo
           <C.IconButton icon="split" title={tip("Split Right", "split_vertical")} onClick={() => split("right")} />
           <C.IconButton icon="split_down" title={tip("Split Down", "split_horizontal")} onClick={() => split("down")} />
           {zoomable ? <C.IconButton icon={zoomed ? "minimize" : "maximize"} title={tip(zoomed ? "Restore the Layout" : "Fill the Tab", "zoom")} onClick={zoom} /> : null}
-          <C.IconButton icon="close" title={tip("Close Pane", "close_pane")} onClick={() => call(via(id, "pane.close"), num(id)).catch(swallow)} />
+          <C.IconButton icon="close" title={tip("Close Pane", "close_pane")} onClick={() => call(via(id, "pane.close"), id).catch(swallow)} />
         </div>
       ) : null}
     </div>
@@ -1296,7 +1295,7 @@ function ZoomButton({ pane: id, zoomed, over }: { pane: string; zoomed: boolean;
       onMouseLeave={() => setOnIt(false)}
       onClick={() => {
         setOnIt(false)
-        call(via(id, "pane.resize"), num(id), { zoom: !zoomed }).catch(swallow)
+        call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
       }}
       style={{ position: "absolute", top: 6, right: 6, display: "flex", width: 24, height: 24, alignItems: "center", justifyContent: "center", borderRadius: 7, backgroundColor: t.surface, borderWidth: 1, borderColor: t["rex.pillRim"], color: t.muted, cursor: "pointer", opacity: onIt ? 1 : 0.8, hover: { backgroundColor: t.hover, color: t.text } }}
     >
@@ -1332,7 +1331,7 @@ function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boolean; z
   return (
     <div
       onMouseDown={() => {
-        if (!focused) call(via(id, "pane.select"), { pane: num(id) }).catch(swallow)
+        if (!focused) call(via(id, "pane.focus"), id).catch(swallow)
       }}
       onAuxClick={open}
       onMouseEnter={() => setOver(true)}

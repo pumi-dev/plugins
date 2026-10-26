@@ -340,7 +340,7 @@ function MiniDesk({ pane: id, here }: { pane: string; here: boolean }) {
   const agent = pane?.agent ? (t[`agent.${pane.agent_status || "unknown"}`] ?? t["agent.unknown"]) : undefined
   return (
     <div
-      onClick={() => call("pane.select", { pane: num(id) }).catch(swallow)}
+      onClick={() => call("pane.focus", id, {}).catch(swallow)}
       style={{ display: "flex", flexDirection: "row", flexGrow: 1, gap: 2, padding: 2, alignItems: "flex-start", backgroundColor: t.desk, cursor: "pointer" }}
     >
       {here ? <div style={{ width: 4, height: 4, backgroundColor: blink ? t.success : t.desk }} /> : null}
@@ -426,7 +426,7 @@ function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: 
   const status = tab.agent_status ? (t[`agent.${tab.agent_status}`] ?? t["agent.unknown"]) : undefined
   return (
     <div
-      onClick={() => call("tab.select", { tab: num(id) }).catch(swallow)}
+      onClick={() => call("tab.focus", id, {}).catch(swallow)}
       style={{
         display: "flex",
         flexDirection: "row",
@@ -456,7 +456,7 @@ function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: 
         <div
           onClick={(e: any) => {
             e?.stopPropagation?.()
-            call("tab.close", num(id)).catch(swallow)
+            call("tab.close", id).catch(swallow)
           }}
           style={{ display: "flex", width: 16, height: 16, alignItems: "center", justifyContent: "center", color: t.slotText, opacity: 0.6, hover: { opacity: 1, backgroundColor: t.slotRing } }}
         >
@@ -695,7 +695,7 @@ function Pane({ pane: id, focused }: { pane: string; focused: boolean; zoomed: b
     <div
       onLayout={(e) => desks?.set(id, { x: e.x ?? 0, y: e.y ?? 0, width: e.width ?? 0, height: e.height ?? 0 })}
       onMouseDown={() => {
-        if (!focused) call("pane.select", { pane: num(id) }).catch(swallow)
+        if (!focused) call("pane.focus", id, {}).catch(swallow)
       }}
       onAuxClick={open}
       style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, padding: 10, paddingBottom: 2 }}
@@ -831,7 +831,7 @@ function Float({ pane: id }: { pane: string }) {
   const C = useComponents()
   const pane = usePane(id)
   const place: any = (pane as any)?.place ?? {}
-  const close = () => call("pane.close", num(id)).catch(swallow)
+  const close = () => call("pane.close", id).catch(swallow)
   const dismiss: string[] = place.dismiss ?? []
   const style = placement(place, { w: 7.8, h: 18 })
   return (
@@ -956,7 +956,7 @@ function Agent({ pane }: { pane: string }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAuxClick={open}
-      onClick={() => call("pane.select", { pane: num(pane) }).catch(swallow)}
+      onClick={() => call("pane.focus", pane, {}).catch(swallow)}
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingLeft: 4, paddingRight: 4, cursor: "pointer", hover: { backgroundColor: t.floorHover } }}
     >
       <div style={{ position: "relative", width: 44, height: 44, flexShrink: 0 }}>

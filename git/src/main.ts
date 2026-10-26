@@ -9,7 +9,7 @@
 // page's model and the exports `ui.tsx` calls. The page is pushed, not asked for: each time the
 // panel changes the whole view is posted (`ui.post`, at most once a tick), and the window draws the
 // last one it has the moment the sidebar opens — nothing is read on the way.
-import { command, file, on, option, pane, paths, plugin, ui } from "pumi";
+import { call, fn, on, option, paths, self, ui, workspace } from "pumi";
 
 import { panel } from "./panel.ts";
 import * as git from "./git.ts";
@@ -237,7 +237,7 @@ export type Shown = DiffSpec & { root: string; title: string };
 
 /** The diff tab the page opened last: the next diff is drawn in it, not in another — while the user
  * is still in that tab. */
-let diffPane: number | null = null;
+let diffPane: string | null = null;
 
 /** Shows `spec` in the diff tab, opening one beside the tab the user is in when there is none. */
 async function showDiff(spec: DiffSpec, title: string): Promise<void> {
@@ -245,20 +245,20 @@ async function showDiff(spec: DiffSpec, title: string): Promise<void> {
   if (root === null) return;
   const value = JSON.stringify({ ...spec, root, title } satisfies Shown);
   try {
-    const here = await pane.get().catch(() => null);
+    const here = workspace.currentPane;
     const tab = here?.place.kind === "tiled" ? here.place.tab : null;
     if (diffPane !== null) {
-      const there = await pane.get(diffPane).catch(() => null);
-      if (there && there.block === plugin.prefixed("diff") && there.place.kind === "tiled" && (tab === null || there.place.tab === tab)) {
-        await option.set("diff", value, { pane: diffPane, scope: "pane" });
-        await option.set("title", title, { pane: diffPane });
+      const there = workspace.getPane(diffPane);
+      if (there && there.block === self.plugin.prefixed("diff") && there.place.kind === "tiled" && (tab === null || there.place.tab === tab)) {
+        await option.set("diff", value, { scope: "pane", id: diffPane });
+        await option.set("title", title, { scope: "pane", id: diffPane });
         return;
       }
     }
-    const opened = await pane.open(plugin.prefixed("diff"), {}, { kind: "tab", name: title });
-    diffPane = opened.id;
-    await option.set("diff", value, { pane: opened.id, scope: "pane" });
-    await option.set("title", title, { pane: opened.id });
+    const opened = (await workspace.openPane(self.plugin.prefixed("diff"), {}, { kind: "tab", name: title })).id;
+    diffPane = opened;
+    await option.set("diff", value, { scope: "pane", id: opened });
+    await option.set("title", title, { scope: "pane", id: opened });
   } catch (err) {
     console.error(`git: diff: ${message(err)}`);
   }
@@ -306,7 +306,7 @@ export async function patchOf(value: string): Promise<{ patch: string; error: st
 /** A line of a diff pressed: the file, at that line, in the editor. */
 export async function reveal(root: string, path: string, line: number | null): Promise<void> {
   try {
-    await file.open(`${root}/${path}`, line === null ? {} : { line }, { kind: "tiled", split: "right" });
+    await workspace.openPane("file", { path: `${root}/${path}`, ...(line === null ? {} : { line }) }, { kind: "tiled", split: "right" });
   } catch (err) {
     console.error(`git: open: ${message(err)}`);
   }
@@ -364,10 +364,10 @@ function step(by: number): string | null {
 // ---- what the app reaches
 
 /** `ctrl+shift+g`, as the app's own key does: the sidebar, which is where the page is. */
-command("toggle", () => command.run("toggle_sidebar"));
+fn.set("toggle", { desc: "Open the git sidebar." }, () => call("toggle_sidebar"));
 
 /** Its options changed: read them again, and draw with them. */
-on("option.changed", { match: plugin.prefixed("*"), desc: "the git page's options" }, () => void panel.reread());
+on("option.changed", { match: self.plugin.prefixed("*"), desc: "the git page's options" }, () => void panel.reread());
 
 /** Starts the panel, with where its folded directories are kept, and reads the repository the
  * worker started in, so the page has something to draw before it is first shown. */
@@ -386,8 +386,9 @@ async function start(): Promise<void> {
 /** The directory of the pane the user is in, as the window will ask for it when the page opens. */
 async function directory(): Promise<string> {
   try {
-    const current = await pane.get();
-    const path = await option.get("pane_current_path", { pane: current.id });
+    const current = workspace.currentPane;
+    if (current === null) return process.cwd();
+    const path = await option.get("pane_current_path", { scope: "pane", id: current.id });
     if (typeof path === "string" && path !== "") return path;
   } catch {
     // No pane in front yet: the worker's own directory.

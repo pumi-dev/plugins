@@ -12,14 +12,14 @@ They are the manifest's `contributes.slots["pane.toolbar"]` view (`ui.tsx`'s `To
 with `IconButton` from `pumi`, so the theme draws them as it draws the pane's own split and close
 buttons. The view draws nothing for a pane that is not pi's.
 
-A pane is pi's when its agent's hook said so: `@agent` is `pi` and `@agent_session` is set — what
+A pane is pi's when its agent's hook said so: `@agent` is `pi` and `@agent.session` is set — what
 `pumi skill setup pi` writes. A pane that stops being pi's loses its buttons, and one that becomes
 pi's gets them. The session is read from the pane each time a button is pressed, so a fork or a copy
 is of the session the pane is in now, not the one it started in.
 
 ## What a session is
 
-`@agent_session` is an id, or the path of a session file. An id is a UUID; a file's is its name's
+`@agent.session` is an id, or the path of a session file. An id is a UUID; a file's is its name's
 (`<time>_<id>.jsonl`) or its first record's (`{"type": "session", "id": …}`). Copy writes:
 
 ```text
