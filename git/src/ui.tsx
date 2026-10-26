@@ -8,7 +8,7 @@
 // whose unchanged rows are not drawn again, and the commit box keeps its own text. The repository,
 // the lines and every action are the worker's (`main.ts`, `panel.ts`, `tree.ts`).
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Icon, useChannel, useFocusedPane, useMetrics, usePane, usePlugin, useTheme, type RendererProps } from "pumi";
+import { Icon, useChannel, useMetrics, usePane, usePlugin, useTab, useTheme, type RendererProps } from "pumi";
 
 import {
   chose,
@@ -71,7 +71,7 @@ function at(e: any): At {
 /** The `panel` slot's view. Only the focused pane's directory is read here, so a pane's title or
  * status changing draws nothing of the page. */
 export function Git() {
-  const focused = usePane(useFocusedPane());
+  const focused = usePane(useTab()?.activePane?.id);
   const prefix = usePrefix();
   // A pane with no directory of its own (this plugin's diff, a page, nothing focused yet) is not
   // somewhere the user went: the page stays on the repository it was showing.
@@ -791,7 +791,7 @@ export function Diff({ pane }: RendererProps) {
   const t = useTheme();
   const m = useMetrics();
   const theme = useDiffTheme();
-  const each = usePane(pane);
+  const each = usePane(pane.id);
   const prefix = usePrefix();
   const value = (each?.options?.[`${prefix}diff`] as string | undefined) ?? "";
   const spec = useMemo<Shown | null>(() => {
