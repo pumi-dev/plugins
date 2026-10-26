@@ -4,7 +4,7 @@
 // gesture does to the disk, is the worker's (`main.ts`, `panel.ts`, `intent.ts`): a key, a click and
 // a drop each go there and answer the rows as they are afterwards.
 import { useEffect, useState } from "react";
-import { Icon, useDraggable, useDroppable, useFocusedPane, useInterval, useMetrics, usePane, useTheme } from "pumi";
+import { Icon, useDraggable, useDroppable, useInterval, useMetrics, usePane, useTab, useTheme } from "pumi";
 
 import { activate, adding, cancelled, chose, committed, dropped, filtered, firstMatch, load, named, pressed, reread, searching, type View } from "./main.ts";
 import { GUIDE_OFFSET, colorToken, type Row } from "./row.ts";
@@ -34,7 +34,7 @@ function swallow(err: unknown): void {
 /** The `panel` slot's view: the filter box, the rows, and a row's menu. */
 export function Tree() {
   const t = useTheme();
-  const focused = usePane(useFocusedPane());
+  const focused = usePane(useTab()?.activePane?.id);
   const cwd = focused?.cwd ?? "/";
   const [view, setView] = useState<View | undefined>(undefined);
   const [menu, setMenu] = useState<{ at: { x: number; y: number }; key: string } | null>(null);

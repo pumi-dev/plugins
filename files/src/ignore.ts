@@ -165,6 +165,7 @@ export class IgnoreStack {
   isIgnored(abs: string, isDir: boolean): boolean {
     if (isDir && rel.fileName(abs) === ".git") return true;
     for (const file of this.files) {
+      // TODO(api): file.match: Use pane.open("file", ...) and registry.list("viewer").
       const said = file.match(abs, isDir);
       if (said === "ignore") return true;
       if (said === "white") return false;

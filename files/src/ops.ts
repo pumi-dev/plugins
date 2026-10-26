@@ -3,7 +3,7 @@
 // loud rather than thrown: the panel reports it and stays where it was.
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { clipboard, dialog, fs, notify } from "pumi";
+import { clipboard, fs, on, request } from "pumi";
 import * as git from "./git.ts";
 import * as relpath from "./relpath.ts";
 
@@ -17,12 +17,24 @@ export interface Transfer {
   copy: boolean;
 }
 
+/** Asks the user `body` and answers what they chose (`null` when it closed unanswered), waiting
+ * for the request to close. */
+async function ask(body: Record<string, unknown>): Promise<unknown> {
+  const id: string = await request.open(body);
+  return new Promise((resolve) => {
+    const off = on("request.closed", { match: id }, (e) => {
+      off();
+      resolve((e.data as { answer?: unknown } | undefined)?.answer ?? null);
+    });
+  });
+}
+
 /** Says why an operation failed, and where — to the log, and to the user when there is an app. */
 function failed(what: string, err: unknown): void {
   const why = err instanceof Error ? err.message : String(err);
   console.error(`files: ${what}: ${why}`);
   try {
-    void notify(`files: ${what}: ${why}`, "error");
+    void request.open({ kind: "notification", title: `files: ${what}: ${why}`, level: "error" });
   } catch {
     // A test has no app to tell.
   }
@@ -97,12 +109,13 @@ export async function trash(root: string, rel: string): Promise<void> {
 /** `rel` deleted for good, once the user has said so. */
 export async function remove(root: string, rel: string): Promise<void> {
   const path = join(root, rel);
-  const answer = await dialog.ask({
-    message: `Delete ${relpath.fileName(rel)}?`,
+  const answer = await ask({
+    kind: "question",
+    title: `Delete ${relpath.fileName(rel)}?`,
     detail: `${path} is deleted for good. It does not go to the Trash.`,
-    buttons: ["Cancel", "Delete"],
+    options: ["Cancel", "Delete"],
   });
-  if (answer?.button !== "Delete") return;
+  if (answer !== "Delete") return;
   try {
     rmSync(path, { recursive: true, force: true });
   } catch (err) {
@@ -151,7 +164,7 @@ export function appendPattern(path: string, pattern: string): void {
 /** `rel` shown in the Finder. */
 export async function reveal(root: string, rel: string): Promise<void> {
   try {
-    await fs.reveal(join(root, rel));
+    await fs.open((join(root, rel)), {reveal: true});
   } catch (err) {
     failed(`cannot reveal ${rel}`, err);
   }
@@ -160,7 +173,7 @@ export async function reveal(root: string, rel: string): Promise<void> {
 /** `rel` opened by whatever app owns it, and not by an editor of the user's. */
 export async function openWithSystem(root: string, rel: string): Promise<void> {
   try {
-    await fs.open({ path: join(root, rel) });
+    await fs.open(join(root, rel));
   } catch (err) {
     failed(`cannot open ${rel}`, err);
   }

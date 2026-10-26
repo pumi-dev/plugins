@@ -3,7 +3,7 @@
 // opening a file: in a file pane (`file.open`, drawn by whichever plugin fits it), a terminal pane
 // running the user's editor, or whatever app owns it.
 import { dirname } from "node:path";
-import { file, pane, plugin } from "pumi";
+import { call, self } from "pumi";
 import type { Transfer } from "./ops.ts";
 import * as ops from "./ops.ts";
 import type { Panel } from "./panel.ts";
@@ -95,8 +95,8 @@ function opensAfter(panel: Panel, intent: Intent): string | null {
 
 /**
  * Opens `rel` as the `open_with` option says, split on the right of the pane whose directory the
- * tree follows: in a file pane (`file.open`: the one showing it already, else a new one, drawn by
- * the plugin that fits it), the user's editor in a terminal pane, or the system's app.
+ * tree follows: in a file pane (`pane.open("file", …)`, drawn by the plugin that fits it), the
+ * user's editor in a terminal pane, or the system's app.
  */
 export async function openFile(panel: Panel, rel: string): Promise<void> {
   if (panel.settings.openWith === "system") {
@@ -111,11 +111,11 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
   const editor = panel.settings.editor.trim();
   const command = editor === "" ? `"\${EDITOR:-vi}" ${quote(path)}` : `${editor} ${quote(path)}`;
   try {
-    if (panel.settings.openWith === "pane") await file.open(path, {}, place);
-    else await pane.open("terminal", { command, cwd: dirname(path) }, place);
+    if (panel.settings.openWith === "pane") await call("pane.open", "file", { path }, place);
+    else await call("pane.open", "terminal", { command, cwd: dirname(path) }, place);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
-    console.error(`${plugin.prefix}: cannot open ${path}: ${why}`);
+    console.error(`${self.plugin.prefix}: cannot open ${path}: ${why}`);
     // The next honest thing: the app the system gives it, rather than nothing at all.
     await ops.openWithSystem(panel.root, rel);
   }
