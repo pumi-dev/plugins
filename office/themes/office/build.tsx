@@ -4,6 +4,8 @@
 // placing, and the room's lighting — lamps that glow when the evening comes.
 import { useState, type ReactNode } from "react"
 import { Icon, motion, useTheme } from "pumi"
+import { useAppearance } from "pumi/theme"
+import { box } from "./kit.tsx"
 import { KIND, KINDS, placeOf, type Kind, type Piece } from "./furniture.ts"
 import { HUD, WALL, type Plan, type Pt, type Rect } from "./plan.ts"
 
@@ -12,14 +14,20 @@ export const pieceArt = (kind: string) => art(`furniture/${kind}`)
 
 // ── The room's looks ────────────────────────────────────────────────────────────────────────
 
-/** The floors: the office's own, and the gather package's. */
-export const FLOORS: { id: string; label: string; src: string; size: number | [number, number] }[] = [
-  { id: "classic", label: "Parquet", src: art("floor"), size: 32 },
-  { id: "wood", label: "Planks", src: art("floors/wood"), size: [384, 192] },
-  { id: "tile", label: "Tiles", src: art("floors/tile"), size: 128 },
-  { id: "carpet", label: "Carpet", src: art("floors/carpet"), size: 128 },
-  { id: "rug", label: "Patterned", src: art("floors/rug"), size: 128 },
+/** The floors: Gather's (by day or by night, as the look is) and the office's old parquet. */
+export const FLOORS: { id: string; label: string; tile?: "wood" | "tile" | "carpet" | "rug"; src?: string; size: [number, number] }[] = [
+  { id: "wood", label: "Planks", tile: "wood", size: [384, 192] },
+  { id: "tile", label: "Tiles", tile: "tile", size: [128, 128] },
+  { id: "carpet", label: "Carpet", tile: "carpet", size: [128, 128] },
+  { id: "rug", label: "Patterned", tile: "rug", size: [128, 128] },
+  { id: "classic", label: "Parquet", src: art("floor"), size: [32, 32] },
 ]
+
+/** A floor's tile, for the look in use. */
+export function floorOf(id: string, look: "dark" | "light"): { src: string; size: [number, number] } {
+  const f = FLOORS.find((x) => x.id === id) ?? FLOORS[0]!
+  return { src: f.tile ? art(`floors/${look}/${f.tile}`) : f.src!, size: f.size }
+}
 
 /** The wall's paints. */
 export const WALLS: { id: string; label: string; src: string; swatch: string }[] = [
@@ -163,7 +171,7 @@ export function PieceView({
         <motion.div
           animate={{ opacity: [0.45, 1, 0.45] }}
           transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-          style={{ position: "absolute", left: -4, top: -4, width: at.w + 8, height: at.h + 8, borderRadius: 6, borderWidth: 2, borderColor: t["office.working"], pointerEvents: "none" }}
+          style={{ position: "absolute", left: -4, top: -4, width: at.w + 8, height: at.h + 8, borderRadius: 6, borderWidth: 2, borderColor: t.slotActive, pointerEvents: "none" }}
         />
       ) : null}
       {decorating && (over || dragging) ? (
@@ -232,9 +240,11 @@ export function Ghost({ kind, at }: { kind: Kind; at: Pt }) {
 // ── The light ───────────────────────────────────────────────────────────────────────────────
 
 /** The evening's tint over the floor, and the pools of light the lamps and the screens throw. */
-export function Lighting({ light, room, lamps, screens }: { light: Exclude<Light, "auto">; room: Plan; lamps: Rect[]; screens: Pt[] }) {
+export function Lighting({ light, room, lamps, screens, dark }: { light: Exclude<Light, "auto">; room: Plan; lamps: Rect[]; screens: Pt[]; dark?: boolean }) {
   if (light === "day") return null
   const night = light === "night"
+  // The night look is dark already: the tint only deepens it a little.
+  const tint = night ? (dark ? 0.18 : 0.4) : dark ? 0.06 : 0.12
   const pool = (x: number, y: number, r: number, color: string, key: string) => (
     <div
       key={key}
@@ -251,7 +261,7 @@ export function Lighting({ light, room, lamps, screens }: { light: Exclude<Light
   )
   return (
     <div style={{ position: "absolute", left: 0, top: 0, width: room.width, height: room.height, zIndex: 30000, pointerEvents: "none" }}>
-      <div style={{ position: "absolute", left: 0, top: 0, width: room.width, height: room.height, backgroundColor: night ? "#0a0f2e" : "#ff8a3d", opacity: night ? 0.4 : 0.12, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: 0, top: 0, width: room.width, height: room.height, backgroundColor: night ? "#0a0f2e" : "#ff8a3d", opacity: tint, pointerEvents: "none" }} />
       {/* The windows go dark blue at night. */}
       {night ? <div style={{ position: "absolute", left: 0, top: 0, width: room.width, height: WALL, backgroundColor: "#0b1035", opacity: 0.25, pointerEvents: "none" }} /> : null}
       {lamps.map((lamp, i) => pool(lamp.x + lamp.w / 2, lamp.y + 10, night ? 130 : 90, night ? "#ffd16659" : "#ffd16633", `lamp${i}`))}
@@ -290,68 +300,51 @@ export function BuildPanel({
   onClose(): void
 }) {
   const t = useTheme()
+  const look = useAppearance()
   const [tab, setTab] = useState<Tab>("furniture")
   const tabButton = (id: Tab, label: string, icon: string) => (
     <div
       key={id}
       onClick={() => setTab(id)}
-      style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, height: 26, paddingLeft: 10, paddingRight: 10, borderRadius: 13, cursor: "pointer", backgroundColor: tab === id ? t["office.lit"] : "#ffffff12", hover: { backgroundColor: tab === id ? t["office.lit"] : "#ffffff24" } }}
+      style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, height: 28, paddingLeft: 10, paddingRight: 10, cursor: "pointer", ...box(t, "slot"), ...(tab === id ? { borderColor: t.slotActive } : {}), hover: { borderColor: t.slotActive } }}
     >
-      <Icon name={icon} size={12} color="#ffffff" />
-      <text style={{ fontSize: 11, color: "#ffffff", fontWeight: tab === id ? "bold" : "normal" }}>{label}</text>
+      <Icon name={icon} size={12} color={tab === id ? t.slotActive : t.slotText} />
+      <text style={{ fontSize: 13, color: tab === id ? t.slotText : t.slotTextDim }}>{label}</text>
+    </div>
+  )
+  const small = (label: string, icon: string, onClick: () => void, title: string) => (
+    <div onClick={onClick} title={title} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 26, paddingLeft: 8, paddingRight: 8, cursor: "pointer", ...box(t, "slot"), hover: { borderColor: t.slotActive } }}>
+      <Icon name={icon} size={11} color={t.slotText} />
+      <text style={{ fontSize: 12, color: t.slotText }}>{label}</text>
     </div>
   )
   const swatch = (key: string, active: boolean, onClick: () => void, label: string, body: ReactNode) => (
     <div key={key} onClick={onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, width: 76, cursor: "pointer" }}>
-      <div style={{ width: 64, height: 44, borderRadius: 6, overflow: "hidden", borderWidth: 2, borderColor: active ? t["office.lit"] : "#ffffff22" }}>{body}</div>
-      <text style={{ fontSize: 10, color: active ? "#ffffff" : t["office.hudMuted"], whiteSpace: "nowrap" }}>{label}</text>
+      <div style={{ width: 64, height: 44, overflow: "hidden", borderRadius: 3, borderWidth: 2, borderColor: active ? t.slotActive : t.rim }}>{body}</div>
+      <text style={{ fontSize: 12, color: active ? t.text : t.muted, whiteSpace: "nowrap" }}>{label}</text>
     </div>
   )
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 500, damping: 36 }}
+      transition={{ type: "spring", stiffness: 560, damping: 36 }}
       onClick={(event: any) => event?.stopPropagation?.()}
-      style={{
-        position: "absolute",
-        left: 12,
-        right: 12,
-        bottom: HUD + 8,
-        height: 186,
-        zIndex: 55,
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        padding: 10,
-        borderRadius: 12,
-        backgroundColor: "#1d1f2bf2",
-        borderWidth: 2,
-        borderColor: "#3a3d52",
-        boxShadow: { offsetX: 0, offsetY: 8, blurRadius: 24, spreadRadius: 0, color: "#00000055" },
-      }}
+      style={{ position: "absolute", left: 12, right: 12, bottom: HUD + 8, height: 196, zIndex: 55, display: "flex", flexDirection: "column", gap: 8, padding: 10, ...box(t, "dialog") }}
     >
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <Icon name="sparkle" size={14} color={t["office.working"]} />
-        <text style={{ fontSize: 13, fontWeight: "bold", color: "#ffffff", paddingRight: 8 }}>Decorate</text>
+        <Icon name="sparkle" size={14} color={t.warning} />
+        <text style={{ fontSize: 16, color: t.text, paddingRight: 8 }}>Decorate</text>
         {tabButton("furniture", "Furniture", "box")}
         {tabButton("floor", "Floor", "blocks")}
         {tabButton("walls", "Walls", "layout_panel_bottom")}
         {tabButton("lights", "Lights", "zap")}
         <div style={{ flexGrow: 1 }} />
-        <text style={{ fontSize: 10, color: t["office.hudMuted"], paddingRight: 6 }}>
-          {holding ? "Click the floor to place it · Esc to stop" : "Pick a piece, drag what is on the floor, × puts it away"}
-        </text>
-        <div onClick={onReset} title="The starter lounge, as it was" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 24, paddingLeft: 8, paddingRight: 8, borderRadius: 12, cursor: "pointer", backgroundColor: "#ffffff12", hover: { backgroundColor: "#ffffff24" } }}>
-          <Icon name="rotate_ccw" size={11} color="#e9eaf2" />
-          <text style={{ fontSize: 10, color: "#e9eaf2" }}>Reset</text>
-        </div>
-        <div onClick={onClear} title="Put every piece away" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 24, paddingLeft: 8, paddingRight: 8, borderRadius: 12, cursor: "pointer", backgroundColor: "#ffffff12", hover: { backgroundColor: "#ef476f55" } }}>
-          <Icon name="square_minus" size={11} color="#e9eaf2" />
-          <text style={{ fontSize: 10, color: "#e9eaf2" }}>Clear</text>
-        </div>
-        <div onClick={onClose} style={{ display: "flex", width: 24, height: 24, alignItems: "center", justifyContent: "center", borderRadius: 12, cursor: "pointer", hover: { backgroundColor: "#ffffff24" } }}>
-          <Icon name="close" size={11} color="#e9eaf2" />
+        <text style={{ fontSize: 12, color: t.muted, paddingRight: 6 }}>{holding ? "Click the floor to place it · Esc to stop" : "Pick a piece, drag what is on the floor, × puts it away"}</text>
+        {small("Reset", "rotate_ccw", onReset, "The starter lounge, as it was")}
+        {small("Clear", "square_minus", onClear, "Put every piece away")}
+        <div onClick={onClose} title="Done" style={{ display: "flex", width: 26, height: 26, alignItems: "center", justifyContent: "center", cursor: "pointer", ...box(t, "slot"), hover: { borderColor: t.slotActive } }}>
+          <Icon name="close" size={11} color={t.slotText} />
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 6, flexGrow: 1, minHeight: 0, overflowY: "scroll", alignContent: "flex-start" }}>
@@ -364,23 +357,22 @@ export function BuildPanel({
                   key={kind.id}
                   onClick={() => onHold(active ? null : kind.id)}
                   title={kind.use ? `${kind.label} — ${kind.verb}` : kind.label}
-                  style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, width: 66, height: 60, borderRadius: 8, cursor: "pointer", backgroundColor: active ? "#5aa9ff44" : "#ffffff0d", borderWidth: 2, borderColor: active ? t["office.lit"] : "#00000000", hover: { backgroundColor: active ? "#5aa9ff44" : "#ffffff1f" } }}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, width: 70, height: 62, cursor: "pointer", ...box(t, "slot"), ...(active ? { borderColor: t.slotActive } : {}), hover: { borderColor: t.slotActive } }}
                 >
                   <div style={{ display: "flex", width: 44, height: 38, alignItems: "center", justifyContent: "center" }}>
                     <img src={pieceArt(kind.id)} style={{ width: Math.round(kind.w * scale), height: Math.round(kind.h * scale), imageRendering: "pixelated" }} />
                   </div>
-                  <text style={{ fontSize: 9, color: "#e9eaf2", whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: 64 }}>{kind.label}</text>
+                  <text style={{ fontSize: 11, color: t.slotText, whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: 64 }}>{kind.label}</text>
                 </div>
               )
             })
           : tab === "floor"
-            ? FLOORS.map((f) =>
-                swatch(f.id, floor === f.id, () => onFloor(f.id), f.label, <div style={{ width: "100%", height: "100%", backgroundImage: { src: f.src, repeat: "repeat", size: typeof f.size === "number" ? f.size : f.size }, imageRendering: "pixelated" }} />),
-              )
+            ? FLOORS.map((f) => {
+                const tile = floorOf(f.id, look)
+                return swatch(f.id, floor === f.id, () => onFloor(f.id), f.label, <div style={{ width: "100%", height: "100%", backgroundImage: { src: tile.src, repeat: "repeat", size: tile.size }, imageRendering: "pixelated" }} />)
+              })
             : tab === "walls"
-              ? WALLS.map((w) =>
-                  swatch(w.id, wall === w.id, () => onWall(w.id), w.label, <div style={{ width: "100%", height: "100%", backgroundImage: { src: w.src, repeat: "repeat-x", size: [64, 56] }, imageRendering: "pixelated" }} />),
-                )
+              ? WALLS.map((w) => swatch(w.id, wall === w.id, () => onWall(w.id), w.label, <div style={{ width: "100%", height: "100%", backgroundImage: { src: w.src, repeat: "repeat-x", size: [64, 56] }, imageRendering: "pixelated" }} />))
               : LIGHTS.map((l) =>
                   swatch(
                     l.id,

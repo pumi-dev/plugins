@@ -1,7 +1,7 @@
 {
   "name": "pumi-agents",
   "version": "0.1.0",
-  "description": "Every space, tab and agent at a glance: who is working, who needs you and who is done, and straight to them on a click.",
+  "description": "Tells an agent about the workspace it is in: a short guide to pumi, and a map of the sessions, tabs and panes around it — once, then only what changed. The sidebar is the app theme's.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {
@@ -16,9 +16,6 @@
     "name": "agents",
     "owner": "amresyd",
     "api": 1,
-    "uses": [
-      "files"
-    ],
     "contributes": {
       "options": {
         "context": {
@@ -28,68 +25,32 @@
           "group": "Agent context",
           "desc": "Tell agents about your workspace. Off silences it for every agent."
         },
-        "context_updates": {
+        "updates": {
           "type": "string",
           "default": "changes",
-          "choices": [
-            "changes",
-            "start"
-          ],
-          "labels": [
-            "Session start and on changes",
-            "Session start only"
-          ],
+          "choices": ["changes", "start"],
+          "labels": ["Session start and on changes", "Session start only"],
           "label": "Updates",
           "group": "Agent context",
           "desc": "Keep agents up to date as panes open, close and move, or tell them only when they start."
         },
-        "context_other_sessions": {
+        "other_sessions": {
           "type": "boolean",
           "default": true,
           "label": "Other sessions",
           "group": "Agent context",
           "desc": "Include panes from your other sessions, not only the current one."
         },
-        "context_targets": {
+        "targets": {
           "type": "table",
           "default": {},
           "control": "json",
-          "label": "Agents",
+          "label": "Agents turned off",
           "group": "Agent context",
-          "desc": "Choose which agents are told about your workspace: `{\"claude\": true, \"pi\": false}`."
-        },
-        "restore": {
-          "type": "table",
-          "default": {},
-          "control": "json",
-          "label": "Restore recipes",
-          "group": "Restore",
-          "placeholder": "{\"claude\": [\"claude\", \"--resume\", \"{session}\"]}",
-          "desc": "How an agent resumes its session when its pane comes back, by agent id: the program and its arguments, with {session} for the session. Adds to or replaces the recipes pumi ships; an empty list turns one off."
-        }
-      },
-      "commands": [
-        {
-          "id": "toggle",
-          "title": "Agents: open the agents sidebar"
-        }
-      ],
-      "keys": [
-        {
-          "key": "cmd+shift+a",
-          "command": "toggle"
-        }
-      ],
-      "slots": {
-        "panel": {
-          "view": "Agents",
-          "title": "Agents",
-          "icon": "agent"
+          "desc": "Which agents are not told, by id: `{\"codex\": false}`. Every other agent is told while its hook is installed."
         }
       }
     },
-    "activation": [
-      "onStartup"
-    ]
+    "activation": ["onStartup"]
   }
 }

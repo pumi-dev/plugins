@@ -5,7 +5,7 @@
   "description": "The community packages: each folder is a pumi package (TypeScript on Bun).",
   "workspaces": ["*", "lib/*"],
   "scripts": {
-    "link": "bun scripts/link.mjs",
-    "test": "bun scripts/all.mjs"
+    "link": "bun tools/link.mjs",
+    "test": "bun tools/all.mjs"
   }
 }

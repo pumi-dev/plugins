@@ -35,6 +35,8 @@ export interface Group {
   label: string;
   /** Where its items run. */
   dir: string;
+  /** The glyph before its label, when what it lists has a kind (`box`, `terminal`). */
+  icon?: string;
   items: Item[];
 }
 
@@ -46,8 +48,9 @@ export interface Finder {
   showDetail: boolean;
   /** What the page says when nothing was found. */
   empty: string;
-  /** The items `dir` holds, if any; `root` is the repository's top. */
-  group(dir: string, root: string): Group | null;
+  /** The groups `dir` makes, if any; `root` is the repository's top. A directory can hold more
+   * than one kind of script (a `package.json`'s and its own), so it is a list. */
+  groups(dir: string, root: string): Group[];
   /** The groups in the order shown; by label without one. */
   sort?(groups: Group[]): void;
 }
@@ -67,20 +70,20 @@ export function repoRoot(cwd: string): string {
  * `SKIP`ped directories, in the order the finder sorts them.
  */
 export function groupScripts(finder: Finder, root: string): Group[] {
-  const found: Group[] = [];
+  const groups: Group[] = [];
   const pending: [dir: string, level: number][] = [[root, 0]];
   let visited = 0;
   while (pending.length > 0) {
     const [dir, level] = pending.pop()!;
     if (++visited > MAX_DIRS) break;
-    const group = finder.group(dir, root);
-    if (group) found.push(group);
+    const found = finder.groups(dir, root);
+    if (found.length > 0) groups.push(...found);
     if (level >= finder.depth) continue;
     for (const child of children(dir)) pending.push([child, level + 1]);
   }
-  if (finder.sort) finder.sort(found);
-  else found.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
-  return found;
+  if (finder.sort) finder.sort(groups);
+  else groups.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
+  return groups;
 }
 
 /** The directories in `dir` the walk goes into, by name. */

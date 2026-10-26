@@ -5,7 +5,7 @@
 // `reveal`, `action`), and whether its pane is the window's current one. `Toolbar` puts the
 // unsaved mark, and a save, in the pane's title bar.
 import { useEffect, useState } from "react";
-import { IconButton, useEvent, useOption, usePane, usePlugin, useTheme, webview, WebView, type Ref, type RendererProps } from "pumi";
+import { IconButton, useEvent, useFont, useOption, usePane, usePlugin, useTheme, webview, WebView, type Ref, type RendererProps } from "pumi";
 import { save } from "./main.ts";
 
 /** The plugin's prefix, `amresyd.monaco.`: its options'. */
@@ -15,9 +15,10 @@ function usePrefix(): string {
 
 
 /**
- * Chords Monaco binds that the app's keymap takes too, kept by the page while it has the keyboard
- * (spelled as the page's key script spells them: ctrl, alt, shift, cmd). `cmd+s` is the plugin's
- * own key and Monaco's: in the page it saves without a trip through the app.
+ * Chords Monaco binds that the app's keymap or its menu bar takes too, kept by the page while it
+ * has the keyboard (spelled as the page's key script spells them: ctrl, alt, shift, cmd): the app
+ * leaves them to it, and the menu bar drops them as key equivalents meanwhile. `cmd+s` is the
+ * plugin's own key and Monaco's: in the page it saves without a trip through the app.
  */
 const KEEP_KEYS = [
   "cmd+s",
@@ -29,6 +30,10 @@ const KEEP_KEYS = [
   "cmd+enter", // a line below
   "alt+cmd+up", // a cursor above
   "alt+cmd+down", // a cursor below
+  "alt+shift+cmd+up", // a column selection, up
+  "alt+shift+cmd+down", // … down
+  "alt+shift+cmd+left", // … left
+  "alt+shift+cmd+right", // … right
 ];
 
 /** A throw the page cannot answer: said in the log, not drawn over the window. */
@@ -49,9 +54,15 @@ export function Editor({ pane, block, focused }: RendererProps) {
   const handle = `monaco-${pane.server ? `${pane.server}/` : ""}${pane.id}`;
   const each = usePane(pane);
   const path = ((each?.options ?? {}).path as string | undefined) ?? "";
+  // The terminals' font (Settings → Appearance: Font family, Font size, Line height).
+  const font = useFont();
   // The page reads `args` once, as it is made; what changes after goes in through `__monaco`.
-  const [args] = useState(() => ({ pane: pane.id, path, focused }));
-  const fontSize = useOption<number>(`${prefix}font_size`);
+  const [args] = useState(() => ({
+    pane: pane.id,
+    path,
+    focused,
+    font: { font_family: font.family, font_size: font.size, line_height: font.lineHeight },
+  }));
   const tabSize = useOption<number>(`${prefix}tab_size`);
   const wordWrap = useOption<boolean>(`${prefix}word_wrap`);
   const minimap = useOption<boolean>(`${prefix}minimap`);
@@ -69,13 +80,16 @@ export function Editor({ pane, block, focused }: RendererProps) {
   }, [handle, path]);
 
   useEffect(() => {
-    const config: Record<string, unknown> = {};
-    if (typeof fontSize === "number") config.font_size = fontSize;
+    const config: Record<string, unknown> = {
+      font_family: font.family,
+      font_size: font.size,
+      line_height: font.lineHeight,
+    };
     if (typeof tabSize === "number") config.tab_size = tabSize;
     if (typeof wordWrap === "boolean") config.word_wrap = wordWrap;
     if (typeof minimap === "boolean") config.minimap = minimap;
     tell(`configure(${JSON.stringify(config)})`);
-  }, [handle, fontSize, tabSize, wordWrap, minimap]);
+  }, [handle, font.family, font.size, font.lineHeight, tabSize, wordWrap, minimap]);
 
   // The pane coming forward gives the page the keyboard; the page, pressed while its pane is not
   // the current one, makes it so (`paneFocused`).

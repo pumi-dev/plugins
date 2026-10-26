@@ -5,11 +5,12 @@
 // is one more room, on tiles, where every agent stands. Your character walks to the desk you focus.
 // Menus are the game's framed dialog boxes. Started from the app's default window
 // (runtime/app/app/theme/default.tsx): the behaviour is the default's, the look is this file's.
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
+import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { Icon, useMetrics, useTheme } from "pumi"
 import {
   call,
   commands,
+  grouped,
   num,
   renderView,
   useAgentOf,
@@ -19,10 +20,12 @@ import {
   useFocusedPane,
   useLayout,
   useLocal,
+  useMenu,
   usePane,
   useRenderer,
   useSession,
   useSessions,
+  useSidebar,
   useSlot,
   useTab,
   useTabs,
@@ -31,6 +34,8 @@ import {
   windowContext,
   type ActionItem,
   type Components,
+  type DialogProps,
+  type MenuProps,
   type Tree,
 } from "pumi/theme"
 import { Avatar, box, Bubble, Decor, Floor, FONT, Nametag, Sign, useBeat, type Facing } from "./art.tsx"
@@ -103,9 +108,9 @@ function Window() {
   const m = useMetrics()
   const C = useComponents()
   const desks = useMemo(() => new Desks(), [])
-  const [sidebar, setSidebar] = useLocal("gather.sidebar", true)
+  // Whether the lobby shows is the app's side bar (`toggle_sidebar`), whatever theme draws it.
+  const [sidebar, setSidebar] = useSidebar()
   const [width, setWidth] = useLocal("gather.sidebar.width", 236)
-  commands.useCommand("toggle_sidebar", "Toggle sidebar", () => setSidebar((v) => !v))
   const overlays = useSlot("window.overlay").views
   return (
     <DesksContext.Provider value={desks}>
@@ -265,7 +270,7 @@ function TopHud({ sidebar, toggleSidebar }: { sidebar: boolean; toggleSidebar():
       {picking ? (
         <anchored fill="window">
           <div onClick={() => setPicking(false)} style={{ width: "100%", height: "100%", paddingLeft: 116, paddingTop: 44 }}>
-            <Menu
+            <Choices
               items={[
                 ...sessions.map((s) => ({ label: s.label || s.workspace_id, checked: s.workspace_id === window.session, run: () => window.show(s.workspace_id) })),
                 { label: "New session", run: () => commands.run("new_workspace", ctx(window)) },
@@ -358,7 +363,7 @@ interface MenuItem {
 }
 
 /** A dialog box of choices; the one you're on gets the cursor. */
-function Menu({ items, close }: { items: MenuItem[]; close(): void }) {
+function Choices({ items, close }: { items: MenuItem[]; close(): void }) {
   const t = useTheme()
   const [at, setAt] = useState(-1)
   return (
@@ -477,37 +482,98 @@ function Point({ point, args, gap = 4 }: { point: string; args?: Record<string, 
   )
 }
 
-/** A right-click dialog of a point's actions (and views), where the mouse is. */
-function useMenu(point: string, args: Record<string, unknown>) {
+/**
+ * The `Menu` part: every menu of the app's (a pane's, an agent's: `useMenu`), as a pixel dialog
+ * where the mouse is. Its groups with a rule between; a submenu (Open With, Move To) opens in
+ * place under its row.
+ */
+function Menu({ at, actions, views, args, close }: MenuProps) {
   const t = useTheme()
-  const { views, actions } = useSlot(point)
-  const [at, setAt] = useState<{ x: number; y: number } | undefined>()
-  const open = (e: any) => {
-    if (!e?.isRightClick || (!views.length && !actions.length)) return
-    setAt({ x: e.x ?? 0, y: e.y ?? 0 })
-  }
-  const close = () => setAt(undefined)
-  const menu = at ? (
+  return (
     <anchored position={at} fit="snap" deferred occlude onMouseDownOutside={close}>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 190, padding: 6, ...box(t, "dialog") }}>
-        {actions.map((a) => (
-          <div
-            key={`${a.plugin}/${a.id}`}
-            onClick={() => {
-              close()
-              a.run(args)
-            }}
-            style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 28, paddingLeft: 8, paddingRight: 10, cursor: "pointer", hover: { backgroundColor: t.selected } }}
-          >
-            {a.icon ? <Icon name={a.icon} size={12} color={t.muted} /> : null}
-            <text style={{ fontSize: 14 }}>{a.title}</text>
-          </div>
-        ))}
-        {views.map((v) => renderView(v, { ...args, close }))}
+        <MenuRows actions={actions} close={close} depth={0} />
+        {views?.map((v) => renderView(v, { ...args, close }))}
       </div>
     </anchored>
-  ) : null
-  return { open, menu }
+  )
+}
+
+function MenuRows({ actions, close, depth }: { actions: ActionItem[]; close(): void; depth: number }) {
+  const t = useTheme()
+  const [open, setOpen] = useState<string>()
+  return (
+    <>
+      {grouped(actions).map((group, i) => (
+        <Fragment key={`${i}:${group[0]!.group ?? ""}`}>
+          {i > 0 ? <div style={{ height: 2, marginTop: 4, marginBottom: 4, backgroundColor: t.border }} /> : null}
+          {group.map((a) => (
+            <Fragment key={`${a.plugin}/${a.id}`}>
+              <div
+                onClick={() => {
+                  if (a.items) return setOpen(open === a.id ? undefined : a.id)
+                  close()
+                  a.run()
+                }}
+                style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 28, paddingLeft: 8 + depth * 14, paddingRight: 10, cursor: "pointer", opacity: a.disabled ? 0.5 : 1, hover: { backgroundColor: t.selected } }}
+              >
+                {a.icon ? <Icon name={a.icon} size={12} color={t.muted} /> : null}
+                <text style={{ fontSize: 14, color: a.danger ? t.error : t.text }}>{a.title}</text>
+                <div style={{ flexGrow: 1, minWidth: 12 }} />
+                {a.keys ? <text style={{ fontSize: 12, color: t.faint }}>{a.keys}</text> : null}
+                {a.checked ? <Icon name="check" size={12} color={t.accent} /> : null}
+                {a.items ? <Icon name={open === a.id ? "chevron_down" : "chevron_right"} size={12} color={t.muted} /> : null}
+              </div>
+              {a.items && open === a.id ? <MenuRows actions={a.items} close={close} depth={depth + 1} /> : null}
+            </Fragment>
+          ))}
+        </Fragment>
+      ))}
+    </>
+  )
+}
+
+/** The `Dialog` part: a question as a pixel dialog in the middle of the room. */
+function Dialog({ title, detail, confirm, cancel, danger, input, onConfirm, onCancel }: DialogProps) {
+  const t = useTheme()
+  const button = (label: string, fill: string | undefined, run: () => void) => (
+    <div onClick={run} style={{ display: "flex", alignItems: "center", height: 30, paddingLeft: 14, paddingRight: 14, cursor: "pointer", ...box(t, "slot"), ...(fill ? { backgroundColor: fill } : {}) }}>
+      <text style={{ fontSize: 14, color: fill ? t.accentText : t.text }}>{label}</text>
+    </div>
+  )
+  return (
+    <anchored fill="window" occlude priority={1} style={{ backgroundColor: "transparent" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%" }}>
+        <div
+          autoFocus={!input}
+          tabIndex={0}
+          onMouseDownOutside={onCancel}
+          onKeyDown={(e: any) => {
+            if (e.key === "escape") onCancel()
+            else if (e.key === "enter" && !input) onConfirm()
+          }}
+          style={{ display: "flex", flexDirection: "column", gap: 10, width: 360, padding: 16, keyboardFocusDim: false, ...box(t, "dialog") }}
+        >
+          <text style={{ fontSize: 16, color: t.text }}>{title}</text>
+          {detail ? <text style={{ fontSize: 13, color: t.muted }}>{detail}</text> : null}
+          {input ? (
+            <input
+              autoFocus
+              value={input.value}
+              placeholder={input.placeholder}
+              onChange={(e: any) => input.onChange(e.value ?? "")}
+              onSubmit={onConfirm}
+              style={{ height: 30, fontSize: 14, color: t.text, paddingLeft: 8, ...box(t, "slot") }}
+            />
+          ) : null}
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
+            {button(cancel, undefined, onCancel)}
+            {button(confirm, danger ? t.error : t.accent, onConfirm)}
+          </div>
+        </div>
+      </div>
+    </anchored>
+  )
 }
 
 function Contributed({ action, args }: { action: ActionItem; args?: unknown }) {
@@ -1011,4 +1077,6 @@ export const GATHER: Partial<Components> = {
   Agent,
   AgentControls,
   Action,
+  Menu,
+  Dialog,
 }

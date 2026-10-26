@@ -4,11 +4,11 @@
   "description": "Windows 98 as a UI theme: a teal desktop, a window for each tab, a taskbar and a Start menu.",
   "type": "module",
   "scripts": {
-    "test": "bun test",
     "check": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "1.3.14",
+    "@types/react": "19.2.2",
     "typescript": "5.9.3"
   },
   "pumi": {

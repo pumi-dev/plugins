@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // Draws the office's furniture and its floor and wall styles as pixel-art SVGs:
-// `bun tools/art.ts` writes themes/office/images/furniture/*.svg, images/floors/*.svg and
+// `bun tools/art.ts` writes themes/office/images/furniture/*.svg, images/floors/{light,dark}/*.svg,
+// the gather package's people, bubbles and desk things (sit/, bubbles/, decor/) and
 // images/walls/*.svg. A sprite is a grid of art pixels, each two points on screen, drawn as crisp
 // rects — the same way the room's own sprites are drawn, so they sit together.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
@@ -326,8 +327,15 @@ for (const name of ["sofa", "aquarium"]) write(join(images, "furniture", `${name
 
 // ── Floors and walls ────────────────────────────────────────────────────────────────────────
 
-// The gather package's floors (its light look), beside the office's own.
-for (const name of ["wood", "tile", "carpet", "rug"]) write(join(images, "floors", `${name}.svg`), readFileSync(join(gatherArt, "light", `${name}.svg`), "utf8"))
+// The gather package's floors, by day and by night, beside the office's own parquet.
+for (const look of ["light", "dark"]) {
+  for (const name of ["wood", "tile", "carpet", "rug"]) write(join(images, "floors", look, `${name}.svg`), readFileSync(join(gatherArt, look, `${name}.svg`), "utf8"))
+}
+
+// The gather package's people at their desks, its bubbles and the things on a desk.
+for (let i = 0; i < 12; i++) write(join(images, "sit", `${i}.svg`), readFileSync(join(gatherArt, "sit", `${i}.svg`), "utf8"))
+for (const name of ["idle", "blocked", "error", "done", "working", "working-0", "working-1"]) write(join(images, "bubbles", `${name}.svg`), readFileSync(join(gatherArt, `bubble-${name}.svg`), "utf8"))
+for (const name of ["mug", "keyboard", "sticky", "plant", "chair", "sofa", "aquarium"]) write(join(images, "decor", `${name}.svg`), readFileSync(join(gatherArt, `${name}.svg`), "utf8"))
 
 /** The office's wall, its paint swapped: the band and the panelling below the windows. */
 const wall = readFileSync(join(images, "wall.svg"), "utf8")
@@ -343,4 +351,4 @@ for (const [name, swaps] of Object.entries(PAINTS)) {
   write(join(images, "walls", `${name}.svg`), out)
 }
 
-console.log(`wrote ${Object.keys(FURNITURE).length + 2} furniture, 4 floors, ${Object.keys(PAINTS).length} walls`)
+console.log(`wrote ${Object.keys(FURNITURE).length + 2} furniture, 8 floors, the gather art, ${Object.keys(PAINTS).length} walls`)

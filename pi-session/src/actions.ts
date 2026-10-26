@@ -1,4 +1,4 @@
-// What the strip's two buttons do, each reading its pane afresh: Fork opens `pi --fork <session>`
+// What the title bar's two buttons do, each reading its pane afresh: Fork opens `pi --fork <session>`
 // in a pane beside that one, in the same directory; Copy puts the session's id, path and directory
 // on the clipboard.
 import { clipboard, pane } from "pumi";

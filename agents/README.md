@@ -1,75 +1,60 @@
 # agents (pumi-agents)
 
-Every space, tab and agent in this pumi at a glance: which agents are working, which need you and
-which are done — and a click to go straight to them. It is pumi's core agents plugin ported to a
-package, and it also carries the guide and the restore recipes an agent is told.
+What an agent in a pumi pane is told about the workspace it is in: a short guide to pumi, and a
+map of the sessions, tabs and panes around it — once, at its start and first prompt, then only
+what changed. It draws nothing: **the agents sidebar is the app theme's**
+(`runtime/app/app/theme/default.tsx`, `cmd+b`), and this package has no `slots`.
 
 ```sh
-pumi pack add ~/Kitchen/pumi-plugins/agents   # links it; the page joins the app's side bar
-cmd+shift+a                                   # show or hide that side bar (the app's own key)
+pumi pack add ~/Kitchen/pumi-plugins/agents   # links it; it starts with the app
 ```
 
-## The page
+## What an agent is told
 
-It is the manifest's `contributes.slots["panel"]` view (`ui.tsx`'s `Agents`), drawn by the app's own
-side bar with the theme's section header over it.
+The core owns the transport — the hook, the deadline, the framing — and a plugin owns what is
+said: `agent.sending` fires when an agent starts or is sent a prompt, and this package answers
+with the text. Its pane gets a block like this at the top:
 
-- **Attention** on top: what is blocked or failed, why (`needs permission`, `has a question`,
-  `needs a login`, `failed`), what it last said, and where it is.
-- **A space** (a session) with its tabs and their panes, folded by a press on its header. A space
-  of one tab is that tab's panes; a tab of one agent is that agent, as the core draws them.
-- **A row** says what a pane is: its title, its folder, and its agent's state — the mark and the
-  word, in the theme's `agent.working`, `agent.blocked`, `agent.done`, `agent.error`, `agent.idle`.
-- **A click** goes there: a pane's row to its pane, a tab's to its tab, a space's to its session.
-- **A search** above the list, matching titles, tab names and spaces without case while you type.
-- **Rename** a space or a tab from its `⋯` menu: the name is a text field on the row itself.
-- **`+`** at the top opens a space; a space's `+` a tab in it. **`×`** closes a pane, a tab or a
-  space (a space's `Remove`, and a tab's `Close`, are in its menu).
-- **Drag** a pane onto another (they trade places), onto a tab (it joins it), or a tab onto another
-  tab or a space (it moves).
+```text
+<pumi-context from="amresyd/agents">
+<pumi>
+You are in a pane of pumi, a terminal workspace. …
+</pumi>
+<pumi-panes>
+$7 pumi (current)
+  @42 Commit Pending Changes
+    %129 π - Move plans out — /Users/amr/Kitchen/pumi — done
+</pumi-panes>
+</pumi-context>
+```
 
-Nothing is guessed and nothing is read off a screen: an agent's state is its pane's
-`@agent_status` and `@program_status`, which the agent itself reports (OSC 7501). `pumi skill
-setup` installs the hooks that report for agents that cannot report for themselves.
+`context/guide.md` is the guide; `src/context.ts` builds the map from the model `src/snapshot.ts`
+reads off the API (`session.get`, `tab.get`, `pane.list` and each pane's options under it), and
+`compose` decides what is said when: everything the first time (or when the agent asked in full,
+after a compaction), only what changed at a prompt, nothing when nothing changed.
 
-## What it reads
-
-The core plugin is pushed a snapshot with every change. A package is not, so the page is drawn
-from the window's own state — the app's sessions, tabs and panes as its hooks give them
-(`src/adapt.ts`) — and the model is read again only when the guide is: `agents.context` asks the
-API for every session, tab and pane and the options that say what they are (`src/snapshot.ts`,
-`session.get`, `tab.get`, `pane.list` and `option.get`). Both halves map to the same shape, so a
-row reads the same fields whichever half made the model.
+An agent that is turned off, or the master switch, and it is told nothing. Its own reports —
+`@agent_status`, `@program_status` (OSC 7501) — are what the map says of it; the hook that
+reports them, and the `restore_command` a pane comes back with, are `pumi skill`'s.
 
 ## Options
 
 | Option | Default | |
 | --- | --- | --- |
 | `context` | `true` | Tell agents about your workspace. Off silences it for every agent. |
-| `context_updates` | `changes` | `changes` tells an agent again when the panes move; `start` only when its session starts. |
-| `context_other_sessions` | `true` | Other sessions' panes are in the map too. |
-| `context_targets` | `{}` | Each agent's own switch, by agent id: `{"claude": true}`. |
-| `restore` | `{}` | Restore recipes, by agent id: `{"codex": ["codex", "resume", "{session}"], "cursor": []}`. |
+| `updates` | `changes` | `changes` tells an agent again when the panes move; `start` only when its session starts. |
+| `other_sessions` | `true` | Other sessions' panes are in the map too. |
+| `targets` | `{}` | Each agent's own switch, by agent id: `{"codex": false}` turns that one off. |
 
-## The two functions
-
-```sh
-# What an agent in pane 3 is told now: the guide and the map once, then only what changed.
-pumi call amresyd.agents.context '{"agent":"claude","pane":3,"event":"prompt"}'
-# The line that resumes a session, from `agents.restore` and the recipes pumi ships.
-pumi call amresyd.agents.restore '{"agent":"claude","session":"abc-123"}'
-```
-
-`context/guide.md` is the guide, byte for byte the one the core ships. **The hook is not here**:
-installing hooks, reporting an agent's state and writing its pane's `restore_command` are `pumi
-skill`'s (the CLI and the core). This package can answer what a hook would hand an agent, and the
-line a hook would write.
+They are Settings → Plugins → Agents, or `~/.config/pumi/settings.json` under `options`
+(`agents.context`, `agents.updates`, …).
 
 ## Tests
 
 ```sh
-bun install                    # this package's dependencies, if it grows any
-bun scripts/link.mjs           # at the repository's root, once: the SDK's types as @pumid/types
-bun test                       # the rows, the guide and the recipes: no pumi running
-bun run check                  # tsc --noEmit
+bun tools/link.mjs           # at the repository's root, once: the SDK's types as @pumid/types
+bun test                     # the map, the guide, the names, the model: no pumi running
+bun run check                # tsc --noEmit
 ```
+
+The tests cover the pure modules (`src/*.ts`); the worker half (`src/main.ts`) is the wiring.

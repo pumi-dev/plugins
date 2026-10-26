@@ -66,7 +66,6 @@ export class Panel {
   collapsed = new Set<string>();
   cursor: string | null = null;
   filter = "";
-  filtering = false;
   /** The last thing an action said, until the next one. */
   notice: { ok: boolean; text: string } | null = null;
   /** What is typed in the commit message box: the box's own, kept here for when it is drawn again. */
@@ -164,7 +163,6 @@ export class Panel {
       this.collapsed = await this.folded();
       this.cursor = null;
       this.filter = "";
-      this.filtering = false;
       this.notice = null;
       this.followRoot();
     }
@@ -258,6 +256,13 @@ export class Panel {
   /** What an action says it did, for the notice under the toolbar. */
   private say(ok: boolean, text: string): void {
     this.notice = { ok, text };
+  }
+
+  /** Puts the notice away, without doing anything about what it says. */
+  dismiss(): void {
+    if (this.notice === null) return;
+    this.notice = null;
+    this.changed();
   }
 
   /**

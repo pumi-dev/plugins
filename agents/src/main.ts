@@ -1,18 +1,13 @@
-// agents: the sidebar page that says what every space, tab and agent is doing, and a click to go
-// there — plus the guide and the restore recipes an agent is told.
+// agents: what an agent is told about the workspace it is in — a short guide to pumi and a map of
+// the sessions, tabs and panes around it, at a start and the first prompt, then only what changed.
+// The sidebar is the app theme's (`runtime/app/app/theme/default.tsx`); nothing here draws.
 //
-//   cmd+shift+a                                   the app's sidebar, where the page is
-//   pumi call amresyd.agents.context '{"agent":"claude","pane":3,"event":"prompt"}'
-//   pumi call amresyd.agents.restore '{"agent":"claude","session":"abc-123"}'
-//
-// The page is drawn by `ui.tsx` (the manifest's `contributes.slots.panel`), its rows `tree.ts`'s
-// and its state `status.ts`'s. What is here is the logic: the model, read from the API when an agent
-// asks (`readState`) for the guide and the recipes, and the two functions another package, a script
-// or a hook calls. The guide is `context/guide.md`, the same text `pumi skill show` prints.
-import { command, option, pane, plugin, provide, session, storage, tab } from "pumi";
+// What is here is the logic: the model, read from the API when an agent starts or is sent a prompt
+// (`readState`), and the answer to `agent.sending`. The transport (the hook, the queue,
+// `restore_command`) is the core's; this package only says what is said.
+import { agent, option, pane, session, storage, tab } from "pumi";
 
 import { compose, map, onFor, settings, type When } from "./context.ts";
-import { line } from "./restore.ts";
 import { read, type Given, type PaneGiven, type Snapshot, type TabGiven } from "./snapshot.ts";
 
 /** The options a pane is read for: what it is, what it says of itself, and where it is. */
@@ -28,7 +23,6 @@ async function readState(): Promise<Snapshot> {
   const listed = await session.list();
   const sessions = await Promise.all(listed.map((each) => session.get(each.id)));
   const here = await session.get();
-  const front = await tab.get();
 
   /** Which session a tab is in. */
   const owner = new Map<number, number>();
@@ -37,7 +31,7 @@ async function readState(): Promise<Snapshot> {
     for (const [index, id] of each.tabs) {
       owner.set(id, each.id);
       const info = await tab.get(id);
-      tabs.push({ id, space: each.id, index, label: info.name ?? "", focused: id === front.id });
+      tabs.push({ id, space: each.id, index, label: info.name ?? "" });
     }
   }
 
@@ -49,73 +43,76 @@ async function readState(): Promise<Snapshot> {
       const at = info.place.kind === "tiled" ? info.place.tab : null;
       return {
         id,
-        block: info.block,
         tab: at,
         space: at === null ? null : (owner.get(at) ?? null),
         title: text(options["title"]),
         cwd: text(options["pane_current_path"]),
         label: text(options["@label"]),
         options,
-        focused: id === front.active,
       };
     }),
   );
 
   const given: Given = {
-    spaces: sessions.map((each) => ({ id: each.id, label: each.name, current: each.current ?? null, focused: each.id === here.id })),
+    spaces: sessions.map((each) => ({ id: each.id, label: each.name, focused: each.id === here.id })),
     tabs,
     panes,
   };
   return read(given);
 }
 
-// `cmd+shift+a` (the manifest's key): the app's sidebar, which is where the page is. It is the
-// app's own command, so the key does exactly what the app's does.
-command("toggle", () => command.run("toggle_sidebar"));
+/** Where what an agent was told is kept: per agent and its own session (`%3` when it has none). */
+const toldKey = (turn: { agent: string; session: string | null; pane: number }): string =>
+  `told:${turn.agent}:${turn.session ?? `%${turn.pane}`}`;
 
-provide(
-  plugin.prefixed("context"),
-  {
-    desc: "What an agent is told now: the guide and the map the first time, only what changed after. `null` when it is not told, or nothing changed.",
-    parameters: [["table", "opts"]],
-    examples: [{ args: [{ agent: "claude", pane: 3, event: "prompt" }] }, { args: [{ agent: "pi", pane: 5, event: "start", resumed: true }] }],
-  },
-  async (opts: unknown) => {
-    const asked = (typeof opts === "object" && opts !== null ? opts : {}) as {
-      agent?: unknown;
-      pane?: unknown;
-      event?: unknown;
-      resumed?: unknown;
-    };
-    const agent = typeof asked.agent === "string" ? asked.agent : "";
-    if (agent === "") throw new Error("agents.context needs an `agent`");
-    const now = await settings();
-    if (!onFor(agent, now)) return null;
-    const model = await readState();
-    const here = typeof asked.pane === "number" ? asked.pane : model.focus.pane;
-    const space = here === null ? null : (model.panes.find((each) => each.id === here)?.space ?? null);
-    const said = map(model, { otherSessions: now.otherSessions, space });
-    const when: When = asked.event === "start" || asked.event === "prompt" || asked.event === "full" ? asked.event : "prompt";
-    const at = `told:${agent}:${here ?? "-"}`;
-    const text = compose(when, asked.resumed === true, await storage.get<string>(at), said, now.updates);
-    // Kept whether or not it was said, as the hook keeps it: what an agent has seen is the map.
-    await storage.set(at, said);
-    return text;
-  },
-);
+agent.onSend(async (turn) => {
+  const now = await settings();
+  if (!onFor(turn.agent, now)) return null;
+  const model = await readState();
+  const space = model.panes.find((each) => each.id === turn.pane)?.space ?? null;
+  const said = map(model, { otherSessions: now.otherSessions, space });
+  const key = toldKey(turn);
+  const told = await storage.get<string>(key);
+  const when: When = turn.full ? "full" : turn.event === "start" ? "start" : "prompt";
+  const text = compose(when, turn.resumed, told, said, now.updates);
+  // What an agent has seen is the map, whether or not it was said; a peek counts nothing.
+  if (!turn.peek) await storage.set(key, said);
+  return text;
+});
 
-provide(
-  plugin.prefixed("restore"),
-  {
-    desc: "The line that resumes an agent's session when its pane comes back, from `agents.restore` and the recipes pumi ships; `null` when there is none.",
-    parameters: [["table", "opts"]],
-    examples: [{ args: [{ agent: "claude", session: "abc-123" }] }],
-  },
-  async (opts: unknown) => {
-    const asked = (typeof opts === "object" && opts !== null ? opts : {}) as { agent?: unknown; session?: unknown };
-    const agent = typeof asked.agent === "string" ? asked.agent : "";
-    const session = typeof asked.session === "string" ? asked.session : "";
-    if (agent === "" || session === "") throw new Error("agents.restore needs an `agent` and a `session`");
-    return line(agent, session, await option.get("restore"));
-  },
-);
+// A compaction throws away what the agent was told: the next turn hands it the whole thing again.
+agent.onTurn(async (turn) => {
+  if (turn.event === "compact") await storage.set(toldKey(turn), null);
+});
+
+/**
+ * Once, for an installation of the version before this one: its options were the core's
+ * (`agents.context*`, on against each agent's own), and are this package's now (`context`, `updates`,
+ * `other_sessions`, `targets`, where a `false` turns an agent off). A target that was on stays on
+ * (it is on unless it is off), and one that was off stays off.
+ */
+async function migrate(): Promise<void> {
+  if (await storage.get("migrated")) return;
+  const old = async (name: string): Promise<unknown> => {
+    try {
+      return await option.get(name);
+    } catch {
+      return null;
+    }
+  };
+  const [updates, otherSessions, targets] = await Promise.all([
+    old("agents.context_updates"),
+    old("agents.context_other_sessions"),
+    old("agents.context_targets"),
+  ]);
+  const off: Record<string, boolean> = {};
+  for (const [agent, on] of Object.entries(typeof targets === "object" && targets !== null ? targets : {})) {
+    if (on === false) off[agent] = false;
+  }
+  if (updates === "start") await option.set("updates", "start");
+  if (typeof otherSessions === "boolean") await option.set("other_sessions", otherSessions);
+  if (Object.keys(off).length > 0) await option.set("targets", off);
+  await storage.set("migrated", true);
+}
+
+await migrate();

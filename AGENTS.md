@@ -39,10 +39,10 @@ and answers a promise, so an export must answer something serialisable.
 
 `pumi` is resolved by the app's Bun host, so it always matches the app. For `tsc`, each package's
 `tsconfig.json` names `./node_modules/@pumid/types/index.ts` — the app's own types — which
-`bun scripts/link.mjs` links from the pumi checkout beside this one:
+`bun tools/link.mjs` links from the pumi checkout beside this one:
 
 ```sh
-bun scripts/link.mjs           # once, and after adding a package
+bun tools/link.mjs           # once, and after adding a package
 bun install                    # a package's npm dependencies, if it has any
 ```
 
@@ -107,8 +107,8 @@ bun install                    # a package's npm dependencies, if it has any
 ## Working here
 
 ```sh
-bun scripts/link.mjs                    # the SDK's types into every package
-bun test                               # every package's tests (bun scripts/all.mjs)
+bun tools/link.mjs                    # the SDK's types into every package
+bun test                               # every package's tests (bun tools/all.mjs)
 cd <pkg> && bun test                   # one package's
 cd <pkg> && ./node_modules/.bin/tsc --noEmit -p .   # its types
 ```

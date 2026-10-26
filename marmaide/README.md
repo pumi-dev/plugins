@@ -91,10 +91,10 @@ the mouse, **zoom** with the wheel (pointer-anchored, a trackpad's many small de
 the same), and double-click or `fit` to put it back. `−` and `+` in the footer do the same from the
 keyboard's side.
 
-**Click a node** and a note goes with it to an agent's inbox (the agents core plugin's
-`@agent_inbox`): the pane picks an agent running in a pane of this tab (marked `@agent`, and not a
-shell), and the note arrives with the user's next message, with the diagram's source and the node's
-id and label. `To … ⇄` cycles through the agents there are.
+**Click a node** and a note goes with it to an agent: the pane picks an agent running in a pane of
+this tab (marked `@agent`, and not a shell), and the note is **queued** for it (`agent.queue`, in
+the core) with the diagram's source and the node's id and label. It goes to the agent as its next
+message once its turn ends — nothing is typed into it. `To … ⇄` cycles through the agents there are.
 
 A diagram that Pele cannot read is said in the pane, with the line it could not read, and again in
 the answer to whoever asked for it — so an agent reads it and fixes that line.

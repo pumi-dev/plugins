@@ -1,7 +1,7 @@
 {
   "name": "script-panel",
   "version": "0.2.0",
-  "description": "What npm-scripts and shell-scripts share: a dock page listing a repository's runnable scripts, grouped and folded, each run in a terminal.",
+  "description": "What the `scripts` package draws: a dock page listing a repository's runnable scripts, grouped and folded, each run in a terminal.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {

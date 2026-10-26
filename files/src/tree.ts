@@ -133,6 +133,13 @@ export class Tree {
     return { rel, kind: node.kind, isIgnored: node.isIgnored, isHidden: node.isHidden, git: this.summary(rel) };
   }
 
+  /** `rel`'s children as far as they have been listed: none for a directory not read yet. */
+  listedChildren(rel: string): TreeEntry[] {
+    const node = this.nodes.get(rel);
+    if (!node || node.kind !== "dir" || node.children === null) return [];
+    return node.children.map((child) => this.entry(child)).filter((entry): entry is TreeEntry => entry !== undefined);
+  }
+
   /** `rel`'s children, listing the directory the first time it is asked. */
   childEntries(rel: string): TreeEntry[] {
     const node = this.nodes.get(rel);

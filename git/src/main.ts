@@ -49,7 +49,6 @@ export interface ChangesView {
   /** Files with a change in the work tree that `commit -a` takes: tracked, not new. */
   tracked: number;
   notice: { ok: boolean; text: string } | null;
-  filtering: boolean;
   filter: string;
   /** The draft in the commit box, for a box drawn again. */
   message: string;
@@ -130,7 +129,6 @@ function changesView(): ChangesView {
     staged: staged.length,
     tracked: unstaged.filter((change) => change.glyph !== "?").length,
     notice: panel.notice,
-    filtering: panel.filtering,
     filter: panel.filter,
     message: panel.message,
     added,
@@ -221,11 +219,15 @@ export async function synced(what: Sync): Promise<void> {
   await panel.sync(what);
 }
 
-/** The filter box shown or hidden, and what it holds, which is what the tree keeps. */
-export function filtered(text: string, shown = true): void {
-  panel.filtering = shown;
-  panel.filter = shown ? text : "";
+/** What the filter box holds, which is what the tree keeps. */
+export function filtered(text: string): void {
+  panel.filter = text;
   panel.changed();
+}
+
+/** The notice's close button: what an action said goes away, the repository as it is stays. */
+export function dismissed(): void {
+  panel.dismiss();
 }
 
 // ---- the diff pane
@@ -315,14 +317,18 @@ export async function reveal(root: string, path: string, line: number | null): P
 export async function pressed(key: string): Promise<boolean> {
   switch (key) {
     case "/":
-      filtered("", true);
+      filtered("");
       return true;
-    case "escape":
-      panel.filtering = false;
+    case "escape": {
+      // Escape backs out of what the page last put in front of the user: the filter, the cursor, and
+      // then the notice under the toolbar, which is otherwise only dismissed by its close button.
+      const had = panel.filter !== "" || panel.cursor !== null;
       panel.filter = "";
       panel.select(null);
+      if (!had && panel.notice !== null) panel.dismiss();
       panel.changed();
       return true;
+    }
     case "j":
     case "down":
       panel.select(step(1));

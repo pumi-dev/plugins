@@ -124,9 +124,9 @@ which rarely import `pumi`). Only the `View` classes and their helpers are rewri
 ## Checking your work
 
 Every package's `tsconfig.json` already points `pumi` at the app's types
-(`~/Kitchen/pumi/runtime/app/types`, linked as `@pumid/types` by `bun scripts/link.mjs`), with
+(`~/Kitchen/pumi/runtime/app/types`, linked as `@pumid/types` by `bun tools/link.mjs`), with
 `"jsx": "react-jsx"` and `"jsxImportSource": "pumi"`. If `tsc` can't find `pumi`, run
-`bun scripts/link.mjs` from the workspace root.
+`bun tools/link.mjs` from the workspace root.
 
 ```sh
 cd <package>

@@ -52,13 +52,13 @@ test("other sessions stay out of the map when the option is off", () => {
   expect(said).toContain("%101");
 });
 
-test("an agent is told only when the master switch and its own are on", () => {
-  const off = { ...DEFAULTS, targets: {} };
-  expect(onFor("claude", off)).toBe(false);
-  const on = { ...off, targets: { claude: true } };
-  expect(onFor("claude", on)).toBe(true);
-  expect(onFor("pi", on)).toBe(false);
-  expect(onFor("claude", { ...on, context: false })).toBe(false);
+test("an agent is told unless it is turned off, and never with the master switch off", () => {
+  expect(onFor("claude", DEFAULTS)).toBe(true);
+  const off = { ...DEFAULTS, targets: { codex: false } };
+  expect(onFor("codex", off)).toBe(false);
+  expect(onFor("claude", off)).toBe(true);
+  expect(onFor("claude", { ...DEFAULTS, targets: { claude: true } })).toBe(true);
+  expect(onFor("claude", { ...DEFAULTS, context: false })).toBe(false);
 });
 
 test("a targets table keeps only what says a boolean", () => {

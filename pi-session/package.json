@@ -41,7 +41,7 @@
           "type": "boolean",
           "default": false,
           "label": "Only on the focused pane",
-          "desc": "Show the buttons on the focused pi pane alone, not on every pi pane's strip.",
+          "desc": "Show the buttons on the focused pi pane alone, not on every pi pane's title bar.",
           "group": "Pi session"
         },
         "command": {
@@ -53,8 +53,8 @@
         }
       },
       "slots": {
-        "pane.strip": {
-          "view": "Strip"
+        "pane.toolbar": {
+          "view": "Toolbar"
         }
       }
     }

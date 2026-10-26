@@ -1,0 +1,71 @@
+{
+  "name": "pumi-acp",
+  "version": "0.1.0",
+  "description": "Coding agents over ACP (Agent Client Protocol) in panes of their own, drawn as a chat: Claude, Codex, pi, Gemini, OpenCode, Copilot or any ACP agent. Each pane is an agent like a terminal's, and its agent outlives the app.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "acp",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "agents": {
+          "type": "table",
+          "default": {},
+          "control": "json",
+          "label": "Agents",
+          "group": "ACP",
+          "placeholder": "{\"goose\": {\"command\": \"goose\", \"args\": [\"acp\"], \"env\": {}}}",
+          "desc": "More ACP agents, or replacements for the shipped ones, by id: `command`, `args`, `env`, and optionally `name`, `login` (a command line that signs in) and `resume` (the agent's TUI resuming `{session}`)."
+        },
+        "bun": {
+          "type": "string",
+          "default": "",
+          "label": "Bun",
+          "group": "ACP",
+          "desc": "The Bun that runs each pane's host process. Empty: the app's own."
+        }
+      },
+      "commands": [
+        {
+          "id": "new",
+          "title": "ACP: new agent pane"
+        },
+        {
+          "id": "open",
+          "title": "ACP: open session…"
+        },
+        {
+          "id": "handoff",
+          "title": "ACP: continue this terminal agent as an ACP pane"
+        },
+        {
+          "id": "back",
+          "title": "ACP: back to terminal"
+        }
+      ],
+      "blocks": [
+        {
+          "id": "chat",
+          "title": "Agent",
+          "icon": "sparkle"
+        }
+      ]
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}

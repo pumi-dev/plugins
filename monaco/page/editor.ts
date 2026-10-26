@@ -40,7 +40,10 @@ interface Read {
 
 /** The options the editor follows, as `ui.tsx` hands them over. */
 export interface Config {
+  /** The terminals' font (`guifont`, `linespace`, as the SDK's `useFont` reads them). */
+  font_family: string;
   font_size: number;
+  line_height: number;
   tab_size: number;
   word_wrap: boolean;
   minimap: boolean;
@@ -79,7 +82,7 @@ if (!pumi) {
   throw new Error("monaco: no window.pumi");
 }
 
-const args = (pumi.args ?? {}) as { pane?: unknown; path?: unknown; focused?: unknown };
+const args = (pumi.args ?? {}) as { pane?: unknown; path?: unknown; focused?: unknown; font?: Partial<Config> };
 const pane = Number(args.pane);
 /** Whether the pane is the window's current one, as `ui.tsx` last said. */
 let paneFocused = args.focused !== false;
@@ -142,7 +145,15 @@ function applyTheme(tokens: Record<string, string>): void {
 
 // ---- the editor
 
-let config: Config = { font_size: 0, tab_size: 4, word_wrap: false, minimap: false };
+let config: Config = {
+  font_family: "Menlo",
+  font_size: 12,
+  line_height: 1.25,
+  tab_size: 4,
+  word_wrap: true,
+  minimap: false,
+  ...args.font,
+};
 
 const editor = monaco.editor.create(root, {
   model: null,
@@ -163,14 +174,16 @@ const editor = monaco.editor.create(root, {
   detectIndentation: true,
 });
 
-/** The options as the editor takes them, with the theme's font. */
+/** The options as the editor takes them: the terminals' font, with the theme's monospace one
+ *  behind it for a family the page can't find. */
 function configure(next: Partial<Config>): void {
   config = { ...config, ...next };
-  const themed = parseFloat(cssVar("--pumi-font-size")) || 13;
-  const font = cssVar("--pumi-font-mono");
+  const fallback = cssVar("--pumi-font-mono") || "monospace";
   editor.updateOptions({
-    fontFamily: font || undefined,
-    fontSize: config.font_size > 0 ? config.font_size : themed,
+    fontFamily: config.font_family ? `${JSON.stringify(config.font_family)}, ${fallback}` : fallback,
+    fontSize: config.font_size,
+    // Monaco takes a line height under 8 as a multiple of the font size, as `linespace` is.
+    lineHeight: config.line_height,
     wordWrap: config.word_wrap ? "on" : "off",
     minimap: { enabled: config.minimap },
   });
@@ -476,7 +489,8 @@ window.__monaco = Object.freeze({
 
 applyTheme(pumi.theme ?? {});
 pumi.onTheme(applyTheme);
-const names: (keyof Config)[] = ["font_size", "tab_size", "word_wrap", "minimap"];
+// The plugin's own options; the font came in `args` and follows through `configure`.
+const names: (keyof Config)[] = ["tab_size", "word_wrap", "minimap"];
 void Promise.all(names.map((name) => pumi.option(`${prefix}${name}`).catch(() => undefined))).then((values) => {
   const read: Partial<Config> = {};
   names.forEach((name, i) => {

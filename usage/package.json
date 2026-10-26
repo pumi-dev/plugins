@@ -1,0 +1,230 @@
+{
+  "name": "pumi-usage",
+  "version": "0.1.0",
+  "description": "How much of your AI plans you have left, in the status bar: Claude, Codex, Copilot and OpenRouter, read with the sign-ins already on this Mac.",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "keywords": [
+    "usage",
+    "quota",
+    "limits",
+    "status bar",
+    "claude",
+    "codex",
+    "copilot",
+    "openrouter"
+  ],
+  "pumi": {
+    "name": "usage",
+    "owner": "amresyd",
+    "api": 1,
+    "uses": [
+      "network",
+      "files",
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "show": {
+          "type": "boolean",
+          "default": true,
+          "label": "Show the bar",
+          "group": "Usage",
+          "desc": "Segments in the status bar, one for each plan signed in. Their numbers are also in the side bar's Usage section."
+        },
+        "every": {
+          "type": "number",
+          "default": 5,
+          "min": 1,
+          "max": 60,
+          "step": 1,
+          "unit": "min",
+          "control": "slider",
+          "label": "Read them again every",
+          "group": "Usage",
+          "desc": "The services rate limit these endpoints and the numbers move slowly, so a read every few minutes is plenty."
+        },
+        "alert": {
+          "type": "boolean",
+          "default": false,
+          "label": "Say when a limit is nearly out",
+          "group": "Usage",
+          "desc": "A notification once each window crosses the critical share, and not again until that window resets."
+        },
+        "claude": {
+          "type": "boolean",
+          "default": true,
+          "label": "Claude",
+          "group": "Plans",
+          "desc": "Claude Code's sign-in: its login keychain item, or `~/.claude/.credentials.json`. A Claude Code pointed at another endpoint (ANTHROPIC_BASE_URL, apiKeyHelper) is left alone: it is not using the plan."
+        },
+        "codex": {
+          "type": "boolean",
+          "default": true,
+          "label": "Codex",
+          "group": "Plans",
+          "desc": "The Codex CLI's ChatGPT sign-in (`~/.codex/auth.json`), or OpenCode's OpenAI one. An API key has no plan usage to read."
+        },
+        "copilot": {
+          "type": "boolean",
+          "default": true,
+          "label": "Copilot",
+          "group": "Plans",
+          "desc": "The GitHub token `gh auth token` answers with, or a Copilot editor plugin's own sign-in. Premium requests and chat, by the month."
+        },
+        "openrouter": {
+          "type": "boolean",
+          "default": true,
+          "label": "OpenRouter",
+          "group": "Plans",
+          "desc": "Prepaid credits and the API key's own spending cap, read with the key below or `OPENROUTER_API_KEY`."
+        },
+        "layout": {
+          "type": "string",
+          "default": "detailed",
+          "choices": [
+            "detailed",
+            "compact",
+            "meters"
+          ],
+          "labels": [
+            "Meter and numbers",
+            "Numbers only",
+            "Meters only"
+          ],
+          "label": "What the bar shows",
+          "group": "Display",
+          "desc": "A meter for the window closest to a limit, the numbers, or both."
+        },
+        "windows": {
+          "type": "number",
+          "default": 2,
+          "min": 1,
+          "max": 3,
+          "step": 1,
+          "label": "Limits named",
+          "group": "Display",
+          "desc": "How many of each plan's limit windows the bar names, the tightest first. The rest stay in the side bar."
+        },
+        "resets": {
+          "type": "string",
+          "default": "countdown",
+          "choices": [
+            "countdown",
+            "clock",
+            "off"
+          ],
+          "labels": [
+            "Time left",
+            "When it resets",
+            "Nothing"
+          ],
+          "label": "Resets",
+          "group": "Display",
+          "desc": "`Time left` counts down (`2h 53m`); `When it resets` names the local time it comes back."
+        },
+        "label": {
+          "type": "boolean",
+          "default": true,
+          "label": "Name each plan",
+          "group": "Display",
+          "desc": "The plan's name before its numbers. Off, the bar is numbers and meters only."
+        },
+        "meter": {
+          "type": "number",
+          "default": 36,
+          "min": 16,
+          "max": 80,
+          "step": 2,
+          "unit": "px",
+          "control": "slider",
+          "label": "Meter width",
+          "group": "Display",
+          "desc": "How wide a segment's bar is."
+        },
+        "tint": {
+          "type": "boolean",
+          "default": true,
+          "label": "Colour by how little is left",
+          "group": "Display",
+          "desc": "Numbers and meters turn the warning colour, then the error colour, as a window fills."
+        },
+        "warn_at": {
+          "type": "number",
+          "default": 70,
+          "min": 1,
+          "max": 99,
+          "step": 1,
+          "unit": "%",
+          "control": "slider",
+          "label": "Warning at",
+          "group": "Colours",
+          "desc": "A window this used is drawn in the theme's warning colour."
+        },
+        "crit_at": {
+          "type": "number",
+          "default": 90,
+          "min": 1,
+          "max": 99,
+          "step": 1,
+          "unit": "%",
+          "control": "slider",
+          "label": "Critical at",
+          "group": "Colours",
+          "desc": "A window this used is drawn in the theme's error colour, and `Say when a limit is nearly out` speaks."
+        },
+        "copilot_token": {
+          "type": "secret",
+          "label": "GitHub token for Copilot",
+          "group": "Keys",
+          "desc": "Only needed when `gh` is not signed in on this Mac: the output of `gh auth token` works. Kept in the login keychain."
+        },
+        "openrouter_key": {
+          "type": "secret",
+          "label": "OpenRouter API key",
+          "group": "Keys",
+          "desc": "An `sk-or-v1-…` key from openrouter.ai/settings/keys, when `OPENROUTER_API_KEY` is not in the app's environment. Kept in the login keychain."
+        }
+      },
+      "commands": [
+        {
+          "id": "refresh",
+          "title": "Usage: read the plans again"
+        },
+        {
+          "id": "toggle",
+          "title": "Usage: show the bar, or hide it"
+        }
+      ],
+      "slots": {
+        "panel": {
+          "view": "Details",
+          "title": "Usage",
+          "icon": "zap"
+        },
+        "status": {
+          "view": "Segments",
+          "actions": [
+            {
+              "id": "refresh",
+              "title": "Read the plans again",
+              "icon": "rotate_cw",
+              "command": "refresh"
+            }
+          ]
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}

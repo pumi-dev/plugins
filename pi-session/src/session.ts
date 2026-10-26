@@ -1,4 +1,4 @@
-// What the strip knows of its pane, read when it acts so it is never stale: the session pi's hook
+// What the buttons know of their pane, read when it acts so it is never stale: the session pi's hook
 // reported (`@agent_session`: an id, or the path of a session file) and the pane's directory. pi
 // names its session files `<time>_<id>.jsonl`, their first record `{"type": "session", "id": …}`.
 import { closeSync, openSync, readSync } from "node:fs";

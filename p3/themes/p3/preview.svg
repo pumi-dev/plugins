@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+  <rect width="320" height="200" rx="10" fill="#1e1f22"/>
+  <!-- the side bar -->
+  <path d="M10 0H96V200H10A10 10 0 0 1 0 190V10A10 10 0 0 1 10 0Z" fill="#2a2c30"/>
+  <circle cx="11" cy="11" r="3.2" fill="#ff5f57"/>
+  <circle cx="21" cy="11" r="3.2" fill="#febc2e"/>
+  <circle cx="31" cy="11" r="3.2" fill="#28c840"/>
+  <text x="44" y="14" font-family="-apple-system, Helvetica" font-size="8" fill="#eeeeee"><tspan font-weight="700">P3</tspan> <tspan fill="#a3a4a9">Code</tspan></text>
+  <circle cx="13" cy="30" r="2.6" fill="none" stroke="#717278" stroke-width="1"/>
+  <text x="20" y="32.5" font-family="-apple-system, Helvetica" font-size="6.5" fill="#a3a4a9">Search</text>
+  <!-- threads -->
+  <rect x="5" y="40" width="86" height="30" rx="4" fill="#ffffff12"/>
+  <rect x="10" y="45" width="8" height="6" rx="1.5" fill="#1f3a4a"/>
+  <text x="21" y="50.5" font-family="-apple-system, Helvetica" font-size="5.5" fill="#a3a4a9">workspace</text>
+  <circle cx="80" cy="48.5" r="1.8" fill="#9db6f2"/>
+  <text x="10" y="62" font-family="-apple-system, Helvetica" font-size="6.5" fill="#eeeeee">Expand plugin API</text>
+  <rect x="10" y="77" width="8" height="6" rx="1.5" fill="#1f3a4a"/>
+  <text x="21" y="82.5" font-family="-apple-system, Helvetica" font-size="5.5" fill="#a3a4a9">workspace</text>
+  <text x="10" y="94" font-family="-apple-system, Helvetica" font-size="6.5" fill="#a3a4a9">Move plans out</text>
+  <rect x="10" y="109" width="8" height="6" rx="1.5" fill="none" stroke="#55565c" stroke-width="0.7" stroke-dasharray="1 1"/>
+  <text x="21" y="114.5" font-family="-apple-system, Helvetica" font-size="5.5" fill="#a3a4a9">No project</text>
+  <text x="10" y="126" font-family="-apple-system, Helvetica" font-size="6.5" fill="#a3a4a9">Available agent tools</text>
+  <circle cx="14" cy="188" r="2.6" fill="none" stroke="#717278" stroke-width="1"/>
+  <!-- the breadcrumb -->
+  <rect x="106" y="8" width="8" height="6" rx="1.5" fill="#1f3a4a"/>
+  <text x="117" y="13.5" font-family="-apple-system, Helvetica" font-size="6.5" fill="#a3a4a9">workspace  <tspan fill="#717278">/</tspan>  <tspan fill="#eeeeee">New thread</tspan></text>
+  <!-- two panes, a hairline between -->
+  <line x1="208" y1="24" x2="208" y2="200" stroke="#34353a" stroke-width="1"/>
+  <text x="106" y="40" font-family="Menlo, monospace" font-size="6" fill="#86cfa0">~/pumi</text>
+  <text x="132" y="40" font-family="Menlo, monospace" font-size="6" fill="#e4e4e6">$ cargo build</text>
+  <text x="106" y="50" font-family="Menlo, monospace" font-size="6" fill="#717278">  Compiling pumid</text>
+  <text x="106" y="60" font-family="Menlo, monospace" font-size="6" fill="#86cfa0">  Finished</text>
+  <text x="138" y="114" font-family="-apple-system, Helvetica" font-size="8" fill="#eeeeee">What should we build?</text>
+  <rect x="216" y="120" width="96" height="34" rx="7" fill="#28282d"/>
+  <text x="222" y="132" font-family="-apple-system, Helvetica" font-size="5.5" fill="#717278">Ask for changes…</text>
+  <circle cx="302" cy="146" r="5" fill="#9a8aa2"/>
+</svg>

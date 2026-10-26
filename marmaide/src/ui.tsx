@@ -1,6 +1,6 @@
 // What a diagram pane draws, in the window's React tree: the SVG the worker rendered, fitted to the
 // pane, and moved and zoomed like a canvas — drag it with the mouse, scroll the wheel over it, press
-// `fit` to put it back. A click on a node asks for a note, which goes to an agent's inbox; the
+// `fit` to put it back. A click on a node asks for a note, which is queued for an agent; the
 // rendering, the nodes and the inbox are the worker's (`main.ts`, `picture.ts`, `agents.ts`).
 import { useEffect, useState } from "react";
 import { Icon, useMetrics, usePane, usePlugin, useTheme, type Metrics, type RendererProps, type Tokens } from "pumi";

@@ -1,6 +1,6 @@
 # files — the project tree in the sidebar
 
-The project panel of pumi's Files plugin, as a package: the side bar's Project section, which shows
+The project panel of pumi's Files plugin, as a package: the side bar's Files section, which shows
 the project the current pane's directory is in — its folders and files, folder by folder, with each
 file's icon and git's marks on every row — and what the user does to it: open, rename, make, copy,
 cut, paste, trash, delete, drag out, drop in, add to `.gitignore`, filter, expand and collapse.
@@ -28,10 +28,15 @@ pumi plugin add ~/Kitchen/pumi-plugins/files     # or: pumi plugin dev .
 - **git's state is on every row**, from `git status --porcelain`: a modified folder is tinted as much
   as the file inside it, a new file is green, a deleted one red, a conflict yellow — in the theme's
   own `status.*` tokens. `git_status` turns it off.
-- **Icons by name and extension**, from the core plugin's own icon set, vendored in
-  `icons/file_icons/` (Lucide, ISC): a file is named by its file name first (`Dockerfile`), then
-  every suffix after a dot (`auth.module.js` is a JavaScript file), then its several extensions, then
-  its extension. `file_icons` and `folder_icons` turn them off.
+- **Material icons**: the [Material Icon Theme](https://open-vsx.org/extension/PKief/material-icon-theme)
+  (MIT), vendored in `icons/material/` with its mapping in `src/material.json`
+  (`bun tools/vendor-material.ts [version]` takes another release from Open VSX). They are read as
+  VS Code reads an icon theme: a file by its whole name (`package.json`, `Dockerfile`), then its
+  extensions, the longest first (`d.ts` before `ts`); a folder by its name, open or closed (`src`,
+  `test`, `.github`); the project's root row has none. A light theme gets the theme's light
+  icons where it has them. `file_icons` and `folder_icons` turn them off.
+- **Any size of project**: the rows are a windowed `<virtual-list>`, so only the rows near what
+  shows are made and drawn, whatever is open.
 - **The disk is watched**, so a save or a `git checkout` shows up as it does in the core plugin — and
   a burst of writes inside a folder the tree leaves out (a build in `target/`) does not redraw it at
   all.
@@ -51,8 +56,13 @@ pumi plugin add ~/Kitchen/pumi-plugins/files     # or: pumi plugin dev .
   a folder.
 - **Dropping**: a row carries its path and any row takes a dropped path — moved within the project,
   copied in from outside it, never over something that is there (`main copy.rs`).
-- **The filter** (`Files: filter the project tree`, or `cmd+shift+e` then the command) narrows the
-  project to the paths that match, flat; picking one shows it in the tree with its folders open.
+- **The search box** on top searches the whole project as it is typed into, not only the folders
+  that are open: git's list of it in a repository (`git ls-files`, so what `.gitignore` hides is left
+  out), the disk elsewhere, read once and again after the disk changes. It is fuzzy, as a file
+  finder is: the letters in order, the file's own name, a word's start and a run ranking first; a
+  query with a `/` is a path. The best 500 are listed flat; `↓`/`↑` move through them, enter or a
+  click opens a file (and shows it in the tree with its folders open), escape clears the box.
+  `cmd+f` in the tree, or `Files: filter the project tree`, puts the keyboard there.
 
 ## Options
 
@@ -67,15 +77,17 @@ decide itself:
 | `folder_icons` | `true` | each folder's icon, open or closed |
 | `git_status` | `true` | tint a row by git's state of it |
 | `auto_fold_dirs` | `true` | a folder that holds one folder is one row |
-| `indent_size` | `20` | pixels a level takes |
-| `open_with` | `pane` | what a click on a file does: `pane` (a file pane), `editor` (a terminal pane) or `system` (its app) |
+| `indent_size` | `12` | pixels a level takes |
+| `open_with` | `tab` | what a click on a file does: `tab` (a tab of its own, or the one showing it already), `pane` (a file pane on the right), `editor` (a terminal pane) or `system` (its app) |
 | `editor` | `$EDITOR` | the editor a file opens in with `open_with = "editor"`, empty for `$EDITOR` |
 
 ## Opening a file
 
-A click on a file opens it with `file.open`, as `pumi open` does: in a **file pane** (the core's
-`file` block) split on the right of the pane whose directory the tree follows, or the file pane in
-that tab showing it already. Which plugin draws it is the app's choice — the enabled viewer whose
+A click on a file opens it with `file.open`, as `pumi open --tab` does: in a **tab of its own**
+holding a **file pane** (the core's `file` block); when a file pane of the session shows it already,
+that tab comes forward instead. `open_with = "pane"` splits the file pane on the right of the pane
+whose directory the tree follows (or shows it in the file pane of that tab showing it already). Which
+plugin draws it is the app's choice — the enabled viewer whose
 `renderers.file.match` fits the file best, such as `monaco` — and with none the pane says so and
 offers the system's app. `open_with = "editor"` opens a **terminal pane running your editor**
 instead (`$EDITOR`, or the `editor` option: `code -w`, `nvim`, `hx`), and `open_with = "system"`
@@ -87,6 +99,7 @@ whatever app owns the file.
 | --- | --- |
 | `src/main.ts` | what registers: the view, the commands, the option reads, the events that move the tree |
 | `src/ui.tsx` | the page: rows, disclosure, indent guides, the filter, the row menu |
+| `src/adopt.ts` | a new view, keeping the rows that did not change, so only those that did draw again |
 | `src/panel.ts` | the core plugin's `ProjectPanel`: the cursor, the open folders, the clipboard, the row being typed into |
 | `src/tree.ts` | the tree: lazy listing, ignore stacks, folded chains, the visible rows |
 | `src/intent.ts` | what a gesture comes to, and doing it: files on disk, the clipboard, opening a file |

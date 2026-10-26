@@ -29,19 +29,22 @@ what is selected in it.
 
 ## What it does
 
-- **Themed by the window**: the page makes Monaco's theme from `pumi.theme`'s tokens and follows
-  `pumi.onTheme`. The editor's background is clear, so the pane shows through; its widgets (find,
-  hover, suggestions, the command palette) sit on `surface` and `border`, the cursor and the
-  matches are `accent`, the selection `selected`. The font is the theme's monospace one. The syntax
-  colours are Monaco's own `vs-dark` or `vs`, by how light the theme's `editor` is.
+- **Coloured like the terminals**: the text is the colour palette the terminals are drawn in
+  (`pumi.theme`'s `palette.*`: `terminal_colorscheme`'s, or the theme's): its background,
+  foreground, cursor and selection, and the code in its sixteen colours (keywords blue, strings
+  green, numbers yellow, types cyan, tags red; a colour too dark to read on the background gives
+  way to its bright one). Its widgets (find, hover, suggestions, the command palette) are the
+  window's: `surface`, `border`, `accent`. It follows `pumi.onTheme`; the font is the terminals'
+  (see Options). A page without a palette falls back to the theme's tokens on a clear background.
 - **The app's menu**: a right-click opens the app's menu over the page (`pumi.menu`): Go to
   Definition, Go to References, Peek, Rename, Change All Occurrences, Format, Cut, Copy, Paste and
   the Command Palette. Monaco's own menu is off.
 - **The app's clipboard**: `cmd+c`, `cmd+x`, `cmd+v` in the text go through `clipboard.get`/`set`,
   so they work whatever menu the app has. With nothing selected they take the line, as VS Code does.
 - **Keys**: `cmd+s` saves (the plugin's key, rebindable in Settings → Keybindings; in the page
-  Monaco takes it itself). Monaco keeps its chords the app also binds while it has the keyboard:
-  `cmd+d`, `cmd+k …`, `cmd+/`, `cmd+[`, `cmd+]`, `cmd+enter`, `cmd+alt+up`/`down`. `cmd+f`,
+  Monaco takes it itself). Monaco keeps its chords the app or its menu bar also binds while it has
+  the keyboard: `cmd+d`, `cmd+k …`, `cmd+/`, `cmd+[`, `cmd+]`, `cmd+enter`, `cmd+alt+up`/`down`
+  (a cursor above/below), `cmd+alt+shift+arrows` (a column selection). `cmd+f`,
   `ctrl+g` and `F1` are Monaco's.
 - **Drops**: a file dragged from the project tree, or a `file://` URL, opens in the pane (its
   `path` follows). Several open together, the last one shown. A pane dragged over it still
@@ -53,8 +56,9 @@ what is selected in it.
 
 ## Options
 
-`font_size` (0 is the theme's), `tab_size` (for a file whose indentation says nothing: Monaco
-detects it), `word_wrap` and `minimap`. **Editor: toggle word wrap** and **Editor: toggle the
+`tab_size` (for a file whose indentation says nothing: Monaco detects it), `word_wrap` (on) and
+`minimap` (off). The font is the terminals': Settings → Appearance's Font family, Font size and
+Line height (`guifont`, `linespace`, read with the SDK's `useFont`). **Editor: toggle word wrap** and **Editor: toggle the
 minimap** flip the last two in settings.json.
 
 ## Build

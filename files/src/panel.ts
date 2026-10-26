@@ -11,6 +11,7 @@ import * as icons from "./icons.ts";
 import * as menu from "./menu.ts";
 import type { Intent } from "./intent.ts";
 import * as relpath from "./relpath.ts";
+import { listProject, searched, type Indexed } from "./search.ts";
 import { DEFAULT_INDENT, NEW_ENTRY_KEY, entryKey, entryRel, plainRow, type Row } from "./row.ts";
 import {
   Tree,
@@ -44,7 +45,7 @@ export interface Settings {
   indentSize: number;
   /** What a click on a file does: a file pane (`file.open`), the user's editor in a terminal
    *  pane, or the system's app. */
-  openWith: "pane" | "editor" | "system";
+  openWith: "tab" | "pane" | "editor" | "system";
   /** The editor to open it with; `$EDITOR` when it is empty. */
   editor: string;
 }
@@ -57,11 +58,11 @@ export const DEFAULT_SETTINGS: Settings = {
   gitStatus: true,
   autoFoldDirs: true,
   indentSize: DEFAULT_INDENT,
-  openWith: "pane",
+  openWith: "tab",
   editor: "",
 };
 
-/** How many rows a filter keeps, so that a typo in a huge tree cannot walk all of it forever. */
+/** How many rows the search shows: the best of them, which is all a list of matches is read for. */
 const FILTER_LIMIT = 500;
 
 export class Panel {
@@ -75,6 +76,12 @@ export class Panel {
   edit: Edit | null = null;
   /** What the filter box holds; `""` shows the tree. */
   filter = "";
+  /** Every path of the project, for the search (`search.ts`); null until read, or after the disk
+   *  changed. Read for the root it says. */
+  private index: { root: string; paths: Indexed[] } | null = null;
+  private indexing: Promise<void> | null = null;
+  /** The last search's answer, kept while neither the query nor the index changes. */
+  private found: { query: string; paths: Indexed[]; hits: Indexed[]; fits: Indexed[] } | null = null;
   /** The filter box is showing: the command asked for it, or it has something in it. */
   filtering = false;
   /** The pane whose directory the panel follows, when one is known: a file opens beside it. */
@@ -118,7 +125,7 @@ export class Panel {
       gitStatus: gitStatus !== false,
       autoFoldDirs: autoFoldDirs !== false,
       indentSize: Math.min(64, Math.max(4, Number(indentSize) || DEFAULT_INDENT)),
-      openWith: openWith === "system" || openWith === "editor" ? openWith : "pane",
+      openWith: openWith === "system" || openWith === "editor" || openWith === "pane" ? openWith : "tab",
       editor: typeof editor === "string" ? editor : "",
     };
     this.announce();
@@ -218,8 +225,8 @@ export class Panel {
         ? this.settings.fileIcons
           ? icons.fileIcon(entry.rel)
           : ""
-        : this.settings.folderIcons
-          ? icons.folderIcon(isExpanded)
+        : this.settings.folderIcons && entry.rel !== ""
+          ? icons.folderIcon(entry.rel, isExpanded)
           : "";
     row.selected = selected;
     row.indent = this.settings.indentSize;
@@ -239,23 +246,49 @@ export class Panel {
 
   // ---- the filter
 
-  /** The rows the filter matches: every path under the project whose own path holds it, as a flat
-   * list. The core plugin has no filter of its own — this is the package's, for a sidebar that is a
-   * page of its own. */
-  private filteredRows(query: string): Row[] {
-    const needle = query.toLowerCase();
-    const out: TreeEntry[] = [];
-    const stack = [relpath.ROOT];
-    while (stack.length > 0 && out.length < FILTER_LIMIT) {
-      const at = stack.pop()!;
-      for (const child of this.tree.childEntries(at)) {
-        if (this.settings.hideGitignore && child.isIgnored) continue;
-        if (this.settings.hideHidden && child.isHidden) continue;
-        if (child.rel.toLowerCase().includes(needle)) out.push(child);
-        if (child.kind === "dir") stack.push(child.rel);
+  /** Reads the project's paths for the search, unless they are read already. */
+  async ensureIndex(): Promise<void> {
+    const root = this.tree.root;
+    if (this.index?.root === root) return;
+    if (this.indexing) return this.indexing;
+    this.indexing = (async () => {
+      try {
+        const paths = await listProject(root, { inRepo: this.tree.hasGitRepo, hideHidden: this.settings.hideHidden });
+        if (this.tree.root === root) this.index = { root, paths };
+      } finally {
+        this.indexing = null;
       }
+    })();
+    return this.indexing;
+  }
+
+  /** The disk changed: the search reads the project again the next time it is asked. */
+  forgetIndex(): void {
+    this.index = null;
+  }
+
+  /** The search's matches: the paths of the whole project the query fits, best first, as a flat
+   * list. The core plugin has no search of its own — this is the package's. Before the project is
+   * read (`ensureIndex`), what the tree has listed is searched. */
+  private filteredRows(query: string): Row[] {
+    const paths = this.index?.root === this.tree.root ? this.index.paths : this.listedPaths();
+    const was = this.found;
+    if (was?.query !== query || was.paths !== paths) {
+      // A query that only grew (the next keystroke) fits nothing the shorter one did not.
+      const among = was && was.paths === paths && query.startsWith(was.query) && !was.query.includes(" ") ? was.fits : paths;
+      this.found = { query, paths, ...searched(among, query, FILTER_LIMIT) };
     }
-    out.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
+    const found = this.found!;
+    const out: TreeEntry[] = found.hits.map(
+      (hit) =>
+        this.tree.entry(hit.rel) ?? {
+          rel: hit.rel,
+          kind: hit.dir ? "dir" : "file",
+          isIgnored: false,
+          isHidden: relpath.fileName(hit.rel).startsWith("."),
+          git: this.tree.summary(hit.rel),
+        },
+    );
     return out.map((entry) => {
       const key = entryKey(entry.rel);
       const row = plainRow(key);
@@ -272,7 +305,7 @@ export class Panel {
             ? icons.fileIcon(entry.rel)
             : ""
           : this.settings.folderIcons
-            ? icons.folderIcon(false)
+            ? icons.folderIcon(entry.rel, false)
             : "";
       row.selected = this.selection === key;
       row.indent = this.settings.indentSize;
@@ -280,6 +313,22 @@ export class Panel {
       row.path = this.tree.abs(entry.rel);
       return row;
     });
+  }
+
+  /** What the tree has listed so far, as the search reads it. */
+  private listedPaths(): Indexed[] {
+    const out: Indexed[] = [];
+    const stack = [relpath.ROOT];
+    while (stack.length > 0) {
+      const at = stack.pop()!;
+      for (const child of this.tree.listedChildren(at)) {
+        if (this.settings.hideGitignore && child.isIgnored) continue;
+        if (this.settings.hideHidden && child.isHidden) continue;
+        out.push({ rel: child.rel, dir: child.kind === "dir" });
+        if (child.kind === "dir") stack.push(child.rel);
+      }
+    }
+    return out;
   }
 
   // ---- the cursor
@@ -292,7 +341,7 @@ export class Panel {
 
   select(delta: number): Intent {
     this.update();
-    const keys = this.state.visible.map(rowKeyOf);
+    const keys = this.filter !== "" ? this.rows().map((row) => row.key) : this.state.visible.map(rowKeyOf);
     if (keys.length === 0) {
       this.selection = null;
       return { kind: "redraw" };
@@ -328,7 +377,10 @@ export class Panel {
       this.selection = key;
       return { kind: "redraw" };
     }
-    if (this.filter !== "") return this.reveal(at);
+    if (this.filter !== "") {
+      const shown = this.reveal(at);
+      return this.tree.entry(at)?.kind === "file" || isFile(this.tree.abs(at)) ? { kind: "open", rel: at } : shown;
+    }
     const path = unflatten(this.state, at);
     this.selection = entryKey(path);
     const entry = this.tree.entry(path);
@@ -814,4 +866,13 @@ let current: Panel | null = null;
 export function panel(cwd?: string): Panel {
   current ??= new Panel(cwd ?? process.cwd());
   return current;
+}
+
+/** Whether `abs` is a file on disk. */
+function isFile(abs: string): boolean {
+  try {
+    return statSync(abs).isFile();
+  } catch {
+    return false;
+  }
 }

@@ -15,12 +15,11 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true,
     "paths": {
       "pumi": ["./node_modules/@pumid/types/index.ts"],
+      "pumi/theme": ["./node_modules/@pumid/types/theme.ts"],
       "pumi/jsx-runtime": ["./node_modules/@pumid/types/jsx-runtime.ts"],
-      "pumi/jsx-dev-runtime": ["./node_modules/@pumid/types/jsx-dev-runtime.ts"],
-      "pumi/testing": ["./node_modules/@pumid/types/testing.ts"]
+      "pumi/jsx-dev-runtime": ["./node_modules/@pumid/types/jsx-dev-runtime.ts"]
     }
   },
   "exclude": ["node_modules"]

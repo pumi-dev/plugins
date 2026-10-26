@@ -3,7 +3,7 @@
 // opening a file: in a file pane (`file.open`, drawn by whichever plugin fits it), a terminal pane
 // running the user's editor, or whatever app owns it.
 import { dirname } from "node:path";
-import { file, pane, plugin } from "pumi";
+import { file, option, pane, plugin, tab } from "pumi";
 import type { Transfer } from "./ops.ts";
 import * as ops from "./ops.ts";
 import type { Panel } from "./panel.ts";
@@ -104,6 +104,15 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
     return;
   }
   const path = panel.tree.abs(rel);
+  if (panel.settings.openWith === "tab") {
+    try {
+      await openInTab(path);
+    } catch (err) {
+      console.error(`${plugin.prefix}: cannot open ${path}: ${err instanceof Error ? err.message : String(err)}`);
+      await ops.openWithSystem(panel.root, rel);
+    }
+    return;
+  }
   const place =
     panel.followedPane === null
       ? { kind: "tiled" as const, split: "right" as const }
@@ -119,6 +128,20 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
     // The next honest thing: the app the system gives it, rather than nothing at all.
     await ops.openWithSystem(panel.root, rel);
   }
+}
+
+/** A file in a tab of its own: the file pane of this session that shows it already, brought
+ *  forward, else a new tab holding a file pane of it. */
+async function openInTab(path: string): Promise<void> {
+  const panes = ((await pane.list({ session: 0, block: "file" })) ?? []) as number[];
+  for (const id of panes) {
+    if ((await option.get("path", { pane: id }).catch(() => null)) !== path) continue;
+    const at = (await pane.get(id)) as { place?: { tab?: number } } | null;
+    if (typeof at?.place?.tab === "number") await tab.select({ tab: at.place.tab });
+    await pane.select({ pane: id });
+    return;
+  }
+  await file.open(path, {}, { kind: "tab" });
 }
 
 /** A path as one shell argument, in single quotes. */

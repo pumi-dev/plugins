@@ -1,7 +1,7 @@
 // The page's pure parts: the Monaco theme made of the window's tokens, and the paths a drop carries.
 import { expect, test } from "bun:test";
 import { droppedPaths, takesDrag } from "../page/drop.ts";
-import { CLEAR, expand, isLight, monacoTheme, withAlpha } from "../page/theme.ts";
+import { CLEAR, contrast, expand, isLight, mix, monacoTheme, withAlpha } from "../page/theme.ts";
 
 const DARK = {
   editor: "#1e1f22",
@@ -41,6 +41,49 @@ test("the editor is clear, its widgets on the theme's surface, its cursor the ac
   expect(theme.colors["editorStickyScroll.background"]).toBe(DARK.editor);
   expect(theme.rules).toEqual([{ token: "", foreground: "dfe1e5" }]);
   expect(monacoTheme({ ...DARK, editor: "#ffffff" }).base).toBe("vs");
+});
+
+/** JetBrains Darcula, as the app gives a page the palette. */
+const DARCULA = {
+  "palette.background": "#202020",
+  "palette.foreground": "#adadad",
+  "palette.cursor": "#ffffff",
+  "palette.selection": "#1a3272",
+  ...Object.fromEntries(
+    ["#000000", "#fa5355", "#126e00", "#c2c300", "#4581eb", "#fa54ff", "#33c2c1", "#adadad", "#555555", "#fb7172", "#67ff4f", "#ffff00", "#6d9df1", "#fb82ff", "#60d3d1", "#eeeeee"].map((c, i) => [`palette.color${i}`, c]),
+  ),
+};
+
+test("colours mix, and say how well they read on each other", () => {
+  expect(mix("#ffffff", "#000000", 0.5)).toBe("#808080");
+  expect(mix("red", "#000000", 0.5)).toBeNull();
+  expect(contrast("#ffffff", "#000000")).toBeCloseTo(21, 0);
+  expect(contrast("#202020", "#202020")).toBe(1);
+});
+
+test("the text is the palette's: its background, its colours, its code in its sixteen", () => {
+  // A theme whose tokens are light (Office) over a palette that is dark: the palette wins.
+  const theme = monacoTheme({ ...DARK, editor: "#ffffff", text: "#2b2d42", ...DARCULA });
+  expect(theme.base).toBe("vs-dark");
+  expect(theme.colors["editor.background"]).toBe("#202020");
+  expect(theme.colors["editor.foreground"]).toBe("#adadad");
+  expect(theme.colors["editorCursor.foreground"]).toBe("#ffffff");
+  expect(theme.colors["editor.selectionBackground"]).toBe("#1a3272");
+  expect(theme.colors["editorStickyScroll.background"]).toBe("#202020");
+  // The widgets stay the window's.
+  expect(theme.colors["editorWidget.background"]).toBe(DARK.surface);
+  const rule = (token: string) => theme.rules.find((r) => r.token === token)?.foreground;
+  expect(rule("")).toBe("adadad");
+  expect(rule("string")).toBe("67ff4f"); // green #126e00 is too dark on #202020: its bright one
+  expect(rule("keyword")).toBe("4581eb");
+  expect(rule("number")).toBe("c2c300");
+  for (const r of theme.rules) if (r.foreground) expect(contrast(`#${r.foreground}`, "#202020")).toBeGreaterThanOrEqual(3);
+});
+
+test("the palette's opacity is the editor's, and a light palette is Monaco's light base", () => {
+  expect(monacoTheme({ ...DARK, ...DARCULA, "palette.background": "#20202080" }).colors["editor.background"]).toBe("#20202080");
+  const light = monacoTheme({ ...DARK, ...DARCULA, "palette.background": "#ffffff", "palette.foreground": "#383a42" });
+  expect(light.base).toBe("vs");
 });
 
 test("a token that is not hex goes through the normalizer, or is left to the base", () => {

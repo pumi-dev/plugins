@@ -28,6 +28,9 @@ export interface View {
   naming: { name: string; isDir: boolean } | null;
   /** An item of a row's menu, as the row's `actions` name them. */
   actions: string[];
+  /** Goes up whenever what the view says changes: the clock's `reread` is answered `null` for the
+   *  version the window has already. */
+  version: number;
 }
 
 /** The panel as it is now. */
@@ -38,17 +41,28 @@ function viewOf(_state?: Panel): View {
 /** The panel as it is now. */
 function view(): View {
   const state = panel();
-  const row = state.selection === null ? undefined : state.rows().find((each) => each.key === state.selection);
-  return {
+  const rows = state.rows();
+  const row = state.selection === null ? undefined : rows.find((each) => each.key === state.selection);
+  const next: Omit<View, "version"> = {
     root: state.root,
-    rows: state.rows(),
+    rows,
     filter: state.filter,
     filtering: state.filtering,
     selection: state.selection,
     naming: state.edit === null ? null : { name: state.edit.name, isDir: state.edit.isDir },
     actions: row?.actions ?? [],
   };
+  const sig = JSON.stringify(next);
+  if (sig !== drawn) {
+    drawn = sig;
+    version += 1;
+  }
+  return { ...next, version };
 }
+
+/** The last view as JSON, and its version. */
+let drawn = "";
+let version = 0;
 
 /** The directory the tree was last pointed at, and the watch on that project. */
 let lastCwd: string | null = null;
@@ -70,13 +84,18 @@ function root(cwd: string): Panel {
   return state;
 }
 
-/** The project changed: read it again, unless every path of the burst is one the tree leaves out. */
+/** The watch heard a change the tree shows since it was last read: the next tick reads it again. */
+let stale = true;
+
+/** The project changed: read it again on the next tick, unless every path of the burst is one the
+ *  tree leaves out (a build inside an ignored folder). */
 function heard(at: string, paths: string[]): void {
   const state = panel();
   if (state.root !== at) return;
+  // The search's list of the project is read again when it is next used, whatever changed.
+  state.forgetIndex();
   if (paths.length > 0 && paths.every((path) => state.tree.changeIsUnseen(path))) return;
-  state.rescan();
-  void state.refreshGit();
+  stale = true;
 }
 
 /** Every gesture answers the tree as it is afterwards, so one round trip draws the result. */
@@ -144,19 +163,29 @@ export function cancelled(): View {
   return view();
 }
 
-/** What the filter box holds, which is what the tree keeps. */
-export function filtered(text: string): View {
+/** What the search box holds, which is what the tree keeps: the whole project is searched (read
+ *  once, and again after the disk changes), the first match under the cursor. */
+export async function filtered(text: string): Promise<View> {
   const state = panel();
   state.filter = text;
+  state.filtering = true;
   state.selection = null;
+  if (text !== "") {
+    await state.ensureIndex().catch((err) => console.error(`files: reading the project for the search: ${err}`));
+    // Another keystroke came while it was read: that one answers.
+    if (state.filter !== text) return view();
+    state.selection = state.rows()[0]?.key ?? null;
+  }
   return view();
 }
 
-/** Enter in the filter box: the first row it found, opened. */
+/** Enter in the search box: the match under the cursor (the first, unless the arrows moved it),
+ *  opened, and shown in the tree. */
 export async function firstMatch(): Promise<View> {
   const state = panel();
-  const first = state.rows()[0];
-  return first ? followed(state, state.activate(first.key)) : view();
+  const rows = state.rows();
+  const pick = rows.find((row) => row.key === state.selection) ?? rows[0];
+  return pick ? followed(state, state.activate(pick.key)) : view();
 }
 
 /** The filter box opened or closed (`cmd+f`, Escape). */
@@ -173,12 +202,26 @@ export async function adding(isDir: boolean): Promise<View> {
   return followed(state, state.addEntry(state.selection ?? "", isDir));
 }
 
-/** Reads the tree again now (the window's own clock, and after a gesture that reads the disk). */
-export async function reread(): Promise<View> {
+/** When the disk and git were last read by a tick: they are read again at least this often, for
+ *  what the watch did not say (a watch that failed, git's state changed from outside the tree). */
+let readAt = 0;
+const READ_ANYWAY = 10_000;
+
+/** The window's clock: the disk and git read again when the watch heard a change (or every
+ *  `READ_ANYWAY`), and `null` when the tree is still the version `had` the window draws — so an
+ *  idle tick costs nothing, and does not hold the worker while a click waits. */
+export async function reread(had = -1): Promise<View | null> {
   const state = panel();
-  state.rescan();
-  await state.refreshGit();
-  return view();
+  const quiet = !stale && Date.now() - readAt < READ_ANYWAY;
+  if (quiet && had === version) return null;
+  if (!quiet) {
+    stale = false;
+    readAt = Date.now();
+    state.rescan();
+    await state.refreshGit();
+  }
+  const next = view();
+  return next.version === had ? null : next;
 }
 
 // ---- what the app reaches
@@ -203,6 +246,7 @@ on(
   },
   async () => {
     await panel().readSettings((name) => option.get(name));
+    panel().forgetIndex();
   },
 );
 

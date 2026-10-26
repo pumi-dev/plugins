@@ -8,9 +8,17 @@ export type Facing = "down" | "up" | "left" | "right"
 
 /** Frames of a walk, in order: a step, standing, the other step, standing. */
 const STRIDE = [1, 0, 2, 0]
-/** How often you move, and how far each time: about 210 px a second. */
-export const TICK_MS = 33
-const SPEED = 7
+/** How often you move: every frame. How far is by the clock, not by the frame (a late frame catches up). */
+export const TICK_MS = 16
+/** Walking with the keys, in px a second: a brisk stride, not a sprint. */
+const SPEED = 330
+/** A click's walk: at least this fast, and never longer than `WALK_MAX_MS` however far it goes. */
+const CLICK_SPEED = 620
+const WALK_MAX_MS = 760
+/** No single move goes further than this, so a late frame cannot carry you through a desk. */
+const MAX_STEP = 8
+/** A walk frame lasts this long. */
+const STRIDE_MS = 140
 /** Keys that walk you, and the way each goes. */
 const KEYS: Record<string, [number, number]> = {
   up: [0, -1],
@@ -42,7 +50,10 @@ export class Game {
   private path: Pt[] = []
   private arrive: (() => void) | null = null
   private timer: ReturnType<typeof setInterval> | null = null
-  private ticks = 0
+  /** When the last frame ran, how far you have walked (for the stride), and this walk's speed. */
+  private last = 0
+  private walked = 0
+  private pathSpeed = CLICK_SPEED
   private listeners = new Set<() => void>()
   /** What you bump into, and the floor's size: the window sets them each time it draws. */
   walls: Rect[] = []
@@ -139,6 +150,14 @@ export class Game {
     this.releaseAll()
     this.path = path
     this.arrive = then ?? null
+    // However far it is, the walk is over in a moment.
+    let far = 0
+    let from = this.you.at
+    for (const p of path) {
+      far += Math.hypot(p.x - from.x, p.y - from.y)
+      from = p
+    }
+    this.pathSpeed = Math.max(CLICK_SPEED, far / (WALK_MAX_MS / 1000))
     if (!path.length) this.done()
     else this.wake()
     return true
@@ -153,6 +172,7 @@ export class Game {
 
   private wake() {
     if (this.timer) return
+    this.last = Date.now()
     this.timer = setInterval(() => this.tick(), TICK_MS)
   }
 
@@ -170,6 +190,10 @@ export class Game {
   /** One frame of the game: a step by the keys held, or along the path. */
   tick() {
     this.expire()
+    const now = Date.now()
+    // The time since the last frame (a first tap moves one frame's worth).
+    const dt = Math.min(0.05, Math.max(TICK_MS, now - (this.last || now - TICK_MS)) / 1000)
+    this.last = now
     let dx = 0
     let dy = 0
     for (const key of this.keys.keys()) {
@@ -182,16 +206,32 @@ export class Game {
     let at = this.you.at
     if (dx || dy) {
       const k = dx && dy ? Math.SQRT1_2 : 1
-      at = step(at, Math.round(dx * SPEED * k), Math.round(dy * SPEED * k), this.size, this.walls)
+      // In small moves, each sliding along what it meets.
+      let left = SPEED * dt
+      while (left > 0.01) {
+        const d = Math.min(MAX_STEP, left)
+        left -= d
+        at = step(at, dx * d * k, dy * d * k, this.size, this.walls)
+      }
     } else if (this.path.length) {
-      const next = this.path[0]!
-      const ox = next.x - at.x
-      const oy = next.y - at.y
-      const far = Math.hypot(ox, oy)
-      if (far <= SPEED) {
-        at = next
-        this.path.shift()
-      } else at = { x: at.x + (ox / far) * SPEED, y: at.y + (oy / far) * SPEED }
+      // Along the path's corners, as far as this frame goes (past a corner and on).
+      let left = this.pathSpeed * dt
+      let ox = 0
+      let oy = 0
+      while (left > 0 && this.path.length) {
+        const next = this.path[0]!
+        ox = next.x - at.x
+        oy = next.y - at.y
+        const far = Math.hypot(ox, oy)
+        if (far <= left) {
+          at = next
+          left -= far
+          this.path.shift()
+        } else {
+          at = { x: at.x + (ox / far) * left, y: at.y + (oy / far) * left }
+          left = 0
+        }
+      }
       dx = Math.abs(ox) > 0.5 ? Math.sign(ox) : 0
       dy = Math.abs(oy) > 0.5 ? Math.sign(oy) : 0
       // Facing the way you mostly go.
@@ -200,9 +240,9 @@ export class Game {
     }
     const moved = at.x !== this.you.at.x || at.y !== this.you.at.y
     const facing: Facing = dy < 0 && !dx ? "up" : dy > 0 && !dx ? "down" : dx < 0 ? "left" : dx > 0 ? "right" : this.you.facing
-    if (moved) this.ticks++
+    if (moved) this.walked += dt * 1000
     const walking = moved || this.keys.size > 0
-    const frame = moved ? STRIDE[Math.floor(this.ticks / 3) % STRIDE.length]! : 0
+    const frame = moved ? STRIDE[Math.floor(this.walked / STRIDE_MS) % STRIDE.length]! : 0
     const was = this.you
     this.you = { at: moved ? { x: Math.round(at.x * 10) / 10, y: Math.round(at.y * 10) / 10 } : was.at, facing, frame, walking }
     const panned = moved && this.follow()

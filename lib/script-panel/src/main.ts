@@ -5,6 +5,9 @@ import { notify, pane } from "pumi";
 
 import { groupScripts, repoRoot, type Finder, type Group } from "./finder.ts";
 
+/** What a finder finds, and what a page lists: `ui.tsx` draws these. */
+export type { Finder, Group, Item } from "./finder.ts";
+
 /** A page as the window draws it: the repository, its groups, and what the finder says of them. */
 export interface Page {
   /** The repository's top: the nearest directory with a `.git`, else the directory looked in. */

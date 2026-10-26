@@ -1,7 +1,10 @@
-// Monaco's theme, made from the window's: the editor clear so the pane shows through, its widgets
-// on the theme's `surface` and `border`, the cursor and matches in its `accent`. The syntax colours
-// are Monaco's own (`vs-dark` or `vs`, by how light the theme's `editor` is): a pumi theme has none.
-// Pure, so the tests read it without a page.
+// Monaco's theme, made from the window's. The text is the colour palette's, the one the terminals
+// are drawn in: its background, foreground, cursor and selection, and the code in its sixteen
+// colours (`palette.*`, which the app gives every page), so a file pane looks like the terminal
+// beside it whatever the theme paints around them. Without those it falls back to the theme's own tokens: the editor clear so the pane
+// shows through, and Monaco's syntax colours (`vs-dark` or `vs`, by how light `editor` is). The
+// widgets (find, suggestions, hovers) are the window's either way: its `surface`, `border` and
+// `accent`. Pure, so the tests read it without a page.
 
 /** The window's colour tokens, as `pumi.theme` gives them. */
 export type Tokens = Record<string, string>;
@@ -10,7 +13,7 @@ export type Tokens = Record<string, string>;
 export interface MonacoTheme {
   base: "vs" | "vs-dark";
   inherit: boolean;
-  rules: { token: string; foreground?: string }[];
+  rules: { token: string; foreground?: string; fontStyle?: string }[];
   colors: Record<string, string>;
 }
 
@@ -45,6 +48,138 @@ export function isLight(color: string): boolean {
   if (!hex) return false;
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5;
+}
+
+/** `#rrggbb` of `a` laid over `b` at `amount` (0–1); null for what is not hex. */
+export function mix(a: string, b: string, amount: number): string | null {
+  const [x, y] = [expand(a), expand(b)];
+  if (!x || !y) return null;
+  const byte = (i: number) => {
+    const v = parseInt(x.slice(i, i + 2), 16) * amount + parseInt(y.slice(i, i + 2), 16) * (1 - amount);
+    return Math.round(v).toString(16).padStart(2, "0");
+  };
+  return `#${byte(1)}${byte(3)}${byte(5)}`;
+}
+
+/** WCAG's contrast ratio of two colours (1–21), by their relative luminance; 1 for what is not hex. */
+export function contrast(a: string, b: string): number {
+  const lum = (color: string): number | null => {
+    const hex = expand(color);
+    if (!hex) return null;
+    const [r, g, bl] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * bl!;
+  };
+  const [x, y] = [lum(a), lum(b)];
+  if (x === null || y === null) return 1;
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+/** Below this a colour is hard to read on its background (WCAG's ratio for large text). */
+const LEGIBLE = 3;
+
+/** The palette, as a page has it (`palette.background`, …), or null without it. */
+interface Palette {
+  background: string;
+  /** The background without its alpha: what the text is read against. */
+  solid: string;
+  foreground: string;
+  cursor: string;
+  selection: string;
+  ansi: string[];
+}
+
+function paletteOf(hex: (name: string) => string | null): Palette | null {
+  const background = hex("palette.background");
+  const foreground = hex("palette.foreground");
+  if (!background || !foreground) return null;
+  const solid = background.slice(0, 7);
+  const ansi = Array.from({ length: 16 }, (_, i) => hex(`palette.color${i}`) ?? foreground);
+  return {
+    background,
+    solid,
+    foreground,
+    cursor: hex("palette.cursor") ?? foreground,
+    selection: hex("palette.selection") ?? mix(foreground, solid, 0.25) ?? foreground,
+    ansi,
+  };
+}
+
+/** The code's colours by Monaco's token names, in the palette's sixteen: each the colour a terminal
+ *  would use for it, its bright one when that reads better, else the plain text. */
+function paletteRules(t: Palette): MonacoTheme["rules"] {
+  const color = (i: number): string => {
+    for (const c of [t.ansi[i]!, t.ansi[i + 8]!]) if (contrast(c, t.solid) >= LEGIBLE) return c;
+    return t.foreground;
+  };
+  const [red, green, yellow, blue, magenta, cyan] = [1, 2, 3, 4, 5, 6].map(color);
+  const comment = mix(t.foreground, t.solid, 0.55) ?? t.foreground;
+  const rule = (token: string, foreground: string, fontStyle?: string) => ({
+    token,
+    foreground: foreground.slice(1, 7),
+    ...(fontStyle ? { fontStyle } : {}),
+  });
+  return [
+    rule("", t.foreground),
+    rule("comment", comment, "italic"),
+    rule("keyword", blue!),
+    rule("keyword.md", blue!, "bold"),
+    rule("string", green!),
+    rule("string.escape", cyan!),
+    rule("string.link", cyan!),
+    rule("regexp", cyan!),
+    rule("number", yellow!),
+    rule("constant", magenta!),
+    rule("predefined", magenta!),
+    rule("type", cyan!),
+    rule("tag", red!),
+    rule("metatag", magenta!),
+    rule("annotation", magenta!),
+    rule("attribute.name", yellow!),
+    rule("attribute.value", green!),
+    rule("variable.md", yellow!),
+    rule("invalid", red!),
+    rule("delimiter", t.foreground),
+    rule("operator", t.foreground),
+    rule("identifier", t.foreground),
+    rule("variable", t.foreground),
+    rule("emphasis", t.foreground, "italic"),
+    rule("strong", t.foreground, "bold"),
+  ];
+}
+
+/** The text's colours, the palette's: what replaces the theme's for the editor itself. */
+function paletteColors(t: Palette): [string, string | null][] {
+  const ink = (alpha: number) => withAlpha(t.foreground, alpha);
+  return [
+    ["editor.background", t.background],
+    ["editor.foreground", t.foreground],
+    ["editorLineNumber.foreground", mix(t.foreground, t.solid, 0.4)],
+    ["editorLineNumber.activeForeground", mix(t.foreground, t.solid, 0.8)],
+    ["editorCursor.foreground", t.cursor],
+    ["editor.selectionBackground", t.selection],
+    ["editor.inactiveSelectionBackground", withAlpha(t.selection, 0.6)],
+    ["editor.selectionHighlightBackground", withAlpha(t.selection, 0.5)],
+    ["editor.lineHighlightBackground", ink(0.06)],
+    ["editor.wordHighlightBackground", ink(0.1)],
+    ["editor.wordHighlightStrongBackground", withAlpha(t.selection, 0.7)],
+    ["editor.hoverHighlightBackground", ink(0.1)],
+    ["editor.findRangeHighlightBackground", ink(0.08)],
+    ["editorBracketMatch.background", ink(0.12)],
+    ["editorBracketMatch.border", ink(0.35)],
+    ["editorIndentGuide.background1", ink(0.12)],
+    ["editorIndentGuide.activeBackground1", ink(0.3)],
+    ["editorWhitespace.foreground", ink(0.2)],
+    ["editorRuler.foreground", ink(0.12)],
+    ["editorStickyScroll.background", t.solid],
+    ["peekViewEditor.background", t.solid],
+    ["peekViewEditorGutter.background", t.solid],
+    ["scrollbarSlider.background", ink(0.18)],
+    ["scrollbarSlider.hoverBackground", ink(0.28)],
+    ["scrollbarSlider.activeBackground", ink(0.38)],
+  ];
 }
 
 /** The Monaco theme for the window's tokens. `normalize` turns a non-hex token into hex (the page's
@@ -171,8 +306,11 @@ export function monacoTheme(tokens: Tokens, normalize: Normalize = () => null): 
     ["menu.selectionBackground", hex("hover")],
     ["menu.border", hex("border")],
   ];
+  const palette = paletteOf(hex);
+  if (palette) pairs.push(...paletteColors(palette));
   const colors: Record<string, string> = {};
   for (const [name, value] of pairs) if (value) colors[name] = value;
+  if (palette) return { base: isLight(palette.solid) ? "vs" : "vs-dark", inherit: true, rules: paletteRules(palette), colors };
   const text = hex("text");
   return {
     base: light ? "vs" : "vs-dark",

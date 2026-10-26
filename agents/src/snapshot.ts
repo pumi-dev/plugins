@@ -1,13 +1,12 @@
-// The snapshot the rows read: every space, tab and pane with the options that say what they are,
-// as `tree.ts` and `status.ts` expect it — numeric ids, and one record per space, tab and pane.
+// The model the map is made from: every space, tab and pane with the options that say what they
+// are — numeric ids, and one record per space, tab and pane.
 //
-// Both halves build it from `read`: the window from the app's own state (`adapt.ts`), and the
-// worker from the API (`main.ts`'s `readState`: `session.get`, `tab.get`, `pane.list` and each
-// pane's options under it), so a row reads the same whichever half made the model.
+// It is built from `read`: the worker reads the API (`main.ts`'s `readState`: `session.get`,
+// `tab.get`, `pane.list` and each pane's options under it), so a row reads the same whichever half
+// made the model.
 //
-// What the app's window has and the server's own read does not: a window's focus as opposed to
-// the server's current one, and the sessions of other servers (`server.list` + `server.call` reach
-// those, unimplemented here).
+// What the server's own read does not have: the sessions of other servers (`server.list` +
+// `server.call` reach those, unimplemented here).
 
 /** One program's report of what it is doing, as OSC 7501 carries it (`@program_status`). */
 export interface Program {
@@ -27,8 +26,6 @@ export interface Pane {
   tab: number | null;
   /** `$1` its tab is in. */
   space: number | null;
-  /** The block it holds: `terminal`, or a package's (`owner.name.id`). */
-  block: string;
   /** Its `title` option, as the program wrote it. */
   title: string;
   /** The same without the program's decoration (a shell's prompt mark, a spinner). */
@@ -43,8 +40,6 @@ export interface Pane {
   status: string;
   /** `@program_status`: what each program in it said. */
   program: Program[];
-  /** It is the pane in front. */
-  focused: boolean;
 }
 
 /** A tab: `@2`. */
@@ -56,37 +51,26 @@ export interface Tab {
   label: string;
   /** Its panes, in the order its layout lays them out. */
   panes: Pane[];
-  focused: boolean;
 }
 
 /** A space (a session): `$1`. */
 export interface Space {
   id: number;
   label: string;
-  /** The tab it shows. */
-  current: number | null;
+  /** It is the session in front. */
   focused: boolean;
   tabs: Tab[];
-}
-
-/** What is in front. */
-export interface Focus {
-  space: number | null;
-  tab: number | null;
-  pane: number | null;
 }
 
 export interface Snapshot {
   spaces: Space[];
   tabs: Tab[];
   panes: Pane[];
-  focus: Focus;
 }
 
 /** A pane before the model is built: where it is, and what its options say. */
 export interface PaneGiven {
   id: number;
-  block: string;
   /** The tab it is tiled in, or `null` for a float, a slot or a detached pane. */
   tab: number | null;
   /** The session its tab is in. */
@@ -99,7 +83,6 @@ export interface PaneGiven {
   label: string;
   /** Its options: `@agent`, `@agent_status`, `@program_status`, … */
   options: Record<string, unknown>;
-  focused: boolean;
 }
 
 /** A tab before the model is built. */
@@ -108,14 +91,12 @@ export interface TabGiven {
   space: number;
   index: number;
   label: string;
-  focused: boolean;
 }
 
 /** A space before the model is built. */
 export interface SpaceGiven {
   id: number;
   label: string;
-  current: number | null;
   focused: boolean;
 }
 
@@ -127,7 +108,7 @@ export interface Given {
   panes: PaneGiven[];
 }
 
-export const EMPTY: Snapshot = { spaces: [], tabs: [], panes: [], focus: { space: null, tab: null, pane: null } };
+export const EMPTY: Snapshot = { spaces: [], tabs: [], panes: [] };
 
 const array = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const obj = (v: unknown): Record<string, unknown> =>
@@ -161,7 +142,7 @@ export function programs(value: unknown): Program[] {
   });
 }
 
-/** The panes, tabs and spaces as the rows read them: one nesting, and what each pane says. */
+/** The panes, tabs and spaces as the map reads them: one nesting, and what each pane says. */
 export function read(given: Given): Snapshot {
   const inTab = new Map<number, Pane[]>();
   const panes: Pane[] = given.panes.map((each) => {
@@ -170,7 +151,6 @@ export function read(given: Given): Snapshot {
       id: each.id,
       tab: each.tab,
       space: each.space,
-      block: each.block,
       title: each.title,
       stripped: strip(each.title),
       cwd: each.cwd,
@@ -178,7 +158,6 @@ export function read(given: Given): Snapshot {
       agent: str(said["@agent"]),
       status: str(said["@agent_status"]),
       program: programs(said["@program_status"]),
-      focused: each.focused,
     };
     if (each.tab !== null) inTab.set(each.tab, [...(inTab.get(each.tab) ?? []), made]);
     return made;
@@ -191,7 +170,6 @@ export function read(given: Given): Snapshot {
       index: each.index,
       label: each.label,
       panes: inTab.get(each.id) ?? [],
-      focused: each.focused,
     }))
     .sort((a, b) => a.space - b.space || a.index - b.index);
 
@@ -199,17 +177,10 @@ export function read(given: Given): Snapshot {
     .map((each) => ({
       id: each.id,
       label: each.label,
-      current: each.current,
       focused: each.focused,
       tabs: tabs.filter((tab) => tab.space === each.id),
     }))
     .sort((a, b) => a.id - b.id);
 
-  const focus: Focus = {
-    space: given.spaces.find((each) => each.focused)?.id ?? null,
-    tab: given.tabs.find((each) => each.focused)?.id ?? null,
-    pane: given.panes.find((each) => each.focused)?.id ?? null,
-  };
-
-  return { spaces, tabs, panes, focus };
+  return { spaces, tabs, panes };
 }

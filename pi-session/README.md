@@ -1,17 +1,16 @@
 # pi-session
 
-Two buttons at the end of a pi pane's strip, past its dot and title: **Fork** opens
+Two buttons in a pi pane's title bar, beside its split and close: **Fork** opens
 `pi --fork <session>` in a pane beside it, in the same directory; **Copy** puts the session's id,
 path and directory on the clipboard.
 
 ```text
-  ● pi  src/pumi                           ⌥ ⌘ ✕
-                                   ⑂  ⧉
+  ● pi  src/pumi                     ⑂ ⧉ ◫ ⊟ ✕
 ```
 
-They are the manifest's `contributes.slots["pane.strip"]` view (`ui.tsx`'s `Strip`), at the row's
-end, so they ride the strip the pane already has rather than a bar of its own: they show with the
-pane's own split and close buttons, and the view draws nothing for a pane that is not pi's.
+They are the manifest's `contributes.slots["pane.toolbar"]` view (`ui.tsx`'s `Toolbar`), drawn
+with `IconButton` from `pumi`, so the theme draws them as it draws the pane's own split and close
+buttons. The view draws nothing for a pane that is not pi's.
 
 A pane is pi's when its agent's hook said so: `@agent` is `pi` and `@agent_session` is set — what
 `pumi skill setup pi` writes. A pane that stops being pi's loses its buttons, and one that becomes
@@ -38,9 +37,8 @@ Its three options are under **Pi session** in Settings, and their full names sta
 
 - `side` — where the fork goes: `right` (default) or `down`.
 - `command` — the program run with `--fork <session>` (default `pi`).
-- `focused_only` — the buttons on the focused pi pane alone, not on every pi pane's strip (default
-  off; they are drawn with the pane's own strip buttons, so on a pane they show on the focused or
-  hovered one and hide with them).
+- `focused_only` — the buttons on the focused pi pane alone, not on every pi pane's title bar (default
+  off).
 
 ## What it touches
 

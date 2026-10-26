@@ -15,6 +15,7 @@ import {
   committed,
   diff,
   diffed,
+  dismissed,
   filtered,
   follow,
   opened,
@@ -34,9 +35,15 @@ import {
 import type { Commit, CommitMode, Sync } from "./git.ts";
 import { when } from "./time.ts";
 
-/** A line's height, and a commit's, in pixels. */
+/** A line's height, and a commit's, and the filter box's, in pixels. */
 const ROW = 26;
 const COMMIT_ROW = 46;
+const FILTER_ROW = 34;
+/** The changes page's height that is not the commit message: the toolbar, the branch, the commit
+ * button's row, the message's padding, and the filter with a few lines that always show. */
+const FIXED = 34 + 34 + 34 + 12 + FILTER_ROW + ROW * 3;
+/** A commit message line's height, in pixels. */
+const MESSAGE_LINE = 18;
 /** A directory level's indent, and where its guide runs in it: under the middle of the folder icon. */
 const INDENT = 16;
 const GUIDE = 7;
@@ -120,21 +127,25 @@ const GitAt = memo(function GitAt({ cwd }: { cwd: string | null }) {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 4,
+                position: "relative",
                 cursor: "pointer",
-                backgroundColor: active ? undefined : t.editor,
+                backgroundColor: active ? t.editor : undefined,
                 borderBottomWidth: active ? 0 : 1,
                 borderRightWidth: each === "changes" ? 1 : 0,
                 borderColor: t.border,
-                hover: { backgroundColor: active ? undefined : t.hover },
+                hover: { backgroundColor: active ? t.editor : t.hover },
               }}
             >
+              {active ? <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 2, backgroundColor: t.border }} /> : null}
               <text style={{ fontSize: 13, color: active ? t.text : t.muted }}>{each === "changes" ? "Changes" : "History"}</text>
               {each === "changes" && changes && changes.total > 0 ? <text style={{ fontSize: 12, color: t.faint }}>{`(${count(changes.total)})`}</text> : null}
             </div>
           );
         })}
       </div>
-      {tab === "changes" ? <Changes view={changes} menu={open} /> : <History view={history} />}
+      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, backgroundColor: t.editor }}>
+        {tab === "changes" ? <Changes view={changes} menu={open} /> : <History view={history} />}
+      </div>
       {menu ? <Menu at={menu.at} items={menu.items} close={() => setMenu(null)} /> : null}
     </div>
   );
@@ -164,7 +175,12 @@ function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At
   const m = useMetrics();
   const list = useRef<any>(null);
   const [made, setMade] = useState({ start: 0, end: OVERSCAN * 2 });
+  // Raised by each `/`: the filter box is drawn from its mount again, and takes the keys.
+  const [focus, setFocus] = useState(0);
+  // The last `/` a mounted filter box took: scrolled out and back, it does not take the keys again.
+  const claimed = useRef(0);
   const shownRange = useRef({ start: 0, end: 0 });
+  const [height, setHeight] = useState(0);
 
   const latest = useRef(menu);
   latest.current = menu;
@@ -192,9 +208,10 @@ function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At
   const selected = lines.find((line) => line.selected)?.id ?? null;
   useEffect(() => {
     if (selected === null) return;
-    const index = lines.findIndex((line) => line.id === selected);
+    const found = lines.findIndex((line) => line.id === selected);
     const { start, end } = shownRange.current;
-    if (index < 0) return;
+    if (found < 0) return;
+    const index = found + 1;
     if (index < start) list.current?.scrollToItem?.(index);
     else if (end > start && index >= end - 1) {
       const viewport = list.current?.listScrollTop?.()?.[2] ?? (end - start) * ROW;
@@ -210,25 +227,28 @@ function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At
       </div>
     );
   }
-  const start = Math.max(0, Math.min(made.start, lines.length - 1));
-  const end = Math.min(lines.length, Math.max(made.end, start));
+  // The list's rows: the filter box, then the lines.
+  const rows = lines.length + 1;
+  const start = Math.max(0, Math.min(made.start, rows - 1));
+  const end = Math.min(rows, Math.max(made.end, start));
   const everything = view.staged === view.total && view.total > 0;
+  const filter = <Filter key="filter" value={view.filter} focus={focus} claimed={claimed} />;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
-      {/* The toolbar: the whole diff and what it adds up to, the filter, and Stage All. */}
+    <div onLayout={(e: any) => setHeight(e?.height ?? 0)} style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
+      {/* The toolbar: the whole diff and what it adds up to, and Stage All. */}
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 34, flexShrink: 0, paddingLeft: PAD, paddingRight: 8 }}>
         <div
           onClick={() => void diff().catch(swallow)}
-          style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 24, paddingLeft: 2, paddingRight: 4, borderRadius: m.radiusSmall, cursor: "pointer", flexShrink: 1, minWidth: 0, hover: { backgroundColor: t.hover } }}
+          style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 24, paddingLeft: 2, paddingRight: 4, borderRadius: m.radiusSmall, cursor: "pointer", flexShrink: 1, minWidth: 0, overflow: "hidden", hover: { backgroundColor: t.hover } }}
         >
-          <text style={{ fontSize: 13, color: t.muted }}>±</text>
-          <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap" }}>View Diff</text>
-          {view.added > 0 ? <text style={{ fontSize: 13, color: t.success, whiteSpace: "nowrap" }}>{`+${count(view.added)}`}</text> : null}
-          {view.deleted > 0 ? <text style={{ fontSize: 13, color: t.error, whiteSpace: "nowrap" }}>{`−${count(view.deleted)}`}</text> : null}
+          {/* Narrow, the label gives way first and the counts stay; narrower still, the button clips. */}
+          <text style={{ fontSize: 13, color: t.muted, flexShrink: 0 }}>±</text>
+          <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0, flexShrink: 1 }}>View Diff</text>
+          {view.added > 0 ? <text style={{ fontSize: 13, color: t.success, whiteSpace: "nowrap", flexShrink: 0 }}>{`+${count(view.added)}`}</text> : null}
+          {view.deleted > 0 ? <text style={{ fontSize: 13, color: t.error, whiteSpace: "nowrap", flexShrink: 0 }}>{`−${count(view.deleted)}`}</text> : null}
         </div>
         <div style={{ flexGrow: 1 }} />
-        <IconButton name="settings" label="Filter the changes" on={view.filtering} onClick={() => filtered("", !view.filtering)} />
         <SplitButton
           label={everything ? "Unstage All" : "Stage All"}
           disabled={view.total === 0}
@@ -241,9 +261,14 @@ function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At
           }
         />
       </div>
-      {view.filtering ? <Filter value={view.filter} /> : null}
       {view.notice && !view.notice.ok ? (
-        <text style={{ paddingLeft: PAD, paddingRight: PAD, paddingBottom: 4, fontSize: 12, color: t.error }}>{view.notice.text}</text>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 6, paddingLeft: PAD, paddingRight: 8, paddingBottom: 4, flexShrink: 0 }}>
+          <text style={{ fontSize: 12, color: t.error, flexGrow: 1, flexShrink: 1, minWidth: 0 }}>{view.notice.text}</text>
+          {/* The notice stays until it is put away: what it says is worth reading again. */}
+          <div aria-label="Dismiss" onClick={() => dismissed()} style={{ display: "flex", paddingTop: 1, flexShrink: 0, cursor: "pointer", hover: { opacity: 0.7 } }}>
+            <Icon name="close" size={12} color={t.muted} />
+          </div>
+        </div>
       ) : null}
       <div
         tabIndex={0}
@@ -252,6 +277,10 @@ function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At
           if (typeof key !== "string" || e?.modifiers?.cmd || e?.modifiers?.ctrl || e?.modifiers?.alt) return;
           if (!["j", "k", "up", "down", "enter", "space", "/", "escape"].includes(key)) return;
           e?.preventDefault?.();
+          if (key === "/") {
+            list.current?.scrollToItem?.(0);
+            setFocus((n) => n + 1);
+          }
           void pressed(key).catch(swallow);
         }}
         style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}
@@ -259,7 +288,7 @@ function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At
         {lines.length > 0 ? (
           <virtual-list
             ref={list}
-            itemCount={lines.length}
+            itemCount={rows}
             estimatedItemHeight={ROW}
             windowStart={start}
             overdraw={ROW * 10}
@@ -276,18 +305,22 @@ function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At
             }}
             style={{ flexGrow: 1, minHeight: 0 }}
           >
-            {lines.slice(start, end).map((line) => (
-              <LineView key={line.id} line={line} actions={actions} />
-            ))}
+            {Array.from({ length: end - start }, (_, i) => {
+              const line = lines[start + i - 1];
+              return line ? <LineView key={line.id} line={line} actions={actions} /> : filter;
+            })}
           </virtual-list>
         ) : (
-          <div style={{ display: "flex", flexGrow: 1, paddingLeft: PAD, paddingTop: 8 }}>
-            {view.looked ? <text style={{ fontSize: 13, color: t.faint }}>{view.filter !== "" ? `Nothing matches “${view.filter}”` : "No changes"}</text> : null}
+          <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
+            {filter}
+            <div style={{ display: "flex", paddingLeft: PAD, paddingTop: 8 }}>
+              {view.looked ? <text style={{ fontSize: 13, color: t.faint }}>{view.filter !== "" ? `Nothing matches “${view.filter}”` : "No changes"}</text> : null}
+            </div>
           </div>
         )}
       </div>
       <Branch view={view} menu={menu} />
-      <CommitBox view={view} menu={menu} />
+      <CommitBox view={view} menu={menu} room={height === 0 ? null : height - FIXED} />
     </div>
   );
 }
@@ -451,33 +484,52 @@ function Checkbox({ state, onClick }: { state: string; onClick(): void }) {
   );
 }
 
-/** The filter box, under the toolbar: the tree keeps what holds its text, every directory open. */
-function Filter({ value }: { value: string }) {
+/** The filter box, the first row of the lines' list, as the agents' search: a strip the sidebar's
+ * width between two rules. The tree keeps what holds its text, every directory open. `/` mounts it
+ * again so that it takes the keys. */
+function Filter({ value, focus, claimed }: { value: string; focus: number; claimed: { current: number } }) {
   const t = useTheme();
-  const m = useMetrics();
   const [text, setText] = useState(value);
+  const [focused, setFocused] = useState(false);
+  const take = focus > claimed.current;
+  useEffect(() => {
+    claimed.current = Math.max(claimed.current, focus);
+  }, [focus]);
+  // What the worker cleared (a commit, another repository) empties the box too.
+  useEffect(() => setText(value), [value]);
+  const clear = () => {
+    setText("");
+    filtered("");
+  };
   return (
-    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, marginLeft: 8, marginRight: 8, marginBottom: 4, paddingLeft: 8, paddingRight: 6, height: 26, flexShrink: 0, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border }}>
-      <Icon name="search" size={12} color={t.muted} />
+    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, width: "100%", height: FILTER_ROW, flexShrink: 0, paddingLeft: PAD + 2, paddingRight: 8, borderTopWidth: 1, borderBottomWidth: 1, borderColor: t.border }}>
+      <Icon name="search" size={14} color={focused ? t.muted : t.faint} />
       <input
+        key={focus}
         value={text}
-        autoFocus
-        placeholder="Filter the changes"
+        autoFocus={take}
+        placeholder="Filter the changes…"
+        aria-label="Filter the changes"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onChange={(e: any) => {
           const next = e?.value ?? "";
           setText(next);
-          filtered(next, true);
+          filtered(next);
         }}
         onKeyDown={(e: any) => {
-          if (e?.key !== "escape") return;
-          e?.stopPropagation?.();
-          filtered("", false);
+          // The box is inside the list: the list's own keys typed here are the box's.
+          const key = e?.key === " " ? "space" : e?.key;
+          if (["j", "k", "up", "down", "enter", "space", "/", "escape"].includes(key)) e?.stopPropagation?.();
+          if (key === "escape") clear();
         }}
-        style={{ display: "flex", flexGrow: 1, minWidth: 0, height: 22, fontSize: 12, color: t.text }}
+        style={{ display: "flex", flexGrow: 1, minWidth: 0, height: 22, fontSize: 13, color: t.text, backgroundColor: "transparent" }}
       />
-      <div onClick={() => filtered("", false)} style={{ display: "flex", cursor: "pointer" }}>
-        <Icon name="close" size={12} color={t.muted} />
-      </div>
+      {text === "" ? null : (
+        <div aria-label="Clear the filter" onClick={clear} style={{ display: "flex", cursor: "pointer" }}>
+          <Icon name="close" size={12} color={t.muted} />
+        </div>
+      )}
     </div>
   );
 }
@@ -520,11 +572,15 @@ function Branch({ view, menu }: { view: ChangesView; menu(where: At, items: Item
 }
 
 /** The commit box: the message, kept as it is typed (the worker hears it, nothing is drawn back),
- * and the button that commits it — what is staged, or every tracked change when nothing is. */
-function CommitBox({ view, menu }: { view: ChangesView; menu(where: At, items: Item[]): void }) {
+ * and the button that commits it — what is staged, or every tracked change when nothing is. `room`
+ * is the height the message may take before the lines above it lose their few rows; null unmeasured. */
+function CommitBox({ view, menu, room }: { view: ChangesView; menu(where: At, items: Item[]): void; room: number | null }) {
   const t = useTheme();
   const [draft, setDraft] = useState(view.message);
   const [tall, setTall] = useState(false);
+  const fits = room === null ? Infinity : Math.max(1, Math.floor(room / MESSAGE_LINE));
+  const minRows = Math.min(tall ? 14 : 4, fits);
+  const maxRows = Math.max(minRows, Math.min(tall ? 40 : 10, fits));
   const mode: CommitMode = view.staged > 0 || view.tracked === 0 ? "staged" : "tracked";
   const empty = draft.trim() === "";
   const can = !empty && (mode === "staged" ? view.staged > 0 : view.tracked > 0);
@@ -543,9 +599,9 @@ function CommitBox({ view, menu }: { view: ChangesView; menu(where: At, items: I
           aria-label="Commit message"
           value={draft}
           placeholder="Enter commit message"
-          minRows={tall ? 14 : 4}
-          maxRows={tall ? 40 : 10}
-          theme={{ bg: t.surface, border: t.surface, text: t.text, textMuted: t.muted, textFaint: t.faint, accent: t.accent, caret: t.accent }}
+          minRows={minRows}
+          maxRows={maxRows}
+          theme={{ bg: t.editor, border: t.editor, text: t.text, textMuted: t.muted, textFaint: t.faint, accent: t.accent, caret: t.accent }}
           onChange={(e: any) => {
             const next = e?.value ?? "";
             setDraft(next);

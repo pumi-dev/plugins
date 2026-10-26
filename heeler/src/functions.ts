@@ -1,0 +1,174 @@
+// What pumi can do with the plugin, as functions: the surface Settings calls.
+//
+// Heeler's QR and its address list are a UI in Heeler's own herdr plugin. In pumi they are these
+// functions (`pumi call heeler.pair.status`), so Settings can draw them without this plugin putting a
+// pane in the app: `heeler.pair.status` is the checklist, `heeler.pair.confirm` mints the code and
+// answers its QR as text rows, `heeler.pair.poll` is the enrolled device, and `heeler.pair.revoke` is
+// the one-key revoke.
+//
+// Everything answers plain JSON: Settings reads it, and so does a terminal.
+
+import { clipboard, notify, provide } from "pumi";
+import type { SshHost } from "./host.ts";
+import type { Pairing } from "./pair.ts";
+import { qrRows } from "./pairing/qr.ts";
+
+/** What the plugin knows that the functions answer with. */
+export interface FunctionDeps {
+  version: string;
+  prefix: string;
+  state: string;
+  configDir: string;
+  host: () => SshHost;
+  pairing: Pairing;
+  session: () => Promise<string>;
+  restartHost: () => Promise<SshHost>;
+}
+
+function args(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+/** The addresses a caller asked for: an array, or a lone string as `pumi call` passes it. */
+function addressesOf(value: unknown): string[] | undefined {
+  if (typeof value === "string") return [value];
+  return Array.isArray(value) ? value.filter((one): one is string => typeof one === "string") : undefined;
+}
+
+export function provideFunctions(deps: FunctionDeps): void {
+  provide(
+    "heeler.status",
+    {
+      desc: "The heeler Host: the machine's SSH (the port and `/etc/ssh` fingerprint a code pins), this account, the herdr session, and the pairing state.",
+      effect: "read",
+      parameters: [],
+      examples: [{ args: [] }],
+    },
+    async () => ({
+      plugin: { version: deps.version, prefix: deps.prefix, state: deps.state, configDir: deps.configDir },
+      session: await deps.session(),
+      ssh: deps.host(),
+      pairing: await deps.pairing.status(),
+    }),
+  );
+
+  provide(
+    "heeler.pair.status",
+    {
+      desc: "The Pairing surface: candidate addresses (the one to pre-check marked), the port, the host key fingerprint, the tailnet, and a live code's QR.",
+      effect: "read",
+      parameters: [],
+      examples: [{ args: [] }],
+    },
+    () => deps.pairing.status(),
+  );
+
+  provide(
+    "heeler.pair.confirm",
+    {
+      desc: "Mint the Pairing Code for these addresses (or the pre-checked ones) and answer the code, its QR as text rows, and when it expires.",
+      effect: "write",
+      parameters: [["string[]", "addresses"]],
+      examples: [{ args: [["192.168.1.20", "100.108.208.21"]] }, { args: [] }],
+    },
+    (value: unknown) => deps.pairing.confirm(addressesOf(value)),
+  );
+
+  provide(
+    "heeler.pair.poll",
+    {
+      desc: "Check the live code: the device that just enrolled, an expiry, or still waiting.",
+      effect: "read",
+      parameters: [],
+      examples: [{ args: [] }],
+    },
+    () => deps.pairing.poll(),
+  );
+
+  provide(
+    "heeler.pair.cancel",
+    {
+      desc: "End the live pairing ceremony and remove its Bootstrap Key line.",
+      effect: "write",
+      parameters: [],
+      examples: [{ args: [] }],
+    },
+    () => deps.pairing.cancel(),
+  );
+
+  provide(
+    "heeler.pair.revoke",
+    {
+      desc: "Revoke the Device Key that just enrolled, removing its authorized_keys line.",
+      effect: "write",
+      parameters: [],
+      examples: [{ args: [] }],
+    },
+    () => deps.pairing.revoke(),
+  );
+
+  provide(
+    "heeler.pair.copy",
+    {
+      desc: "Put the live Pairing Code on the clipboard, as the `c` key does in Heeler's pairing popup.",
+      effect: "write",
+      parameters: [],
+      examples: [{ args: [] }],
+    },
+    async () => {
+      const code = deps.pairing.code();
+      if (code === undefined) return { copied: false, error: "There is no live Pairing Code." };
+      await clipboard.set(code);
+      return { copied: true, code };
+    },
+  );
+
+  provide(
+    "heeler.pair.qr",
+    {
+      desc: "Draw any text as a QR, as text rows: the Tailscale sign-in URL, a Pairing Code, a link.",
+      effect: "read",
+      parameters: [["string", "text"]],
+      examples: [{ args: ["https://login.tailscale.com/a/abc"] }],
+    },
+    (text: unknown) => (typeof text === "string" ? { text, qr: qrRows(text) } : { error: "heeler.pair.qr needs text" }),
+  );
+
+  provide(
+    "heeler.host.restart",
+    {
+      desc: "Re-probe the machine's SSH and refresh what the shim reads (after an SSH port change).",
+      effect: "write",
+      parameters: [],
+      examples: [{ args: [] }],
+    },
+    () => deps.restartHost(),
+  );
+
+  provide(
+    "heeler.host.key",
+    {
+      desc: "The SSH host key's OpenSSH fingerprint, the one every Pairing Code pins.",
+      effect: "read",
+      parameters: [],
+      examples: [{ args: [] }],
+    },
+    () => ({ fingerprint: deps.host().fingerprint ?? null }),
+  );
+
+  provide(
+    "heeler.say",
+    {
+      desc: "Say something in pumi's notifications, for a plugin's own checks.",
+      effect: "write",
+      parameters: [["string", "text"]],
+      examples: [{ args: ["Heeler is ready to pair"] }],
+    },
+    async (text: unknown) => {
+      if (typeof text !== "string") return false;
+      await notify(text, "info", {});
+      return true;
+    },
+  );
+}
+

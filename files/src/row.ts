@@ -22,11 +22,11 @@ export function entryRel(key: string): string | null {
   return at === ROOT_KEY ? "" : at;
 }
 
-/** The indent a level of the tree takes, in pixels: the core panel's `DEFAULT_INDENT`. */
-export const DEFAULT_INDENT = 20;
+/** The indent a level of the tree takes, in pixels: VS Code's density, a level a chevron and a half. */
+export const DEFAULT_INDENT = 12;
 
-/** Where a row's guidline sits inside its indent. */
-export const GUIDE_OFFSET = 6;
+/** Where a row's guideline sits inside its indent: under the middle of its parent's chevron. */
+export const GUIDE_OFFSET = 8;
 
 export interface Row {
   key: string;
@@ -36,7 +36,8 @@ export interface Row {
   depth: number;
   /** A folder's own disclosure triangle is open. */
   open: boolean;
-  /** The SVG file the row draws before its name, or `""` for none. */
+  /** Its icon, the Material Icon Theme's name for it (`rust`, `folder-src`; `icon-path.ts` makes
+   *  it a file), or `""` for none. */
   icon: string;
   text: string;
   color: LabelColor;

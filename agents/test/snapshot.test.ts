@@ -1,5 +1,4 @@
-// The snapshot: the window's state — sessions, tabs and panes, and what each pane says of itself —
-// as the rows read it.
+// The model: sessions, tabs and panes, and what each pane says of itself — as the map reads it.
 import { expect, test } from "bun:test";
 
 import { read, strip } from "../src/snapshot.ts";
@@ -41,12 +40,10 @@ test("a float and a detached pane are not in a tab, so they are not in a space",
   }
 });
 
-test("what is in front is the one that says it is", () => {
+test("the session in front is the one that says it is", () => {
   const snap = read(state());
-  expect(snap.focus).toEqual({ space: 1, tab: 11, pane: 101 });
   expect(snap.spaces.find((space) => space.id === 1)!.focused).toBe(true);
   expect(snap.spaces.find((space) => space.id === 2)!.focused).toBe(false);
-  expect(snap.panes.filter((pane) => pane.focused).map((pane) => pane.id)).toEqual([101]);
 });
 
 test("`@label` is what the user named a pane, and `title` is untouched", () => {

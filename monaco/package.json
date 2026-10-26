@@ -31,17 +31,6 @@
           "group": "Editor",
           "desc": "Whether the file pane's file has changes not saved yet. The editor sets it; setting it does nothing."
         },
-        "font_size": {
-          "type": "number",
-          "default": 0,
-          "min": 0,
-          "max": 40,
-          "step": 1,
-          "unit": "px",
-          "label": "Font size",
-          "group": "Editor",
-          "desc": "The size of the editor's text. 0 is the theme's own size."
-        },
         "tab_size": {
           "type": "number",
           "default": 4,
@@ -54,7 +43,7 @@
         },
         "word_wrap": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "label": "Word wrap",
           "group": "Editor",
           "desc": "Wrap long lines at the pane's edge."

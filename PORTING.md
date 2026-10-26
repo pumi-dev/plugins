@@ -94,5 +94,5 @@ The pumi checkout is `~/Kitchen/pumi`. Its truth, in order:
 ## Checking
 
 In the package's directory: `node_modules/.bin/tsc --noEmit -p .` and `bun test --passWithNoTests`.
-Do not run `bun scripts/all.mjs` (it checks every package, and others are being ported at the
+Do not run `bun tools/all.mjs` (it checks every package, and others are being ported at the
 same time).

@@ -1,38 +1,36 @@
-// The guide an agent is told, and the map of panes under it — this package's half of
-// core/agents/src/context/: `guide.md` (shipped as a template, the same text), the map built from
-// the snapshot, and `compose`, which decides whether an agent is told the whole thing again, only
-// what changed, or nothing.
+// The guide an agent is told, and the map of panes under it: `guide.md`, the map built from the
+// model, and `compose`, which decides whether an agent is told the whole thing again, only what
+// changed, or nothing.
 //
-// What is not here is the hook: installing one, reporting an agent's state and writing
-// `restore_command` are `pumi skill`'s (the CLI and the core), and a package cannot do them. What
-// a hook, a script or another package can do is call `amresyd.agents.context`, which reads these
-// options and answers what the agent should be told.
+// What is not here is the transport: the hook, the pane's traits, `restore_command` and the queue
+// are the core's. This package answers `agent.sending` (`plugin.onSend`, from `main.ts`) with what
+// the agent should know, and keeps what it told which session.
 import { readFileSync } from "node:fs";
 
 import { option } from "pumi";
 
 import type { Snapshot } from "./snapshot.ts";
 import { shown } from "./status.ts";
-import { spaceLabel, tabLabel, title } from "./tree.ts";
+import { spaceLabel, tabLabel, title } from "./label.ts";
 
-/** The guide every agent is told once, at the top: it is what `pumi skill show` prints. */
+/** The guide every agent is told once, at the top. */
 export const GUIDE: string = readFileSync(new URL("../context/guide.md", import.meta.url), "utf8");
 
 /** How often an agent hears about the workspace again after the first time. */
 export type Updates = "changes" | "start";
 
-/** When an agent is told something: the hook events the core knows, and a forced full telling. */
+/** When an agent is told something: the core's `agent.sending` events, and a forced full telling. */
 export type When = "start" | "prompt" | "full";
 
 /** The options that decide what agents are told. */
 export interface Settings {
   /** `context`: the master switch. */
   context: boolean;
-  /** `context_updates`: `changes` tells it again when the panes move, `start` only at a start. */
+  /** `updates`: `changes` tells it again when the panes move, `start` only at a start. */
   updates: Updates;
-  /** `context_other_sessions`: whether other sessions' panes are in the map. */
+  /** `other_sessions`: whether other sessions' panes are in the map. */
   otherSessions: boolean;
-  /** `context_targets`: each agent's own switch, by agent id. */
+  /** `targets`: the agents turned **off**, by id (`{"codex": false}`); every other agent is told. */
   targets: Record<string, boolean>;
 }
 
@@ -42,9 +40,9 @@ export const DEFAULTS: Settings = { context: true, updates: "changes", otherSess
 export async function settings(): Promise<Settings> {
   const [context, updates, otherSessions, targets] = await Promise.all([
     option.get("context"),
-    option.get("context_updates"),
-    option.get("context_other_sessions"),
-    option.get("context_targets"),
+    option.get("updates"),
+    option.get("other_sessions"),
+    option.get("targets"),
   ]);
   return {
     context: typeof context === "boolean" ? context : DEFAULTS.context,
@@ -54,7 +52,7 @@ export async function settings(): Promise<Settings> {
   };
 }
 
-/** A `context_targets` table, keeping only what says a boolean. */
+/** A `targets` table, keeping only what says a boolean. */
 export function switches(value: unknown): Record<string, boolean> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
   const out: Record<string, boolean> = {};
@@ -62,9 +60,9 @@ export function switches(value: unknown): Record<string, boolean> {
   return out;
 }
 
-/** Whether a given agent is told at all: the master switch, and its own. */
+/** Whether an agent is told at all: the master switch, and its own (a `false` turns it off). */
 export function onFor(agent: string, settings: Settings): boolean {
-  return settings.context && settings.targets[agent] === true;
+  return settings.context && settings.targets[agent] !== false;
 }
 
 /**

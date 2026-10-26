@@ -161,8 +161,8 @@ test("rows carry their key, their icon and where they are", () => {
   expect(rows[0]!.kind).toBe("folder");
   expect(rows[0]!.open).toBe(true);
   expect(rows[0]!.text).toBe(`pumi-files-rows-${dir.slice(dir.lastIndexOf("-") + 1)}`);
-  expect(rows[1]!.icon).toBe("icons/file_icons/folder_open.svg");
-  expect(rows[2]!.icon).toBe("icons/file_icons/rust.svg");
+  expect(rows[1]!.icon).toBe("folder-src-open");
+  expect(rows[2]!.icon).toBe("rust");
   expect(rows[2]!.text).toBe("main.rs");
   expect(rows[2]!.path).toBe(join(dir, "src/main.rs"));
 });
@@ -487,13 +487,15 @@ test("a drop from outside the project is copied in", () => {
   });
 });
 
-test("the filter lists what matches, flat, and picking one shows it in the tree", () => {
+test("the search lists what matches in the whole project, flat, and picking one shows it in the tree", async () => {
   const dir = scratch("filter");
   write(dir, "src/main.rs", "x");
   write(dir, "src/ui/view.rs", "x");
   write(dir, "docs/readme.md", "x");
   const panel = panelIn(dir);
   panel.rows();
+  // Nothing under `src` is listed yet: the search reads the project for itself.
+  await panel.ensureIndex();
   panel.filter = "main";
   expect(keys(panel.rows())).toEqual([entryKey("src/main.rs")]);
   panel.filter = ".rs";
@@ -506,6 +508,10 @@ test("the filter lists what matches, flat, and picking one shows it in the tree"
   expect(panel.filter).toBe("");
   expect(panel.state.expanded.has("src")).toBe(true);
   expect(panel.selection).toBe(entryKey("src/ui"));
+  // A file picked opens, and is shown in the tree too.
+  panel.filter = "view";
+  expect(panel.activate(entryKey("src/ui/view.rs"))).toEqual({ kind: "open", rel: "src/ui/view.rs" });
+  expect(panel.state.expanded.has("src/ui")).toBe(true);
 });
 
 test("a project inside a repository starts at its root, and git's state is on the rows", async () => {

@@ -1,10 +1,10 @@
 // The walk that finds a repository's scripts: the root, the labels, the quoting of a command, and
 // the directories it goes into.
 import { afterEach, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { groupScripts, label, quote, repoRoot, SKIP, type Group } from "../src/finder.ts";
+import { groupScripts, label, quote, repoRoot, SKIP, type Finder, type Group } from "../src/finder.ts";
 import { runs } from "./runs.ts";
 
 let made: string[] = [];
@@ -65,6 +65,36 @@ test("groups are found below the root, by label, skipping what it skips", () => 
     [".", 1],
     ["tools/a", 1],
     ["tools/b", 2],
+  ]);
+});
+
+test("a directory can hold more than one group, and both are kept", () => {
+  const root = temp("many");
+  mkdirSync(join(root, ".git"));
+  write(root, "build.run");
+  write(root, "package.json", JSON.stringify({ scripts: { test: "bun test" } }));
+  // A finder of both kinds at once: `*.run` files and a `package.json`'s scripts.
+  const both: Finder = {
+    depth: 4,
+    showDetail: true,
+    empty: "nothing",
+    groups(dir, root) {
+      const found = runs().groups(dir, root);
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name !== "package.json") continue;
+        const read = JSON.parse(readFileSync(join(dir, entry.name), "utf8")) as { scripts?: Record<string, string> };
+        found.push({
+          label: `${label(dir, root)}/package.json`,
+          dir,
+          items: Object.entries(read.scripts ?? {}).map(([name, command]) => ({ name, detail: command, command: `npm run ${name}` })),
+        });
+      }
+      return found;
+    },
+  };
+  expect(groupScripts(both, root).map((group) => [group.label, group.items.length])).toEqual([
+    [".", 1],
+    ["./package.json", 1],
   ]);
 });
 
