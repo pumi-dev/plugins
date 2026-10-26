@@ -16,7 +16,7 @@ test("it floats over the whole window, in the corner it is given", () => {
     height: "148px",
     focusable: false,
     mouse: false,
-    zindex: 90,
+    zIndex: 90,
     focus: false,
   });
 });
