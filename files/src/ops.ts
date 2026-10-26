@@ -34,11 +34,8 @@ async function ask(body: Record<string, unknown>): Promise<unknown> {
 function failed(what: string, err: unknown): void {
   const why = err instanceof Error ? err.message : String(err);
   console.error(`files: ${what}: ${why}`);
-  try {
-    void workspace.openRequest({ kind: "notification", title: `files: ${what}: ${why}`, level: "error" });
-  } catch {
-    // A test has no app to tell.
-  }
+  // A test has no app to tell.
+  workspace.openRequest({ kind: "notification", title: `files: ${what}: ${why}`, level: "error" }).catch(() => {});
 }
 
 /** `rel` made in the project: an empty file, or a folder and everything above it. */
