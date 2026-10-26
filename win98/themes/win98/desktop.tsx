@@ -112,7 +112,7 @@ export function Desktop() {
   const placeOf = (tab: string, index: number) => places[tab] ?? cascade(index, desk)
   const setPlace = (tab: string, next: Place) => setPlaces((old) => ({ ...old, [tab]: next }))
   const raise = (tab: string) => {
-    if (tab !== front) call(via(tab, "tab.select"), { tab: num(tab) }).catch(swallow)
+    if (tab !== front) call(via(tab, "tab.focus"), tab).catch(swallow)
   }
   const rank = (tab: string) => (order.indexOf(tab) < 0 ? -1 : order.indexOf(tab))
   const overlays = useSlot("window.overlay").views

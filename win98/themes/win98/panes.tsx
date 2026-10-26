@@ -42,7 +42,7 @@ export function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boo
   return (
     <div
       onMouseDown={() => {
-        if (!focused) call(via(id, "pane.select"), { pane: num(id) }).catch(swallow)
+        if (!focused) call(via(id, "pane.focus"), id).catch(swallow)
       }}
       onAuxClick={open}
       style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, backgroundColor: t["w98.face"], ...(floating ? {} : { borderWidth: 1, ...outer }) }}
@@ -77,7 +77,7 @@ export function PaneTitle({ pane: id, focused, zoomed, menu }: { pane: string; f
   const args = useMemo(() => ({ pane: id }), [id])
   if (!p) return null
   const zoomable = zoomed || (!!tree && "axis" in tree)
-  const zoom = () => call(via(id, "pane.resize"), num(id), { zoom: !zoomed }).catch(swallow)
+  const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
   const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: num(id), split: side }).catch(swallow)
   const status = agent?.agent_status
   const name = paneName(p) + (agent && status && status !== "idle" && status !== "unknown" ? ` - [${status[0]!.toUpperCase()}${status.slice(1)}]` : "")

@@ -233,7 +233,7 @@ function Agent({ pane }: { pane: string }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAuxClick={open}
-      onClick={() => (room ? room.visit(pane) : call("pane.select", { pane: num(pane) }).catch(swallow))}
+      onClick={() => (room ? room.visit(pane) : call("pane.focus", pane).catch(swallow))}
       title="Walk over to their desk"
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minHeight: 46, paddingLeft: 4, paddingRight: 4, cursor: "pointer", hover: { backgroundColor: t.floorHover } }}
     >

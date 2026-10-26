@@ -30,8 +30,8 @@ const viewKey = (v: ViewItem) => `${v.plugin}/${v.id}`
 /** Shows a session's tab (and a pane of it) in `window`. */
 export function goTo(window: { session?: string; show(session: string): void }, session: string, tab?: string, pane?: string) {
   if (window.session !== session) window.show(session)
-  const tabbed = tab ? call(via(tab, "tab.select"), { tab: num(tab) }) : Promise.resolve()
-  tabbed.then(() => pane && call(via(pane, "pane.select"), { pane: num(pane) })).catch(swallow)
+  const tabbed = tab ? call(via(tab, "tab.focus"), tab) : Promise.resolve()
+  tabbed.then(() => pane && call(via(pane, "pane.focus"), pane)).catch(swallow)
 }
 
 /** The Explorer bar: its header (what it shows, and ×), and the folders or a plugin's panel. */

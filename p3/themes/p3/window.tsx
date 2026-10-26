@@ -91,8 +91,8 @@ const tip = (title: string, command?: string) => {
 /** Shows a session's tab (and a pane of it) in `window`. */
 function goTo(window: ReturnType<typeof useWindow>, session: string, tab?: string, pane?: string) {
   if (window.session !== session) window.show(session)
-  const tabbed = tab ? call(via(tab, "tab.select"), { tab: num(tab) }) : Promise.resolve()
-  tabbed.then(() => pane && call(via(pane, "pane.select"), { pane: num(pane) })).catch(swallow)
+  const tabbed = tab ? call(via(tab, "tab.focus"), tab) : Promise.resolve()
+  tabbed.then(() => pane && call(via(pane, "pane.focus"), pane)).catch(swallow)
 }
 
 // ── Names ──────────────────────────────────────────────────────────────────────────────────────
@@ -556,7 +556,7 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
   const draggable = useDraggable({ kind: "pumi.tab", tab: id }, { disabled: renaming })
   const drop = useDroppable<{ kind: "pumi.pane"; pane: string }>({
     accept: (data: any): data is { kind: "pumi.pane"; pane: string } => data?.kind === "pumi.pane" && typeof data.pane === "string" && !panes.some((x) => x.pane_id === data.pane) && serverOf(data.pane) === serverOf(id),
-    onDrop: (data) => call(via(data.pane, "pane.setPlace"), num(data.pane), { kind: "tiled", tab: num(id) }).catch(swallow),
+    onDrop: (data) => call(via(data.pane, "pane.update"), data.pane, { place: { kind: "tiled", tab: id } }).catch(swallow),
   })
   const controls = useSlot("agent.controls")
   const agent = !!p?.agent
@@ -948,7 +948,7 @@ function PaneTitle({ pane: id, focused, zoomed, over, menu }: { pane: string; fo
   if (!p) return null
   const zoomable = zoomed || (!!tree && "axis" in tree)
   const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: num(id), split: side }).catch(swallow)
-  const zoom = () => call(via(id, "pane.resize"), num(id), { zoom: !zoomed }).catch(swallow)
+  const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
   const status = agent?.agent_status || "unknown"
   const busy = !!agent && status !== "idle" && status !== "unknown"
   return (
@@ -1007,7 +1007,7 @@ function ZoomButton({ pane: id, zoomed, over }: { pane: string; zoomed: boolean;
       onMouseLeave={() => setOnIt(false)}
       onClick={() => {
         setOnIt(false)
-        call(via(id, "pane.resize"), num(id), { zoom: !zoomed }).catch(swallow)
+        call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
       }}
       style={{ position: "absolute", top: 6, right: 6, display: "flex", width: 24, height: 24, alignItems: "center", justifyContent: "center", borderRadius: 6, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, color: t.muted, cursor: "pointer", opacity: onIt ? 1 : 0.8, hover: { backgroundColor: t.hover, color: t.text } }}
     >
@@ -1040,7 +1040,7 @@ function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boolean; z
   return (
     <div
       onMouseDown={() => {
-        if (!focused) call(via(id, "pane.select"), { pane: num(id) }).catch(swallow)
+        if (!focused) call(via(id, "pane.focus"), id).catch(swallow)
       }}
       onAuxClick={open}
       onMouseEnter={() => setOver(true)}
