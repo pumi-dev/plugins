@@ -24,7 +24,7 @@ surface (`../pumi/api/pumi-api.next.json`): the models, `pane.call`'s methods, `
 | — of those, nothing does | 12 (below) |
 | — of those, herdr's own front end or detection | 5: `agent.explain`, `agent.view.set/clear`, `pane.link.activate/resolve` |
 | — of those, this package's own work | 3: `agent.start`, `agent.prompt`, and `events.subscribe` (done) |
-| Heeler's calls | 24; 20 answered, 4 not: `agent.start`, `agent.prompt`, `agent.rename`, `worktree.create/list/remove` |
+| Heeler's calls | its 24 Host calls; the ones this package cannot answer yet are `agent.start`, `agent.prompt`, `agent.rename` and `worktree.create/list/remove` |
 | live evidence | `pumi plugin logs heeler`: `herdr.sock: agent.start → unsupported agent.start is not implemented by pumi yet` |
 
 `served` means "we intend to", not "we answer": a `served` name with no `case` ends at

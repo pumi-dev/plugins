@@ -34,8 +34,9 @@ const TAKE_OVER_POLL_MS = 100;
 
 /**
  * Serve `path` with `socket`; throws when another process is serving that file already. A file a dead
- * process left behind is taken over at once; a live owner gets a short grace, because `pumi plugin
- * reload` starts the new worker before the old one's listeners are gone.
+ * process left behind is taken over at once; a live owner gets a short grace, because
+ * `pumi plugin update` / `pumi plugin dev` starts the new worker before the old one's listeners
+ * are gone.
  */
 export async function listen(path: string, socket: Handler): Promise<Listener> {
   const deadline = Date.now() + TAKE_OVER_MS;
