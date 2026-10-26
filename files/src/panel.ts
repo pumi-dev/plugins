@@ -42,7 +42,7 @@ export interface Settings {
   autoFoldDirs: boolean;
   /** Pixels a level of the tree takes. */
   indentSize: number;
-  /** What a click on a file does: a file pane (`file.open`), the user's editor in a terminal
+  /** What a click on a file does: a file pane (`pane.open("file", …)`), the user's editor in a terminal
    *  pane, or the system's app. */
   openWith: "pane" | "editor" | "system";
   /** The editor to open it with; `$EDITOR` when it is empty. */

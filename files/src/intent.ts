@@ -1,6 +1,6 @@
 // What a gesture of the panel comes to, and what carrying it out does: core/files' `Intent` and
 // `carry_out` (`lib.rs`). The panel decides, this file acts — files on disk, the clipboard, and
-// opening a file: in a file pane (`file.open`, drawn by whichever plugin fits it), a terminal pane
+// opening a file: in a file pane (`pane.open("file", …)`, drawn by whichever plugin fits it), a terminal pane
 // running the user's editor, or whatever app owns it.
 import { dirname } from "node:path";
 import { self, workspace } from "pumi";

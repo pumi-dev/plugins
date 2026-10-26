@@ -45,8 +45,8 @@ export function TabBar({ session }: { session?: string }) {
             {tabs.map((tab, index) => (
               <div
                 key={tab.tab_id}
-                // A tab of another session first moves the window there: `tab.select` moves to a
-                // tab of the session in front. A press comes before the tab's own click
+                // A tab of another session first moves the window there: `tab.focus` makes a tab
+                // of the session in front current. A press comes before the tab's own click
                 // (which is on release), so the session is the right one by then.
                 onMouseDown={() => {
                   if (tab.workspace_id === here?.workspace_id) return
