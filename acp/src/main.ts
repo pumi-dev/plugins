@@ -198,12 +198,12 @@ class Link {
 
   /** Asks the core what the agent should know now, and hands it to the host for its next prompt. */
   async #tell(event: "start" | "prompt", name: string, session: string | undefined, resumed = false): Promise<void> {
-    const said = await agent.turn(paneRef(this.pane), { event, ...(resumed ? { resumed } : {}) }).catch((err) => {
+    const said = await agent.turn(paneRef(this.pane), { agent: name, event, ...(resumed ? { resumed } : {}) }).catch((err) => {
       console.error(`acp: agent.turn for ${this.pane}: ${err?.message ?? err}`);
-      return [] as string[];
+      return null;
     });
-    // What pumi has for the agent: each contribution is a paragraph of it.
-    const text = said.filter((one) => typeof one === "string" && one !== "").join("\n\n");
+    // What pumi has for the agent: the core frames each contribution as a paragraph of it.
+    const text = said?.context ?? "";
     if (text !== "") await this.command({ type: "context", id: crypto.randomUUID(), text });
   }
 
@@ -216,7 +216,9 @@ class Link {
       this.#taking = undefined;
       try {
         child?.kill();
-      } catch {}
+      } catch {
+        // It exited while the take was being stopped: nothing left to kill.
+      }
     };
     this.#taking = { stop };
     const args = ["agent", "take", "-t", `%${pane}`, "--session", session, "--wait", "--json"];
@@ -235,7 +237,9 @@ class Link {
       let item: { text?: string } | null = null;
       try {
         item = JSON.parse(out);
-      } catch {}
+      } catch {
+        // What it printed is not the message: nothing was taken.
+      }
       const text = typeof item?.text === "string" ? item.text : "";
       if (!text || this.closed) return;
       // The agent's turn starts with the message: what it is told now goes first (`agent.turn`).
@@ -389,7 +393,7 @@ async function stopHost(id: number): Promise<void> {
   links.delete(id);
   const socket = known?.socket ?? (await connect(socketPath(hostsDir(), id)));
   if (!socket) return;
-  known && (known.closed = true);
+  if (known) known.closed = true;
   await new Promise<void>((resolve) => {
     socket.once("close", () => resolve());
     socket.write(`${JSON.stringify({ t: "stop" } satisfies ToHost)}\n`);

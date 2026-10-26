@@ -11,26 +11,13 @@ export const TOP = 44;
 export const BOTTOM = 32;
 export const SIDE = 12;
 
-/** A float's place: the export's, with the geometry a pane floats by. */
-export interface FloatPlace extends PanePlace {
-  relative?: string;
-  anchor?: string;
-  row?: string | number;
-  col?: string | number;
-  width?: string | number;
-  height?: string | number;
-  focusable?: boolean;
-  mouse?: boolean;
-  zIndex?: number;
-  focus?: boolean;
-}
-
-export function place(height: number, corner: string): FloatPlace {
+export function place(height: number, corner: string): PanePlace {
   const row = corner.startsWith("S") ? BOTTOM : TOP;
   return {
     kind: "float",
     relative: "client",
-    anchor: corner,
+    // The `corner` option is any string; a corner the API does not know is refused by the server.
+    anchor: corner as PanePlace["anchor"],
     row: `${row}px`,
     col: `${SIDE}px`,
     width: `${width()}px`,
