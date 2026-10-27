@@ -7,7 +7,7 @@ to the device over serve-sim's own websocket, so a pane is a fully interactive s
 Simulator.app, no Xcode window, no second monitor.
 
 ```sh
-pumi plugin add /path/to/pumi-plugins/simulator
+pumi plugin add ./simulator
 ```
 
 Then **Simulator: open** in the palette (`⌘K`), or `pumi call amresyd.simulator.open`.

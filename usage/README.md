@@ -71,7 +71,7 @@ in `src/providers/index.ts`, its option in `package.json`, and a fixture in `tes
 ## Install
 
 ```sh
-pumi plugin add ~/Kitchen/pumi-plugins/usage
+pumi plugin add ./usage
 ```
 
 ## Develop

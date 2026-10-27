@@ -18,15 +18,15 @@
     ]
   },
   "bridgeClient": {
-    "command": "HERDR_SOCKET_PATH=/Users/amr/.config/herdr/sessions/pumi/herdr.sock /Users/amr/.local/bin/herdr remote-client-bridge --remote-keybindings local",
+    "command": "HERDR_SOCKET_PATH=/Users/me/.config/herdr/sessions/pumi/herdr.sock /Users/me/.local/bin/herdr remote-client-bridge --remote-keybindings local",
     "argv": [
-      "/Users/amr/.local/bin/herdr",
+      "/Users/me/.local/bin/herdr",
       "remote-client-bridge",
       "--remote-keybindings",
       "local"
     ],
     "env": {
-      "HERDR_SOCKET_PATH": "/Users/amr/.config/herdr/sessions/pumi/herdr.sock"
+      "HERDR_SOCKET_PATH": "/Users/me/.config/herdr/sessions/pumi/herdr.sock"
     }
   },
   "windows": {

@@ -51,7 +51,7 @@ they line up only in a font whose glyphs all take the same width. The float itse
 ```sh
 bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit  # the types
-pumi plugin add ~/Kitchen/pumi-plugins/perf
+pumi plugin add ./perf
 ```
 
 `src/report.ts` is what `app.perf`'s answer means and how it is laid out, `src/place.ts` where the

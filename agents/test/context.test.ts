@@ -35,10 +35,10 @@ test("the map names every space, tab and pane with the ids pumi takes", () => {
   expect(said.split("\n")).toEqual([
     "$1 pumi (current)",
     "  @10 Tab 1",
-    "    %100 zsh — /Users/me/Kitchen/pumi",
+    "    %100 zsh — /Users/me/code/pumi",
     "  @11 editor",
-    "    %101 π - claude — /Users/me/Kitchen/pumi — working",
-    "    %102 vim — /Users/me/Kitchen/pumi/src",
+    "    %101 π - claude — /Users/me/code/pumi — working",
+    "    %102 vim — /Users/me/code/pumi/src",
     "$2 site",
     "  @20 Tab 1",
     "    %200 π - site — /Users/me/work/site — blocked",

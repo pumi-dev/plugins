@@ -1335,7 +1335,7 @@ function PaneTab({ tab: id, pane, index, active, focused }: { tab: string; pane:
   const status = info.agent ? info.agent_status || "unknown" : undefined
   const mark = markOf(info)
   const title = tabTitle(info)
-  // A mark its title already starts with ("π - amr", ">_ zsh") is not drawn again before it.
+  // A mark its title already starts with ("π - me", ">_ zsh") is not drawn again before it.
   const showsMark = !("text" in mark && title.startsWith(mark.text))
   // An agent's glyph says what it is doing; anything else's is the title's colour.
   const glyph = status && status !== "idle" && status !== "unknown" ? (t[`agent.${status}`] ?? t.text) : active ? t.text : t["rex.titleDim"]
@@ -1421,7 +1421,7 @@ function PaneTitle({ pane: id, tabs, active, focused, zoomed, over, menu }: { pa
   const split = (side: "right" | "down") => call(via(id, "tab.open"), "terminal", {}, { kind: "tiled", pane: id, split: side }).catch(swallow)
   const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
   const status = agent?.agent_status || "unknown"
-  // A mark its title already starts with ("π - amr", ">_ zsh") is not drawn again before it.
+  // A mark its title already starts with ("π - me", ">_ zsh") is not drawn again before it.
   const mark = markOf(info)
   const title = tabTitle(info)
   const showsMark = !("text" in mark && title.startsWith(mark.text))

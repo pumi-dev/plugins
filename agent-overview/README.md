@@ -12,8 +12,8 @@ pane.
 │ ◎ Idle                 1    │ │ running now  │ │ blocked …    │ │ finished │ │ waiting  │    │
 │ [ Filter agents          ]  │ └──────────────┘ └──────────────┘ └──────────┘ └──────────┘    │
 │ MAIN                    2   │ AGENT     STATUS        SESSION   DIRECTORY     PROGRAM        │
-│   ● claude  pumi  you       │ ● claude  needs perm…   main › a… ~/Kitchen/p…   claude         │
-│   ● make    pumi            │ ● make    failed        main › b… ~/Kitchen/p…   make           │
+│   ● claude  pumi  you       │ ● claude  needs perm…   main › a… ~/code/pumi…   claude         │
+│   ● make    pumi            │ ● make    failed        main › b… ~/code/pumi…   make           │
 │ WORK                    1   │ ● pi      Idle          work › r… ~/Other        pi             │
 │   ● pi      other           │                                                               │
 │ 3 agents · 2 sessions       │                                                               │

@@ -89,7 +89,7 @@ function firstLine(text: string): string {
   return "";
 }
 
-/** The last part of a path (`~/Kitchen/pumi` is `pumi`); on Windows, of either separator. */
+/** The last part of a path (`~/code/pumi` is `pumi`); on Windows, of either separator. */
 function lastPart(path: string): string {
   const parts = path.split(/[\\/]/);
   return parts[parts.length - 1] ?? "";

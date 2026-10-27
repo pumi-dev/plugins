@@ -50,7 +50,7 @@ describe("parseDeviceKeyLine", () => {
   });
 
   test("keeps a printable label", () => {
-    expect(parseDeviceKeyLine(`${VECTOR_PUBLIC_LINE} Amr's iPhone`).line).toBe(`${VECTOR_PUBLIC_LINE} Amr's iPhone`);
+    expect(parseDeviceKeyLine(`${VECTOR_PUBLIC_LINE} My iPhone`).line).toBe(`${VECTOR_PUBLIC_LINE} My iPhone`);
   });
 
   test("re-emits canonical base64 and a single line", () => {

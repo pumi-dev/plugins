@@ -6,7 +6,7 @@ over the window, dimming what is under them, one per pane, as a task switcher sh
 ```text
 ▦ Switch pane  3                                  ← → choose · enter go · esc close
 ┌──────────────────┐┌──────────────────┐┌──────────────────┐
-│ ~/Kitchen/pumi   ││ $ cargo test     ││ https://…        │
+│ ~/code/pumi      ││ $ cargo test     ││ https://…        │
 │ $ git status     ││ running 3 tests  ││  Docs · Guide    │
 │ M Cargo.toml     ││ test api …  ok   ││                  │
 │──────────────────││──────────────────││──────────────────│

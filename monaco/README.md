@@ -5,7 +5,7 @@ editor, in a page of the plugin's own, themed by the window. One page per pane h
 file it has opened, so going back to a file keeps its undo, its scroll and its unsaved edits.
 
 ```sh
-pumi plugin add ~/Kitchen/pumi-plugins/monaco     # or: pumi plugin dev ~/Kitchen/pumi-plugins/monaco
+pumi plugin add ./monaco     # or: pumi plugin dev ./monaco
 ```
 
 It has no block of its own: it draws the core's `file` block (`renderers.file`, matching `*`), so

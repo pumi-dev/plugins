@@ -7,7 +7,7 @@ import { qrRows, qrText } from "../src/pairing/qr.ts";
 const CODE = encodePairingCode({
   addresses: ["192.168.1.42", "100.101.102.103"],
   port: 2222,
-  username: "amr",
+  username: "ada",
   hostKeyFingerprint: "SHA256:6+jncNdibsG2cqvfoLApGrO8CvIwAEMzsB+IilOs8tg",
   bootstrapSeed: Buffer.alloc(32, 7),
   expiresAt: 1_753_305_600,

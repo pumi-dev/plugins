@@ -9,7 +9,7 @@ It is the manifest's `contributes.slots["panel"]` view (`ui.tsx`'s `Tree`); `cmd
 side bar it is in, as it does in the app, and `cmd+f` opens its filter box.
 
 ```sh
-pumi plugin add ~/Kitchen/pumi-plugins/files     # or: pumi plugin dev .
+pumi plugin add ./files     # or: pumi plugin dev .
 ```
 
 ## What it does

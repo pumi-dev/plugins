@@ -21,12 +21,12 @@ export function state(): State {
         tab: "@10",
         session: "$1",
         title: "⠋ claude",
-        cwd: "/Users/me/Kitchen/pumi",
+        cwd: "/Users/me/code/pumi",
         options: {
           "@agent": "claude",
           "@agent.status": "blocked",
           "@agent.session": "conv-1",
-          pane_current_path: "/Users/me/Kitchen/pumi",
+          pane_current_path: "/Users/me/code/pumi",
           pane_current_command: "claude",
           "@program_status": [
             { id: "", state: "working", app: "claude" },
@@ -39,9 +39,9 @@ export function state(): State {
         tab: "@11",
         session: "$1",
         title: "",
-        cwd: "/Users/me/Kitchen/pumi",
+        cwd: "/Users/me/code/pumi",
         options: {
-          pane_current_path: "/Users/me/Kitchen/pumi",
+          pane_current_path: "/Users/me/code/pumi",
           pane_current_command: "make",
           "@agent.status": "done",
           "@program_status": [{ id: "", state: "error", msg: "recipe failed" }],

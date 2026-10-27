@@ -6,7 +6,7 @@ function can put a flow, a state machine or a schema beside the sentence it is t
 keep drawing on the same pane as the answer changes.
 
 ```sh
-pumi plugin add ~/Kitchen/pumi-plugins/marmaide    # or a copy of this directory
+pumi plugin add ./marmaide    # or a copy of this directory
 pumi plugin update marmaide
 
 pumi call local.marmaide.draw 'flowchart LR
@@ -102,7 +102,7 @@ the answer to whoever asked for it — so an agent reads it and fixes that line.
 ## Building it
 
 ```sh
-cd ~/Kitchen/pumi-plugins/marmaide
+cd marmaide
 bun test                       # the pure logic: no pumi running
 ./node_modules/.bin/tsc --noEmit
 ```

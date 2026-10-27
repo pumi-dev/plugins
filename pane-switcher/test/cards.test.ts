@@ -7,7 +7,7 @@ import { kindIcon, MAX_CARDS, MAX_PREVIEWS, ordered, tilde } from "../src/cards.
 
 test("a directory under the home is shown with a tilde", () => {
   const home = process.env.HOME ?? "";
-  if (home !== "") expect(tilde(`${home}/kitchen`)).toBe("~/kitchen");
+  if (home !== "") expect(tilde(`${home}/code`)).toBe("~/code");
   expect(tilde("/elsewhere")).toBe("/elsewhere");
 });
 

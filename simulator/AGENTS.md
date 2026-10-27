@@ -21,10 +21,10 @@ device; `src/ui.tsx` draws serve-sim's preview page in a `<WebView>`.
 ## Working on it
 
 ```sh
-cd /Users/amr/Kitchen/pumi-plugins && bun tools/link.mjs   # after adding the package: links @pumid/types
-cd simulator && bunx tsc --noEmit                          # the workspace's types for `import "pumi"`
-pumi plugin dev /Users/amr/Kitchen/pumi-plugins/simulator  # reload on save
-pumi plugin logs simulator                                  # its stderr
+cd .. && bun tools/link.mjs                # from the plugins checkout: links @pumid/types
+cd simulator && bunx tsc --noEmit          # the workspace's types for `import "pumi"`
+pumi plugin dev ./simulator                # reload on save
+pumi plugin logs simulator                 # its stderr
 ```
 
 `$TMPDIR/serve-sim/` and `keepalive` explain most "the streamer is still running" surprises;

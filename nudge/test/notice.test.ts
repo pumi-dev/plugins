@@ -50,8 +50,8 @@ test("the level heads the notice: a failure an error, a wait a warning, a result
 });
 
 test("the body is the pane's title, else its folder, else the pane", () => {
-  expect(where(3, "π - Fixing the keymap - pumi", "/Users/amr/Kitchen/pumi")).toBe("π - Fixing the keymap - pumi");
-  expect(where(3, "", "/Users/amr/Kitchen/pumi/")).toBe("pumi");
+  expect(where(3, "π - Fixing the keymap - pumi", "/Users/me/code/pumi")).toBe("π - Fixing the keymap - pumi");
+  expect(where(3, "", "/Users/me/code/pumi/")).toBe("pumi");
   expect(where(3, null, null)).toBe("Pane %3");
   expect(where(3, "  \n ", "")).toBe("Pane %3");
 });

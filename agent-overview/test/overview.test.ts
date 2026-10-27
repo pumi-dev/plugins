@@ -86,6 +86,6 @@ test("a title loses the spinner a shell puts in front of it", () => {
 
 test("a directory under the home directory is written with a tilde", () => {
   const home = process.env.HOME ?? "";
-  expect(tilde(`${home}/Kitchen/pumi`)).toBe("~/Kitchen/pumi");
+  expect(tilde(`${home}/code/pumi`)).toBe("~/code/pumi");
   expect(tilde("/elsewhere/x")).toBe("/elsewhere/x");
 });

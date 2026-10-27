@@ -4,7 +4,7 @@ Type `/` in a terminal and pick a file: a floating fuzzy picker over the tab typ
 quoted as one shell argument, so `vim `, `cd ` or `cat ` are a couple of keystrokes and a `/`.
 
 ```text
-search  ~/Kitchen/pumi-plugins                    12
+search  ~/code/pumi-plugins                        12
 ▸ main.rs        src
   format.py      src
   Cargo.toml

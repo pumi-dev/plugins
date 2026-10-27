@@ -6,7 +6,7 @@ what changed. It draws nothing: **the agents sidebar is the app theme's**
 (`runtime/app/app/theme/default.tsx`, `cmd+b`), and this package has no `slots`.
 
 ```sh
-pumi plugin add ~/Kitchen/pumi-plugins/agents   # links it; it starts with the app
+pumi plugin add ./agents   # links it; it starts with the app
 ```
 
 ## What an agent is told
@@ -23,7 +23,7 @@ You are in a pane of pumi, a terminal workspace. …
 <pumi-panes>
 $7 pumi (current)
   @42 Commit Pending Changes
-    %129 π - Move plans out — /Users/amr/Kitchen/pumi — done
+    %129 π - Move plans out — /Users/me/code/pumi — done
 </pumi-panes>
 </pumi-context>
 ```

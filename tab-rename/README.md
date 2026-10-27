@@ -4,7 +4,7 @@ Names each tab after what its agents are working on, with Apple's on-device mode
 reads `Key Binding Fix` and `Screenshot UI Redesign` instead of `Tab 1`, `Tab 2`.
 
 ```text
-  π - Fixing double-press c key binding bug - amr     →  Key Binding Fix
+  π - Fixing double-press c key binding bug - me      →  Key Binding Fix
   ✳ Migrate billing webhooks to Stripe v2             →  Billing Webhooks Stripe
 ```
 

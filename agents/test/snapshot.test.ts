@@ -24,7 +24,7 @@ test("every space, tab and pane comes back with what it says of itself", () => {
     "π - claude",
     "π - claude",
   ]);
-  expect(agent.cwd).toBe("/Users/me/Kitchen/pumi");
+  expect(agent.cwd).toBe("/Users/me/code/pumi");
 });
 
 test("a tab's panes keep the order they are given in", () => {

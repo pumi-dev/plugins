@@ -2,12 +2,12 @@ import { expect, test } from "bun:test";
 import { basename, clean, key, topic } from "../src/titles.ts";
 
 test("an agent's title is the task it names", () => {
-  expect(topic("π - Fixing double-press c key binding bug - amr", "pi", "amr")).toBe("Fixing double-press c key binding bug");
+  expect(topic("π - Fixing double-press c key binding bug - me", "pi", "me")).toBe("Fixing double-press c key binding bug");
   expect(topic("✳ Refactor the auth middleware", "claude")).toBe("Refactor the auth middleware");
   expect(topic("⠐ Claude Code", "claude")).toBeNull();
   // A title that is only the agent and its folder says nothing.
   expect(topic("π - pumi", "pi", "pumi")).toBeNull();
-  expect(topic("~/Kitchen/pumi", "pi")).toBeNull();
+  expect(topic("~/code/pumi", "pi")).toBeNull();
   expect(topic("", "pi")).toBeNull();
 });
 

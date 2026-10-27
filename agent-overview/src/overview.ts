@@ -82,7 +82,7 @@ export function folder(agent: Agent): string {
   return agent.cwd.split("/").findLast((leaf) => leaf !== "") ?? agent.cwd;
 }
 
-/** `~/Kitchen/pumi`, for a detail line. */
+/** `~/code/pumi`, for a detail line. */
 export function path(agent: Agent): string {
   return tilde(agent.cwd);
 }
