@@ -1,16 +1,16 @@
 # pumi-simulator
 
-An iOS Simulator in a pane. The simulator is Apple's (`CoreSimulator`); this plugin is the
+An iOS Simulator in a tab. The simulator is Apple's (`CoreSimulator`); this plugin is the
 plumbing: it finds one with `simctl`, boots it, runs [serve-sim](https://github.com/EvanBacon/serve-sim)
 beside it, and draws the stream in a webview. Touches, drags, keys and the device's buttons go back
-to the device over serve-sim's own websocket, so a pane is a fully interactive simulator — no
+to the device over serve-sim's own websocket, so a tab is a fully interactive simulator — no
 Simulator.app, no Xcode window, no second monitor.
 
 ```sh
 pumi plugin add ./simulator
 ```
 
-Then **Simulator: open** in the palette (`⌘K`), or `pumi call amresyd.simulator.open`.
+Then **Simulator: open** in the command palette, or `pumi call amresyd.simulator.open`.
 
 ## What it needs
 
@@ -26,7 +26,7 @@ plugin's cache — a few seconds, once.
 ## How it works
 
 - `src/main.ts` runs in the plugin's worker: `xcrun simctl` for what simulators exist and booting
-  them, and one supervised `serve-sim` per booted device, reaped when the last pane showing it
+  them, and one supervised `serve-sim` per booted device, reaped when the last tab showing it
   closes. It reads serve-sim's state file (`$TMPDIR/serve-sim/server-<udid>.json`) for the address
   the streamer actually took, so a streamer someone else started is reused rather than duplicated.
 - `src/ui.tsx` draws `<WebView src={url}>` with serve-sim's preview page in it: the stream, the
@@ -42,21 +42,21 @@ preview server: this plugin never proxies it, and nothing should.
 
 | option | default | |
 | --- | --- | --- |
-| `udid` | — | pane-scoped: the device this pane shows (a udid or a name) |
+| `udid` | — | tab-scoped: the device this tab shows (a udid or a name) |
 | `port` | `3210` | the first port serve-sim may take; it moves up when one is busy |
 | `version` | `0.1.48` | the serve-sim release installed into the plugin's cache |
 | `node` | found | the node binary that runs serve-sim |
-| `keepalive` | `120` s | how long the streamer stays up after its last pane closes |
+| `keepalive` | `120` s | how long the streamer stays up after its last tab closes |
 
 ## Commands and API
 
-- **Simulator: open** — boots the booted (or first usable) device and opens a pane beside the
+- **Simulator: open** — boots the booted (or first usable) device and opens a tab beside the
   current one.
 - **Simulator: stop streaming** — stops every streamer this plugin started.
-- **Simulator: screenshot** — a PNG of the device's screen, shown in a pane.
+- **Simulator: screenshot** — a PNG of the device's screen, shown in a tab.
 
 For agents and other plugins (`pumi registry list fn | grep simulator`). The plugin activates on startup, so
-these exist as soon as the app is up — no pane has to be open first:
+these exist as soon as the app is up — no tab has to be open first:
 
 ```sh
 pumi call amresyd.simulator.devices                    # [{ udid, name, runtime, state, available }]
@@ -64,7 +64,7 @@ pumi call amresyd.simulator.stream '["iPhone 18 Pro"]' # { url, streamUrl, wsUrl
 pumi call amresyd.simulator.screenshot '["iPhone 18 Pro"]'
 ```
 
-`screenshot` answers the path to a PNG, so an agent can read the device's screen without a pane
+`screenshot` answers the path to a PNG, so an agent can read the device's screen without a tab
 being open. `stream` starts the streamer if it is not up; `streamUrl` is a plain
 `multipart/x-mixed-replace` MJPEG body, which anything can read.
 
@@ -76,6 +76,6 @@ being open. `stream` starts the streamer if it is not up; `streamUrl` is a plain
   simulator window frontmost, and macOS may ask for Accessibility for the app that launched pumi.
   Touches do not need any of that. `SERVE_SIM_DISABLE_DEVICE_HUB_KEYBOARD=1` opts out.
 - **A device that shuts down** takes its streamer with it (`--exit-on-simulator-shutdown`); the
-  pane keeps the last frame until you retry.
+  tab keeps the last frame until you retry.
 - **iPhone Duo** (Xcode 27.1 + iOS 27.1) gets serve-sim's folded/semi-folded/open controls and its
-  RealityKit shell in this same pane, because the shell is a part of the preview page.
+  RealityKit shell in this same tab, because the shell is a part of the preview page.

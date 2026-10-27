@@ -2,7 +2,7 @@
 
 What `agent-chat` and `acp` share: an agent-agnostic conversation, the one reducer that keeps every
 copy of it the same, ACP mapped onto it, and the chat drawn from it. It is a **library**: no
-view, command or option, so pumi never starts it. A package imports its files by relative path
+component, command or option, so pumi never starts it. A package imports its files by relative path
 (`../../lib/conversation/src/change.ts`), as `scripts` does `script-panel`.
 
 | File | |
@@ -42,10 +42,10 @@ Only `ui.tsx` and `ui/` import `pumi`; the rest runs anywhere.
 import { Producer, promptChanges, endTurnChanges } from "../../lib/conversation/src/change.ts";
 import { fromSessionUpdate, fromPermissionRequest } from "../../lib/conversation/src/acp.ts";
 
-const producer = new Producer({ publish: (update) => emit("conversation.changed", { pane, update }) });
+const producer = new Producer({ publish: (update) => emit("conversation.changed", { tab, update }) });
 producer.push(...promptChanges(text, [], producer));                       // the user's prompt
 producer.push(...fromSessionUpdate(producer.transcript, update, producer)); // each session/update
-// conversation.read(pane, since?) answers:
+// conversation.read(tab, since?) answers:
 producer.read(since);                                                       // the batches missed, or a snapshot
 ```
 
@@ -64,7 +64,7 @@ import { Conversation } from "../../lib/conversation/src/ui.tsx";
 const [transcript, setTranscript] = useState<Transcript>();
 // on each update: the next transcript, or undefined → read again without a cursor
 const next = follow(transcript, update);
-<Conversation transcript={transcript} onCommand={(command) => void send(pane, command)} autoFocus />;
+<Conversation transcript={transcript} onCommand={(command) => void send(tab, command)} autoFocus />;
 ```
 
 `Conversation` takes `{ transcript, onCommand, pageSize?, autoFocus?, placeholder?, onLink?,

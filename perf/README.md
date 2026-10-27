@@ -3,6 +3,10 @@
 How the app is doing, floating in a corner of the window, as a plugin. The app keeps the numbers —
 it samples itself every second — and answers `app.perf` with them; this plugin only draws them.
 
+The pumi beside this repository has no `app.perf` function (`pumi registry list fn` does not list
+it), so the overlay has nothing to draw there until the app answers it again. Window ▸ Diagnostics
+is the app's own view of the same numbers.
+
 ```text
 performance
 app    cpu    12% now    9% 10s    7% 60s  peak   31%    ▁▁▂▁▁▃▁▁▁▂▁▁▁▁▁▂▁▁▁▁▁▁▃▁▁▁▁▁▁▂
@@ -26,11 +30,10 @@ Rows turn yellow past 10% of a core and red past half.
 
 ## Use
 
-`perf.trigger` (Cmd-Alt-P) shows and hides it from anywhere, as does **View → Performance
-Overlay** and `pumi call amresyd.perf.toggle` (`local.perf.toggle` while it is linked from disk).
-It floats over the whole window (`relative: "client"`) in `perf.corner`, takes neither the
-keyboard nor the pointer, and is as tall as what it shows: it moves its own pane
-(`pane.update`) when a row comes or goes.
+The `trigger` option (Cmd-Alt-P) shows and hides it from anywhere, as do **View → Performance
+Overlay** and `pumi call amresyd.perf.toggle`. It floats over the whole window
+(`relative: "client"`) in the `corner` option's corner, takes neither the keyboard nor the
+pointer, and is as tall as what it shows: it moves its own floating tab when a row comes or goes.
 
 | Option | | |
 | --- | --- | --- |
@@ -50,7 +53,7 @@ they line up only in a font whose glyphs all take the same width. The float itse
 
 ```sh
 bun test                       # the pure logic: no pumi running
-./node_modules/.bin/tsc --noEmit  # the types
+./node_modules/.bin/tsc --noEmit -p .  # the types
 pumi plugin add ./perf
 ```
 

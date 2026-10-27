@@ -55,8 +55,9 @@ The trigger is bound in the terminal's key table as it is set, and rebound when 
 
 ## From elsewhere
 
-`pumi call <owner>.insert_path.open` (`local.insert_path.open` while it is linked from disk) opens
-the picker over the current tab; give it `{ "pane": 12 }` to pick a path for that pane.
+`pumi call <owner>.insert_path.open` (`amresyd.insert_path.open` when it is linked from this
+repository) opens the picker over the current tab; give it `{"pane": "%12"}` to pick a path for
+the terminal tab `%12`.
 
 ## How it is made
 
@@ -68,6 +69,6 @@ the document a row draws when the file is not one it knows.
 
 ```sh
 bun test                          # the pure logic: no pumi running
-bunx tsc --noEmit                 # the types
+./node_modules/.bin/tsc --noEmit -p .   # the types
 pumi plugin dev .                 # links it into the running app and reloads it on every save
 ```

@@ -21,8 +21,8 @@ device; `src/ui.tsx` draws serve-sim's preview page in a `<WebView>`.
 ## Working on it
 
 ```sh
-cd .. && bun tools/link.mjs                # from the plugins checkout: links @pumid/types
-cd simulator && bunx tsc --noEmit          # the workspace's types for `import "pumi"`
+cd .. && bun tools/link.mjs                # at the repository's root: links @pumid/types
+cd simulator && ./node_modules/.bin/tsc --noEmit -p .   # the types for `import "pumi"`
 pumi plugin dev ./simulator                # reload on save
 pumi plugin logs simulator                 # its stderr
 ```

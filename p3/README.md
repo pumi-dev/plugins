@@ -16,7 +16,7 @@ A pumi UI theme after [T3 Code](https://t3.codes): flat graphite, no cards, litt
   and the surfaces' toggle.
 - **Surfaces**, on the right (⌘⌥B, or View → Surfaces), as T3 Code's: "Open a surface" lists a
   page (when `browser` is installed), a terminal beside the focused pane, and every plugin's
-  `panel` view; pick one and it fills the dock, the arrow goes back to the list. Both docks drag
+  `panel` component; pick one and it fills the dock, the arrow goes back to the list. Both docks drag
   wider at their inner edge (a double press gives back their size).
 - **The panes** sit edge to edge in the app's own layout, a hairline between them, each pane's tabs
   in a flat strip over it. Menus list keys in small chips.

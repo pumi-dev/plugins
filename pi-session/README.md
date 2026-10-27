@@ -13,9 +13,9 @@ with `IconButton` from `pumi`, so the theme draws them as it draws the tab's own
 buttons. The component draws nothing for a tab that is not pi's.
 
 A tab is pi's when its agent's hook said so: `@agent` is `pi` and `@agent.session` is set — what
-`pumi skill add pi` writes. A pane that stops being pi's loses its buttons, and one that becomes
-pi's gets them. The session is read from the pane each time a button is pressed, so a fork or a copy
-is of the session the pane is in now, not the one it started in.
+`pumi skill add pi` writes. A tab that stops being pi's loses its buttons, and one that becomes
+pi's gets them. The session is read from the tab each time a button is pressed, so a fork or a copy
+is of the session the tab is in now, not the one it started in.
 
 ## What a session is
 
@@ -28,7 +28,7 @@ path: ~/.pi/sessions/2026-10-17T10-00-00_0198c3e2-….jsonl
 cwd:  ~/src/pumi
 ```
 
-The path is there when the hook reported one, the directory when the pane has one.
+The path is there when the hook reported one, the directory when the tab has one.
 
 ## Options
 
@@ -37,22 +37,19 @@ Its three options are under **Pi session** in Settings, and their full names sta
 
 - `side` — where the fork goes: `right` (default) or `down`.
 - `command` — the program run with `--fork <session>` (default `pi`).
-- `focused_only` — the buttons on the focused pi pane alone, not on every pi pane's title bar (default
+- `focused_only` — the buttons on the focused pi tab alone, not on every pi tab's title bar (default
   off).
 
 ## What it touches
 
 It reads the session file's first record when the hook gave a path rather than an id (`files`), and
-opens a terminal pane running the fork (`processes`). It is a Bun package: it runs in a worker of its
-own, at startup (`activation: onStartup`), so the buttons are there for the panes an app restores
-with their sessions.
+opens a terminal tab running the fork (`processes`). The buttons are drawn by the window from the
+manifest, so they are there for the tabs an app restores with their sessions; what they do runs in
+the package's worker (`src/main.ts`, `src/actions.ts`). It lists no `activation`.
 
 ## Working on it
 
 ```sh
-bun test                       # the pure logic: no pumi running
-./node_modules/.bin/tsc --noEmit  # the types
+bun test                       # what the manifest contributes: no pumi running
+./node_modules/.bin/tsc --noEmit -p .  # the types
 ```
-
-`test/fake.ts` is the fake app with the panes there are and what each says of itself: a test puts a
-pane in a scene, says what it reports, fires the event, and looks at what the package asked for.

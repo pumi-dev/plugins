@@ -6,12 +6,16 @@ gap now sits, in pumi's target API.
 **PROVENANCE.** herdr `5608de0` (server 0.9.4, protocol 22, `herdr api schema --json`); Heeler
 `f98028b` (app 0.6.x, `Sources/Heeler/Transport/{HeelerSSHTransport,SSHTransportSettings}.swift`, its
 `plugin/` and shared vectors); this package is the `herdr` one renamed to `heeler`, now the Host
-itself (its own sshd, pairing, Tailscale and QR — see README.md). The herdr column is the real code
-path in
+itself (pairing against the machine's own sshd, and the QR — see README.md). The herdr column is
+the real code path in
 `src/app/agents.rs`, `src/app/api/{agents,panes,tabs,workspaces,worktrees}.rs`,
-`src/app/api_helpers.rs`, `src/worktree.rs` and `src/detect/mod.rs`; the pumi column is the target
-surface (`../pumi/api/pumi-api.next.json`): the models, `pane.call`'s methods, `option.set`, the
-`request` table and the public `*.opened`/`closed`/`changed` events.
+`src/app/api_helpers.rs`, `src/worktree.rs` and `src/detect/mod.rs`; the pumi column is pumi's API
+(`../pumi/api/pumi-api.json`): the models, the block methods, `option.set`, the `request` table and
+the public `*.opened`/`closed`/`changed` events.
+
+The pumi column was written before pumi's model became session → view → pane → tab. Read its
+`pane` as today's tab (`pane.call` is `tab.call`, `pane.get` is `tab.get`) and its `tab` as
+today's view.
 
 ## Scoreboard
 

@@ -1,6 +1,6 @@
 # git
 
-The repository in the left sidebar — **Changes** and **History** — for whichever repository the pane
+The repository in the left sidebar — **Changes** and **History** — for whichever repository the tab
 you are working in is in. It is the app's own git plugin as a package: the `git` binary does the
 work, a watch of the work tree says when to look again.
 
@@ -60,10 +60,11 @@ under the toolbar, in git's own words.
 ## The diff
 
 A file's click shows its diff, `View Diff` the whole work tree (new files and all), and a commit in
-History that commit — each in a tab of its own, drawn by the app's native `<diff>`: virtualised,
-syntax-highlighted, the changed words marked, and in the window's theme (the editor's background, the
-theme's green and red), so a theme switch redraws it. Further diffs reuse that tab while you are
-still in it, and a change in the work tree redraws what it shows without blanking it first.
+History that commit — in a diff tab, in a view of its own, drawn by the app's native `<diff>`:
+virtualised, syntax-highlighted, the changed words marked, and in the window's theme (the editor's
+background, the theme's green and red), so a theme switch redraws it. Further diffs reuse that tab
+while it is in the view you are in, and a change in the work tree redraws what it shows without
+blanking it first.
 
 The split button beside the branch, when the repository has a remote, publishes the branch, or (with
 an upstream) says `Pull 2` / `Push 1` when it is behind or ahead; its menu offers fetch, pull, push
@@ -76,17 +77,17 @@ and publish.
 | `date_format` | `relative` (3 days ago) or `absolute` (2025-10-09 08:53) |
 | `show_author` | whether the history names each commit's author |
 
-They are declared in `package.json`, so Settings shows them under *Packages → git*.
+They are declared in `package.json`, so Settings shows them on its page, *git*.
 
 ## How it works
 
 | file | |
 | --- | --- |
-| `src/main.ts` | the two views, what is posted to the window, the diff tab, the trigger, the events |
-| `src/panel.ts` | the repository of the current pane, its snapshot, the cursor, the draft, the actions |
+| `src/main.ts` | the two pages, what is posted to the window, the diff tab, the trigger, the events |
+| `src/panel.ts` | the repository of the current tab, its snapshot, the cursor, the draft, the actions |
 | `src/git.ts` | the git work: `Bun.spawn`, porcelain, the history, the diff's patches, stage/unstage/discard/ignore/resolve/commit/sync |
 | `src/tree.ts` | the changes as a path tree, and the group states its checkboxes read |
-| `src/ui.tsx` | what the page draws: the tabs, the rows, the commit box, the history, a row's menu, and the diff pane |
+| `src/ui.tsx` | what the page draws: the tabs, the rows, the commit box, the history, a row's menu, and the diff tab |
 | `src/time.ts` | "3 days ago", "2025-10-09 08:53" |
 | `src/state.ts` | the folded directories, kept per repository |
 | `src/watch.ts` | the watch on the work tree, and which of its paths matter |

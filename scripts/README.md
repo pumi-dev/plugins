@@ -1,7 +1,7 @@
 # scripts
 
 One page in the left sidebar for everything a repository can run — the scripts of every
-`package.json`, workspaces included, and its shell scripts — each run in a terminal beside the pane
+`package.json`, workspaces included, and its shell scripts — each run in a terminal beside the tab
 you are in.
 
 ```text
@@ -16,13 +16,13 @@ you are in.
 ```
 
 A click opens a terminal in that directory and types the script's line there, so the output is in a
-pane of its own and the page stays where it is. A row shows a **start** glyph while the mouse is
+tab of its own and the page stays where it is. A row shows a **start** glyph while the mouse is
 over it; the groups carry the glyph of what they hold (a box for a `package.json`, a terminal for a
 directory's shell scripts).
 
 ## The repository it lists
 
-From the current pane's directory up to the nearest one with a `.git` (or the directory itself),
+From the current tab's directory up to the nearest one with a `.git` (or the directory itself),
 the page walks four directories down (`max_depth`) and lists what it finds. `node_modules`, `.git`,
 `dist`, `build` and the other directories no one keeps scripts in are not walked into, nor are
 hidden or symlinked ones. Each package is a group folding its scripts away, headed by the path of
@@ -66,7 +66,7 @@ with no `#!` as `sh build.sh`. The script is named **to its shell**, never run a
 script without its executable bit still runs, and one with it runs the same. The name is quoted when
 a shell would read it differently (`"a b.sh"` becomes `'a b.sh'`).
 
-The page rescans when the current pane or its repository changes, when one of its options changes,
+The page rescans when the current tab or its repository changes, when one of its options changes,
 and on the ↻ button.
 
 ## Options
@@ -84,20 +84,19 @@ All of them are under **Scripts** in Settings.
 
 ## What it touches
 
-It reads the repository's files (`files`), and opens a terminal pane to run a script in
-(`processes`). It is a Bun package: it runs in a worker of its own, at startup
-(`activation: onStartup`), and puts its page in the sidebar — below the files page, titled
-**Scripts** — unless one is there already.
+It reads the repository's files (`files`), and opens a terminal tab to run a script in
+(`processes`). Its page is the manifest's `panel` slot, titled **Scripts**, so the side bar has it
+without the worker running; the worker (`src/main.ts`) answers what the page asks for.
 
 The page itself is [`script-panel`](../lib/script-panel): this package is the finder that says what
-a directory holds (`src/packages.ts` and `src/shells.ts`, joined in `src/read.ts`), and the export
+a directory holds (`src/packages.ts` and `src/shells.ts`, joined in `src/read.ts`), and the component
 the manifest's `contributes.slots.panel` names.
 
 ## Working on it
 
 ```sh
 bun test                          # the pure logic: no pumi running
-./node_modules/.bin/tsc --noEmit  # the types
+./node_modules/.bin/tsc --noEmit -p .  # the types
 ```
 
 `test/files.ts` writes the tests' temporary repositories. `test/packages.test.ts` is the package

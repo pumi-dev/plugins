@@ -38,30 +38,31 @@ work before its worker has ever run: `pumi call amresyd.palette.toggle` opens it
 The commands are what the app publishes about itself, read when the palette opens and again whenever
 they change:
 
-- `menu.list("")` — every menu the app and the packages put up: the header's buttons, a pane's strip,
-  the menu bar's menus. A leaf is a row; it runs the function it names, or opens the block it names.
-- `key.list("")` — every key table: the host's prefix keys, a package's own table, the `root` table
-  a manifest's `keys` land in. A binding whose right-hand side is a function is a row; it runs by
-  calling that function. The tables have no noun of their own in the SDK, so it is a `call`.
+- `registry.list("menu")` — every menu the app and the packages put up: the header's buttons, a
+  tab's strip, the menu bar's menus. A leaf is a row; it runs the function it names, or opens the
+  block it names.
+- `registry.list("key")` — every key binding: the host's prefix keys, a package's own table, the
+  `root` table a manifest's `keys` land in. A binding whose right-hand side is a function is a row;
+  it runs by calling that function.
 
-A key bound while the palette is open is not listed until it is opened again: the tables are read
-when it opens, and `menu.changed` re-reads them, but `key.changed` is gone, so a new key mapping no
-longer refreshes a palette that is up.
+A key bound while the palette is open is not listed until it is opened again: the bindings are read
+when it opens, and `registry.changed` for menus re-reads them, but a new key mapping does not
+refresh a palette that is up.
 
-The core plugin is handed the app's entire action list instead, which a package cannot have — see
-`docs/plan/ports/palette.md` in the pumi checkout for what that leaves out.
+The core palette is handed the app's entire action list instead, which a package cannot have, so a
+command that is neither in a menu nor bound to a key is not listed.
 
-The files are the directories under the project around the current pane's directory — the nearest
+The files are the directories under the project around the current tab's directory — the nearest
 `.git` above it — walked once when files mode opens, `.gitignore` and `.ignore` respected and `.git`
 skipped, and searched as they arrive.
 
-A chosen file opens as `pumi open` opens one (`pane.open` of a `file` block): in a file pane on the right of the
-current pane, drawn by the enabled plugin that fits it (the `monaco` editor, say). An image, a PDF,
+A chosen file opens as `pumi open` opens one (`tab.open` of a `file` block): in a file tab on the
+right of the current tab, drawn by the enabled plugin that fits it (the `monaco` editor, say). An image, a PDF,
 a video or an archive goes to the desktop instead, unless a viewer of its own kind is enabled.
 
 ## What it remembers
 
-Its own storage, kept by the server, three fields: how often each command ran (so a command you
+One option in its own `plugin` scope, kept by the server, with three fields: how often each command ran (so a command you
 reach for often comes first among equals), the queries that ran (what `↑` brings back, fifty of
 them), and the files opened lately (what an empty files search leads with, a hundred of them).
 

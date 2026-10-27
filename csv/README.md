@@ -1,6 +1,6 @@
 # csv
 
-A CSV file in a pumi pane, as a table: sort by a column, search across every cell, drag a divider to
+A CSV file in a pumi tab, as a table: sort by a column, search across every cell, drag a divider to
 make a column wider, press a cell to read all of it and copy it. It draws with
 [TanStack Table](https://tanstack.com/table) — the columns, the sorting, the filtering and the row
 model are its work; the drawing is the app's.
@@ -8,10 +8,10 @@ model are its work; the drawing is the app's.
 The plugin is a viewer, not a spreadsheet: it reads and never writes.
 
 ```sh
-pumi plugin add ./plugins/csv            # from the plugins checkout
-pumi open data.csv                      # a file pane on the right, drawn as a table
+pumi plugin add ./csv                   # from this repository's root
+pumi open data.csv                      # a file tab on the right, drawn as a table
 pumi call amresyd.csv.open              # or choose a file in a picker
-pumi call amresyd.csv.reload %7         # read the file pane %7 shows again
+pumi call amresyd.csv.reload %7         # read the file tab %7 shows again
 ```
 
 Its manifest's `renderers.file` claims `*.csv`, `*.tsv`, `*.tab`, `*.psv` and `*.dsv`, so a file with
@@ -38,8 +38,8 @@ characters) draws it instead, and `pumi registry list viewer --path data.csv` sa
   switch, kept.
 - **Rows are windowed** with the app's `<virtual-list>`: only those near the viewport are made, so a
   file of a hundred thousand rows draws as fast as one of ten.
-- **The file is followed**: a script that rewrites it makes the table read it again, and every view
-  of the same file follows. `Follow the file` turns that off; the title bar's ↺ and
+- **The file is followed**: a script that rewrites it makes the table read it again, and every tab
+  showing the same file follows. `Follow the file` turns that off; the title bar's ↺ and
   `CSV: read the file again` do it by hand.
 - **A cell is copied** from the line at the bottom: press it, and its whole value is on the
   clipboard, however narrow its column is.
@@ -68,11 +68,12 @@ src/parse.ts     the text as a table: the separator, the header, the records, wh
                  holds. Pure — no node, no pumi — and what `test/parse.test.ts` tests.
 src/layout.ts    how wide a column is and how the widths share a pane. Pure, and tested.
 src/main.ts      the worker: reads the file, watches it, says when it changed. The disk is here.
-src/ui.tsx       the file pane's renderer: TanStack Table's state, the search bar, the footer.
+src/ui.tsx       the file tab's renderer: TanStack Table's state, the search bar, the footer.
 src/ui/grid.tsx  the header (a sort, a divider drag) and the rows (windowed).
 ```
 
-`bun test` and `tsc --noEmit` run in the plugins checkout with nothing of the app running.
+`bun test` and `./node_modules/.bin/tsc --noEmit -p .` run here with nothing of the app running;
+the types need `bun install` first, for `@tanstack/react-table`.
 
 The table is `@tanstack/react-table`'s: `useReactTable` over one row per record, a column per field,
 `getCoreRowModel`, `getSortedRowModel` and `getFilteredRowModel`. It is headless, which is what the

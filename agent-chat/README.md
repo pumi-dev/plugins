@@ -62,8 +62,8 @@ shows, the TUI keeps running under it, and **Terminal** gives it back exactly as
   are read again every time a reader reads the conversation, at most every 15 s, so a new command
   file shows up without a reload. A command that opens a screen of the agent's own (`/model`,
   `/resume`, anything listed as `terminal`) shows the terminal once it is typed.
-- **Questions from the agent.** While a chat shows, the requests pumi holds for the tab
-  (`agent.request`) are drawn as permission cards and answered with `agent.answer`. That covers
+- **Questions from the agent.** While a chat shows, the permission requests pumi opens for the tab
+  (`request.opened`) are drawn as cards and answered with `request.close`. That covers
   Claude's permission prompts with Settings → "Answer permissions in pumi". When the agent is
   `blocked` with no request (it is asking in its own terminal), the chat says so and offers
   **Show the terminal**.

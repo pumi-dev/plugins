@@ -1,7 +1,7 @@
 # monaco
 
-A code editor for file panes: [Monaco](https://microsoft.github.io/monaco-editor/), VS Code's
-editor, in a page of the plugin's own, themed by the window. One page per pane holds a model per
+A code editor for file tabs: [Monaco](https://microsoft.github.io/monaco-editor/), VS Code's
+editor, in a page of the plugin's own, themed by the window. One page per tab holds a model per
 file it has opened, so going back to a file keeps its undo, its scroll and its unsaved edits.
 
 ```sh
@@ -9,23 +9,22 @@ pumi plugin add ./monaco     # or: pumi plugin dev ./monaco
 ```
 
 It has no block of its own: it draws the core's `file` block (`renderers.file`, matching `*`), so
-every file opened in a pane is drawn here unless an enabled viewer fits it better (`*.md` beats
-`*`), or the pane's `@pane_renderer` names another plugin.
+every file opened in a tab is drawn here unless an enabled viewer fits it better (`*.md` beats
+`*`), or the tab's `@tab_renderer` names another plugin.
 
 ## Open one
 
 ```sh
-pumi open src/main.rs                        # on the right of this pane; --split below, --tab @2
+pumi open src/main.rs                        # a file tab beside this one; --split down, --pane :4
 pumi open --line 42 src/main.rs              # at line 42
-pumi pane update %7 --options '{"@pane_renderer":"amresyd/monaco"}'   # this editor, whatever else fits it
-pumi call amresyd.monaco.save %7             # pane 7's file, to disk
+pumi option set @tab_renderer amresyd/monaco --scope tab --id %7   # this editor, whatever else fits it
+pumi call amresyd.monaco.save %7             # tab %7's file, to disk
 ```
 
-`pumi open` is `pane.open` of a `file` block (see `pumi help pane.open`): it shows the file in a file pane of
-the tab already showing it, else a new one. The pane's `path` option is the file (setting it
-opens that one there, and a pane comes back with it); `dirty` (`amresyd.monaco.dirty`) says the
-file has unsaved changes. `pane.call(pane, "read")` answers the file's text, and `"selection"`
-what is selected in it.
+`pumi open` is `tab.open` of the core's `file` block (see `pumi help tab.open`). The tab's `path`
+option is the file (setting it opens that one there, and a tab comes back with it); `dirty`
+(`amresyd.monaco.dirty`) says the file has unsaved changes. `tab.call(tab, "read")` answers the
+file's text, and `"selection"` what is selected in it.
 
 ## What it does
 
@@ -46,11 +45,11 @@ what is selected in it.
   the keyboard: `cmd+d`, `cmd+k …`, `cmd+/`, `cmd+[`, `cmd+]`, `cmd+enter`, `cmd+alt+up`/`down`
   (a cursor above/below), `cmd+alt+shift+arrows` (a column selection). `cmd+f`,
   `ctrl+g` and `F1` are Monaco's.
-- **Drops**: a file dragged from the project tree, or a `file://` URL, opens in the pane (its
-  `path` follows). Several open together, the last one shown. A pane dragged over it still
+- **Drops**: a file dragged from the project tree, or a `file://` URL, opens in the tab (its
+  `path` follows). Several open together, the last one shown. A tab dragged over it still
   splits as usual.
 - **Saving**: through `main.ts`, which writes the file (making its folder if it has to). The title
-  bar's dot (`pane.toolbar`) says the file is unsaved, and saves it when pressed.
+  bar's dot (the `Toolbar` component) says the file is unsaved, and saves it when pressed.
 - **The disk**: a file that changed on disk is read again when the page gets the focus or the file
   is shown again, unless it has unsaved edits here; the reload is one undo step.
 
@@ -83,9 +82,9 @@ blob. Nothing comes from the network at run time.
 - **Languages**: highlighting, brackets, comments and indentation for about 35 (`page/languages.ts`);
   a language service (diagnostics, completion, go to definition, formatting) only for JSON. The
   TypeScript, CSS and HTML services are left out for size: their workers are megabytes.
-- **One file shown per pane**: there are no tabs inside the pane. Another file opened there keeps
-  the first one's edits in the page, and `dirty` says only what the file shown is. Closing the pane
-  drops unsaved edits without asking: the app has no way for a block to hold a close.
+- **One file shown per tab**: another file opened in the same tab keeps the first one's edits in
+  the page, and `dirty` says only what the file shown is. Closing the tab drops unsaved edits
+  without asking: the app has no way for a block to hold a close.
 - Text files up to 16 MB, read as UTF-8; a byte-order mark is not written back. A file with a NUL
   byte in its first 8 KB is not opened.
 - macOS: web pages are drawn there only.
