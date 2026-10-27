@@ -1,6 +1,7 @@
 {
   "name": "pumi-perf",
   "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
   "description": "How the app is doing, floating in a corner of the window: CPU, memory, frames, core plugins and the busiest threads.",
   "type": "module",
   "main": "src/main.ts",

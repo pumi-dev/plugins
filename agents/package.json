@@ -1,6 +1,7 @@
 {
   "name": "pumi-agents",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "Tells an agent about the workspace it is in: a short guide to pumi, and a map of the sessions, tabs and panes around it — once, then only what changed. The sidebar is the app theme's.",
   "type": "module",
   "main": "src/main.ts",

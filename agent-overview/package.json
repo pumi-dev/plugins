@@ -1,6 +1,7 @@
 {
   "name": "pumi-agent-overview",
   "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
   "description": "Every agent in this pumi in one pane: who is working, who is blocked, and where.",
   "type": "module",
   "main": "src/main.ts",

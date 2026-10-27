@@ -1,6 +1,7 @@
 {
   "name": "pumi-gather",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "Gather as a UI theme: the window is a pixel-art office \u2014 wood floors, carpeted rooms for panes, agents as avatars with name tags.",
   "type": "module",
   "scripts": {

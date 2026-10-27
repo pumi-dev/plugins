@@ -1,6 +1,7 @@
 {
   "name": "pumi-agent-chat",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "A chat button on every Claude Code, Codex and pi tab: it flips the tab between the agent's own terminal and a rendered chat of the same live session.",
   "type": "module",
   "main": "src/main.ts",

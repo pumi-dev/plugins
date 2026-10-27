@@ -1,6 +1,7 @@
 {
   "name": "pumi-scripts",
   "version": "0.4.0",
+  "license": "GPL-3.0-or-later",
   "description": "A page in the left sidebar of everything a repository can run: the scripts of every package.json (workspaces included) and its shell scripts, each run in a terminal beside the current pane.",
   "type": "module",
   "main": "src/main.ts",

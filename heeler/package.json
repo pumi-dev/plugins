@@ -1,6 +1,7 @@
 {
   "name": "pumi-heeler",
   "version": "0.6.2",
+  "license": "GPL-3.0-or-later",
   "description": "Heeler's Host for pumi, on the machine's own SSH: a herdr session named pumi, the QR Pairing Code that enrolls a device, and Heeler's Agent Notifications and Live Activities.",
   "type": "module",
   "main": "src/main.ts",

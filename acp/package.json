@@ -1,6 +1,7 @@
 {
   "name": "pumi-acp",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "Coding agents over ACP (Agent Client Protocol) in panes of their own, drawn as a chat: Claude, Codex, pi, Gemini, OpenCode, Copilot or any ACP agent. Each pane is an agent like a terminal's, and its agent outlives the app.",
   "type": "module",
   "main": "src/main.ts",

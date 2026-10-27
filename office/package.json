@@ -1,6 +1,7 @@
 {
   "name": "pumi-office",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "Office as a UI theme: a pixel office you walk around, in Gather's style — a desk for every view (or every tab), its agent at it, and the plugins in the lobby.",
   "type": "module",
   "scripts": {

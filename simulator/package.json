@@ -1,6 +1,7 @@
 {
   "name": "pumi-simulator",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "An iOS Simulator in a pane: serve-sim streams it, a webview draws it, touches go back to the device.",
   "type": "module",
   "main": "src/main.ts",

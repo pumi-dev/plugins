@@ -1,6 +1,7 @@
 {
   "name": "pumi-pane-switcher",
   "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
   "description": "Alt-Tab for panes: a row of cards, each showing what its pane holds, to pick one.",
   "type": "module",
   "main": "src/main.ts",

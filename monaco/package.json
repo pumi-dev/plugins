@@ -1,6 +1,7 @@
 {
   "name": "pumi-monaco",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "A code editor for file panes: Monaco, VS Code's editor, in a page themed by the window, drawing every file the core's `file` block opens (`pumi open`), with a model per open file, saved through the plugin and dropped onto from the project tree.",
   "type": "module",
   "main": "src/main.ts",

@@ -1,6 +1,7 @@
 {
   "name": "pumi-nudge",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "A notification from the OS when an agent is blocked or done, so a long turn does not need the window watched.",
   "type": "module",
   "main": "src/main.ts",

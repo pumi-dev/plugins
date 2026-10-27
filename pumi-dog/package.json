@@ -1,6 +1,7 @@
 {
   "name": "pumi-dog",
   "version": "0.3.0",
+  "license": "GPL-3.0-or-later",
   "description": "A little pumi in the side bar: it walks its track, stops to wag and blink, and barks when you click it.",
   "type": "module",
   "main": "src/main.ts",

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// The test vectors for `humanizeActionName` are Zed's (crates/command_palette, GPL-3.0-or-later).
+//
 // The scoring: the core palette's own arithmetic exactly, and nucleo's as far as a port can go.
 import { expect, test } from "bun:test";
 import {

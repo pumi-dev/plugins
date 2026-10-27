@@ -1,6 +1,7 @@
 {
   "name": "pumi-tab-rename",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "Names each tab after what its agents are working on, with Apple's on-device model.",
   "type": "module",
   "main": "src/main.ts",

@@ -1,6 +1,7 @@
 {
   "name": "pumi-marmaide",
   "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
   "description": "Mermaid diagrams in a pane, drawn by Pele, with a tool an agent explains things with.",
   "type": "module",
   "main": "src/main.ts",

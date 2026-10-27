@@ -1,6 +1,7 @@
 {
   "name": "pumi-insert-path",
   "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
   "description": "Type / in a terminal and pick a file: a floating fuzzy picker that types the path in.",
   "type": "module",
   "main": "src/main.ts",

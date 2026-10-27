@@ -1,6 +1,7 @@
 {
   "name": "pumi-files",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "The project tree in the sidebar: the repository the current tab is in, its folders and files with git's marks, opened, renamed, trashed, dragged and filtered \u2014 and the file the cursor is on opened in your editor beside it.",
   "type": "module",
   "main": "src/main.ts",

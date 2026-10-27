@@ -1,6 +1,7 @@
 {
   "name": "pumi-palette",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "The command palette: cmd+shift+p runs any command there is, cmd+p finds a file in the project, the same fuzzy search the core palette makes.",
   "type": "module",
   "main": "src/main.ts",

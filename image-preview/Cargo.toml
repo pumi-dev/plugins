@@ -3,6 +3,7 @@ name = "image-preview"
 version = "0.1.0"
 edition = "2024"
 publish = false
+license = "GPL-3.0-or-later"
 description = "Rest the pointer on an image file's path in a terminal to see the image."
 
 # Not a workspace member yet: it is not ported (see README.md). Built as

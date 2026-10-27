@@ -1,6 +1,7 @@
 {
   "name": "pumi-kanban",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "A board of cards for pumi: write a brief, drag the card to start a coding agent on it in a pane of its own, and the board follows it — queued, in progress, needs you, done.",
   "type": "module",
   "main": "src/main.ts",

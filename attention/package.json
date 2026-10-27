@@ -1,6 +1,7 @@
 {
   "name": "pumi-attention",
   "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
   "description": "Says so when an agent is blocked and you are looking elsewhere; @attention counts them.",
   "type": "module",
   "main": "src/main.ts",

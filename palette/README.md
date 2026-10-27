@@ -71,7 +71,8 @@ them), and the files opened lately (what an empty files search leads with, a hun
 | --- | --- |
 | `src/main.ts` | what registers: the two commands, the block, and where the float goes |
 | `src/palette.ts` | the palette itself: its modes, its keys, its rows |
-| `src/score.ts` | the fuzzy matcher and the palette's own arithmetic |
+| `src/nucleo.ts` | the fuzzy matcher, ported from nucleo (MPL-2.0) |
+| `src/score.ts` | the palette's own arithmetic, and action names read as Zed's command palette reads them |
 | `src/files.ts` | the file index and the search over it |
 | `src/walk.ts` | the walk, and the `.gitignore` rules it obeys |
 | `src/vocabulary.ts` | the commands, from the menu tree and the key tables |

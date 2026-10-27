@@ -1,6 +1,7 @@
 {
   "name": "conversation",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "What agent-chat and acp share: the agent-agnostic conversation (Transcript, Change, Cursor, Command), the ACP mapping, and the chat drawn from it.",
   "type": "module",
   "scripts": {

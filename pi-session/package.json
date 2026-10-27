@@ -1,6 +1,7 @@
 {
   "name": "pumi-pi-session",
   "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
   "description": "Fork a pi session in a pane beside its own, and copy its id, path and directory: two buttons at the end of a pi pane's strip.",
   "type": "module",
   "main": "src/main.ts",

@@ -1,6 +1,7 @@
 {
   "name": "pumi-csv",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "A CSV viewer for pumi: comma (or tab, semicolon, pipe) separated files as a table you can sort, search, resize and copy from, drawn with TanStack Table in a file tab.",
   "type": "module",
   "main": "src/main.ts",

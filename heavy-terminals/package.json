@@ -1,6 +1,7 @@
 {
   "name": "pumi-heavy-terminals",
   "version": "0.3.0",
+  "license": "GPL-3.0-or-later",
   "description": "Notice terminals whose processes eat the machine, and put them to sleep: the foreground job is suspended as ctrl+z would, and woken with fg.",
   "type": "module",
   "main": "src/main.ts",

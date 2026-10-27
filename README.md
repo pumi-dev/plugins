@@ -62,3 +62,7 @@ cd <pkg> && ./node_modules/.bin/tsc --noEmit -p .   # its types
 
 What a package does with the API itself is exercised in the app, with
 `pumi plugin dev`.
+
+## License
+
+GPL-3.0-or-later; see [LICENSE](LICENSE). `palette/src/nucleo.ts` is MPL-2.0. Third-party code, including Zed's, is listed in [NOTICE](NOTICE).

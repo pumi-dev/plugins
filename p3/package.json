@@ -1,6 +1,7 @@
 {
   "name": "pumi-p3",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "P3 as a UI theme, after T3 Code: a quiet graphite window, every tab a thread in the side bar under its project, a breadcrumb over flat panes.",
   "type": "module",
   "scripts": {

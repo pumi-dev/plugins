@@ -1,5 +1,6 @@
 {
   "name": "pumi-plugins",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",
   "description": "The community packages: each folder is a pumi package (TypeScript on Bun).",

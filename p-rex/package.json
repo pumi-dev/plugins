@@ -1,6 +1,7 @@
 {
   "name": "pumi-p-rex",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "P-Rex as a UI theme: the terminals' own colours, a little see-through; views as a list down the side, the panes as cards or edge to edge.",
   "type": "module",
   "scripts": {

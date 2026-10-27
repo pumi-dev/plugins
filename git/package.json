@@ -1,6 +1,7 @@
 {
   "name": "pumi-git",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "The repository in the sidebar: the changes as a path tree — stage, unstage, discard, commit — the history, and a native diff tab in the window's theme, for whichever repository the current tab is in.",
   "type": "module",
   "main": "src/main.ts",

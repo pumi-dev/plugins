@@ -1,6 +1,7 @@
 {
   "name": "pumi-usage",
   "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
   "description": "How much of your AI plans you have left, in a section of the side bar: Claude, Codex, Copilot and OpenRouter, read with the sign-ins already on this Mac.",
   "type": "module",
   "main": "src/main.ts",
