@@ -232,7 +232,7 @@ class Model {
     this.selected = (((this.selected + direction) % count) + count) % count;
   }
 
-  /** ↑ and ↓ in the input: walking the commands history, as the core does, until a query is typed. */
+  /** ↑ and ↓ in the input: walking the history, as the core does, until a query is typed. */
   history(direction: number): boolean {
     if (this.mode !== "files" || !this.ready) return false;
     const said = this.store.history;

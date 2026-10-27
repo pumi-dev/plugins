@@ -60,7 +60,7 @@ test("a device hears the status it enabled, in its session, while its key is a N
   const dir = pluginDir(undefined, registration);
   expect(readDevices(dir, "pumi", "blocked").map((device) => device.token)).toEqual(["a", "b"]);
   expect(readDevices(dir, "pumi", "done").map((device) => device.token)).toEqual(["b", "d"]);
-  // An entry with no session predates scoping and hears the default session too.
+  // An entry with no session hears the default session too.
   expect(readDevices(dir, "", "blocked").map((device) => device.token)).toEqual(["b"]);
 });
 

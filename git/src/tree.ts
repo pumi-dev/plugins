@@ -3,7 +3,7 @@
 // while it holds nothing but the directory inside it (`src/core/git/src/tree.rs`).
 //
 // This file is the tree and nothing else: no git, no drawing. What a row is in the page — its
-// indent, its mark, its checkbox — is `changes.ts`.
+// indent, its mark, its checkbox — is `ui.tsx`.
 import type { Change, Group } from "./git.ts";
 
 /** A line of the tree: a directory, a file, or the note under a conflicted one. */

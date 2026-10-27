@@ -1,9 +1,9 @@
-// The plugin's own `authorized_keys`, edited atomically.
+// The account's `authorized_keys`, edited atomically.
 //
-// The file is the one the plugin's sshd reads (`AuthorizedKeysFile` in its config), not the account's
-// `~/.ssh/authorized_keys`: this server is the plugin's, and its keys live and die with it. Every
-// mutation takes an exclusive lock, then rewrites through a temp file and a rename, so a reader never
-// sees half a line and a crashed editor leaves at worst a lock that goes stale.
+// The file is the account's `~/.ssh/authorized_keys`, the one the machine's sshd reads: this plugin
+// runs no sshd of its own, so a Device Key lives there until the revoke takes it out. Every mutation
+// takes an exclusive lock, then rewrites through a temp file and a rename, so a reader never sees half
+// a line and a crashed editor leaves at worst a lock that goes stale.
 //
 // A Bootstrap Key's line carries a marker comment, `herdr-pairing:<id>:exp:<unix-seconds>`, so the
 // sweep and the ceremonies find their lines from the file alone.

@@ -54,10 +54,10 @@ export function Timeline({ transcript, pageSize = 60, onLink }: TimelineProps) {
 /**
  * Text as the chat draws it: a `<text>` a line, a plain paragraph's or a terminal's.
  *
- * TODO(api-server): `<markdown>`, `<diff>` and `<code>` are no longer elements the app draws
- * (`runtime/app/jsx-runtime.ts` lists `div`, `text`, `img`, `svg`, `terminal`, …), so an agent's
- * markdown, a tool's patch and a command's output are drawn as their plain text: no emphasis, no
- * links to press, no diff colours and no line numbers. `onLink` waits for the element to come back.
+ * `<markdown>`, `<diff>` and `<code>` are not elements the app draws (`runtime/app/jsx-runtime.ts`
+ * lists `div`, `text`, `img`, `svg`, `terminal`, …), so an agent's markdown, a tool's patch and a
+ * command's output are drawn as their plain text: no emphasis, no links to press, no diff colours
+ * and no line numbers. `onLink` waits for an element that draws them.
  */
 function Prose({ text, muted = false, mono = false, style }: { text: string; muted?: boolean; mono?: boolean; style?: Record<string, unknown> }) {
   const t = useTheme();

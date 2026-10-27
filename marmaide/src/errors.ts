@@ -1,5 +1,5 @@
 // The errors a caller sees: `pumi call` answers them as `{kind, message}`, and a pane shows the
-// message. The kinds are the Rust package's, so an agent's code that read them still can.
+// message. The kinds are the API's own, so an agent's code that reads one sees a name it knows.
 import { ApiError } from "pumi";
 
 export type ErrorKind = "invalid_params" | "not_found" | "render" | "io";

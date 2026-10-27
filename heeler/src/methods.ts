@@ -150,8 +150,8 @@ export const PUMI_METHODS: Method[] = [
   served("pumi.server.restart"),
   // The folders in a folder on the server's machine, for choosing where a space opens there.
   served("pumi.fs.dirs"),
-  // pumi's own tailnet node left with v1; this Host is the machine's SSH, and a tailnet is whatever
-  // Tailscale the machine runs beside it.
+  // pumi has no tailnet node: this Host is the machine's SSH, and a tailnet is whatever Tailscale
+  // the machine runs beside it.
   unsupported("pumi.tailnet.status", NO_TAILNET),
   unsupported("pumi.tailnet.login", NO_TAILNET),
   unsupported("pumi.tailnet.logout", NO_TAILNET),

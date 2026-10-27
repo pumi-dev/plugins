@@ -720,7 +720,7 @@ function Lobby({ width, setWidth }: { width: number; setWidth(w: number): void }
 
 /**
  * The bar along the foot, on the floor: your player card, the hotbar (new desk, decorate, the
- * lobby, settings, one desk per tab, the emotes), and the tray — the agents' counts and the
+ * lobby, one desk per tab, settings, the emotes), and the tray — the agents' counts and the
  * clock.
  */
 function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, onAgent }: { lobby: boolean; look: number; decorating: boolean; onLobby(): void; onLook(): void; onEmote(index: number): void; onDecorate(): void; onAgent(tab: string): void }) {

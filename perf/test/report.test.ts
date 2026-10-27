@@ -138,7 +138,7 @@ test("units read well", () => {
   expect([duration(1500), duration(2.5), duration(0.04)]).toEqual(["1.50s", "2.5ms", "40µs"]);
   expect([percent(14.4), percent(14.5)]).toEqual(["14%", "14%"]);
   expect([load(9), load(10), load(50)]).toEqual(["quiet", "busy", "hot"]);
-  // A tie goes to the even digit, as Rust's formatting wrote the numbers this overlay had.
+  // A tie goes to the even digit, as Rust's `{:.N}` formats it.
   expect(fixed(16.25, 1)).toBe("16.2");
   expect(fixed(16.35, 1)).toBe("16.4");
 });

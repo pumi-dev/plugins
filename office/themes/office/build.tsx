@@ -14,7 +14,7 @@ export const pieceArt = (kind: string) => art(`furniture/${kind}`)
 
 // ── The room's looks ────────────────────────────────────────────────────────────────────────
 
-/** The floors: Gather's (by day or by night, as the look is) and the office's old parquet. */
+/** The floors: Gather's (by day or by night, as the look is) and the office's own parquet. */
 export const FLOORS: { id: string; label: string; tile?: "wood" | "tile" | "carpet" | "rug"; src?: string; size: [number, number] }[] = [
   { id: "wood", label: "Planks", tile: "wood", size: [384, 192] },
   { id: "tile", label: "Tiles", tile: "tile", size: [128, 128] },

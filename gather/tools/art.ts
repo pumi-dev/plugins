@@ -263,7 +263,7 @@ const PANTS = ["#3a3f5c", "#5b4636", "#2c2c34", "#4a6d8c"]
 export const AVATARS = 12
 export type Facing = "down" | "up" | "left" | "right"
 
-/** Someone's look, `i`, facing `dir`, in walk frame `frame` (0 standing, 1 and 2 a step). */
+/** Someone's look, `i`, sitting at a desk: from the waist up, seen from behind. */
 function sitting(i: number): Sprite {
   const skin = SKIN[(i * 3) % SKIN.length]!
   return Sprite.of(SIT, {
@@ -274,6 +274,7 @@ function sitting(i: number): Sprite {
   })
 }
 
+/** Someone's look, `i`, facing `dir`, in walk frame `frame` (0 standing, 1 and 2 a step). */
 function avatar(i: number, dir: Facing = "down", frame = 0): Sprite {
   const style = (["short", "long", "bun"] as const)[i % 3]
   const front = { short: SHORT, long: LONG, bun: BUN }[style]

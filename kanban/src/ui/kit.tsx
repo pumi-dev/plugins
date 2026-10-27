@@ -1,5 +1,5 @@
-// The board's small parts: a colour token at an alpha, the press areas, the mark a lane and a card
-// wear, and the trail a working card leaves. Styles only, from the theme — never a literal colour.
+// The board's small parts: a colour token at an alpha, the press areas, and the mark a lane and a
+// card wear. Styles only, from the theme — never a literal colour.
 import { Icon, motion, useMetrics, useTheme, type Tokens } from "pumi";
 import type { ReactNode } from "react";
 

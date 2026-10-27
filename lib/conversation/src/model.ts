@@ -29,7 +29,7 @@ export type EntryKind = "user" | "agent" | "thought" | "tool" | "plan" | "notice
 
 /** One row of the timeline. The fields beside `kind` are the ones that kind has. */
 export interface Entry {
-  /** The producer's id, unique in the transcript (`newEntryId`). */
+  /** The producer's id, unique in the transcript. */
   id: string;
   kind: EntryKind;
   /** When it began, in ms since the epoch (Unix time). */

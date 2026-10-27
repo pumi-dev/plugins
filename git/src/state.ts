@@ -1,6 +1,6 @@
-// What the page keeps between runs: the directories a repository's tree has folded away. The core
-// plugin's `State` also held the commit message, the caret and the filter; an `input` holds its own
-// text and cursor now, and a draft is the panel's while it runs, so only the folding is written.
+// What the page keeps between runs: the directories a repository's tree has folded away. The commit
+// message, the caret and the filter are not kept: an `input` holds its own text and cursor, and a
+// draft is the panel's while it runs.
 import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 

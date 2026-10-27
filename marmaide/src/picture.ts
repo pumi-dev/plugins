@@ -1,6 +1,6 @@
 // What a pane draws: Pele's drawing, in the app's colours, written out as the SVG file the app's
-// own renderer paints at whatever size the pane gives it — the Rust rasterised the same SVG with
-// resvg inside the component, which a Bun worker has no way to do.
+// own renderer paints at whatever size the pane gives it: a Bun worker has no rasteriser to draw it
+// itself.
 //
 // The file is named by what is in it (its colours included), so a redrawn diagram is a new file:
 // the app keeps the image it loaded by name, and a new name is what tells it there is a new

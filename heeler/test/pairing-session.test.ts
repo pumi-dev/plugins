@@ -1,4 +1,4 @@
-// The plugin's authorized_keys and one pairing ceremony end to end, on a temporary directory.
+// The account's authorized_keys and one pairing ceremony end to end, on a temporary directory.
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

@@ -5,7 +5,7 @@ import * as rel from "./relpath.ts";
 
 /** Which comes first among a directory and a file. */
 export type SortMode = "directoriesFirst" | "mixed" | "filesFirst";
-/** How names of different case and script order. */
+/** How names of different case and script are ordered. */
 export type SortOrder = "default" | "upper" | "lower" | "unicode";
 
 /** The project panel's own: directories first, names naturally. */

@@ -792,7 +792,7 @@ function Pane({ pane: id, tabs, active, focused }: { pane: string; tabs: string[
 
 /**
  * One tab in a desk's tray: a press brings it to the front and gives its desk the focus, a press
- * with his right hand opens its menu, and a drag carries it along the tray, into another desk's,
+ * with the right hand opens its menu, and a drag carries it along the tray, into another desk's,
  * or onto a desk's edge. A tab dropped on it goes before it, or after it past its middle.
  */
 function PaneTab({ tab: id, pane, index, active, focused }: { tab: string; pane: string; index: number; active: boolean; focused: boolean }) {

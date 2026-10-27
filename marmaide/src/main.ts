@@ -1,7 +1,6 @@
 // marmaide: Mermaid diagrams in a pane, drawn by [Pele](https://pele.run) — kepano's renderer, the
 // small synchronous one Obsidian draws with. Pele is JavaScript and this package is TypeScript, so
-// it runs here, in the worker: the Rust package had to start `render.mjs` under a `bun` or `node`
-// it found on the machine, one process per diagram, and this one calls the renderer.
+// it runs here, in the worker, called directly: no process per diagram.
 //
 // Everything an agent needs is a provided function — `marmaide.draw`, `marmaide.render`,
 // `marmaide.save`, reachable as `pumi call <owner>.marmaide.draw …`:
@@ -110,10 +109,9 @@ async function asSvg(first: unknown, second: unknown) {
 /**
  * Writes a diagram's SVG — Pele's own, themeable anywhere — to a file, answering where it went.
  *
- * The file written is `out`; the shape this package has always had, `{source, path}`, writes its
- * `source` to `path`, so a caller that predates `out` still works. The app draws the diagram itself
- * as an SVG file too, but it cannot write its pixels out: a Bun worker has no rasteriser, and the
- * Rust package's was inside the component.
+ * The file written is `out`, or the `path` of a call that gives `{source, path}`: its `source` goes
+ * there. The app draws the diagram itself as an SVG file too, but it cannot write its pixels out: a
+ * Bun worker has no rasteriser.
  */
 async function saved(first: unknown, second: unknown) {
   const args = argsOf(first, second, "out");

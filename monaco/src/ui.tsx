@@ -104,7 +104,7 @@ export function Editor({ pane: model, focused }: RendererProps) {
   }, [handle, focused]);
 
   // What the worker asks of this pane's page: `amresyd.monaco.save` and the editor's commands come
-  // through it, since a block's methods are functions now.
+  // through it, since a block's methods run in the worker.
   useChannelListener("page", (asked: Asked) => {
     if (asked?.pane !== pane) return;
     if (asked.method === "save") tell("save()");

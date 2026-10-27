@@ -87,7 +87,7 @@ export function readConfig(dir: string): { relay: string; debounce: number; retr
   };
 }
 
-/** A registration entry's `session`: absent ones predate scoping and hear every session. */
+/** A registration entry's `session`: an entry without one hears every session. */
 export function deliversToSession(entry: Record<string, unknown>, session: string): boolean {
   return typeof entry.session !== "string" ? true : entry.session === session;
 }

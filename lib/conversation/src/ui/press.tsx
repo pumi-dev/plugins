@@ -1,6 +1,6 @@
-// A press: a `div` that acts like a button. The SDK used to give a `Button`; it does not any
-// more, so this is the same thing built from an element: the `button` role (or the one a list
-// wants, `option`), a tab stop, pressed by a click, Enter or Space.
+// A press: a `div` that acts like a button. The SDK has no `Button`, so this is one built from an
+// element: the `button` role (or the one a list wants, `option`), a tab stop, pressed by a click,
+// Enter or Space.
 import type { ReactNode } from "react";
 import type { EventPayload, KeyEvent, StyleDesc } from "pumi";
 

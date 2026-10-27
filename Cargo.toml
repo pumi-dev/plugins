@@ -4,7 +4,7 @@
 [workspace]
 resolver = "3"
 members = ["*/ui", "lib/*"]
-# Written against the v1 plugin shape; ported before it joins (see image-preview/README.md).
+# Not a member: it is written against the v1 plugin shape (see image-preview/README.md).
 exclude = ["image-preview"]
 
 [workspace.dependencies]
@@ -17,7 +17,6 @@ lto = true
 codegen-units = 1
 strip = true
 
-# Compiling a component is slow when the compiler's own dependencies are unoptimised.
 # Compiling a component is slow when the compiler's own dependencies are unoptimised.
 # No debug info either: `cargo build` (dev) lands in target/wasm32-wasip2/debug, which the app
 # already looks in, and it is where a rebuilt component is iterated.

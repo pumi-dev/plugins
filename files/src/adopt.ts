@@ -23,7 +23,7 @@ function sameRow(a: Row, b: Row): boolean {
 }
 
 /** The next view, keeping every row object of the last one that has not changed, so only the rows
- *  that did draw again; `null` (the clock found nothing new) keeps the view itself. */
+ *  that did change draw again; `null` (the clock found nothing new) keeps the view itself. */
 export function adopt(had: View | undefined, next: View | null): View | undefined {
   if (next === null) return had;
   if (!had) return next;

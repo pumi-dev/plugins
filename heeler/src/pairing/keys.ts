@@ -68,7 +68,7 @@ export function fingerprintPublicKeyLine(line: string): { keyType: string; finge
   return { keyType, fingerprint: `SHA256:${digest.replace(/=+$/, "")}` };
 }
 
-/** Host key files the plugin's sshd may use, the way OpenSSH prefers them. */
+/** Host key files the machine's sshd keeps, the way OpenSSH prefers them. */
 export const HOST_KEY_FILES = ["ssh_host_ed25519_key.pub", "ssh_host_ecdsa_key.pub", "ssh_host_rsa_key.pub"];
 
 /** The fingerprint of the first host key public half in `dir`, or nothing. */

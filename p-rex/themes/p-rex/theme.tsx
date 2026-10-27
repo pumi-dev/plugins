@@ -104,9 +104,6 @@ function fromPalette(p: TerminalPalette): Partial<Tokens> {
     "rex.trackRim": ink(0.08),
     "rex.tabFront": ink(0.11),
     "rex.dotRing": bg,
-    // The tiles a tab's program is shown on, and the glyph on them: a terminal's grey with its
-    // prompt in the text's colour, an agent's the text's colour with its mark in the background's,
-    // the rest the palette's colours.
     // A terminal's tile is slate with its prompt in green; an agent's is warm paper with its mark
     // in near black, whatever the palette is; a page's and a file's take the palette's colours.
     "rex.tile.terminal": toward(dark ? 0.17 : 0.09),

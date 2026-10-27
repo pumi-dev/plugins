@@ -10,7 +10,7 @@
 //
 // What is listed is what can be run from here: a menu item by calling the function it holds, a
 // binding the same. A menu item that opens a block of the app's own (`open`) has no way in from a
-// package, so it opens the block as a float of its own instead — see the report.
+// package, so it opens the block as a float of its own instead.
 import { call, option, registry, workspace } from "pumi";
 import { humanizeActionName } from "./score.ts";
 

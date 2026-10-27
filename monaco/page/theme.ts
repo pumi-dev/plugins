@@ -1,10 +1,10 @@
 // Monaco's theme, made from the window's. The text is the colour palette's, the one the terminals
 // are drawn in: its background, foreground, cursor and selection, and the code in its sixteen
 // colours (`palette.*`, which the app gives every page), so a file pane looks like the terminal
-// beside it whatever the theme paints around them. Without those it falls back to the theme's own tokens: the editor clear so the pane
-// shows through, and Monaco's syntax colours (`vs-dark` or `vs`, by how light `editor` is). The
-// widgets (find, suggestions, hovers) are the window's either way: its `surface`, `border` and
-// `accent`. Pure, so the tests read it without a page.
+// beside it whatever the theme paints around them. Without those it falls back to the theme's own
+// tokens: the editor clear so the pane shows through, and Monaco's syntax colours (`vs-dark` or
+// `vs`, by how light `editor` is). The widgets (find, suggestions, hovers) are the window's either
+// way: its `surface`, `border` and `accent`. Pure, so the tests read it without a page.
 
 /** The window's colour tokens, as `pumi.theme` gives them. */
 export type Tokens = Record<string, string>;

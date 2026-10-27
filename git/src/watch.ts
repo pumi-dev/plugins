@@ -9,8 +9,7 @@ import { join } from "node:path";
 export const DEBOUNCE = 300;
 
 /**
- * Calls `onChange` after a burst of writes anywhere under `root`. Gives back what stops it, which
- * the view owns: `cx.own(stop)`.
+ * Calls `onChange` after a burst of writes anywhere under `root`. Gives back what stops it.
  *
  * The whole tree is watched where the platform can (macOS), and the work tree's root with the
  * repository's own directory where it cannot (Linux has no recursive watch): a status sees the rest.
