@@ -119,8 +119,6 @@ its own.
 
 ## Reference
 
-- `~/Kitchen/pumi/AGENTS.md`: how pumi itself is put together.
-- `PORTING.md` here: the move to pumi's final API (names, manifest, SDK), for what is left
-  (`tmux/PORT.md`).
-- `~/Kitchen/pumi/runtime/app/template`: the smallest package.
-- `~/Kitchen/pumi/runtime/app/app/theme/default.tsx`: every slot drawn, and how.
+- `../pumi/docs/user/plugins.md`: the plugin API, the manifest and the SDK.
+- `../pumi/runtime/app/template`: the smallest package.
+- `../pumi/runtime/app/app/theme/default.tsx`: every slot drawn, and how.
