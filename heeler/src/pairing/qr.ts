@@ -46,3 +46,14 @@ function halfBlock(top: boolean, bottom: boolean): string {
 export function qrText(text: string, options: { errorCorrectionLevel?: "L" | "M" | "Q" | "H" } = {}): string {
   return qrRows(text, options).join("\n");
 }
+
+/**
+ * The code as modules, row by row (`true` dark), without the quiet zone: what Settings draws as a
+ * grid of cells. Square, so `matrix.length` is its width too.
+ */
+export function qrMatrix(text: string, options: { errorCorrectionLevel?: "L" | "M" | "Q" | "H" } = {}): boolean[][] {
+  const qr = QRCode.create(text, { errorCorrectionLevel: options.errorCorrectionLevel ?? "M" });
+  const size = qr.modules.size;
+  const data = qr.modules.data as Uint8Array;
+  return Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) => dark(data, size, x, y)));
+}

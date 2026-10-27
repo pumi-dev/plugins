@@ -1,12 +1,12 @@
-// The queue itself: the jobs, one at a time, each after the pane it waits for is done. The waiting
-// is pumi's own — a pane's `@agent.status` (OSC 7501, so an agent's turn), its
-// `pane_foreground_pgid` back to its shell (a plain command finished), `pane_dead` (its program
+// The queue itself: the jobs, one at a time, each after the tab it waits for is done. The waiting
+// is pumi's own — a tab's `@agent.status` (OSC 7501, so an agent's turn), its
+// `tab_foreground_pgid` back to its shell (a plain command finished), `tab_dead` (its program
 // exited) — and what the queue does with them is here.
 //
 // Every call is answered asynchronously, so `advance()` looks at the panes and is run one look at a
 // time: an event, a tick and a job's end all ask for the same thing, and two looks at once would
 // start a job twice.
-import { ApiError, option, request, self, workspace, type Pane } from "pumi";
+import { ApiError, option, request, self, workspace, type Tab } from "pumi";
 import {
   Armed,
   clock,
@@ -39,15 +39,15 @@ const armed = new Armed();
 
 // ---- what a pane says of itself
 
-/** The pane `at`, as the SDK's model of it. */
-function model(at: number): Pane | null {
-  return workspace.getPane(`%${at}`);
+/** The tab `at`, as the SDK's model of it. */
+function model(at: number): Tab | null {
+  return workspace.getTab(`%${at}`);
 }
 
-/** A pane's option, or `null` when it has none (or the app says no). */
+/** A tab's option, or `null` when it has none (or the app says no). */
 async function optionOf(at: number, name: string): Promise<unknown> {
   try {
-    return await option.get(name, { scope: "pane", id: `%${at}` });
+    return await option.get(name, { scope: "tab", id: `%${at}` });
   } catch {
     return null;
   }
@@ -64,44 +64,44 @@ async function numberOf(at: number, name: string): Promise<number | null> {
 }
 
 /**
- * A pane's facts, as the host keeps them: its program's report, whether it exited, and whether its
+ * A tab's facts, as the host keeps them: its program's report, whether it exited, and whether its
  * first process (its shell) has the terminal again.
  */
 async function factsOf(at: number): Promise<Facts> {
   const [status, dead, foreground, shell] = await Promise.all([
     textOf(at, "@agent.status"),
-    optionOf(at, "pane_dead"),
-    numberOf(at, "pane_foreground_pgid"),
-    numberOf(at, "pane_pid"),
+    optionOf(at, "tab_dead"),
+    numberOf(at, "tab_foreground_pgid"),
+    numberOf(at, "tab_pid"),
   ]);
   return { dead: dead === true, agent: parseAgent(status ?? ""), atRest: foreground !== null && foreground === shell };
 }
 
 async function exitOf(at: number): Promise<number | null> {
-  return numberOf(at, "pane_dead_status");
+  return numberOf(at, "tab_dead_status");
 }
 
-/** The panes there are. */
+/** The tabs there are. */
 async function panesNow(): Promise<number[]> {
   try {
-    const list = await workspace.panes();
-    return list.map((pane) => paneId(pane.id)).filter((at): at is number => at !== null);
+    const list = await workspace.tabs();
+    return list.map((tab) => paneId(tab.id)).filter((at): at is number => at !== null);
   } catch {
-    // No answer is no panes: a pane that closed, a look that came too late.
+    // No answer is no tabs: a tab that closed, a look that came too late.
     return [];
   }
 }
 
-/** Whether a pane is still there. */
+/** Whether a tab is still there. */
 async function present(at: number): Promise<boolean> {
   return (await panesNow()).includes(at);
 }
 
-/** The pane the queue runs jobs for, as its caller has it. */
-async function currentPane(): Promise<number> {
+/** The tab the queue runs jobs for, as its caller has it. */
+async function currentTab(): Promise<number> {
   try {
     await workspace.ready;
-    const at = workspace.currentPane;
+    const at = workspace.currentTab;
     return at === null ? 0 : (paneId(at.id) ?? 0);
   } catch {
     return 0;
@@ -258,13 +258,13 @@ async function start(job: Job): Promise<void> {
     return;
   }
   if (run.kind === "new") {
-    const cwd = job.cwd ?? (job.after ? await textOf(job.after.pane, "pane_current_path") : null);
+    const cwd = job.cwd ?? (job.after ? await textOf(job.after.pane, "tab_current_path") : null);
     const args: Record<string, unknown> = { command: job.command };
     if (cwd !== null) args.cwd = cwd;
     try {
-      const opened = await workspace.openPane("terminal", args, { kind: "tiled", split: "down", focus: false });
+      const opened = await workspace.openTab("terminal", args, { kind: "tiled", split: "down", focus: false });
       // Its output stays for the user when it is over, until the queue is cleared.
-      await option.set("remain_on_exit", await flag("keep", true), { scope: "pane", id: opened.id }).catch(() => undefined);
+      await option.set("remain_on_exit", await flag("keep", true), { scope: "tab", id: opened.id }).catch(() => undefined);
       const at = paneId(opened.id);
       job.opened = at;
       job.state = { kind: "running", pane: at, at: now };
@@ -355,7 +355,7 @@ export async function vanished(at: number): Promise<void> {
 /** Add a job (`queue.add`): what it is, and its id. */
 export async function addJob(args: unknown): Promise<number> {
   const id = nextId++;
-  const origin = await currentPane();
+  const origin = await currentTab();
   const job = parseJob(id, args, Date.now(), origin);
   if (job.after && !(await present(job.after.pane))) throw new ApiError("not_found", `no pane %${job.after.pane}`);
   jobs.push(job);

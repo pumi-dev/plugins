@@ -17,8 +17,8 @@ test("its options are declared for Settings, each with what it says", () => {
   expect(pumi.contributes.options.command.default).toBe("pi");
 });
 
-test("it contributes the buttons to the title bar of a pi pane", () => {
+test("it contributes the buttons to the title bar of a pi tab", () => {
   expect(pumi.name).toBe("pi-session");
-  expect(pumi.contributes.slots).toEqual({ "pane.toolbar": { view: "Toolbar" } });
+  expect(pumi.contributes.slots).toEqual({ "tab.toolbar": { component: "Toolbar" } });
   expect(pumi.contributes.blocks).toBeUndefined();
 });

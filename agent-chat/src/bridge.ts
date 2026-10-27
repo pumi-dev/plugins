@@ -1,4 +1,4 @@
-// One agent pane's conversation, as the chat has it: its session file followed into a `Producer`
+// One agent tab's conversation, as the chat has it: its session file followed into a `Producer`
 // (lib/conversation), the hook's `@agent.status` merged in, prompts typed into its terminal (or
 // queued behind the running turn), and the requests pumi holds for it (`request.open`) shown as
 // the conversation's. The TUI stays the session's only owner: this reads its file and types into
@@ -19,20 +19,20 @@ import { records, type Parser } from "./parse/common.ts";
 import { PiParser } from "./parse/pi.ts";
 import { assistantTimestamp, EMPTY, Live, liveFileOf, parseLive } from "./live.ts";
 import { Tail } from "./tail.ts";
-import { UPDATE, type Changed, type PaneUpdate } from "./topics.ts";
+import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 
-/** A permission a pane's agent asked for, as `request.opened` carries it. */
+/** A permission a tab's agent asked for, as `request.opened` carries it. */
 export interface Asked {
   request: string;
-  pane: string | null;
+  tab: string | null;
   kind: string;
   title: string;
   detail: string | null;
   options: unknown[];
 }
 
-/** The pane options a bridge follows: what the hooks set. */
-export interface PaneOptions {
+/** The tab options a bridge follows: what the hooks set. */
+export interface TabOptions {
   session?: string;
   transcript?: string;
   model?: string;
@@ -67,7 +67,7 @@ function parserFor(spec: AgentSpec): Parser {
 export class Bridge {
   readonly producer: Producer;
   #parser: Parser;
-  #options: PaneOptions;
+  #options: TabOptions;
   #file: string | undefined;
   #tail: Tail | undefined;
   #retry: ReturnType<typeof setTimeout> | undefined;
@@ -94,9 +94,9 @@ export class Bridge {
   #liveSeen = "";
 
   constructor(
-    readonly pane: number,
+    readonly tab: number,
     readonly spec: AgentSpec,
-    options: PaneOptions,
+    options: TabOptions,
     /** The most of a session file's end read at first, in bytes. */
     readonly history: () => number,
   ) {
@@ -112,7 +112,7 @@ export class Bridge {
     return this.producer.transcript;
   }
 
-  /** What brings a view at `since` up to now. */
+  /** What brings the chat at `since` up to now. */
   read(since?: Cursor): Update {
     if (Date.now() - this.#commandsAt > COMMANDS_FRESH) this.refreshCommands();
     return this.producer.read(since);
@@ -153,9 +153,9 @@ export class Bridge {
     this.producer.dispose();
   }
 
-  // ── The pane's options ──────────────────────────────────────────────────────────────────────
+  // ── The tab's options ──────────────────────────────────────────────────────────────────────
 
-  /** A hook changed one of the pane's options. */
+  /** A hook changed one of the tab's options. */
   optionChanged(name: string, value: unknown): void {
     const text = typeof value === "string" && value !== "" ? value : undefined;
     switch (name) {
@@ -171,7 +171,7 @@ export class Bridge {
         if (session && text && session.model !== text) this.#push({ type: "session", session: { ...session, model: text } });
         return;
       }
-      case "pane_current_path": {
+      case "tab_current_path": {
         // The agent moved: its mentions and its project's commands are the new directory's.
         if (!text || text === this.#options.cwd) return;
         this.#options.cwd = text;
@@ -370,20 +370,20 @@ export class Bridge {
       this.producer.push(change);
     } catch (err) {
       if (!(err instanceof ChangeError)) throw err;
-      console.warn(`agent-chat: pane ${this.pane}: ${err.message}`);
+      console.warn(`agent-chat: tab ${this.tab}: ${err.message}`);
     }
   }
 
   #publish(update: Update): void {
-    ui.post(UPDATE, { pane: this.pane, update } satisfies PaneUpdate);
-    // The conversation convention (`@agent.conversation`): `{pane, changes, cursor}`, and `from`
+    ui.post(UPDATE, { tab: this.tab, update } satisfies TabUpdate);
+    // The conversation convention (`@agent.conversation`): `{tab, changes, cursor}`, and `from`
     // for a reader that follows batch by batch. A snapshot (a new epoch) moves the cursor's epoch:
     // a reader reads again.
     const changed: Changed =
       update.type === "changes"
-        ? { pane: this.pane, changes: update.changes, cursor: update.to, from: update.from }
-        : { pane: this.pane, changes: [], cursor: cursorOf(update.transcript), from: null };
-    emit("conversation.changed", changed, { pane: `%${this.pane}` }).catch((err) => console.warn(`agent-chat: conversation.changed: ${err?.message ?? err}`));
+        ? { tab: this.tab, changes: update.changes, cursor: update.to, from: update.from }
+        : { tab: this.tab, changes: [], cursor: cursorOf(update.transcript), from: null };
+    emit("conversation.changed", changed, { tab: `%${this.tab}` }).catch((err) => console.warn(`agent-chat: conversation.changed: ${err?.message ?? err}`));
   }
 
   // ── Status ──────────────────────────────────────────────────────────────────────────────────
@@ -408,7 +408,7 @@ export class Bridge {
 
   // ── Commands ────────────────────────────────────────────────────────────────────────────────
 
-  /** A view's command: acted on once per id. */
+  /** The chat's command: acted on once per id. */
   async send(command: Command): Promise<Ack> {
     if (!this.#ledger.first(command.id)) return { id: command.id };
     switch (command.type) {
@@ -422,7 +422,7 @@ export class Bridge {
         return { id: command.id };
       }
       case "cancel":
-        await call("pane.call", `%${this.pane}`, "input", { text: this.spec.cancel });
+        await call("tab.call", `%${this.tab}`, "input", { text: this.spec.cancel });
         return { id: command.id };
       case "unqueue":
         this.#push({ type: "queue", queue: this.transcript.queue.filter((each) => each.id !== command.queued) });
@@ -472,13 +472,13 @@ export class Bridge {
     this.#syncStatus();
     try {
       for (const paste of pastes) {
-        await call("pane.call", `%${this.pane}`, "input", { paste });
+        await call("tab.call", `%${this.tab}`, "input", { paste });
         await Bun.sleep(IMAGE_DELAY);
       }
       const writes = promptWrites(text);
-      if (text !== "") await call("pane.call", `%${this.pane}`, "input", writes.body);
+      if (text !== "") await call("tab.call", `%${this.tab}`, "input", writes.body);
       await Bun.sleep(SUBMIT_DELAY);
-      await call("pane.call", `%${this.pane}`, "input", writes.submit);
+      await call("tab.call", `%${this.tab}`, "input", writes.submit);
       return { id };
     } catch (err) {
       this.#settled();
@@ -502,7 +502,7 @@ export class Bridge {
 
   // ── Requests (`request.open`) ───────────────────────────────────────────────────────────────
 
-  /** A request pumi holds for this pane: shown as the conversation's permission. */
+  /** A request pumi holds for this tab: shown as the conversation's permission. */
   requested(asked: Asked): void {
     const id = `request:${asked.request}`;
     if (this.#requests.has(id) || this.transcript.permissions.some((each) => each.id === id)) return;

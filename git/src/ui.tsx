@@ -8,7 +8,7 @@
 // whose unchanged rows are not drawn again, and the commit box keeps its own text. The repository,
 // the lines and every action are the worker's (`main.ts`, `panel.ts`, `tree.ts`).
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Icon, useChannel, useMetrics, usePane, usePlugin, useTab, useTheme, type RendererProps } from "pumi";
+import { Icon, useChannel, useMetrics, usePlugin, useTab, useTheme, type RendererProps } from "pumi";
 
 import {
   chose,
@@ -44,6 +44,12 @@ const FILTER_ROW = 34;
 const FIXED = 34 + 34 + 34 + 12 + FILTER_ROW + ROW * 3;
 /** A commit message line's height, in pixels. */
 const MESSAGE_LINE = 18;
+/** The page's height under which the commit box stops claiming its four rows and gives them, one at a
+ * time, back to the lines above: at `ROOMY` and taller it keeps all four, shorter than that it shrinks. */
+const ROOMY = 500;
+/** The room the message is charged for and does not have, so its four rows run out at `ROOMY` and not
+ * at the ~300 a page needs for them: a `ROOMY` page, less its four lines, less what is not the message. */
+const CLAIMED = ROOMY - FIXED - 4 * MESSAGE_LINE;
 /** A directory level's indent, and where its guide runs in it: under the middle of the folder icon. */
 const INDENT = 16;
 const GUIDE = 7;
@@ -75,12 +81,12 @@ function at(e: any): At {
   return { x: e?.x ?? 0, y: e?.y ?? 0 };
 }
 
-/** The `panel` slot's view. Only the focused pane's directory is read here, so a pane's title or
- * status changing draws nothing of the page. */
+/** The `panel` slot's component. Only the focused tab's directory is read here, so a tab's title
+ * or status changing draws nothing of the page. */
 export function Git() {
-  const focused = usePane(useTab()?.activePane?.id);
+  const focused = useTab();
   const prefix = usePrefix();
-  // A pane with no directory of its own (this plugin's diff, a page, nothing focused yet) is not
+  // A tab with no directory of its own (this plugin's diff, a page, nothing focused yet) is not
   // somewhere the user went: the page stays on the repository it was showing.
   const last = useRef<string | null>(null);
   const cwd = focused?.cwd;
@@ -578,7 +584,7 @@ function CommitBox({ view, menu, room }: { view: ChangesView; menu(where: At, it
   const t = useTheme();
   const [draft, setDraft] = useState(view.message);
   const [tall, setTall] = useState(false);
-  const fits = room === null ? Infinity : Math.max(1, Math.floor(room / MESSAGE_LINE));
+  const fits = room === null ? Infinity : Math.max(1, Math.floor((room - CLAIMED) / MESSAGE_LINE));
   const minRows = Math.min(tall ? 14 : 4, fits);
   const maxRows = Math.max(minRows, Math.min(tall ? 40 : 10, fits));
   const mode: CommitMode = view.staged > 0 || view.tracked === 0 ? "staged" : "tracked";
@@ -808,7 +814,7 @@ export function patchLines(patch: string): PatchLine[] {
   return lines;
 }
 
-/** This plugin's options carry its prefix (`amresyd.git.`), which is how the pane's own `diff` is
+/** This plugin's options carry its prefix (`amresyd.git.`), which is how the tab's own `diff` is
  * named in the state the window reads. */
 function usePrefix(): string {
   const id = usePlugin();
@@ -839,14 +845,14 @@ function summary(patch: string): { files: string[]; added: number; deleted: numb
   return { files, added, deleted };
 }
 
-/** A diff pane: what the page said to show (the pane's `diff` option), read through the worker and
+/** A diff tab: what the page said to show (the tab's `diff` option), read through the worker and
  * drawn here — its files' lines in the theme's own additions and deletions, each file header
  * folding the lines under it. What it drew stays up while the next read runs, so a change in the
  * work tree never blanks it. */
-export function Diff({ pane }: RendererProps) {
+export function Diff({ tab }: RendererProps) {
   const t = useTheme();
   const m = useMetrics();
-  const each = usePane(pane.id);
+  const each = useTab(tab.id);
   const prefix = usePrefix();
   const value = (each?.options?.[`${prefix}diff`] as string | undefined) ?? "";
   const spec = useMemo<Shown | null>(() => {

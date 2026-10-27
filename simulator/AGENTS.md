@@ -1,12 +1,11 @@
 # pumi-simulator
 
-An iOS Simulator in a pane. `src/main.ts` (the worker) owns `simctl` and one `serve-sim` per booted
+An iOS Simulator in a tab. `src/main.ts` (the worker) owns `simctl` and one `serve-sim` per booted
 device; `src/ui.tsx` draws serve-sim's preview page in a `<WebView>`.
 
-- **The pane's device** is the pane option `amresyd.simulator.udid` (`scope: "pane"`,
-  `blocks: ["device"]`), so `pane.open(BLOCK, { "amresyd.simulator.udid": udid }, place)` sets it.
-  The renderer reads it with `usePane(pane)?.options` — a renderer's `pane` prop is a `Ref`, which
-  has no options.
+- **The tab's device** is the tab option `amresyd.simulator.udid` (`scope: "tab"`,
+  `blocks: ["device"]`), so `tab.open(BLOCK, { "amresyd.simulator.udid": udid }, place)` sets it.
+  The renderer reads it with `useTab(tab)?.options` — a renderer's `tab` prop is the SDK's model.
 - **One streamer per device**, addressed by the state file serve-sim writes
   (`$TMPDIR/serve-sim/server-<udid>.json`). `stream()` adopts a live one, `launch()` starts one,
   `release()` schedules `stop()` after the `keepalive` option. Pids this worker started are

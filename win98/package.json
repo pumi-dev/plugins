@@ -17,6 +17,38 @@
     "api": 1,
     "themes": [
       "themes/win98"
-    ]
+    ],
+    "contributes": {
+      "options": {
+        "pane_titles": {
+          "type": "boolean",
+          "default": true,
+          "label": "Show pane title bars",
+          "desc": "A bar over each pane with its name and buttons, to drag it by.",
+          "group": "Panes"
+        },
+        "pane_equalize": {
+          "type": "boolean",
+          "default": true,
+          "label": "Even out splits automatically",
+          "desc": "Every pane in a tab gets an equal share as one opens or closes.",
+          "group": "Panes"
+        },
+        "animate": {
+          "type": "boolean",
+          "default": true,
+          "label": "Animate layout changes",
+          "desc": "Panes glide into place as they open, close, move and zoom.",
+          "group": "Motion and feedback"
+        },
+        "haptics": {
+          "type": "boolean",
+          "default": true,
+          "label": "Haptic feedback",
+          "desc": "A tap on a Force Touch trackpad as a switch turns or a slider steps. Nothing on a mouse.",
+          "group": "Motion and feedback"
+        }
+      }
+    }
   }
 }

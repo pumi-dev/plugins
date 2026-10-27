@@ -41,8 +41,6 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "The heeler Host: the machine's SSH (the port and `/etc/ssh` fingerprint a code pins), this account, the herdr session, and the pairing state.",
       effect: "read",
-      parameters: [],
-      examples: [{ args: [] }],
     },
     async () => ({
       plugin: { version: deps.version, prefix: deps.prefix, state: deps.state, configDir: deps.configDir },
@@ -57,8 +55,6 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "The Pairing surface: candidate addresses (the one to pre-check marked), the port, the host key fingerprint, the tailnet, and a live code's QR.",
       effect: "read",
-      parameters: [],
-      examples: [{ args: [] }],
     },
     () => deps.pairing.status(),
   );
@@ -68,8 +64,7 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "Mint the Pairing Code for these addresses (or the pre-checked ones) and answer the code, its QR as text rows, and when it expires.",
       effect: "write",
-      parameters: [["string[]", "addresses"]],
-      examples: [{ args: [["192.168.1.20", "100.108.208.21"]] }, { args: [] }],
+      paramsSchema: { type: "object", properties: { addresses: { type: "array", items: { type: "string" } } } },
     },
     (value: unknown) => deps.pairing.confirm(addressesOf(value)),
   );
@@ -79,8 +74,6 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "Check the live code: the device that just enrolled, an expiry, or still waiting.",
       effect: "read",
-      parameters: [],
-      examples: [{ args: [] }],
     },
     () => deps.pairing.poll(),
   );
@@ -90,8 +83,6 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "End the live pairing ceremony and remove its Bootstrap Key line.",
       effect: "write",
-      parameters: [],
-      examples: [{ args: [] }],
     },
     () => deps.pairing.cancel(),
   );
@@ -101,8 +92,6 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "Revoke the Device Key that just enrolled, removing its authorized_keys line.",
       effect: "write",
-      parameters: [],
-      examples: [{ args: [] }],
     },
     () => deps.pairing.revoke(),
   );
@@ -112,8 +101,6 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "Put the live Pairing Code on the clipboard, as the `c` key does in Heeler's pairing popup.",
       effect: "write",
-      parameters: [],
-      examples: [{ args: [] }],
     },
     async () => {
       const code = deps.pairing.code();
@@ -126,10 +113,9 @@ export function provideFunctions(deps: FunctionDeps): void {
   fn.set(
     "pair.qr",
     {
-      desc: "Draw any text as a QR, as text rows: the Tailscale sign-in URL, a Pairing Code, a link.",
+      desc: "Draw any text as a QR, as text rows: a Pairing Code, a URL, a link.",
       effect: "read",
-      parameters: [["string", "text"]],
-      examples: [{ args: ["https://login.tailscale.com/a/abc"] }],
+      paramsSchema: { type: "object", properties: { text: { type: "string" } } },
     },
     (text: unknown) => (typeof text === "string" ? { text, qr: qrRows(text) } : { error: "heeler.pair.qr needs text" }),
   );
@@ -139,8 +125,6 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "Re-probe the machine's SSH and refresh what the shim reads (after an SSH port change).",
       effect: "write",
-      parameters: [],
-      examples: [{ args: [] }],
     },
     () => deps.restartHost(),
   );
@@ -150,8 +134,6 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "The SSH host key's OpenSSH fingerprint, the one every Pairing Code pins.",
       effect: "read",
-      parameters: [],
-      examples: [{ args: [] }],
     },
     () => ({ fingerprint: deps.host().fingerprint ?? null }),
   );
@@ -161,8 +143,7 @@ export function provideFunctions(deps: FunctionDeps): void {
     {
       desc: "Say something in pumi's notifications, for a plugin's own checks.",
       effect: "write",
-      parameters: [["string", "text"]],
-      examples: [{ args: ["Heeler is ready to pair"] }],
+      paramsSchema: { type: "object", properties: { text: { type: "string" } } },
     },
     async (text: unknown) => {
       if (typeof text !== "string") return false;

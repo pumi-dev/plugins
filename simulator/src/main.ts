@@ -5,9 +5,9 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { homedir, tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { fn, option, paths, request, self, workspace, type Pane } from "pumi"
+import { fn, option, paths, request, self, workspace, type Tab } from "pumi"
 
-/** The pane option naming the device: what `pane.open`'s args set (`amresyd.simulator.udid`). */
+/** The tab option naming the device: what `tab.open`'s args set (`amresyd.simulator.udid`). */
 const UDID = self.plugin.prefixed("udid")
 /** The block this plugin defines: `amresyd.simulator.device`. */
 const BLOCK = self.plugin.prefixed("device")
@@ -29,7 +29,7 @@ export interface Device {
 
 export interface Stream {
   udid: string
-  /** The device's name, as simctl says it: what the pane's title becomes. */
+  /** The device's name, as simctl says it: what the tab's title becomes. */
   name: string
   /** serve-sim's preview page: the stream, and its toolbar and input, in one page. */
   url: string
@@ -164,19 +164,19 @@ export async function boot(wanted?: string): Promise<Device> {
   return { ...device, state: "Booted" }
 }
 
-// The streamer: one serve-sim per booted device, alive while a pane shows it.
+// The streamer: one serve-sim per booted device, alive while a tab shows it.
 
-/** Which devices have a pane showing them, and how many. */
+/** Which devices have a tab showing them, and how many. */
 const holding = new Map<string, number>()
 /** The serve-sim we started, by device. */
 const children = new Map<string, Bun.Subprocess>()
 /** The helper's pid per device, kept on disk so a reload kills what it started. */
 const ours = new Map<string, number>()
-/** A start in flight, so two panes opening at once share one helper. */
+/** A start in flight, so two tabs opening at once share one helper. */
 const starting = new Map<string, Promise<Stream>>()
 /** What each device's streamer said, for when it does not come up. */
 const logs = new Map<string, string[]>()
-/** A pending stop, for the pane that closes and opens again a moment later. */
+/** A pending stop, for the tab that closes and opens again a moment later. */
 const stopping = new Map<string, ReturnType<typeof setTimeout>>()
 let recovered: Promise<void> | undefined
 
@@ -403,7 +403,7 @@ export async function stop(udid: string, force = false): Promise<void> {
   } catch {}
 }
 
-/** A pane showing the streamer is done with it: stop it once the keepalive runs out. */
+/** A tab showing the streamer is done with it: stop it once the keepalive runs out. */
 export async function release(udid: string): Promise<void> {
   const left = (holding.get(udid) ?? 1) - 1
   if (left > 0) {
@@ -465,23 +465,23 @@ export async function screenshot(wanted?: string, open = true): Promise<string> 
   const path = join(paths.cache, `${device.name.replace(/[^\w.-]+/g, "_")}-${Date.now()}.png`)
   const ran = await simctl(["io", device.udid, "screenshot", "--type=png", path], 60_000)
   if (ran.code !== 0 || !existsSync(path)) throw new Error(firstLine(ran.err) || `could not take a screenshot of ${device.name}`)
-  if (open) await workspace.openPane("file", { path }, { kind: "tiled", split: "right" })
+  if (open) await workspace.openTab("file", { path }, { kind: "tiled", split: "right" })
   return path
 }
 
-/** Opens a pane with a device in it, booting it first. */
-export async function open(wanted?: string): Promise<Pane> {
+/** Opens a tab with a device in it, booting it first. */
+export async function open(wanted?: string): Promise<Tab> {
   const device = await pick(wanted)
   if (device.state !== "Booted") {
     void request.open({ kind: "notification", title: `Simulator: booting ${device.name}…` })
     await boot(device.udid)
   }
-  return workspace.openPane(BLOCK, { [UDID]: device.udid }, { kind: "tiled", split: "right", size: "45%" })
+  return workspace.openTab(BLOCK, { [UDID]: device.udid }, { kind: "tiled", split: "right", size: "45%" })
 }
 
 // What the plugin registers.
 
-fn.set("open", { desc: "Open a booted simulator in a pane beside this one." }, async () => {
+fn.set("open", { desc: "Open a booted simulator in a tab beside this one." }, async () => {
   await open()
 })
 
@@ -492,7 +492,7 @@ fn.set("stop", { desc: "Stop every simulator stream this plugin runs." }, async 
   void request.open({ kind: "notification", title: `Simulator: stopped ${udids.size === 1 ? "the stream" : `${udids.size} streams`}` })
 })
 
-fn.set("screenshot", { desc: "A PNG of a booted simulator's screen, shown in a pane." }, async () => {
+fn.set("screenshot", { desc: "A PNG of a booted simulator's screen, shown in a tab." }, async () => {
   await screenshot()
 })
 

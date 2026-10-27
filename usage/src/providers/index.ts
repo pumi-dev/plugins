@@ -1,4 +1,4 @@
-// Every plan the bar can show, in the order it lists them. Adding one is a module beside this and
+// Every plan the panel can show, in the order it lists them. Adding one is a module beside this and
 // a line here, plus its option in the manifest.
 
 import { claude } from "./claude.ts";

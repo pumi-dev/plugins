@@ -347,12 +347,12 @@ export class Panel {
     await this.refresh();
   }
 
-  /** Opens a file of the work tree in a pane beside the current one, without taking the keyboard. */
+  /** Opens a file of the work tree in a pane beside the current tab, without taking the keyboard. */
   async open(path: string): Promise<void> {
     const root = this.root;
     if (root === null) return;
     try {
-      await workspace.openPane("file", { path: `${root}/${path}` }, { kind: "tiled", split: "right", focus: false });
+      await workspace.openTab("file", { path: `${root}/${path}` }, { kind: "tiled", split: "right", focus: false });
     } catch (err) {
       this.say(false, `open failed: ${message(err)}`);
       this.changed();

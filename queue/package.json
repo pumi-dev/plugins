@@ -35,8 +35,8 @@
         }
       },
       "slots": {
-        "pane.strip": {
-          "view": "Bar"
+        "tab.strip": {
+          "component": "Bar"
         }
       }
     },

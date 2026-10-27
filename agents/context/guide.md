@@ -17,8 +17,8 @@ Open a pane next to you (none of these takes the user's focus):
   pumi pane open terminal '{"command":["make","test"]}' --split right --no-focus
                                        run a command beside you (`--split below`: under you);
                                        prints its id
-  pumi pane open amresyd.browser.page '{"url":"<address>"}' --split right --no-focus
-                                       a web page, when the browser package is installed
+  pumi pane open pumi.browser.page '{"url":"<address>"}' --split right --no-focus
+                                       a web page, while the bundled browser plugin is on
   pumi open <file>                     show a file on your right, in the viewer that fits it
                                        (`--split below`, `--tab @2`, `--line N`;
                                        `pumi registry list viewer --path <file>` lists the viewers)

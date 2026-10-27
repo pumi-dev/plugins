@@ -1,10 +1,10 @@
 // The page itself, in the window's React tree: a toolbar saying what is there, then a group per
-// directory that folds, each item run in a terminal beside the current pane. It follows the pane in
+// directory that folds, each item run in a terminal beside the current tab. It follows the tab in
 // focus (its directory is what is listed) and re-reads when one of the package's options changes;
 // the walk and the running are the package's `main.ts`'s, answered as data: `load` and `run` come
 // from it as props, since a library's `main.ts` is not a page of its own.
 import { useEffect, useRef, useState } from "react";
-import { Icon, useEvent, useHover, useMetrics, usePane, usePlugin, useTab, useTheme } from "pumi";
+import { Icon, useEvent, useHover, useMetrics, usePlugin, useTab, useTheme, useView } from "pumi";
 
 import type { Group, Item, Page } from "./main.ts";
 import { shortDetail, splitLabel } from "./text.ts";
@@ -52,8 +52,8 @@ function plural(n: number, noun: string): string {
 export function ScriptPage({ load, run, options = [], noun = "script" }: ScriptPageProps) {
   const t = useTheme();
   const m = useMetrics();
-  const focused = usePane(useTab()?.activePane?.id);
-  // A pane with no directory of its own yet (a tab just opened) is not somewhere the user went:
+  const focused = useTab(useView()?.activeTab?.id);
+  // A tab with no directory of its own yet (one just opened) is not somewhere the user went:
   // the page stays where it was rather than reading `/` and then reading it all again.
   const last = useRef<string | null>(null);
   if (focused?.cwd && focused.cwd !== "/") last.current = focused.cwd;
@@ -70,7 +70,7 @@ export function ScriptPage({ load, run, options = [], noun = "script" }: ScriptP
   const [reading, setReading] = useState(false);
   /** The groups folded away, by label. */
   const [folded, setFolded] = useState<string[]>([]);
-  /** Bumped by Rescan: it reads again whatever the pane and the options say. */
+  /** Bumped by Rescan: it reads again whatever the tab and the options say. */
   const [again, setAgain] = useState(0);
 
   useEffect(() => {

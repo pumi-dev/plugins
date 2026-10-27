@@ -7,7 +7,7 @@ import { GATHER } from "./window.tsx"
 
 export default defineTheme({
   name: "Gather",
-  description: "A top-down pixel game in Gather's office: panes are rooms you walk between, agents sit at their desks, tabs are a hotbar.",
+  description: "A top-down pixel game in Gather's office: views are rooms you walk between, agents sit at their desks, each desk keeps its tabs in a tray.",
   // Day or night is the theme's own setting (`contributes.options.appearance`).
   appearance: { option: "appearance" },
   colors: {

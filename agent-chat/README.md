@@ -1,6 +1,6 @@
 # agent-chat
 
-A chat button in the title bar of every Claude Code, Codex and pi (or omp) pane. It flips the pane in
+A chat button in the title bar of every Claude Code, Codex and pi (or omp) tab. It flips the tab in
 place between the agent's own terminal and a rendered chat of the same live session, and back.
 
 ```text
@@ -22,13 +22,13 @@ shows, the TUI keeps running under it, and **Terminal** gives it back exactly as
 ## How it works
 
 - **The renderer.** The chat is the manifest's `renderers.terminal` (`ui.tsx` `Chat`): a
-  renderer of the `terminal` block, drawn for one pane while its `@pane_renderer` option names
+  renderer of the `terminal` block, drawn for one tab while its `@tab_renderer` option names
   this plugin (`amresyd/agent-chat`). The terminal keeps running under it, untouched, and shows
-  again as it was when the option goes. The option is kept with the pane, so a pane that showed
-  the chat shows it again after a restart, read again from its file. A terminal pane with no agent
+  again as it was when the option goes. The option is kept with the tab, so a tab that showed
+  the chat shows it again after a restart, read again from its file. A terminal tab with no agent
   the chat reads is drawn as the terminal it is.
 - **Reading.** The session file is `@agent.transcript` when the agent's hook gave it. Otherwise it
-  is worked out from `@agent.session` and the pane's directory (`src/locate.ts`):
+  is worked out from `@agent.session` and the tab's directory (`src/locate.ts`):
   - Claude: `~/.claude/projects/<encoded cwd>/<id>.jsonl`, falling back to any project folder,
     since a resumed session stays where it began.
   - Codex: `~/.codex/sessions/**/rollout-*<id>.jsonl`.
@@ -59,27 +59,27 @@ shows, the TUI keeps running under it, and **Terminal** gives it back exactly as
 - **Commands by `/`.** The list holds the agent's own commands (`src/commands.ts`, per agent) and
   the ones made of files: Claude's `.claude/commands` and skills, Codex's `~/.codex/prompts`,
   pi's prompt templates and skills (`~/.pi/agent`, `~/.agents/skills`, the project's own). Those
-  are read again every time a view reads the conversation, at most every 15 s, so a new command
+  are read again every time a reader reads the conversation, at most every 15 s, so a new command
   file shows up without a reload. A command that opens a screen of the agent's own (`/model`,
   `/resume`, anything listed as `terminal`) shows the terminal once it is typed.
-- **Questions from the agent.** While a chat shows, the requests pumi holds for the pane
+- **Questions from the agent.** While a chat shows, the requests pumi holds for the tab
   (`agent.request`) are drawn as permission cards and answered with `agent.answer`. That covers
   Claude's permission prompts with Settings → "Answer permissions in pumi". When the agent is
   `blocked` with no request (it is asking in its own terminal), the chat says so and offers
   **Show the terminal**.
-- **Serving the conversation.** Every agent pane it reads gets `@agent.conversation` set to this
+- **Serving the conversation.** Every agent tab it reads gets `@agent.conversation` set to this
   package, unless another package already serves it. Then anything can read the conversation and
   send to it:
-  - `<prefix>conversation.read(pane, since?)`
-  - `<prefix>conversation.send(pane, command)`
-  - the `<prefix>conversation.changed` event, which carries `{pane, changes, cursor, from}`
+  - `<prefix>conversation.read(tab, since?)`
+  - `<prefix>conversation.send(tab, command)`
+  - the `<prefix>conversation.changed` event, which carries `{tab, changes, cursor, from}`
     (`from` is `null` for a new epoch: read again).
 
 ## Options
 
 These are under **Agent chat** in Settings; their full names start with `amresyd.agent_chat.`.
 
-- `key`: a chord that flips the focused agent pane, in the root key table. Empty by default; the
+- `key`: a chord that flips the focused agent tab, in the root key table. Empty by default; the
   title bar's button and the `toggle` command work regardless.
 - `history_mb`: how much of a session file's end is read when the chat opens. Default 4, from 1 to
   64.
@@ -97,7 +97,7 @@ These are under **Agent chat** in Settings; their full names start with `amresyd
   picker takes it from there.
 - The `@` list walks the agent's directory on its first use, so a very big tree fills in a moment
   after the first few keys.
-- Requests are only heard while some pane shows the chat. With none showing, an agent's hook gets
+- Requests are only heard while some tab shows the chat. With none showing, an agent's hook gets
   `null` from pumi at once and asks in its own terminal.
 - An agent that never reports its status (no hook) is taken to be ready 15 s after a prompt, so a
   queued prompt may arrive while it still works.

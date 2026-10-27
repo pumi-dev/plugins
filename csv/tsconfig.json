@@ -10,8 +10,6 @@
       "bun"
     ],
     "strict": true,
-    // The SDK is the app's own sources, checked with this off (their napi callbacks are untyped);
-    // a package that reads them with it on reports the app's callbacks, not its own.
     "noImplicitAny": false,
     "noEmit": true,
     "allowImportingTsExtensions": true,
@@ -33,6 +31,8 @@
     "jsxImportSource": "pumi"
   },
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "page",
+    "web"
   ]
 }

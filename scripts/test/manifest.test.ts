@@ -33,12 +33,12 @@ test("both kinds of script are listed until they are turned off", () => {
   expect(options.sort).toMatchObject({ default: "path", choices: ["path", "scripts"] });
 });
 
-test("it contributes one page to the side bar, and no pane of its own", () => {
+test("it contributes one page to the side bar, and no tab of its own", () => {
   expect(pumi.name).toBe("scripts");
   expect(pumi.owner).toBe("amresyd");
   expect(pumi.api).toBe(1);
   expect(pumi.uses).toEqual(["files", "processes"]);
-  expect(pumi.contributes.slots).toEqual({ panel: { view: "Scripts", title: "Scripts", icon: "code" } });
+  expect(pumi.contributes.slots).toEqual({ panel: { component: "Scripts", title: "Scripts", icon: "code" } });
   expect(pumi.contributes.points).toBeUndefined();
   // Its page is `script-panel`'s: the library is a dependency, not a copy of it.
   expect(manifest.dependencies).toEqual({ "script-panel": "file:../lib/script-panel" });

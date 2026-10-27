@@ -29,7 +29,7 @@ export const AGENTS: Record<string, AgentSpec> = {
   omp: { id: "omp", label: "omp", format: "pi", cancel: "\x1b", images: "text", home: ".omp/agent" },
 };
 
-/** The agent a pane's `@agent` names, when the chat can bridge it. */
+/** The agent a tab's `@agent` names, when the chat can bridge it. */
 export function agentSpec(agent: unknown): AgentSpec | undefined {
   return typeof agent === "string" ? AGENTS[agent] : undefined;
 }

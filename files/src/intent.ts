@@ -1,7 +1,7 @@
 // What a gesture of the panel comes to, and what carrying it out does: core/files' `Intent` and
 // `carry_out` (`lib.rs`). The panel decides, this file acts — files on disk, the clipboard, and
-// opening a file: in a file pane (`pane.open("file", …)`, drawn by whichever plugin fits it), a terminal pane
-// running the user's editor, or whatever app owns it.
+// opening a file: in a file tab (`tab.open("file", …)`, drawn by whichever plugin fits it), a
+// terminal tab running the user's editor, or whatever app owns it.
 import { dirname } from "node:path";
 import { self, workspace } from "pumi";
 import type { Transfer } from "./ops.ts";
@@ -94,9 +94,9 @@ function opensAfter(panel: Panel, intent: Intent): string | null {
 }
 
 /**
- * Opens `rel` as the `open_with` option says, split on the right of the pane whose directory the
- * tree follows: in a file pane (`pane.open("file", …)`, drawn by the plugin that fits it), the
- * user's editor in a terminal pane, or the system's app.
+ * Opens `rel` as the `open_with` option says, split on the right of the tab whose directory the
+ * tree follows: in a file tab (`tab.open("file", …)`, drawn by the plugin that fits it), the
+ * user's editor in a terminal tab, or the system's app.
  */
 export async function openFile(panel: Panel, rel: string): Promise<void> {
   if (panel.settings.openWith === "system") {
@@ -120,8 +120,8 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
   const editor = panel.settings.editor.trim();
   const command = editor === "" ? `"\${EDITOR:-vi}" ${quote(path)}` : `${editor} ${quote(path)}`;
   try {
-    if (panel.settings.openWith === "pane") await workspace.openPane("file", { path }, place);
-    else await workspace.openPane("terminal", { command, cwd: dirname(path) }, place);
+    if (panel.settings.openWith === "pane") await workspace.openTab("file", { path }, place);
+    else await workspace.openTab("terminal", { command, cwd: dirname(path) }, place);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
     console.error(`${self.plugin.prefix}: cannot open ${path}: ${why}`);
@@ -130,19 +130,19 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
   }
 }
 
-/** A file in a tab of its own: the file pane of this session that shows it already, brought
- *  forward, else a new tab holding a file pane of it. */
+/** A file in a view of its own: the file tab of this session that shows it already, brought
+ *  forward, else a new view holding a file tab of it. */
 async function openInTab(path: string): Promise<void> {
   await workspace.ready;
   const here = workspace.currentSession?.id ?? null;
-  const panes = await workspace.panes(here === null ? { block: "file" } : { session: here, block: "file" });
-  for (const each of panes) {
+  const tabs = await workspace.tabs(here === null ? { block: "file" } : { session: here, block: "file" });
+  for (const each of tabs) {
     if ((each.options ?? {})["path"] !== path) continue;
-    await each.tab?.focus();
+    await each.view?.focus();
     await each.focus();
     return;
   }
-  await workspace.openPane("file", { path }, { kind: "tab" });
+  await workspace.openTab("file", { path }, { kind: "view" });
 }
 
 /** A path as one shell argument, in single quotes. */

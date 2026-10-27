@@ -41,10 +41,9 @@ Read without running anything: `name`, `owner` (its id is `owner/name`, its pref
   functions now: there is no `command.run`.
 - `contributes.keys` — default keys, each naming a command (a function name).
 - `contributes.slots` — `view` (a `ui.tsx` export) and/or `actions` (`{id, title, icon, command}`),
-  keyed by the window's slots: `window.titlebar`, `window.overlay`, `session.header`,
-  `session.menu`, `tab.actions`, `tab.badge`, `tab.menu`, `pane.toolbar`, `pane.strip`,
-  `pane.overlay`, `pane.menu`, `agent.controls`, `agent.footer`, `agent.menu`, `panel`, `status`,
-  `palette.actions`.
+  keyed by the window's slots: `window.overlay`, `session.header`, `session.menu`, `tab.actions`,
+  `tab.badge`, `tab.menu`, `pane.toolbar`, `pane.strip`, `pane.overlay`, `pane.menu`,
+  `agent.controls`, `agent.footer`, `agent.menu`, `panel`, `palette.actions`.
 - `contributes.blocks` — `{id, title, icon, version, strategy, methods}`: `board` is
   `owner.name.board`, drawn by the `ui.tsx` export `Board` with `{pane, block, focused}`. Its
   `methods` are what `pane.call` reaches on its panes.

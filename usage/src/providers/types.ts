@@ -38,7 +38,7 @@ export type ProviderId = "claude" | "codex" | "copilot" | "openrouter";
 
 export interface Provider {
   id: ProviderId;
-  /** Its name in the bar and the panel. */
+  /** Its name in the panel. */
   name: string;
   /** The secret option it takes when the machine has no sign-in of its own. */
   key?: string;

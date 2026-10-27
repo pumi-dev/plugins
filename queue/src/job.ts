@@ -39,13 +39,13 @@ export function parseAgent(word: string): Agent | null {
   }
 }
 
-/** What a pane says of itself, as the host keeps it. */
+/** What a tab says of itself, as the host keeps it. */
 export interface Facts {
-  /** Its program exited (`pane_dead`). */
+  /** Its program exited (`tab_dead`). */
   dead: boolean;
   /** What it reported it is doing (`@agent.status`), if anything. */
   agent: Agent | null;
-  /** Its shell has the terminal (`pane_foreground_pgid == pane_pid`). */
+  /** Its shell has the terminal (`tab_foreground_pgid == tab_pid`). */
   atRest: boolean;
 }
 

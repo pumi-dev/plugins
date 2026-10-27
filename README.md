@@ -14,7 +14,7 @@ draws in the window; both `import … from "pumi"`.
 | `heavy-terminals` | Finds terminals using too much CPU or memory and suspends their job (`HeavyWake` resumes it) | nothing: `@heavy`, a notice, `HeavySleep`/`HeavyWake` |
 | `scripts` | Every `package.json` script in the current repository, workspaces included, and every shell script beside them; click to run. Which kinds are listed is an option, both on by default | a section of the side bar (`panel`) |
 | `pi-session` | Buttons on every pi pane's strip: Fork opens `pi --fork <session>` beside it, Copy copies the session | buttons in the strip (`pane.strip`) on pi panes |
-| `pumi-dog` | A little dog walking along the status bar | a dog in the status bar (`status`) |
+| `pumi-dog` | A little dog walking along its track | a section of the side bar (`panel`) |
 | `insert-path` | Type `/` in a terminal and pick a file: a floating fuzzy picker types the path in | a float over the tab (its own block) |
 | `pane-switcher` | Alt-Tab for panes: a row of cards showing what each pane holds, to pick one | a float over the window (its own block) |
 | `agent-overview` | Every agent in this pumi in one place: who is working, who is blocked, and where; click a row to go to its pane | a tab of its own |

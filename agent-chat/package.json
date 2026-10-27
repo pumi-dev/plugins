@@ -1,7 +1,7 @@
 {
   "name": "pumi-agent-chat",
   "version": "0.1.0",
-  "description": "A chat button on every Claude Code, Codex and pi pane: it flips the pane between the agent's own terminal and a rendered chat of the same live session.",
+  "description": "A chat button on every Claude Code, Codex and pi tab: it flips the tab between the agent's own terminal and a rendered chat of the same live session.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {
@@ -27,7 +27,7 @@
           "label": "Key",
           "placeholder": "<D-S-c>",
           "group": "Agent chat",
-          "desc": "A chord that flips the focused agent pane between its terminal and the chat (the root key table). Empty for none; the title bar's button and the command work regardless."
+          "desc": "A chord that flips the focused agent tab between its terminal and the chat (the root key table). Empty for none; the title bar's button and the command work regardless."
         },
         "history_mb": {
           "type": "number",
@@ -44,15 +44,15 @@
       "commands": [
         {
           "id": "toggle",
-          "title": "Agent chat: flip the focused pane between the terminal and the chat"
+          "title": "Agent chat: flip the focused tab between the terminal and the chat"
         }
       ],
       "renderers": {
         "terminal": "Chat"
       },
       "slots": {
-        "pane.toolbar": {
-          "view": "Toolbar"
+        "tab.toolbar": {
+          "component": "Toolbar"
         }
       }
     },

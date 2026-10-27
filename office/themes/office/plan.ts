@@ -1,9 +1,9 @@
-// The office's plan: a session is a pod on the carpet with its name on it, and every tab in it is a
-// desk — or, with "a desk for every pane" on, one desk for each pane of a split tab — plus the free
-// desk that makes a new tab. Pods stand next to each other, wrap onto the next row when the floor
+// The office's plan: a session is a pod on the carpet with its name on it, and every view in it is a
+// desk — or, with "a desk for every tab" on, one desk for each tab in a split view — plus the free
+// desk that makes a new view. Pods stand next to each other, wrap onto the next row when the floor
 // runs out, and the rows sit in the middle of the room. The plan also says what you bump into
 // (desks, the shelf, the coffee machine, the wall) and how to walk around it.
-import type { Pane, Session, Tab } from "pumi/theme"
+import type { Session, Tab, View } from "pumi/theme"
 
 /** A desk's cell on the carpet. */
 export const CELL_W = 176
@@ -36,11 +36,11 @@ export interface Rect {
   h: number
 }
 
-/** A desk: the tab it holds, and — a desk of its own — the pane. */
+/** A desk: the view it holds, and — a desk of its own — the tab. */
 export interface Seat {
-  tab: Tab
-  pane?: Pane
-  /** The pane's place in its tab (1-based); 1 for a tab's own desk. */
+  view: View
+  tab?: Tab
+  /** The tab's place in its view (1-based); 1 for a view's own desk. */
   i: number
 }
 
@@ -80,24 +80,24 @@ export interface Plan {
   centre: Pt
 }
 
-/** A tab's seats: itself, or one for each of its panes when the theme is told to. */
-export function seatsOf(tab: Tab, panes: Pane[], perPane: boolean): Seat[] {
-  const mine = panes.filter((pane) => pane.tab_id === tab.tab_id)
-  if (!perPane || !mine.length) return [{ tab, i: 1 }]
-  return mine.map((pane, index) => ({ tab, pane, i: index + 1 }))
+/** A view's seats: itself, or one for each of its tabs when the theme is told to. */
+export function seatsOf(view: View, tabs: Tab[], perTab: boolean): Seat[] {
+  const mine = tabs.filter((tab) => tab.view_id === view.view_id)
+  if (!perTab || !mine.length) return [{ view, i: 1 }]
+  return mine.map((tab, index) => ({ view, tab, i: index + 1 }))
 }
 
-/** How a desk is keyed in what the office keeps: its tab, and the pane it holds. */
-export const deskKey = (seat: Seat) => `${seat.tab.tab_id}${seat.pane ? `:${seat.pane.pane_id}` : ""}`
+/** How a desk is keyed in what the office keeps: its view, and the tab it holds. */
+export const deskKey = (seat: Seat) => `${seat.view.view_id}${seat.tab ? `:${seat.tab.tab_id}` : ""}`
 
 /**
  * The room: each session's pod (its desks in columns, about as wide as tall, and a free desk), the
  * pods in rows in the middle of the floor, the props along its edges.
  */
-export function plan(sessions: Session[], tabs: Tab[], panes: Pane[], width: number, viewHeight: number, perPane: boolean, lowest = 0): Plan {
+export function plan(sessions: Session[], views: View[], tabs: Tab[], width: number, viewHeight: number, perTab: boolean, lowest = 0): Plan {
   const pods: Pod[] = []
   for (const session of sessions) {
-    const seats = tabs.filter((tab) => tab.workspace_id === session.workspace_id).flatMap((tab) => seatsOf(tab, panes, perPane))
+    const seats = views.filter((view) => view.workspace_id === session.workspace_id).flatMap((view) => seatsOf(view, tabs, perTab))
     // Its desks, and always a free one.
     const n = seats.length + 1
     const down = Math.max(1, Math.min(n, Math.ceil(Math.sqrt(n / 1.4))))
@@ -322,13 +322,13 @@ export function route(from: Pt, to: Pt, size: { width: number; height: number },
 const URGENCY = ["blocked", "error", "working", "done", "idle"]
 
 /**
- * What a desk's agent is doing: its pane's status for a pane's desk, else the most urgent of its
- * tab's agents (the tab's own `agent_status` when it has one and no pane says more). "" for none.
+ * What a desk's agent is doing: its tab's status for a tab's desk, else the most urgent of its
+ * view's tabs (the view's own `agent_status` when it has one and no tab says more). "" for none.
  */
-export function statusOf(seat: Seat, panes: Pane[]): string {
-  if (seat.pane) return seat.pane.agent_status || ""
-  const all = panes.filter((p) => p.tab_id === seat.tab.tab_id).map((p) => p.agent_status || "")
-  if (seat.tab.agent_status) all.push(seat.tab.agent_status)
+export function statusOf(seat: Seat, tabs: Tab[]): string {
+  if (seat.tab) return seat.tab.agent_status || ""
+  const all = tabs.filter((t) => t.view_id === seat.view.view_id).map((t) => t.agent_status || "")
+  if (seat.view.agent_status) all.push(seat.view.agent_status)
   let best = ""
   for (const status of all) {
     if (!status) continue

@@ -1,7 +1,7 @@
 // Office: pumi as a pixel office you walk around, drawn as Gather draws its own — wood floors,
 // carpeted rooms with their names on signs, dark name tags, framed game boxes and a pixel font. A
-// desk for every tab of every session (or every pane), each with its live screen; sit at one and
-// its real panes open on the monitor. Light is the office by day, dark the office at night.
+// desk for every view of every session (or every tab), each with its live screen; sit at one and
+// its real views open on the monitor. Light is the office by day, dark the office at night.
 import { defineTheme } from "pumi"
 import { PARTS } from "./parts.tsx"
 import { Office, Starting } from "./window.tsx"
@@ -144,7 +144,7 @@ const DARK = {
 
 export default defineTheme({
   name: "Office",
-  description: "A pixel office you walk around, in Gather's style: a desk for every tab (or pane), its agent at it and its screen live.",
+  description: "A pixel office you walk around, in Gather's style: a desk for every view (or tab), its agent at it and its screen live.",
   // Day or night is the theme's own setting (`contributes.options.appearance`).
   appearance: { option: "appearance" },
   colors: { light: LIGHT, dark: DARK },

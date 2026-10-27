@@ -1,7 +1,7 @@
 {
   "name": "pumi-office",
   "version": "0.1.0",
-  "description": "Office as a UI theme: a pixel office you walk around, in Gather's style — a desk for every tab (or every pane), its agent at it, and the plugins in the lobby.",
+  "description": "Office as a UI theme: a pixel office you walk around, in Gather's style — a desk for every view (or every tab), its agent at it, and the plugins in the lobby.",
   "type": "module",
   "scripts": {
     "test": "bun test",
@@ -37,11 +37,11 @@
           ],
           "group": "Office"
         },
-        "desk_per_pane": {
+        "desk_per_tab": {
           "type": "boolean",
           "default": false,
-          "label": "One desk per pane",
-          "desc": "Every pane of a split tab gets a desk of its own, with its agent sitting at it and its own screen, instead of one desk whose screen holds the whole tab. Sitting at one opens that pane.",
+          "label": "One desk per tab",
+          "desc": "Every tab of a split view gets a desk of its own, with its agent sitting at it and its own screen, instead of one desk whose screen holds the whole view. Sitting at one opens that tab.",
           "group": "Office"
         }
       }

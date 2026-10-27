@@ -1,8 +1,7 @@
-// What usage draws, in the window's React tree: a segment in the status bar for each plan signed
-// in — a meter for the window closest to its limit, the windows' shares and when they reset — and,
-// in the side bar's Usage section, every window of every plan with its account and its pace. The
-// numbers are the worker's (`main.ts`); the settings are the plugin's options, which the window
-// reads itself so a change of layout is a render, not a read.
+// What usage draws, in the window's React tree: the side bar's Usage section, every window of every
+// plan signed in with its account, its meter, when it resets and its pace. The numbers are the
+// worker's (`main.ts`); the settings are the plugin's options, which the window reads itself so a
+// change of colours is a render, not a read.
 
 import { useEffect, useState } from "react";
 import {
@@ -22,12 +21,9 @@ import {
   ago,
   ahead,
   band,
-  barWindows,
-  describeWindows,
   left,
   percent,
   resetText,
-  tightest,
   type Reading,
   type Snapshot,
   type Window,
@@ -46,32 +42,22 @@ function usePrefix(): string {
  */
 function useSettings(): Settings {
   const prefix = usePrefix();
-  const show = useOption<boolean>(`${prefix}${OPTION_OF.show}`);
   const claude = useOption<boolean>(`${prefix}${OPTION_OF.claude}`);
   const codex = useOption<boolean>(`${prefix}${OPTION_OF.codex}`);
   const copilot = useOption<boolean>(`${prefix}${OPTION_OF.copilot}`);
   const openrouter = useOption<boolean>(`${prefix}${OPTION_OF.openrouter}`);
-  const layout = useOption<string>(`${prefix}${OPTION_OF.layout}`);
-  const windows = useOption<number>(`${prefix}${OPTION_OF.windows}`);
   const resets = useOption<string>(`${prefix}${OPTION_OF.resets}`);
-  const label = useOption<boolean>(`${prefix}${OPTION_OF.label}`);
-  const meter = useOption<number>(`${prefix}${OPTION_OF.meter}`);
   const tint = useOption<boolean>(`${prefix}${OPTION_OF.tint}`);
   const warnAt = useOption<number>(`${prefix}${OPTION_OF.warnAt}`);
   const critAt = useOption<number>(`${prefix}${OPTION_OF.critAt}`);
   const every = useOption<number>(`${prefix}${OPTION_OF.every}`);
   const alert = useOption<boolean>(`${prefix}${OPTION_OF.alert}`);
   const values: Record<string, unknown> = {
-    [OPTION_OF.show]: show,
     [OPTION_OF.claude]: claude,
     [OPTION_OF.codex]: codex,
     [OPTION_OF.copilot]: copilot,
     [OPTION_OF.openrouter]: openrouter,
-    [OPTION_OF.layout]: layout,
-    [OPTION_OF.windows]: windows,
     [OPTION_OF.resets]: resets,
-    [OPTION_OF.label]: label,
-    [OPTION_OF.meter]: meter,
     [OPTION_OF.tint]: tint,
     [OPTION_OF.warnAt]: warnAt,
     [OPTION_OF.critAt]: critAt,
@@ -108,77 +94,7 @@ function useReadings(): Snapshot | null {
   return posted ?? early;
 }
 
-/** The status bar's view: one segment per plan, tightest limit first in each. */
-export function Segments() {
-  const settings = useSettings();
-  const snapshot = useReadings();
-  const now = useNow(30_000);
-  const readings = snapshot?.readings ?? [];
-  if (!settings.show || readings.length === 0) return null;
-  return (
-    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 10, height: "100%", flexShrink: 0 }}>
-      {readings.map((reading) => (
-        <Segment key={reading.provider} reading={reading} settings={settings} now={now} />
-      ))}
-    </div>
-  );
-}
-
-/** One plan in the status bar: its name, a meter for its tightest window, its windows' shares. */
-function Segment({ reading, settings, now }: { reading: Reading; settings: Settings; now: number }) {
-  const t = useTheme();
-  const m = useMetrics();
-  const report = reading.report;
-  const top = tightest(report?.windows);
-  const windows = report ? barWindows(report.windows, settings.windows) : [];
-  return (
-    <div
-      aria-label={`${reading.name} usage`}
-      title={tip(reading, settings, now)}
-      onClick={() => void refresh().catch(() => undefined)}
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        height: 18,
-        paddingLeft: 6,
-        paddingRight: 6,
-        borderRadius: m.radiusSmall,
-        flexShrink: 0,
-        cursor: "pointer",
-        hover: { backgroundColor: t.hover },
-      }}
-    >
-      {settings.label ? <text style={{ fontSize: 11, color: t.muted }}>{reading.name}</text> : null}
-      {top && settings.layout !== "compact" ? (
-        <Meter used={top.used} width={settings.meter} color={meterColor(t, top.used, settings)} rail={t.active} />
-      ) : null}
-      {settings.layout === "detailed" ? (
-        windows.map((window, i) => (
-          <div key={`${window.title}-${i}`} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4 }}>
-            {i > 0 ? <text style={{ fontSize: 11, color: t.faint }}>·</text> : null}
-            <text style={{ fontSize: 11, color: numberColor(t, window.used, settings) }}>{`${Math.round(percent(window.used))}%`}</text>
-            <Reset window={window} settings={settings} now={now} />
-          </div>
-        ))
-      ) : top && settings.layout === "compact" ? (
-        <text style={{ fontSize: 11, color: numberColor(t, top.used, settings) }}>{`${Math.round(percent(top.used))}%`}</text>
-      ) : null}
-      {reading.error ? <text style={{ fontSize: 11, color: t.warning }}>!</text> : null}
-    </div>
-  );
-}
-
-/** When a window comes back, in the words the settings ask for. */
-function Reset({ window, settings, now }: { window: Window; settings: Settings; now: number }) {
-  const t = useTheme();
-  const text = resetText(window, now, settings.resets);
-  if (!text) return null;
-  return <text style={{ fontSize: 10.5, color: t.faint }}>{text}</text>;
-}
-
-/** A window's share as a bar; `width` is the whole bar, the fill is `used` of it. */
+/** A window's share as a meter; `width` is the whole meter, the fill is `used` of it. */
 function Meter({ used, width, color, rail }: { used: number; width: number | string; color: string; rail: string }) {
   const share = percent(used);
   return (
@@ -212,20 +128,6 @@ function meterColor(t: Tokens, used: number, settings: Settings): string {
     default:
       return t.muted;
   }
-}
-
-/** What a segment says when the mouse rests on it: both windows, the account, and when it was read. */
-function tip(reading: Reading, settings: Settings, now: number): string {
-  const lines: string[] = [];
-  const account = reading.report?.account;
-  const who = [reading.name, account?.plan, account?.email].filter(Boolean).join(" · ");
-  lines.push(who);
-  lines.push(...describeWindows(reading.report, now, settings.resets));
-  const balance = reading.report?.balance;
-  if (balance) lines.push(`Credits: ${balance}`);
-  if (reading.error) lines.push(reading.error);
-  lines.push(`Read ${ago(reading.at, now)} · click to read again`);
-  return lines.join("\n");
 }
 
 // ---- the side bar

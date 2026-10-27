@@ -1,175 +1,177 @@
-// P-Rex: pumi's window as frosted violet glass. The desktop shows through a wash of plum, indigo
-// and magenta; the tabs are a list down the side (each with its program's tile), and every pane is
-// a dark card of its own, its title bar inside it. `window.tsx` draws the parts; the panes' layout
-// (splits, drags, zoom, floats) is the app's own, drawn inside the cards.
-import { defineTheme } from "pumi"
+// P-Rex: pumi's window in the terminals' own colours, a little see-through. Its every colour is made
+// from the terminals' palette (`fromPalette`: the colour scheme picked in Settings → Appearance, or
+// the theme's own below), so the side bar, the panes' cards and the menus are the terminal's
+// background and text; the window shows the desktop faintly through it. The views are a list down
+// the side (each with its front tab's tile), each pane holds its tabs in a strip along its bar, and
+// the panes are cards with a gap between them (Comfortable) or edge to edge with a line between
+// (Compact). `window.tsx` draws the parts; the panes' layout (splits, drags, zoom, floats) is the
+// app's own.
+import { defineTheme, type TerminalPalette, type Tokens } from "pumi"
 import { P_REX } from "./window.tsx"
+
+/** A `#rrggbb` colour as its three channels, 0–255. */
+function channels(hex: string): [number, number, number] {
+  const n = Number.parseInt(hex.replace(/^#/, "").slice(0, 6), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+const hex = (c: number[]) => `#${c.map((v) => Math.round(Math.min(Math.max(v, 0), 255)).toString(16).padStart(2, "0")).join("")}`
+
+/** `from` taken `by` (0–1) of the way to `to`. */
+function mix(from: string, to: string, by: number): string {
+  const [a, b] = [channels(from), channels(to)]
+  return hex(a.map((c, i) => c + (b[i]! - c) * by))
+}
+
+/** `color` at `alpha` (0–1), as `#rrggbbaa`. */
+function alpha(color: string, a: number): string {
+  return `${hex(channels(color))}${Math.round(Math.min(Math.max(a, 0), 1) * 255).toString(16).padStart(2, "0")}`
+}
+
+/** Relative luminance, 0 (black) to 1 (white). */
+function luminance(color: string): number {
+  const [r, g, b] = channels(color).map((c) => {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!
+}
+
+/**
+ * Every colour from the palette: the background is the window's and the panes', the foreground
+ * its text (quieter as it steps toward the background), the lines and highlights the foreground,
+ * faint; the accent and the agents' states are its ansi blue, yellow, red and green.
+ */
+function fromPalette(p: TerminalPalette): Partial<Tokens> {
+  const bg = /^#[0-9a-f]{6}/i.test(p.background) ? p.background.slice(0, 7) : "#0f1115"
+  const fg = /^#[0-9a-f]{6}/i.test(p.foreground) ? p.foreground.slice(0, 7) : "#d7dae0"
+  const ansi = (i: number, fallback: string) => (p.ansi[i] && /^#[0-9a-f]{6}/i.test(p.ansi[i]!) ? p.ansi[i]!.slice(0, 7) : fallback)
+  const dark = luminance(bg) < 0.4
+  const toward = (by: number) => mix(bg, fg, by)
+  const ink = (by: number) => alpha(fg, by)
+  const blue = ansi(4, "#7aa6f0")
+  const red = ansi(1, "#f2777a")
+  const green = ansi(2, "#7ccf8a")
+  const yellow = ansi(3, "#e8c170")
+  const faint = mix(fg, bg, 0.5)
+  const surface = toward(dark ? 0.07 : 0.03)
+  return {
+    window: bg,
+    surface: alpha(surface, 0.97),
+    editor: bg,
+    text: fg,
+    muted: mix(fg, bg, 0.3),
+    faint,
+    border: ink(0.1),
+    hover: ink(0.07),
+    active: ink(0.12),
+    selected: ink(0.1),
+    accent: blue,
+    accentText: luminance(blue) > 0.4 ? "#000000" : "#ffffff",
+    warning: yellow,
+    error: red,
+    success: green,
+    overlay: alpha(surface, 0.95),
+    "agent.working": blue,
+    "agent.blocked": yellow,
+    "agent.error": red,
+    "agent.done": green,
+    "agent.idle": mix(fg, bg, 0.4),
+    "agent.unknown": faint,
+    // The glass: the terminals' background, see-through by the theme's Background opacity.
+    "rex.glass": bg,
+    // A pane's card (Comfortable): a little more of the background over the glass, its rim, and
+    // the focused one's when Settings outlines it.
+    "rex.card": alpha(bg, 0.45),
+    "rex.rim": ink(0.09),
+    "rex.rimFocused": alpha(blue, 0.7),
+    // The line between panes that touch (Compact), and the side bar's edge then.
+    "rex.divider": ink(0.08),
+    "rex.sidebar": ink(dark ? 0.025 : 0.02),
+    "rex.title": fg,
+    "rex.titleDim": mix(fg, bg, 0.35),
+    // A pane's own buttons (split, zoom, close): there, but quiet.
+    "rex.paneButton": mix(fg, bg, 0.5),
+    // The window's buttons (by the traffic lights, at the side bar's foot).
+    "rex.chrome": mix(fg, bg, 0.2),
+    // The side bar: the front tab's pill and its rim, a row's text, a session's heading.
+    "rex.pill": ink(dark ? 0.11 : 0.08),
+    "rex.pillRim": ink(0.08),
+    "rex.row": mix(fg, bg, 0.08),
+    "rex.heading": mix(fg, bg, 0.45),
+    // The tabs across the top while the side bar is hidden: their track, and the front one.
+    "rex.track": ink(0.04),
+    "rex.trackRim": ink(0.08),
+    "rex.tabFront": ink(0.11),
+    "rex.dotRing": bg,
+    // The tiles a tab's program is shown on, and the glyph on them: a terminal's grey with its
+    // prompt in the text's colour, an agent's the text's colour with its mark in the background's,
+    // the rest the palette's colours.
+    // A terminal's tile is slate with its prompt in green; an agent's is warm paper with its mark
+    // in near black, whatever the palette is; a page's and a file's take the palette's colours.
+    "rex.tile.terminal": toward(dark ? 0.17 : 0.09),
+    "rex.tile.terminal.ink": mix(green, fg, 0.15),
+    "rex.tile.agent": mix("#fffaf0", fg, 0.3),
+    "rex.tile.browser": blue,
+    "rex.tile.file": green,
+    "rex.tile.image": ansi(6, "#6fcfd6"),
+    "rex.tile.plugin": ansi(5, "#c89cf0"),
+    "rex.tile.ink": mix(bg, "#0b0d12", dark ? 0.9 : 0.88),
+    "rex.tile.rim": ink(dark ? 0.16 : 0.12),
+    "rex.tile.shadow": dark ? "#00000066" : "#00000026",
+    "rex.shadow": dark ? "#00000080" : "#0000002e",
+  }
+}
 
 export default defineTheme({
   name: "P-Rex",
-  description: "Frosted violet glass: tabs down the side with their programs' tiles, every pane a card over the desktop.",
-  // Night (the look it was drawn for) or day, or the system's: the theme's own setting.
+  description: "The terminals' own colours, a little see-through: views down the side with their tabs' tiles, each pane's tabs in a strip, the panes as cards or edge to edge.",
+  // Night or day when no colour scheme is picked (a picked scheme's own look wins), or the system's.
   appearance: { option: "appearance" },
-  window: { background: "blurred" },
-  colors: {
-    dark: {
-      window: "#1b1426",
-      surface: "#251c30f7",
-      editor: "#130e1ef5",
-      text: "#f1ebf4",
-      muted: "#bdb1c6",
-      faint: "#8a7f95",
-      border: "#ffffff12",
-      hover: "#ffffff12",
-      active: "#ffffff1f",
-      selected: "#ffffff17",
-      accent: "#8f7bff",
-      accentText: "#ffffff",
-      warning: "#f2b25c",
-      error: "#ff6b81",
-      success: "#5fd690",
-      overlay: "#1f1729f2",
-      "agent.working": "#8fb3ff",
-      "agent.blocked": "#f2a65a",
-      "agent.error": "#ff6b81",
-      "agent.done": "#5fd690",
-      "agent.idle": "#9c91a8",
-      "agent.unknown": "#6f657b",
-      // The glass: a wash from plum at the top to indigo at the foot, magenta in the far corner.
-      "rex.wash.top": "#4a2848d9",
-      "rex.wash.bottom": "#1d1252e6",
-      "rex.wash.plum": "#8c3d8c59",
-      "rex.wash.blue": "#3020c470",
-      "rex.wash.magenta": "#b0209c7a",
-      "rex.wash.clear": "#00000000",
-      // A pane's card: smoked glass the wash shows through, its rim (brighter round the focused
-      // one) and the faint bevel just inside it.
-      "rex.card": "#0c09168c",
-      "rex.rim": "#ffffff1c",
-      "rex.rimFocused": "#ffffff36",
-      "rex.bevel": "#ffffff0d",
-      "rex.title": "#f1ebf4",
-      "rex.titleDim": "#d6cbdc",
-      // A pane's own buttons (split, zoom, close): there, but quiet.
-      "rex.paneButton": "#ffffff5c",
-      // The window's buttons (by the traffic lights, at the side bar's foot).
-      "rex.chrome": "#e9e0ee",
-      // The side bar: the front tab's pill (darker than the glass, a light rim), a row's text, a
-      // session's heading.
-      "rex.pill": "#12081c47",
-      "rex.pillRim": "#ffffff1f",
-      "rex.row": "#efe7f2",
-      "rex.heading": "#c6b4ca",
-      // The tabs across the top while the side bar is hidden: their track, and the front one.
-      "rex.track": "#00000026",
-      "rex.trackRim": "#ffffff14",
-      "rex.tabFront": "#ffffff1c",
-      "rex.dotRing": "#2a1f35",
-      // The tiles a tab's program is shown on, and the glyph on them.
-      "rex.tile.agent": "#e07a52",
-      "rex.tile.claude": "#e07a52",
-      "rex.tile.codex": "#3b3f4a",
-      "rex.tile.pi": "#7a5cff",
-      "rex.tile.terminal": "#3a3a40",
-      "rex.tile.browser": "#3d7bf2",
-      "rex.tile.file": "#3fae5a",
-      "rex.tile.image": "#2fa3a8",
-      "rex.tile.plugin": "#8a5ad8",
-      "rex.tile.glyph": "#ffffff",
-      "rex.tile.rim": "#ffffff40",
-      "rex.shadow": "#00000073",
-    },
-    light: {
-      window: "#f4eff7",
-      surface: "#fbf8fdf7",
-      editor: "#fffffff5",
-      text: "#22192b",
-      muted: "#5e5168",
-      faint: "#8b8095",
-      border: "#2a103a14",
-      hover: "#2a103a0f",
-      active: "#2a103a1a",
-      selected: "#2a103a12",
-      accent: "#6b48ff",
-      accentText: "#ffffff",
-      warning: "#b06a00",
-      error: "#d6334f",
-      success: "#2a8f4f",
-      overlay: "#fbf8fdf2",
-      "agent.working": "#3a62e8",
-      "agent.blocked": "#c76a12",
-      "agent.error": "#d6334f",
-      "agent.done": "#2a8f4f",
-      "agent.idle": "#7f7489",
-      "agent.unknown": "#a79db0",
-      "rex.wash.top": "#efe5f2d9",
-      "rex.wash.bottom": "#d8d2f6e6",
-      "rex.wash.plum": "#e3c3ee66",
-      "rex.wash.blue": "#b9c3ff66",
-      "rex.wash.magenta": "#f3b3df73",
-      "rex.wash.clear": "#ffffff00",
-      "rex.card": "#ffffffb8",
-      "rex.rim": "#2a103a14",
-      "rex.rimFocused": "#2a103a30",
-      "rex.bevel": "#ffffff40",
-      "rex.title": "#22192b",
-      "rex.titleDim": "#4f4359",
-      "rex.paneButton": "#2a103a59",
-      "rex.chrome": "#3a2d44",
-      "rex.pill": "#ffffff8c",
-      "rex.pillRim": "#2a103a14",
-      "rex.row": "#2b2133",
-      "rex.heading": "#6c5f76",
-      "rex.track": "#2a103a0d",
-      "rex.trackRim": "#2a103a14",
-      "rex.tabFront": "#ffffffb3",
-      "rex.dotRing": "#f1e9f5",
-      "rex.tile.agent": "#e07a52",
-      "rex.tile.claude": "#e07a52",
-      "rex.tile.codex": "#3b3f4a",
-      "rex.tile.pi": "#7a5cff",
-      "rex.tile.terminal": "#45454c",
-      "rex.tile.browser": "#3d7bf2",
-      "rex.tile.file": "#3fae5a",
-      "rex.tile.image": "#2fa3a8",
-      "rex.tile.plugin": "#8a5ad8",
-      "rex.tile.glyph": "#ffffff",
-      "rex.tile.rim": "#00000014",
-      "rex.shadow": "#2a103a33",
-    },
-  },
-  // The terminals paint no background of their own: the card's glass is theirs.
+  // The theme paints the glass itself (`rex.glass` at the Background opacity); what shows through
+  // it is blurred a little.
+  window: { background: "transparent", blur: 24 },
+  fromPalette,
+  // The terminals paint no background of their own: the glass, or the card, is theirs.
   terminal: {
     dark: {
-      background: "#0c0916",
-      foreground: "#ece5f0",
-      cursor: "#5b7cff",
-      selection: "#3f3566",
+      background: "#0f1115",
+      foreground: "#d7dae0",
+      cursor: "#d7dae0",
+      selection: "#2c323c",
       opacity: 0,
       ansi: [
-        "#1c1726", "#ff6b81", "#7ad69a", "#f2b25c", "#7f9cff", "#c58cff", "#6fd3e0", "#d9d2e0",
-        "#6e6478", "#ff8fa0", "#9be8b4", "#ffcf85", "#a3b8ff", "#dcb0ff", "#98e6ef", "#ffffff",
+        "#1d2026", "#f2777a", "#7ccf8a", "#e8c170", "#7aa6f0", "#c89cf0", "#6fcfd6", "#c5c8ce",
+        "#4d525c", "#ff8f91", "#97e0a3", "#f3d38e", "#9ab9f5", "#d8b4f6", "#93dde3", "#f2f3f5",
       ],
     },
     light: {
-      background: "#ffffff",
-      foreground: "#2a2033",
-      cursor: "#5b4aff",
-      selection: "#d9d0f5",
+      background: "#f7f7f8",
+      foreground: "#2b2e33",
+      cursor: "#2b2e33",
+      selection: "#d5dbe5",
       opacity: 0,
       ansi: [
-        "#2a2033", "#d6334f", "#2a8f4f", "#a86a00", "#3a62e8", "#8a45d6", "#1f8f9a", "#cfc6d6",
-        "#7f7489", "#e5546d", "#3aa863", "#c98a1b", "#5a7ef0", "#a466e6", "#33a8b3", "#f6f2f8",
+        "#2b2e33", "#d6334f", "#2a8f4f", "#a86a00", "#2f62d8", "#8a45d6", "#1f8f9a", "#c9ccd2",
+        "#7a7f89", "#e5546d", "#3aa863", "#c98a1b", "#4f7ee6", "#a466e6", "#33a8b3", "#ffffff",
       ],
     },
   },
   metrics: { fontSize: 13, radius: 10, radiusSmall: 6 },
-  // Each pane its own card: 8 px of glass between them; a zoomed one lifts with a soft shadow
-  // (the card itself is the theme's `Pane`, so the frame adds none of its own).
-  layout: {
-    gap: { between: 8, around: 0 },
-    lifted: (t, m) => ({ borderRadius: m.radius, boxShadow: { offsetX: 0, offsetY: 12, blurRadius: 32, spreadRadius: 0, color: t["rex.shadow"] } }),
-  },
+  // Comfortable: each pane a card, 8 px of glass between them. Compact: edge to edge, a line
+  // between. A zoomed pane lifts with a soft shadow (the card is the theme's `Pane`, so the frame
+  // adds no fill of its own).
+  layout: (t, m, option) =>
+    option("pane_style") === "compact"
+      ? {
+          gap: 0,
+          divider: 1,
+          lifted: { backgroundColor: t["rex.glass"], borderWidth: 1, borderColor: t["rex.rim"], boxShadow: { offsetX: 0, offsetY: 12, blurRadius: 32, spreadRadius: 0, color: t["rex.shadow"] } },
+        }
+      : {
+          gap: { between: 8, around: 0 },
+          lifted: { borderRadius: m.radius, boxShadow: { offsetX: 0, offsetY: 12, blurRadius: 32, spreadRadius: 0, color: t["rex.shadow"] } },
+        },
   tooltip: (t) => ({
     backgroundColor: t.surface,
     color: t.text,

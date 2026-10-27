@@ -8,7 +8,7 @@ import { homedir } from "node:os";
 import type { Answer, Http } from "./gather.ts";
 import type { Env } from "./providers/index.ts";
 
-/** A service that has not answered by now is not worth waiting for: the bar reads again later. */
+/** A service that has not answered by now is not worth waiting for: the plugin reads again later. */
 const TIMEOUT = 20_000;
 /** `security` and `gh` answer at once; one that does not is a prompt nobody is looking at. */
 const PROGRAM_TIMEOUT = 5_000;

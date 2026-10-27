@@ -1,5 +1,5 @@
-// Where an agent keeps the session a pane is in: `@agent.transcript` when its hook said, else
-// worked out from `@agent.session` and the pane's directory, as each agent lays its files out.
+// Where an agent keeps the session a tab is in: `@agent.transcript` when its hook said, else
+// worked out from `@agent.session` and the tab's directory, as each agent lays its files out.
 // Reads directories (node:fs) but no `import … from "pumi"`.
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -12,7 +12,7 @@ export interface Where {
   transcript?: string;
   /** `@agent.session`: the session's id (pi's may be its file's path). */
   session?: string;
-  /** The pane's directory. */
+  /** The tab's directory. */
   cwd?: string;
   /** `os.homedir()` and the environment, for a test to put elsewhere. */
   home?: string;

@@ -32,7 +32,7 @@
       "options": {
         "udid": {
           "type": "string",
-          "scope": "pane",
+          "scope": "tab",
           "blocks": [
             "device"
           ],

@@ -88,7 +88,7 @@
       },
       "slots": {
         "panel": {
-          "view": "Scripts",
+          "component": "Scripts",
           "title": "Scripts",
           "icon": "code"
         }

@@ -232,11 +232,11 @@ export function dismissed(): void {
 
 // ---- the diff pane
 
-/** What a diff pane is told to show: the spec, and the repository it is of. */
+/** What a diff tab is told to show: the spec, and the repository it is of. */
 export type Shown = DiffSpec & { root: string; title: string };
 
 /** The diff tab the page opened last: the next diff is drawn in it, not in another — while the user
- * is still in that tab. */
+ * is still in that view. */
 let diffPane: string | null = null;
 
 /** Shows `spec` in the diff tab, opening one beside the tab the user is in when there is none. */
@@ -245,20 +245,20 @@ async function showDiff(spec: DiffSpec, title: string): Promise<void> {
   if (root === null) return;
   const value = JSON.stringify({ ...spec, root, title } satisfies Shown);
   try {
-    const here = workspace.currentPane;
-    const tab = here?.place.kind === "tiled" ? here.place.tab : null;
+    const here = workspace.currentTab;
+    const view = here?.place.kind === "tiled" ? here.place.view ?? null : null;
     if (diffPane !== null) {
-      const there = workspace.getPane(diffPane);
-      if (there && there.block === self.plugin.prefixed("diff") && there.place.kind === "tiled" && (tab === null || there.place.tab === tab)) {
-        await option.set("diff", value, { scope: "pane", id: diffPane });
-        await option.set("title", title, { scope: "pane", id: diffPane });
+      const there = workspace.getTab(diffPane);
+      if (there && there.block === self.plugin.prefixed("diff") && there.place.kind === "tiled" && (view === null || there.place.view === view)) {
+        await option.set("diff", value, { scope: "tab", id: diffPane });
+        await option.set("title", title, { scope: "tab", id: diffPane });
         return;
       }
     }
-    const opened = (await workspace.openPane(self.plugin.prefixed("diff"), {}, { kind: "tab", name: title })).id;
+    const opened = (await workspace.openTab(self.plugin.prefixed("diff"), {}, { kind: "view", name: title })).id;
     diffPane = opened;
-    await option.set("diff", value, { scope: "pane", id: opened });
-    await option.set("title", title, { scope: "pane", id: opened });
+    await option.set("diff", value, { scope: "tab", id: opened });
+    await option.set("title", title, { scope: "tab", id: opened });
   } catch (err) {
     console.error(`git: diff: ${message(err)}`);
   }
@@ -306,7 +306,7 @@ export async function patchOf(value: string): Promise<{ patch: string; error: st
 /** A line of a diff pressed: the file, at that line, in the editor. */
 export async function reveal(root: string, path: string, line: number | null): Promise<void> {
   try {
-    await workspace.openPane("file", { path: `${root}/${path}`, ...(line === null ? {} : { line }) }, { kind: "tiled", split: "right" });
+    await workspace.openTab("file", { path: `${root}/${path}`, ...(line === null ? {} : { line }) }, { kind: "tiled", split: "right" });
   } catch (err) {
     console.error(`git: open: ${message(err)}`);
   }
@@ -383,15 +383,15 @@ async function start(): Promise<void> {
   await panel.follow(await directory());
 }
 
-/** The directory of the pane the user is in, as the window will ask for it when the page opens. */
+/** The directory of the tab the user is in, as the window will ask for it when the page opens. */
 async function directory(): Promise<string> {
   try {
-    const current = workspace.currentPane;
+    const current = workspace.currentTab;
     if (current === null) return process.cwd();
-    const path = await option.get("pane_current_path", { scope: "pane", id: current.id });
+    const path = await option.get("tab_current_path", { scope: "tab", id: current.id });
     if (typeof path === "string" && path !== "") return path;
   } catch {
-    // No pane in front yet: the worker's own directory.
+    // No tab in front yet: the worker's own directory.
   }
   return process.cwd();
 }

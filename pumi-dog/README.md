@@ -1,6 +1,6 @@
 # pumi-dog
 
-A little pumi in the status bar. It walks back and forth along its track, stops to wag and blink,
+A little pumi in the side bar. It walks back and forth along its track, stops to wag and blink,
 and barks when you click it.
 
 ```text
@@ -10,7 +10,7 @@ and barks when you click it.
    └────────────── bark ◀── a click, or `bark`: eight steps, then a sit
 ```
 
-It is drawn in the status line's slot, last, and it comes out with the app: `toggle` puts it away
+It is a section of the side bar (**Pumi dog**), and it comes out with the app: `toggle` puts it away
 and brings it back. Clicking the dog barks.
 
 ## The dog
@@ -32,7 +32,7 @@ Its three options are under **Pumi dog** in Settings, and their full names start
 `amresyd.pumi_dog.`:
 
 - `speed` — animation frames per second (default 8). Lower is calmer and cheaper.
-- `track` — how much of the status bar the dog walks along, in pixels (default 140).
+- `track` — how far along its section the dog walks, in pixels (default 140).
 - `size` — the dog's height, in pixels (default 20).
 
 A change is felt at the next frame: the dog is drawn again at its new size on the spot it stands

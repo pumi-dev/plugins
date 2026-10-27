@@ -7,7 +7,7 @@
 // disk, is the worker's (`main.ts`, `panel.ts`, `intent.ts`): a key, a click and a drop each go
 // there and answer the rows as they are afterwards.
 import { Fragment, memo, useEffect, useRef, useState } from "react";
-import { Icon, useAppearance, useDraggable, useDroppable, useInterval, useMetrics, usePane, useSession, useTab, useTheme } from "pumi";
+import { Icon, useAppearance, useDraggable, useDroppable, useInterval, useMetrics, useSession, useTab, useTheme } from "pumi";
 
 import { activate, adding, cancelled, chose, committed, dropped, filtered, firstMatch, load, named, pressed, reread, searching, type View } from "./main.ts";
 import { adopt } from "./adopt.ts";
@@ -55,18 +55,18 @@ interface RowActions {
   drop(key: string, paths: string[]): void;
 }
 
-/** The `panel` slot's view: the tree of the focused pane's directory. Only the directory is read
- *  here, so a pane's title or status changing draws nothing of the tree. A pane with no directory
- *  of its own (a tab just opened, whose pane has not arrived yet) is not somewhere the user went:
- *  the tree stays on the project it was showing, rather than blinking to `/` and back, which
- *  would close every folder. */
+/** The `panel` slot's component: the tree of the focused tab's directory. Only the directory is
+ *  read here, so a tab's title or status changing draws nothing of the tree. A tab with no
+ *  directory of its own (one just opened, whose directory has not arrived yet) is not somewhere
+ *  the user went: the tree stays on the project it was showing, rather than blinking to `/` and
+ *  back, which would close every folder. */
 export function Tree() {
-  const focused = usePane(useTab()?.activePane?.id);
+  const focused = useTab();
   const session = useSession();
   const last = useRef<string | null>(null);
   const cwd = focused?.cwd;
   if (cwd && cwd !== "/") last.current = cwd;
-  // Before any pane has said where it is, the session's own directory is the project.
+  // Before any tab has said where it is, the session's own directory is the project.
   const at = last.current ?? session?.cwd ?? null;
   return at === null ? null : <TreeAt cwd={at} />;
 }

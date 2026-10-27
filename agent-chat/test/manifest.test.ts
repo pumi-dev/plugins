@@ -1,5 +1,5 @@
-// The manifest against what it names: the app loads a slot's view and a block's renderer by the
-// export named in `package.json`, so a rename that misses one is a pane that draws nothing. The
+// The manifest against what it names: the app loads a slot's component and a block's renderer by
+// the export named in `package.json`, so a rename that misses one is a tab that draws nothing. The
 // manifest also has one shape (`blocks`, `renderers`, `slots`): `views` and `points` are refused.
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -29,11 +29,11 @@ describe("the manifest", () => {
     for (const name of Object.values(renderers)) expect(names.has(name)).toBe(true);
   });
 
-  test("gives its slot views from ui.tsx", () => {
+  test("gives its slot components from ui.tsx", () => {
     const names = exported(ui);
-    const slots: Record<string, { view?: string }> = manifest.contributes.slots;
-    expect(Object.keys(slots)).toEqual(["pane.toolbar"]);
-    for (const slot of Object.values(slots)) expect(names.has(slot.view!)).toBe(true);
+    const slots: Record<string, { component?: string }> = manifest.contributes.slots;
+    expect(Object.keys(slots)).toEqual(["tab.toolbar"]);
+    for (const slot of Object.values(slots)) expect(names.has(slot.component!)).toBe(true);
   });
 
   test("names a command the toggle runs", () => {

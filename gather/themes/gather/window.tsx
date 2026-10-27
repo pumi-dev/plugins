@@ -1,41 +1,56 @@
-// Gather as a game: pumi's window is the office floor, seen from above. Each tab is a room — grey
+// Gather as a game: pumi's window is the office floor, seen from above. Each view is a room — grey
 // carpet, a blue rim, its name on a sign — and each pane in it is a desk: a white desk with the
 // terminal as its monitor, a keyboard and a mug, and an office chair on this side with whoever is
-// working on it sitting down (back to us), its name tag under the chair. The lobby down the left
-// is one more room, on tiles, where every agent stands. Your character walks to the desk you focus.
-// Menus are the game's framed dialog boxes. Started from the app's default window
-// (runtime/app/app/theme/default.tsx): the behaviour is the default's, the look is this file's.
+// working on it sitting down (back to us), its name tag under the chair. A desk holds its tabs
+// along its top, as a game keeps papers in a tray, so several terminals can sit at one desk. The
+// lobby down the left is one more room, on tiles, where every agent stands. Your character walks
+// to the desk you focus. Menus are the game's framed dialog boxes. Started from the app's default
+// window (runtime/app/app/theme/default.tsx): the behaviour is the default's, the look is this
+// file's.
 import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
-import { Icon, useMetrics, usePane as usePaneModel, useTheme } from "pumi"
+import { Icon, useDraggable, useMetrics, useTab as useTabModel, useTheme } from "pumi"
 import {
   call,
+  carried,
   commands,
   grouped,
-  num,
-  renderView,
+  leafOf,
+  paneOfTab,
+  REGIONS,
+  regionAt,
+  renderComponent,
+  runMove,
+  stripDrop,
+  tabDrop,
   useAgentOf,
   useAgents,
   useComponents,
+  useDropBox,
   useFloats,
-  useFocusedPane,
+  useFocusedTab,
   useLayout,
   useLocal,
   useMenu,
-  usePane,
+  usePaneTabs,
   useRenderer,
   useSession,
   useSessions,
   useSidebar,
   useSlot,
   useTab,
-  useTabs,
+  useView,
+  useViews,
   useWindow,
   useZoomed,
+  via,
+  within,
   windowContext,
   type ActionItem,
+  type Carried,
   type Components,
   type DialogProps,
   type MenuProps,
+  type Tab,
   type Tree,
 } from "pumi/theme"
 import { Avatar, box, Bubble, Decor, Floor, FONT, Nametag, Sign, useBeat, type Facing } from "./art.tsx"
@@ -111,7 +126,7 @@ function Window() {
   // Whether the lobby shows is the app's side bar (`toggle_sidebar`), whatever theme draws it.
   const [sidebar, setSidebar] = useSidebar()
   const [width, setWidth] = useLocal("gather.sidebar.width", 236)
-  const overlays = useSlot("window.overlay").views
+  const overlays = useSlot("window.overlay").components
   return (
     <DesksContext.Provider value={desks}>
       <div style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", position: "relative", backgroundColor: t.window, color: t.text, fontSize: m.fontSize, fontFamily: FONT }}>
@@ -137,11 +152,11 @@ function Window() {
             <C.Layout />
           </div>
         </div>
-        <C.StatusBar />
+        <StatusBar />
         <Walker />
         {overlays.map((v) => (
-          <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-            {renderView(v)}
+          <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+            {renderComponent(v)}
           </div>
         ))}
       </div>
@@ -192,9 +207,12 @@ const STEPS = [1, 0, 2, 0]
 function Walker() {
   const t = useTheme()
   const desks = useContext(DesksContext)
-  const focused = useFocusedPane()
+  const tree = useLayout()
+  const focused = useFocusedTab()
+  // The desk of the tab in focus: a pane holds several, and only one of them is where you are.
+  const pane = tree && focused ? paneOfTab(tree, focused)?.pane : undefined
   useSyncExternalStore(desks?.subscribe ?? (() => () => {}), desks?.version ?? (() => 0))
-  const rect = desks?.get(focused)
+  const rect = desks?.get(pane)
   const target = rect ? { x: rect.x + Math.round(rect.width / 2) - 68, y: rect.y + rect.height - 58 } : undefined
   const [me, setMe] = useState<{ at: Point; facing: Facing; frame: number } | undefined>()
   const at = useRef<Point | undefined>(undefined)
@@ -202,8 +220,8 @@ function Walker() {
   useEffect(() => {
     if (!target) return
     const from = at.current
-    const moved = desk.current !== focused
-    desk.current = focused
+    const moved = desk.current !== pane
+    desk.current = pane
     const stand = () => {
       at.current = target
       setMe({ at: target, facing: "down", frame: 0 })
@@ -235,7 +253,7 @@ function Walker() {
       setMe({ at: p, facing, frame: STEPS[Math.floor(ms / 110) % 4]! })
     }, 16)
     return () => clearInterval(timer)
-  }, [focused, target?.x, target?.y])
+  }, [pane, target?.x, target?.y])
   if (!target || !me) return null
   return (
     <div style={{ position: "absolute", left: Math.round(me.at.x) - 8, top: Math.round(me.at.y), width: 56, display: "flex", flexDirection: "column", alignItems: "center", gap: 1, pointerEvents: "none" }}>
@@ -250,12 +268,10 @@ function Walker() {
 /** Along the top, over the floor: the lobby's switch, the session's plate, the minimap. */
 function TopHud({ sidebar, toggleSidebar }: { sidebar: boolean; toggleSidebar(): void }) {
   const t = useTheme()
-  const C = useComponents()
   const window = useWindow()
   const session = useSession()
   const sessions = useSessions()
   const [picking, setPicking] = useState(false)
-  const { views, actions } = useSlot("window.titlebar")
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", height: 46, flexShrink: 0, gap: 8, paddingLeft: 80, paddingRight: 14 }}>
       <PixelButton icon="layout_sidebar_left" title="Toggle lobby" active={sidebar} onClick={toggleSidebar} />
@@ -281,29 +297,19 @@ function TopHud({ sidebar, toggleSidebar }: { sidebar: boolean; toggleSidebar():
         </anchored>
       ) : null}
       <div style={{ flexGrow: 1 }} />
-      {actions.map((a) => (
-        <C.Action key={`${a.plugin}/${a.id}`} action={a} />
-      ))}
-      {views.length ? <Board>{views.map((v) => renderView(v))}</Board> : null}
       <Minimap />
     </div>
   )
 }
 
-/** A framed board for what packages draw on the HUD, in the theme's own colours. */
-function Board({ children }: { children: ReactNode }) {
-  const t = useTheme()
-  return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, minHeight: 28, paddingLeft: 6, paddingRight: 6, flexShrink: 0, ...box(t, "panel") }}>{children}</div>
-}
-
-/** The tab you're in, from above: its desks as the layout splits them, you a blinking dot. */
+/** The view you're in, from above: its desks as the layout splits them, you a blinking dot. */
 function Minimap() {
   const t = useTheme()
   const tree = useLayout()
-  const focused = useFocusedPane()
-  const tab = useTab()
-  const tabs = useTabs()
-  const index = tabs.findIndex((x) => x.tab_id === tab?.tab_id)
+  const focused = useFocusedTab()
+  const view = useView()
+  const views = useViews()
+  const index = views.findIndex((x) => x.view_id === view?.view_id)
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 38, paddingLeft: 4, paddingRight: 6, flexShrink: 0, ...box(t, "panel") }}>
       <div style={{ display: "flex", width: 96, height: 28, backgroundColor: t.carpetFloor, borderWidth: 1, borderColor: t.roomRim }}>
@@ -311,14 +317,14 @@ function Minimap() {
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
         <text style={{ fontSize: 9, color: t.faint }}>FLOOR</text>
-        <text style={{ fontSize: 13 }}>{`${index + 1}/${tabs.length}`}</text>
+        <text style={{ fontSize: 13 }}>{`${index + 1}/${views.length}`}</text>
       </div>
     </div>
   )
 }
 
 function MiniSplit({ tree, focused }: { tree: Tree; focused?: string }) {
-  if ("pane" in tree) return <MiniDesk pane={tree.pane} here={tree.pane === focused} />
+  if ("pane" in tree) return <MiniDesk tab={tree.active ?? tree.tabs[0]} here={(tree.active ?? tree.tabs[0]) === focused} />
   if ("app" in tree) return null
   const row = tree.axis === "row"
   return (
@@ -333,18 +339,18 @@ function MiniSplit({ tree, focused }: { tree: Tree; focused?: string }) {
   )
 }
 
-function MiniDesk({ pane: id, here }: { pane: string; here: boolean }) {
+function MiniDesk({ tab, here }: { tab?: string; here: boolean }) {
   const t = useTheme()
-  const pane = usePane(id)
+  const agent = useAgentOf(tab)
   const blink = useBeat(450, here) % 2 === 0
-  const agent = pane?.agent ? (t[`agent.${pane.agent_status || "unknown"}`] ?? t["agent.unknown"]) : undefined
+  const status = agent ? (t[`agent.${agent.agent_status || "unknown"}`] ?? t["agent.unknown"]) : undefined
   return (
     <div
-      onClick={() => call("pane.focus", id, {}).catch(swallow)}
+      onClick={() => tab && call(via(tab, "tab.focus"), tab).catch(swallow)}
       style={{ display: "flex", flexDirection: "row", flexGrow: 1, gap: 2, padding: 2, alignItems: "flex-start", backgroundColor: t.desk, cursor: "pointer" }}
     >
       {here ? <div style={{ width: 4, height: 4, backgroundColor: blink ? t.success : t.desk }} /> : null}
-      {agent ? <div style={{ width: 4, height: 4, backgroundColor: agent }} /> : null}
+      {status ? <div style={{ width: 4, height: 4, backgroundColor: status }} /> : null}
     </div>
   )
 }
@@ -398,35 +404,35 @@ function Cursor({ on }: { on: boolean }) {
   )
 }
 
-/** The hotbar: one slot a tab, its number above it, the one you're on lit gold. */
-function TabBar({ session }: { session?: string }) {
+/** The hotbar: one slot a view, its number above it, the one you're on lit gold. */
+function ViewBar({ session }: { session?: string }) {
   const t = useTheme()
   const C = useComponents()
-  const tabs = useTabs(session)
-  const front = useSession(session)?.active_tab_id
+  const views = useViews(session)
+  const front = useSession(session)?.active_view_id
   const window = useWindow()
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, padding: 4, minWidth: 0, flexShrink: 1, ...box(t, "panel") }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, minWidth: 0, flexShrink: 1, overflowX: "scroll" }}>
-        {tabs.map((tab, index) => (
-          <C.Tab key={tab.tab_id} tab={tab.tab_id} index={index} active={tab.tab_id === front} />
+        {views.map((view, index) => (
+          <C.View key={view.view_id} view={view.view_id} index={index} active={view.view_id === front} />
         ))}
       </div>
-      <PixelButton icon="plus" title="New tab" size={40} onClick={() => commands.run("new_tab", ctx(window))} />
+      <PixelButton icon="plus" title="New view" size={40} onClick={() => commands.run("new_view", ctx(window))} />
     </div>
   )
 }
 
-function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: number }) {
+function View({ view: id, active, index }: { view: string; active: boolean; index: number }) {
   const t = useTheme()
-  const tab = useTab(id)
-  const { actions } = useSlot("tab.actions")
-  if (!tab) return null
-  const label = tab.label && !/^\d+$/.test(tab.label) ? tab.label : `Tab ${index + 1}`
-  const status = tab.agent_status ? (t[`agent.${tab.agent_status}`] ?? t["agent.unknown"]) : undefined
+  const view = useView(id)
+  const { actions } = useSlot("view.actions")
+  if (!view) return null
+  const label = view.label && !/^\d+$/.test(view.label) ? view.label : `View ${index + 1}`
+  const status = view.agent_status ? (t[`agent.${view.agent_status}`] ?? t["agent.unknown"]) : undefined
   return (
     <div
-      onClick={() => call("tab.focus", id, {}).catch(swallow)}
+      onClick={() => call(via(id, "view.focus"), id).catch(swallow)}
       style={{
         display: "flex",
         flexDirection: "row",
@@ -448,15 +454,15 @@ function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: 
       <text style={{ position: "absolute", top: 1, left: 4, fontSize: 9, color: t.slotNumber }}>{`${index + 1}`}</text>
       {status ? <div style={{ position: "absolute", top: 4, right: 4, width: 5, height: 5, backgroundColor: status }} /> : null}
       <text style={{ fontSize: 13, color: active ? t.slotText : t.slotTextDim, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0, marginTop: 4 }}>{label}</text>
-      <Point point="tab.badge" args={{ tab: id }} />
+      <Point point="view.badge" args={{ view: id }} />
       {actions.map((a) => (
-        <Contributed key={`${a.plugin}/${a.id}`} action={a} args={{ tab: id }} />
+        <Contributed key={`${a.plugin}/${a.id}`} action={a} args={{ view: id }} />
       ))}
       {active ? (
         <div
           onClick={(e: any) => {
             e?.stopPropagation?.()
-            call("tab.close", id).catch(swallow)
+            call(via(id, "view.close"), id).catch(swallow)
           }}
           style={{ display: "flex", width: 16, height: 16, alignItems: "center", justifyContent: "center", color: t.slotText, opacity: 0.6, hover: { opacity: 1, backgroundColor: t.slotRing } }}
         >
@@ -467,14 +473,14 @@ function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: 
   )
 }
 
-/** A point's views, given `args`, and its actions as buttons. */
+/** A point's components, given `args`, and its actions as buttons. */
 function Point({ point, args, gap = 4 }: { point: string; args?: Record<string, unknown>; gap?: number }) {
   const C = useComponents()
-  const { views, actions } = useSlot(point)
-  if (!views.length && !actions.length) return null
+  const { components, actions } = useSlot(point, args)
+  if (!components.length && !actions.length) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap, flexShrink: 0 }}>
-      {views.map((v) => renderView(v, args))}
+      {components.map((v) => renderComponent(v, args))}
       {actions.map((a) => (
         <C.Action key={`${a.plugin}/${a.id}`} action={a} args={args} />
       ))}
@@ -483,17 +489,17 @@ function Point({ point, args, gap = 4 }: { point: string; args?: Record<string, 
 }
 
 /**
- * The `Menu` part: every menu of the app's (a pane's, an agent's: `useMenu`), as a pixel dialog
+ * The `Menu` part: every menu of the app's (a tab's, an agent's: `useMenu`), as a pixel dialog
  * where the mouse is. Its groups with a rule between; a submenu (Open With, Move To) opens in
  * place under its row.
  */
-function Menu({ at, actions, views, args, close }: MenuProps) {
+function Menu({ at, actions, components, args, close }: MenuProps) {
   const t = useTheme()
   return (
     <anchored position={at} fit="snap" deferred occlude onMouseDownOutside={close}>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 190, padding: 6, ...box(t, "dialog") }}>
         <MenuRows actions={actions} close={close} depth={0} />
-        {views?.map((v) => renderView(v, { ...args, close }))}
+        {components?.map((v) => renderComponent(v, { ...args, close }))}
       </div>
     </anchored>
   )
@@ -585,19 +591,22 @@ const pct = (n: number) => `${n * 100}%`
 
 // ── The room ────────────────────────────────────────────────────────────────────────────────
 
-/** The tab's room: its carpet, its sign, the desks on it. */
-function Layout({ tab }: { tab?: string }) {
+/** The view's room: its carpet, its sign, the desks on it. */
+function Layout({ view }: { view?: string }) {
   const t = useTheme()
-  const tree = useLayout(tab)
-  const focused = useFocusedPane(tab)
-  const zoomed = useZoomed(tab)
-  const session = useSession(tab)
-  const tabs = useTabs(tab)
-  const index = tabs.findIndex((x) => x.tab_id === (session?.active_tab_id ?? undefined))
+  const tree = useLayout(view)
+  const focused = useFocusedTab(view)
+  const zoomed = useZoomed(view)
+  const shown = useView(view)
+  const session = useSession(shown?.workspace_id)
+  const views = useViews(shown?.workspace_id)
+  const index = views.findIndex((x) => x.view_id === shown?.view_id)
   const C = useComponents()
-  // Before the early return: a hook after it changes the hook order once a tab has a tree.
-  const floats = useFloats(tab ?? undefined)
-  const body = !tree ? <EmptyDesk /> : zoomed && focused ? <Leaf pane={focused} focused zoomed /> : <Split tree={tree} focused={focused} />
+  // Before the early return: a hook after it changes the hook order once a view has a tree.
+  const floats = useFloats(view ?? undefined)
+  // Zoomed, you sit at one desk: its tabs stay along its top, and the others are out of sight.
+  const zoom = zoomed && tree && focused ? paneOfTab(tree, focused) : undefined
+  const body = !tree ? <EmptyDesk /> : zoom ? <Leaf pane={zoom.pane} tabs={zoom.tabs} active={zoom.active} focused zoomed /> : <Split tree={tree} focused={focused} />
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, position: "relative", backgroundColor: t.carpetFloor, borderWidth: 2, borderColor: tree ? t.roomRing : t.roomRim, borderRadius: 3, boxShadow: { offsetX: 0, offsetY: 3, blurRadius: 0, spreadRadius: 0, color: t.drop } }}>
       <Floor kind="carpet" />
@@ -608,7 +617,7 @@ function Layout({ tab }: { tab?: string }) {
       {floats.length ? (
         <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
           {floats.map((p) => (
-            <C.Float key={p.pane_id} pane={p.pane_id} />
+            <C.Float key={p.tab_id} tab={p.tab_id} />
           ))}
         </div>
       ) : null}
@@ -636,7 +645,7 @@ function EmptyDesk() {
 
 /** A split: its first side takes its share of the room, the second starts past the floor between. */
 function Split({ tree, focused }: { tree: Tree; focused?: string }) {
-  if ("pane" in tree) return <Leaf pane={tree.pane} focused={tree.pane === focused} zoomed={false} />
+  if ("pane" in tree) return <Leaf pane={tree.pane} tabs={tree.tabs} active={tree.active} focused={!!focused && tree.tabs.includes(focused)} zoomed={false} />
   if ("app" in tree) return null
   const row = tree.axis === "row"
   return (
@@ -651,58 +660,99 @@ function Split({ tree, focused }: { tree: Tree; focused?: string }) {
   )
 }
 
-function Leaf(props: { pane: string; focused: boolean; zoomed: boolean }) {
+function Leaf({ pane, tabs, active, focused, zoomed }: { pane: string; tabs: string[]; active?: string | null; focused: boolean; zoomed: boolean }) {
   const C = useComponents()
   return (
     <div style={{ display: "flex", width: "100%", height: "100%", minWidth: 0, minHeight: 0 }}>
-      <C.Pane {...props} />
+      <C.Pane pane={pane} tabs={tabs} active={active} focused={focused} zoomed={zoomed} lifted={zoomed} />
     </div>
   )
 }
 
-/** What a desk is called: the pane's label, its title, or where it is. */
-function deskName(pane: ReturnType<typeof usePane>): string {
-  if (!pane) return "Desk"
-  if (pane.label) return pane.label
-  if (pane.terminal_title) return pane.terminal_title
-  const cwd = pane.cwd?.replace(/\/+$/, "")
-  return cwd ? cwd.split("/").pop() || "/" : pane.block
+/** What a tab is called on its desk: its label, its title, or where it is. */
+function tabName(tab: Tab | undefined): string {
+  if (!tab) return "Tab"
+  if (tab.label && !/^\d+$/.test(tab.label)) return tab.label
+  if (tab.terminal_title) return tab.terminal_title
+  const cwd = tab.cwd?.replace(/\/+$/, "")
+  return cwd ? cwd.split("/").pop() || "/" : tab.block
+}
+
+/** What a desk is called: the tab in front at it. */
+function deskName(tab: Tab | undefined): string {
+  return tab ? tabName(tab) : "Desk"
+}
+
+/** Whether a drag carries a tab that could go into `pane`'s tray at some index. */
+const intoStrip = (pane: string, tabs: string[]) => (data: unknown): data is Carried => {
+  const it = carried(data)
+  if (!it) return false
+  const leaf = { pane, tabs }
+  return [...tabs.keys(), tabs.length].some((i) => stripDrop(it, leaf, i) !== undefined)
+}
+
+/** The rest of a desk's tray: a tab dropped there goes last. */
+function StripEnd({ pane, tabs }: { pane: string; tabs: string[] }) {
+  const t = useTheme()
+  const zone = useDropBox(intoStrip(pane, tabs), (it) => {
+    const move = stripDrop(it, { pane, tabs }, tabs.length)
+    if (move) runMove(move)
+  })
+  const it = zone.drag ? carried(zone.drag.data) : undefined
+  const lit = zone.isOver && it ? stripDrop(it, { pane, tabs }, tabs.length) : undefined
+  return <div ref={zone.ref} style={{ display: "flex", flexGrow: 1, height: 24, minWidth: 8, borderLeftWidth: lit ? 2 : 0, borderColor: t.slotActive }} />
 }
 
 /**
- * A pane is a desk: the white desk with the terminal as its monitor, a keyboard, a mug and a
+ * A pane is a desk: the white desk with the tab in front as its monitor, a keyboard, a mug and a
  * sticky note on it, and the chair this side with whoever works there sitting down, facing the
- * screen, its name tag under the chair.
+ * screen, its name tag under the chair. The desk's other tabs lie along its top, in a tray, so
+ * several terminals can sit at one desk.
  */
-function Pane({ pane: id, focused }: { pane: string; focused: boolean; zoomed: boolean }) {
+function Pane({ pane: id, tabs, active, focused }: { pane: string; tabs: string[]; active?: string | null; focused: boolean; zoomed: boolean; lifted?: boolean }) {
   const t = useTheme()
+  const C = useComponents()
   const desks = useContext(DesksContext)
-  const pane = usePane(id)
-  const renderer = useRenderer(id)
-  // A renderer is given the SDK's model (`RendererProps`), not the theme's snapshot of the pane.
-  const model = usePaneModel(id)
-  const { views } = useSlot("pane.strip")
-  const overlays = useSlot("pane.overlay").views
-  const { open, menu } = useMenu("pane.menu", { pane: id })
-  // Every block is drawn by the renderer a plugin gives it, terminals included (`useRenderer`):
-  // the terminal's is the bundled plugin `pumi/terminal`.
-  const body: ReactNode = !pane ? null : renderer ? (
-    renderView(renderer, { pane: model, block: pane.block, focused })
-  ) : (
-    <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" }}>
-      <text style={{ color: t.faint }}>{`Nothing draws ${pane.block} blocks`}</text>
-    </div>
+  const front = active ?? tabs[0] ?? id
+  const tab = useTab(front)
+  const { components: strip } = useSlot("tab.strip", { tab: front })
+  const { open, menu } = useMenu("tab.menu", { tab: front })
+  const tabbed = usePaneTabs()
+  const leaf = { pane: id, tabs }
+  // A float is drawn over the view and takes nothing by drag; a tiled desk does.
+  const tiled = ((tab?.place as { kind?: string } | undefined)?.kind ?? "tiled") === "tiled"
+  // A tab dropped on the desk's edge splits it; dropped in its middle, it joins the desk's tray.
+  const zone = useDropBox<Carried>(
+    (data): data is Carried => {
+      const it = carried(data)
+      return tiled && !!it && REGIONS.some((region) => tabDrop(it, leaf, region, tabbed) !== undefined)
+    },
+    (it, at, box) => {
+      const { fx, fy } = within(at, box)
+      const move = tabDrop(it, leaf, regionAt(fx, fy, tabbed), tabbed)
+      if (move) runMove(move)
+    },
+    -1,
   )
+  const dropping = zone.isOver
   return (
     <div
+      ref={zone.ref}
       onLayout={(e) => desks?.set(id, { x: e.x ?? 0, y: e.y ?? 0, width: e.width ?? 0, height: e.height ?? 0 })}
       onMouseDown={() => {
-        if (!focused) call("pane.focus", id, {}).catch(swallow)
+        if (!focused) call(via(front, "tab.focus"), front).catch(swallow)
       }}
       onAuxClick={open}
-      style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, padding: 10, paddingBottom: 2 }}
+      style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, padding: 10, paddingBottom: 2, position: "relative" }}
     >
-      {views.map((v) => renderView(v, { pane: id }))}
+      {tabs.length > 1 ? (
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", gap: 4, height: 28, flexShrink: 0, paddingLeft: 2, paddingRight: 2, overflowX: "scroll" }}>
+          {tabs.map((tab, index) => (
+            <C.PaneTab key={tab} tab={tab} pane={id} index={index} active={tab === front} focused={focused} />
+          ))}
+          <StripEnd pane={id} tabs={tabs} />
+        </div>
+      ) : null}
       <div
         style={{
           display: "flex",
@@ -721,47 +771,157 @@ function Pane({ pane: id, focused }: { pane: string; focused: boolean; zoomed: b
           ],
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            flexGrow: 1,
-            minWidth: 0,
-            minHeight: 0,
-            position: "relative",
-            overflow: "hidden",
-            padding: 3,
-            borderRadius: 4,
-            backgroundColor: t.editor,
-            borderWidth: 6,
-            borderColor: t.monitorBezel,
-          }}
-        >
-          {body}
-          {overlays.map((v) => (
-            <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-              {renderView(v, { pane: id, focused })}
-            </div>
-          ))}
-        </div>
+        {strip.map((v) => renderComponent(v, { tab: front }))}
+        <C.TabBody key={front} tab={front} focused={focused} />
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, height: 22, flexShrink: 0, paddingTop: 3 }}>
           <Decor name="mug" />
           <Decor name="keyboard" />
           <Decor name="sticky" />
           <div style={{ flexGrow: 1 }} />
-          <Point point="pane.toolbar" args={{ pane: id }} />
+          <Point point="tab.toolbar" args={{ tab: front }} />
         </div>
       </div>
-      <Sitter pane={id} name={deskName(pane)} focused={focused} />
+      <Sitter tab={front} name={deskName(tab)} focused={focused} />
+      {dropping ? (
+        <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: `${t.slotActive}22`, borderWidth: 2, borderColor: t.slotActive, pointerEvents: "none" }} />
+      ) : null}
       {menu}
     </div>
   )
 }
 
-/** Whoever works at this desk, sitting in its chair — or the empty chair, if no one does. */
-function Sitter({ pane, name, focused }: { pane: string; name: string; focused: boolean }) {
+/**
+ * One tab in a desk's tray: a press brings it to the front and gives its desk the focus, a press
+ * with his right hand opens its menu, and a drag carries it along the tray, into another desk's,
+ * or onto a desk's edge. A tab dropped on it goes before it, or after it past its middle.
+ */
+function PaneTab({ tab: id, pane, index, active, focused }: { tab: string; pane: string; index: number; active: boolean; focused: boolean }) {
   const t = useTheme()
-  const agent = useAgentOf(pane)
+  const tab = useTab(id)
+  const tree = useLayout(tab?.view_id)
+  const agent = useAgentOf(id)
+  const status = agent ? (t[`agent.${agent.agent_status || "unknown"}`] ?? t["agent.unknown"]) : undefined
+  const draggable = useDraggable<Carried>({ kind: "pumi.tab", tab: id })
+  const { open, menu } = useMenu("tab.menu", { tab: id })
+  const leaf = { pane, tabs: leafOf(tree, pane)?.tabs ?? [id] }
+  const zone = useDropBox(intoStrip(pane, leaf.tabs), (it, at, box) => {
+    const before = !box || at.x < box.x + box.width / 2
+    const move = stripDrop(it, leaf, before ? index : index + 1)
+    if (move) runMove(move)
+  })
+  const it = zone.drag ? carried(zone.drag.data) : undefined
+  const at = zone.isOver && zone.drag ? { x: zone.drag.x, y: zone.drag.y } : undefined
+  const area = at ? zone.box() : undefined
+  const side = it && at ? (!area || at.x < area.x + area.width / 2 ? "left" : "right") : undefined
+  const lit = side && it && stripDrop(it, leaf, side === "left" ? index : index + 1) ? side : undefined
+  if (!tab) return null
+  return (
+    <div
+      ref={zone.ref}
+      {...draggable.props}
+      onMouseDown={(e: any) => {
+        draggable.props.onMouseDown(e)
+        // The tray's tab is what was pressed: the desk around it must not bring the front one back.
+        e?.stopPropagation?.()
+        if ((e?.button ?? 0) !== 0) return
+        if (!active || !focused) call(via(id, "tab.focus"), id).catch(swallow)
+      }}
+      onAuxClick={(e: any) => {
+        e?.stopPropagation?.()
+        open(e)
+      }}
+      title={tab.cwd ?? undefined}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        height: 24,
+        minWidth: 44,
+        maxWidth: 150,
+        paddingLeft: 6,
+        paddingRight: 2,
+        flexShrink: 1,
+        position: "relative",
+        cursor: draggable.dragging ? "grabbing" : "pointer",
+        opacity: draggable.dragging ? 0.55 : 1,
+        ...box(t, "slot"),
+        ...(active ? { borderColor: t.slotActive } : {}),
+        ...(lit === "left" ? { borderLeftColor: t.slotActive } : lit === "right" ? { borderRightColor: t.slotActive } : {}),
+        hover: { borderColor: t.slotActive },
+      }}
+    >
+      {status ? <div style={{ width: 5, height: 5, flexShrink: 0, backgroundColor: status }} /> : null}
+      <text style={{ fontSize: 11, color: active ? t.slotText : t.slotTextDim, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{tabName(tab)}</text>
+      <div style={{ flexGrow: 1 }} />
+      {active ? (
+        <div
+          onClick={(e: any) => {
+            e?.stopPropagation?.()
+            call(via(id, "tab.close"), id).catch(swallow)
+          }}
+          style={{ display: "flex", width: 16, height: 16, flexShrink: 0, alignItems: "center", justifyContent: "center", color: t.slotText, opacity: 0.6, hover: { opacity: 1, backgroundColor: t.slotRing } }}
+        >
+          <Icon name="close" size={8} />
+        </div>
+      ) : null}
+      {menu}
+    </div>
+  )
+}
+
+/**
+ * The `TabBody` part: the tab's block as its renderer draws it (`useRenderer`; the terminal's
+ * is the bundled `pumi/terminal`), with the `tab.overlay` components over it, in the desk's
+ * monitor frame.
+ */
+function TabBody({ tab: id, focused }: { tab: string; focused: boolean }) {
+  const t = useTheme()
+  const tab = useTab(id)
+  const renderer = useRenderer(id)
+  // A renderer is given the SDK's model (`RendererProps`), not the theme's snapshot of the tab.
+  const model = useTabModel(id)
+  const overlays = useSlot("tab.overlay").components
+  // Every block is drawn by the renderer a plugin gives it, terminals included (`useRenderer`):
+  // the terminal's is the bundled plugin `pumi/terminal`.
+  const body: ReactNode = !tab ? null : renderer ? (
+    renderComponent(renderer, { tab: model, block: tab.block, focused })
+  ) : (
+    <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" }}>
+      <text style={{ color: t.faint }}>{`Nothing draws ${tab.block} blocks`}</text>
+    </div>
+  )
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        flexGrow: 1,
+        minWidth: 0,
+        minHeight: 0,
+        position: "relative",
+        overflow: "hidden",
+        padding: 3,
+        borderRadius: 4,
+        backgroundColor: t.editor,
+        borderWidth: 6,
+        borderColor: t.monitorBezel,
+      }}
+    >
+      {body}
+      {overlays.map((v) => (
+        <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+          {renderComponent(v, { tab: id, focused })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Whoever works at this desk, sitting in its chair — or the empty chair, if no one does. */
+function Sitter({ tab, name, focused }: { tab: string; name: string; focused: boolean }) {
+  const t = useTheme()
+  const agent = useAgentOf(tab)
   const status = agent?.agent_status || "unknown"
   const working = status === "working"
   const alarmed = status === "blocked" || status === "error"
@@ -770,7 +930,7 @@ function Sitter({ pane, name, focused }: { pane: string; name: string; focused: 
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, height: 62, paddingTop: 2 }}>
       <div style={{ position: "relative", width: 46, height: 34 }}>
         <Decor name="chair" style={{ position: "absolute", left: 7, top: 12 }} />
-        {agent ? <Avatar who={pane} sitting style={{ position: "absolute", left: 11, top: working ? bob : 0 }} /> : null}
+        {agent ? <Avatar who={tab} sitting style={{ position: "absolute", left: 11, top: working ? bob : 0 }} /> : null}
         {agent ? <Bubble status={status} style={{ position: "absolute", left: 30, top: alarmed ? -bob * 2 : 0 }} /> : null}
       </div>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 20, paddingLeft: 8, paddingRight: 8, borderRadius: 7, ...box(t, focused ? "tagActive" : "tag") }}>
@@ -827,13 +987,13 @@ function placement(place: any, cells: { w: number; h: number }): Record<string, 
   }
 }
 
-/** A pane floating over the tab: a room in a dialog box. */
-function Float({ pane: id }: { pane: string }) {
+/** A tab floating over the view: a room in a dialog box. */
+function Float({ tab: id }: { tab: string }) {
   const t = useTheme()
   const C = useComponents()
-  const pane = usePane(id)
-  const place: any = (pane as any)?.place ?? {}
-  const close = () => call("pane.close", id).catch(swallow)
+  const tab = useTab(id)
+  const place: any = (tab as any)?.place ?? {}
+  const close = () => call(via(id, "tab.close"), id).catch(swallow)
   const dismiss: string[] = place.dismiss ?? []
   const style = placement(place, { w: 7.8, h: 18 })
   return (
@@ -853,7 +1013,7 @@ function Float({ pane: id }: { pane: string }) {
         onMouseDown={(e: any) => e?.stopPropagation?.()}
         style={{ position: "absolute", display: "flex", flexDirection: "column", overflow: "hidden", padding: 4, ...box(t, "dialog"), ...style }}
       >
-        <C.Pane pane={id} focused zoomed={false} />
+        <C.Pane pane={id} tabs={[id]} active={id} focused zoomed={false} />
       </div>
     </div>
   )
@@ -867,11 +1027,11 @@ function Float({ pane: id }: { pane: string }) {
  */
 function Panel({ point }: { point: string }) {
   const t = useTheme()
-  const { views } = useSlot(point)
+  const { components } = useSlot(point)
   const [collapsed, setCollapsed] = useLocal<string[]>(`gather.${point}.collapsed`, [])
   const sections: { key: string; title: string; body: ReactNode; board: boolean }[] = [
     { key: "agents", title: "Players", body: <Agents />, board: false },
-    ...views.map((v) => ({ key: `${v.plugin}/${v.id}`, title: v.title ?? v.id, body: renderView(v), board: true })),
+    ...components.map((v) => ({ key: `${v.plugin}/${v.id}`, title: v.title ?? v.id, body: renderComponent(v), board: true })),
   ]
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
@@ -912,8 +1072,8 @@ function Panel({ point }: { point: string }) {
 function SessionHeader() {
   const t = useTheme()
   const session = useSession()
-  const { views, actions } = useSlot("session.header")
-  if (!session || (!views.length && !actions.length)) return null
+  const { components, actions } = useSlot("session.header")
+  if (!session || (!components.length && !actions.length)) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32, margin: 8, marginBottom: 0, paddingLeft: 8, paddingRight: 4, flexShrink: 0, ...box(t, "panel") }}>
       <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
@@ -938,19 +1098,19 @@ function Agents() {
   return (
     <div style={{ display: "flex", flexDirection: "column", paddingLeft: 4, paddingRight: 4, gap: 2 }}>
       {agents.map((a) => (
-        <C.Agent key={a.pane_id} pane={a.pane_id} />
+        <C.Agent key={a.tab_id} tab={a.tab_id} />
       ))}
     </div>
   )
 }
 
 /** A player: their avatar with a bubble, their tag, what they're on. Click to walk to them. */
-function Agent({ pane }: { pane: string }) {
+function Agent({ tab }: { tab: string }) {
   const t = useTheme()
   const C = useComponents()
-  const agent = useAgentOf(pane)
+  const agent = useAgentOf(tab)
   const [hovered, setHovered] = useState(false)
-  const { open, menu } = useMenu("agent.menu", { pane })
+  const { open, menu } = useMenu("agent.menu", { tab })
   if (!agent) return null
   const status = agent.agent_status || "unknown"
   return (
@@ -958,35 +1118,35 @@ function Agent({ pane }: { pane: string }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAuxClick={open}
-      onClick={() => call("pane.focus", pane, {}).catch(swallow)}
+      onClick={() => call(via(tab, "tab.focus"), tab).catch(swallow)}
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingLeft: 4, paddingRight: 4, cursor: "pointer", hover: { backgroundColor: t.floorHover } }}
     >
       <div style={{ position: "relative", width: 44, height: 44, flexShrink: 0 }}>
-        <Avatar who={pane} style={{ position: "absolute", left: 2, top: 8 }} />
+        <Avatar who={tab} style={{ position: "absolute", left: 2, top: 8 }} />
         <Bubble status={status} style={{ position: "absolute", left: 20, top: 0 }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3, flexGrow: 1, minWidth: 0 }}>
-        <Nametag dot={t[`agent.${status}`] ?? t["agent.unknown"]}>{agent.name || agent.agent || pane}</Nametag>
+        <Nametag dot={t[`agent.${status}`] ?? t["agent.unknown"]}>{agent.name || agent.agent || tab}</Nametag>
         {agent.title ? <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: "100%" }}>{agent.title}</text> : null}
-        <Point point="agent.footer" args={{ pane }} />
+        <Point point="agent.footer" args={{ tab }} />
       </div>
       <div style={{ display: "flex", flexDirection: "row", opacity: hovered ? 1 : 0 }}>
-        <C.AgentControls pane={pane} />
+        <C.AgentControls tab={tab} />
       </div>
       {menu}
     </div>
   )
 }
 
-function AgentControls({ pane }: { pane: string }) {
+function AgentControls({ tab }: { tab: string }) {
   const C = useComponents()
-  const { views, actions } = useSlot("agent.controls")
+  const { components, actions } = useSlot("agent.controls")
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3 }}>
       {actions.map((a) => (
-        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={{ pane }} />
+        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={{ tab }} />
       ))}
-      {views.map((v) => renderView(v, { pane }))}
+      {components.map((v) => renderComponent(v, { tab }))}
     </div>
   )
 }
@@ -995,13 +1155,13 @@ function Action({ action, args }: { action: ActionItem; args?: unknown }) {
   return <PixelButton icon={action.icon ?? "ellipsis"} title={action.title} size={24} onClick={() => action.run(args)} />
 }
 
-/** Along the foot, over the floor: your player card, the hotbar, and the tray with the clock. */
+/** Along the foot, over the floor: your player card, the hotbar, and the tray with the clock.
+ *  Gather's own: the app has no status bar part to give it. */
 function StatusBar() {
   const t = useTheme()
   const C = useComponents()
   const session = useSession()
-  const focused = usePane(useFocusedPane())
-  const { views, actions } = useSlot("status")
+  const focused = useTab(useFocusedTab())
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000)
@@ -1022,13 +1182,9 @@ function StatusBar() {
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", flexGrow: 2, flexBasis: 0, minWidth: 0 }}>
-        <C.TabBar />
+        <C.ViewBar />
       </div>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, flexGrow: 1, flexBasis: 0, minWidth: 0 }}>
-        {views.length ? <Board>{views.map((v) => renderView(v))}</Board> : null}
-        {actions.map((a) => (
-          <C.Action key={`${a.plugin}/${a.id}`} action={a} />
-        ))}
         <div style={{ display: "flex", alignItems: "center", height: 28, paddingLeft: 10, paddingRight: 10, flexShrink: 0, ...box(t, "panel") }}>
           <text style={{ fontSize: 14 }}>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</text>
         </div>
@@ -1069,12 +1225,13 @@ function Starting({ title, detail, gaveUp, lines }: { title: string; detail: str
 export const GATHER: Partial<Components> = {
   Window,
   Starting,
-  TabBar,
-  Tab,
+  ViewBar,
+  View,
   Layout,
   Pane,
+  PaneTab,
+  TabBody,
   Panel,
-  StatusBar,
   Float,
   Agent,
   AgentControls,

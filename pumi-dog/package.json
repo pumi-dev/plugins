@@ -1,7 +1,7 @@
 {
   "name": "pumi-dog",
   "version": "0.3.0",
-  "description": "A little pumi in the status bar: it walks its track, stops to wag and blink, and barks when you click it.",
+  "description": "A little pumi in the side bar: it walks its track, stops to wag and blink, and barks when you click it.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {
@@ -38,7 +38,7 @@
           "unit": "px",
           "label": "Walking room",
           "group": "Pumi dog",
-          "desc": "How much of the status bar the dog walks along."
+          "desc": "How far along its side bar section the dog walks."
         },
         "size": {
           "type": "number",
@@ -60,8 +60,10 @@
         }
       ],
       "slots": {
-        "status": {
-          "view": "Dog"
+        "panel": {
+          "component": "Dog",
+          "title": "Pumi dog",
+          "icon": "sparkle"
         }
       }
     },

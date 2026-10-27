@@ -1,4 +1,4 @@
-// pumi-dog: a little pumi in the status bar. It walks back and forth along its track, stops to wag
+// pumi-dog: a little pumi in the side bar. It walks back and forth along its track, stops to wag
 // and blink, and barks when it is clicked or when `bark` is called.
 //
 // The art is `sprite.ts` (pixel grids, drawn as runs of one colour), the state machine is
@@ -16,7 +16,7 @@ async function bark(): Promise<void> {
   await option.set(self.plugin.prefixed(BARK), Date.now(), { scope: "global" });
 }
 
-/** Takes the dog out of the status bar, or puts it back. */
+/** Takes the dog out of its section, or puts it back. */
 async function toggle(): Promise<void> {
   // The window reads them too, so they are global, under the package's prefix.
   const name = self.plugin.prefixed(OUT);
@@ -30,5 +30,5 @@ fn.set(self.plugin.prefixed("toggle"), { desc: "Show or hide the dog.", callback
 // `pumi call amresyd.pumi_dog.bark`: the dog says hi, from anywhere.
 fn.set(self.plugin.prefixed("bark"), { desc: "The dog says hi.", callback: () => bark() });
 
-// The dog lives in the status bar while the app is open: the manifest's `status` slot draws it.
+// The dog lives in the side bar while the app is open: the manifest's `panel` slot draws it.
 void option.get(self.plugin.prefixed(OUT), { scope: "global" }).catch(() => undefined);

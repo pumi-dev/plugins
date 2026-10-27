@@ -39,7 +39,7 @@ import { install as installKeys } from "./keys.ts";
 import type { Listener } from "./listen.ts";
 import { log } from "./log.ts";
 import { closed as paneClosed, start as startNotifications, status as statusChanged } from "./notify.ts";
-import { Pairing } from "./pair.ts";
+import { Pairing, type PairingStatus } from "./pair.ts";
 import { HEELER_PLUGIN_VERSION } from "./protocol.ts";
 import { dataDir, heelerConfigDir, sessionDir } from "./paths.ts";
 import { paneNumber } from "./api.ts";

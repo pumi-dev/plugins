@@ -6,8 +6,7 @@ import { Icon, useTheme } from "pumi"
 import {
   call,
   grouped,
-  num,
-  renderView,
+  renderComponent,
   useAgentOf,
   useAgents,
   useComponents,
@@ -15,6 +14,7 @@ import {
   useMenu,
   useSession,
   useSlot,
+  via,
   type ActionItem,
   type Components,
   type DialogProps,
@@ -24,20 +24,20 @@ import { box, Bubble, DialogButton, FONT, Nametag, PixelButton, Sign, Sprite, wa
 
 const swallow = (err: unknown) => console.error(String(err))
 
-/** How the room is reached from a part: walk to the desk a pane is at and sit down. */
-export const RoomContext = createContext<{ visit(pane: string): void } | null>(null)
+/** How the room is reached from a part: walk to the desk a tab is at and sit down. */
+export const RoomContext = createContext<{ visit(tab: string): void } | null>(null)
 
 /**
- * The `Menu` part: every menu of the app's (a desk's, a pane's, an agent's: `useMenu`), as a
- * pixel dialog where the mouse is. Its groups with a rule between; a submenu opens under its row.
+ * The `Menu` part: every menu of the app's (a desk's, a view's, a tab's, an agent's: `useMenu`), as
+ * a pixel dialog where the mouse is. Its groups with a rule between; a submenu opens under its row.
  */
-function Menu({ at, actions, views, args, close }: MenuProps) {
+function Menu({ at, actions, components, args, close }: MenuProps) {
   const t = useTheme()
   return (
     <anchored position={at} fit="snap" deferred occlude onMouseDownOutside={close}>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 200, padding: 6, fontFamily: FONT, ...box(t, "dialog") }}>
         <MenuRows actions={actions} close={close} depth={0} />
-        {views?.map((v) => renderView(v, { ...args, close }))}
+        {components?.map((c) => renderComponent(c, { ...args, close }))}
       </div>
     </anchored>
   )
@@ -119,16 +119,16 @@ function Dialog({ title, detail, confirm, cancel, danger, input, onConfirm, onCa
   )
 }
 
-/** A point's views, given `args`, and its actions as buttons. */
+/** A point's components, given `args`, and its actions as buttons. */
 export function Point({ point, args, gap = 4 }: { point: string; args?: Record<string, unknown>; gap?: number }) {
   const C = useComponents()
-  const { views, actions } = useSlot(point)
-  if (!views.length && !actions.length) return null
+  const { components, actions } = useSlot(point, args)
+  if (!components.length && !actions.length) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap, flexShrink: 0 }}>
-      {views.map((v) => renderView(v, args))}
+      {components.map((c) => renderComponent(c, args))}
       {actions.map((a) => (
-        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={args} />
+        <C.Action key={`${a.plugin}/${a.id}`} action={a} />
       ))}
     </div>
   )
@@ -137,16 +137,16 @@ export function Point({ point, args, gap = 4 }: { point: string; args?: Record<s
 // ── The lobby ───────────────────────────────────────────────────────────────────────────────
 
 /**
- * The lobby's sections, each under a sign that folds it: the players (every agent, whatever tab
+ * The lobby's sections, each under a sign that folds it: the players (every agent, whatever view
  * it's in) and each plugin's panel on a framed notice board.
  */
 function Panel({ point }: { point: string }) {
   const t = useTheme()
-  const { views } = useSlot(point)
+  const { components } = useSlot(point)
   const [collapsed, setCollapsed] = useLocal<string[]>(`office.${point}.collapsed`, [])
   const sections: { key: string; title: string; icon?: string; body: ReactNode; board: boolean }[] = [
     { key: "agents", title: "Players", icon: "agent", body: <Agents />, board: false },
-    ...views.map((v) => ({ key: `${v.plugin}/${v.id}`, title: v.title ?? v.id, icon: v.icon, body: renderView(v), board: true })),
+    ...components.map((c) => ({ key: `${c.plugin}/${c.id}`, title: c.title ?? c.id, icon: c.icon, body: renderComponent(c), board: true })),
   ]
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, fontFamily: FONT }}>
@@ -187,8 +187,8 @@ function Panel({ point }: { point: string }) {
 function SessionHeader() {
   const t = useTheme()
   const session = useSession()
-  const { views, actions } = useSlot("session.header")
-  if (!session || (!views.length && !actions.length)) return null
+  const { components, actions } = useSlot("session.header", { session: session?.workspace_id })
+  if (!session || (!components.length && !actions.length)) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32, margin: 8, marginBottom: 0, paddingLeft: 8, paddingRight: 4, flexShrink: 0, ...box(t, "panel") }}>
       <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
@@ -212,20 +212,20 @@ function Agents() {
   return (
     <div style={{ display: "flex", flexDirection: "column", paddingLeft: 4, paddingRight: 4, gap: 2 }}>
       {agents.map((a) => (
-        <C.Agent key={a.pane_id} pane={a.pane_id} />
+        <C.Agent key={a.tab_id} tab={a.tab_id} />
       ))}
     </div>
   )
 }
 
 /** A player: their avatar with a bubble, their tag, what they're on. A click walks you to their desk. */
-function Agent({ pane }: { pane: string }) {
+function Agent({ tab }: { tab: string }) {
   const t = useTheme()
   const C = useComponents()
   const room = useContext(RoomContext)
-  const agent = useAgentOf(pane)
+  const agent = useAgentOf(tab)
   const [hovered, setHovered] = useState(false)
-  const { open, menu } = useMenu("agent.menu", { pane })
+  const { open, menu } = useMenu("agent.menu", { tab })
   if (!agent) return null
   const status = agent.agent_status || "unknown"
   return (
@@ -233,36 +233,36 @@ function Agent({ pane }: { pane: string }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAuxClick={open}
-      onClick={() => (room ? room.visit(pane) : call("pane.focus", pane).catch(swallow))}
+      onClick={() => (room ? room.visit(tab) : call(via(tab, "tab.focus"), tab).catch(swallow))}
       title="Walk over to their desk"
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minHeight: 46, paddingLeft: 4, paddingRight: 4, cursor: "pointer", hover: { backgroundColor: t.floorHover } }}
     >
       <div style={{ position: "relative", width: 46, height: 46, flexShrink: 0 }}>
-        <Sprite src={walkArt(hash(pane), "down", 0)} width={24} height={34} style={{ position: "absolute", left: 2, top: 10 }} />
+        <Sprite src={walkArt(hash(tab), "down", 0)} width={24} height={34} style={{ position: "absolute", left: 2, top: 10 }} />
         <Bubble status={status} style={{ position: "absolute", left: 20, top: 0 }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3, flexGrow: 1, minWidth: 0 }}>
-        <Nametag dot={t[`agent.${status}`] ?? t["agent.unknown"]}>{agent.name || agent.agent || pane}</Nametag>
+        <Nametag dot={t[`agent.${status}`] ?? t["agent.unknown"]}>{agent.name || agent.agent || tab}</Nametag>
         {agent.title ? <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: "100%" }}>{agent.title}</text> : null}
-        <Point point="agent.footer" args={{ pane }} />
+        <Point point="agent.footer" args={{ tab }} />
       </div>
       <div style={{ display: "flex", flexDirection: "row", opacity: hovered ? 1 : 0 }}>
-        <C.AgentControls pane={pane} />
+        <C.AgentControls tab={tab} />
       </div>
       {menu}
     </div>
   )
 }
 
-function AgentControls({ pane }: { pane: string }) {
+function AgentControls({ tab }: { tab: string }) {
   const C = useComponents()
-  const { views, actions } = useSlot("agent.controls")
+  const { components, actions } = useSlot("agent.controls", { tab })
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3 }}>
       {actions.map((a) => (
-        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={{ pane }} />
+        <C.Action key={`${a.plugin}/${a.id}`} action={a} />
       ))}
-      {views.map((v) => renderView(v, { pane }))}
+      {components.map((c) => renderComponent(c, { tab }))}
     </div>
   )
 }

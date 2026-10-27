@@ -1,15 +1,14 @@
 // The Explorer bar down a window's left (`toggle_sidebar`): the folders view, every session as a
-// computer with its tabs as folders and their panes in them, as a tree with plus and minus boxes;
-// or one of the panels plugins contribute (`panel`), picked on its header's buttons.
+// computer with its views as folders and their tabs inside them, as a tree with plus and minus
+// boxes; or one of the panels plugins contribute (`panel`), picked on its header's buttons.
 import { memo, useCallback, useMemo } from "react"
 import { useDraggable, useTheme } from "pumi"
 import {
   call,
-  num,
-  renderView,
+  componentKey,
+  renderComponent,
   serverOf,
   useApp,
-  useFocusedPane,
   useLocal,
   useMenu,
   useRename,
@@ -19,51 +18,49 @@ import {
   useWindow,
   via,
   type RenameInput,
-  type ViewItem,
+  type View as ViewInfo,
 } from "pumi/theme"
-import { Art, Box, CaptionButton, FONT, Label, Mark, paneArt, paneName, PushButton, stop, swallow, tabName } from "./kit.tsx"
+import { Art, Box, CaptionButton, FONT, Label, Mark, PushButton, stop, swallow, tabArt, tabTitle, viewName } from "./kit.tsx"
 
 const FOLDERS = "folders"
 const NONE: string[] = []
-const viewKey = (v: ViewItem) => `${v.plugin}/${v.id}`
 
-/** Shows a session's tab (and a pane of it) in `window`. */
-export function goTo(window: { session?: string; show(session: string): void }, session: string, tab?: string, pane?: string) {
+/** Shows a session in `window`, and one of its tabs in front. */
+export function goTo(window: { session?: string; show(session: string): void }, session: string, tab?: string) {
   if (window.session !== session) window.show(session)
-  const tabbed = tab ? call(via(tab, "tab.focus"), tab) : Promise.resolve()
-  tabbed.then(() => pane && call(via(pane, "pane.focus"), pane)).catch(swallow)
+  if (tab) call(via(tab, "tab.focus"), tab).catch(swallow)
 }
 
 /** The Explorer bar: its header (what it shows, and ×), and the folders or a plugin's panel. */
 export function ExplorerBar({ width }: { width: number }) {
   const t = useTheme()
-  const [, setShown] = useSidebar()
-  const panels = useSlot("panel").views
-  const [view, setView] = useLocal<string>("win98.explorer.view", FOLDERS)
-  const shown = panels.find((v) => viewKey(v) === view)
+  const [, setOpen] = useSidebar()
+  const panels = useSlot("panel").components
+  const [shown, setShown] = useLocal<string>("win98.explorer.view", FOLDERS)
+  const panel = panels.find((v) => componentKey(v) === shown)
   return (
     <div style={{ display: "flex", flexDirection: "column", width, flexShrink: 0, minHeight: 0, marginRight: 2 }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", height: 20, flexShrink: 0, paddingLeft: 4, paddingRight: 1 }}>
-        <Label>{shown ? (shown.title ?? shown.id) : "All Folders"}</Label>
+        <Label>{panel ? (panel.title ?? panel.id) : "All Folders"}</Label>
         <div style={{ flexGrow: 1 }} />
-        <CaptionButton glyph="close" title="Close the Explorer bar" onClick={() => setShown(false)} />
+        <CaptionButton glyph="close" title="Close the Explorer bar" onClick={() => setOpen(false)} />
       </div>
       {panels.length ? (
         <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 2, paddingBottom: 2, flexShrink: 0 }}>
-          <PushButton label="Folders" art="folder" pushed={!shown} onClick={() => setView(FOLDERS)} style={{ height: 22 }} />
+          <PushButton label="Folders" art="folder" pushed={!panel} onClick={() => setShown(FOLDERS)} style={{ height: 22 }} />
           {panels.map((v) => (
-            <PushButton key={viewKey(v)} label={v.title ?? v.id} icon={v.icon ?? "blocks"} pushed={shown === v} onClick={() => setView(viewKey(v))} style={{ height: 22 }} />
+            <PushButton key={componentKey(v)} label={v.title ?? v.id} icon={v.icon ?? "blocks"} pushed={panel === v} onClick={() => setShown(componentKey(v))} style={{ height: 22 }} />
           ))}
         </div>
       ) : null}
       <Box kind="field" style={{ flexGrow: 1, flexShrink: 1, minHeight: 0 }} inner={{ overflowY: "scroll", scrollbarColor: t["w98.shadow"], scrollbarWidth: 8 }}>
-        {shown ? <div style={{ display: "flex", flexDirection: "column", padding: 2 }}>{renderView(shown)}</div> : <Folders />}
+        {panel ? <div style={{ display: "flex", flexDirection: "column", padding: 2 }}>{renderComponent(panel)}</div> : <Folders />}
       </Box>
     </div>
   )
 }
 
-/** Every session, its tabs and their panes, as a tree. */
+/** Every session, its views and their tabs, as a tree. */
 function Folders() {
   const sessions = useSessions()
   const [folded, setFolded] = useLocal<string[]>("win98.explorer.folded", NONE)
@@ -141,8 +138,8 @@ function Node({
 
 const SessionNode = memo(function SessionNode({ session: id, label, folded, folds, toggle }: { session: string; label: string; folded: boolean; folds: string[]; toggle(id: string): void }) {
   const window = useWindow()
-  const tabs = useApp((s) => s.snapshot?.tabs.filter((tab) => tab.workspace_id === id) ?? NO_TABS)
-  const sorted = useMemo(() => [...tabs].sort((a, b) => a.number - b.number), [tabs])
+  const views = useApp((s) => s.snapshot?.views.filter((view) => view.workspace_id === id) ?? NO_VIEWS)
+  const sorted = useMemo(() => [...views].sort((a, b) => a.number - b.number), [views])
   const { renaming, start, input } = useRename({ session: id }, label)
   const { open, menu } = useMenu("session.menu", { session: id })
   const current = window.session === id
@@ -161,50 +158,52 @@ const SessionNode = memo(function SessionNode({ session: id, label, folded, fold
         onAuxClick={open}
       />
       {menu}
-      {folded ? null : sorted.map((tab, i) => <TabNode key={tab.tab_id} tab={tab.tab_id} session={id} label={tabName(tab, i)} folded={folds.includes(tab.tab_id)} toggle={toggle} />)}
+      {folded ? null : sorted.map((view) => <ViewNode key={view.view_id} view={view} session={id} folded={folds.includes(view.view_id)} toggle={toggle} />)}
     </>
   )
 })
 
+const NO_VIEWS: never[] = []
 const NO_TABS: never[] = []
-const NO_PANES: never[] = []
 
-const TabNode = memo(function TabNode({ tab: id, session, label, folded, toggle }: { tab: string; session: string; label: string; folded: boolean; toggle(id: string): void }) {
+const ViewNode = memo(function ViewNode({ view, session, folded, toggle }: { view: ViewInfo; session: string; folded: boolean; toggle(id: string): void }) {
   const window = useWindow()
-  const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === id) ?? NO_PANES)
-  const front = useApp((s) => s.snapshot?.workspaces.find((w) => w.workspace_id === session)?.active_tab_id === id && window.session === session)
-  const { renaming, start, input } = useRename({ tab: id }, label)
-  const { open, menu } = useMenu(["tab.menu", "tab.actions"], { tab: id })
-  const drag = useDraggable({ kind: "pumi.tab", tab: id }, { disabled: renaming })
+  const tabs = useApp((s) => s.snapshot?.tabs.filter((tab) => tab.view_id === view.view_id) ?? NO_TABS)
+  const front = useApp((s) => s.snapshot?.workspaces.find((w) => w.workspace_id === session)?.active_view_id === view.view_id && window.session === session)
+  const label = viewName(view)
+  const { renaming, start, input } = useRename({ view: view.view_id }, label)
+  const { open, menu } = useMenu(["view.menu", "view.actions"], { view: view.view_id })
+  const drag = useDraggable({ kind: "pumi.view" as const, view: view.view_id }, { disabled: renaming })
   return (
     <>
       <Node
         depth={1}
         open={!folded}
-        toggle={panes.length ? () => toggle(id) : undefined}
+        toggle={tabs.length ? () => toggle(view.view_id) : undefined}
         art="folder"
         label={label}
         selected={front}
         input={input}
-        onClick={() => renaming || goTo(window, session, id)}
+        onClick={() => renaming || goTo(window, session, view.view_id)}
         onDoubleClick={start}
         onAuxClick={open}
         drag={drag}
       />
       {menu}
-      {folded ? null : panes.map((p) => <PaneNode key={p.pane_id} pane={p.pane_id} tab={id} session={session} label={paneName(p)} art={paneArt(p)} />)}
+      {folded ? null : tabs.map((tab) => <TabNode key={tab.tab_id} tab={tab.tab_id} session={session} />)}
     </>
   )
 })
 
-const PaneNode = memo(function PaneNode({ pane, tab, session, label, art }: { pane: string; tab: string; session: string; label: string; art: string }) {
+const TabNode = memo(function TabNode({ tab: id, session }: { tab: string; session: string }) {
   const window = useWindow()
-  const focused = useFocusedPane(tab)
-  const { open, menu } = useMenu("pane.menu", { pane })
-  const drag = useDraggable({ kind: "pumi.pane", pane })
+  const tab = useApp((s) => s.snapshot?.tabs.find((t) => t.tab_id === id))
+  const { open, menu } = useMenu("tab.menu", { tab: id })
+  const drag = useDraggable({ kind: "pumi.tab" as const, tab: id })
+  if (!tab) return null
   return (
     <>
-      <Node depth={2} art={art} label={label} bold={focused === pane} onClick={() => goTo(window, session, tab, pane)} onAuxClick={open} drag={drag} />
+      <Node depth={2} art={tabArt(tab)} label={tabTitle(tab)} onClick={() => goTo(window, session, id)} onAuxClick={open} drag={drag} />
       {menu}
     </>
   )

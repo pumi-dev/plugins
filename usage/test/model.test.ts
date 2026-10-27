@@ -1,4 +1,4 @@
-// The words the bar and its panel use: a window's share, when it resets, how it is pacing, and how
+// The words the panel uses: a window's share, when it resets, how it is pacing, and how
 // urgent it is at the shares the user chose.
 
 import { describe, expect, test } from "bun:test";
@@ -12,7 +12,6 @@ import {
   ago,
   ahead,
   band,
-  barWindows,
   clock,
   countdown,
   describeWindows,
@@ -41,13 +40,6 @@ test("the tightest window wins, and a tie keeps the service's order", () => {
   const weekly = window(80, { kind: "weekly", title: "Weekly" });
   expect(tightest([session, weekly])).toBe(weekly);
   expect(tightest([window(50, { title: "A" }), window(50, { title: "B" })])?.title).toBe("A");
-});
-
-test("the bar names the tightest windows, then shows them as the service listed them", () => {
-  const windows = [window(10, { title: "Session" }), window(80, { kind: "weekly", title: "Weekly" }), window(55, { kind: "named", title: "Opus" })];
-  expect(barWindows(windows, 2).map((w) => w.title)).toEqual(["Weekly", "Opus"]);
-  expect(barWindows(windows, 3).map((w) => w.title)).toEqual(["Session", "Weekly", "Opus"]);
-  expect(barWindows(windows, 0)).toEqual([]);
 });
 
 test("a countdown says the biggest useful unit, and rounds minutes", () => {
@@ -107,7 +99,7 @@ test("how long ago a read was, in the same words", () => {
   expect(ago(now + MINUTE, now)).toBe("just now");
 });
 
-test("a tooltip names each window and its reset", () => {
+test("each window is named with its share and its reset", () => {
   const now = 0;
   const lines = describeWindows(
     {

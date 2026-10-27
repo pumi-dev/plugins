@@ -1,10 +1,10 @@
-// What the queue draws, in the window's React tree: a bar under every pane that waits for
+// What the queue draws, in the window's React tree: a bar in every tab's strip that waits for
 // something — the job that matters in a line, and the rest in the order they will run, each a press
-// away from its pane and a `✕` away from the queue. The jobs are the worker's (`bar`), looked at on
+// away from its tab and a `✕` away from the queue. The jobs are the worker's (`bar`), looked at on
 // a clock the queue itself sets the pace of: twice a second while it has work, now and then when it
 // has none.
 import { useEffect, useRef, useState } from "react";
-import { useInterval, useMetrics, useTheme, workspace, type PaneId } from "pumi";
+import { useInterval, useMetrics, useTheme, workspace, type TabId } from "pumi";
 
 import { paneId } from "./job.ts";
 import { bar, cancel, look, running, type BarRow } from "./main.ts";
@@ -12,10 +12,10 @@ import { bar, cancel, look, running, type BarRow } from "./main.ts";
 /** A row of the bar, in pixels: a winbar's row is 24. */
 const ROW = 24;
 
-/** Goes to the pane a job is in (`%3`), making it the current one. */
+/** Goes to the tab a job is in (`%3`), making it the current one. */
 async function go(target: number): Promise<void> {
   await workspace.ready;
-  await workspace.getPane(`%${target}`)?.focus();
+  await workspace.getTab(`%${target}`)?.focus();
 }
 
 /** A throw the bar cannot answer: said in the log, not drawn over the window. */
@@ -23,11 +23,11 @@ function swallow(err: unknown): void {
   console.error(`queue: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The `pane.strip` slot's view: the queue's jobs for `pane`, or nothing at all. */
-export function Bar({ pane }: { pane: PaneId }) {
+/** The `tab.strip` slot's component: the queue's jobs for `tab`, or nothing at all. */
+export function Bar({ tab }: { tab: TabId }) {
   const t = useTheme();
   const m = useMetrics();
-  const owner = paneId(pane) ?? 0;
+  const owner = paneId(tab) ?? 0;
   const [rows, setRows] = useState<BarRow[]>([]);
   const [work, setWork] = useState(false);
   const alive = useRef(true);
@@ -39,7 +39,7 @@ export function Bar({ pane }: { pane: PaneId }) {
     };
   }, []);
 
-  /** Looks at the panes the queue waits for, then reads the bar again. */
+  /** Looks at the tabs the queue waits for, then reads the bar again. */
   const tick = () => {
     void look()
       .then(() => {
@@ -82,7 +82,7 @@ export function Bar({ pane }: { pane: PaneId }) {
       ) : null}
       {first.target !== null ? (
         <div
-          aria-label="Go to the pane this job is in"
+          aria-label="Go to the tab this job is in"
           onClick={() => void go(first.target!).catch(swallow)}
           style={{ display: "flex", flexShrink: 0, cursor: "pointer" }}
         >

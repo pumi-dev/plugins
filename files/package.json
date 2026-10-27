@@ -1,7 +1,7 @@
 {
   "name": "pumi-files",
   "version": "0.1.0",
-  "description": "The project tree in the sidebar: the repository the current pane is in, its folders and files with git's marks, opened, renamed, trashed, dragged and filtered \u2014 and the file the cursor is on opened in your editor beside it.",
+  "description": "The project tree in the sidebar: the repository the current tab is in, its folders and files with git's marks, opened, renamed, trashed, dragged and filtered \u2014 and the file the cursor is on opened in your editor beside it.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {
@@ -85,14 +85,14 @@
             "system"
           ],
           "labels": [
-            "A tab of its own (the one showing it already, if any)",
-            "A file pane on the right, drawn by the plugin that fits it",
-            "Your editor, in a terminal pane",
+            "A view of its own (the one showing it already, if any)",
+            "A file tab on the right, drawn by the plugin that fits it",
+            "Your editor, in a terminal tab",
             "The system's default app"
           ],
           "label": "Open a file with",
           "group": "Project",
-          "desc": "What a click on a file does: a new tab holding a file pane of it (the tab that shows it already comes forward instead), a file pane on the right, a terminal pane running your editor, or whatever app owns it. A file pane is drawn by the enabled viewer that fits the file, such as the Monaco editor."
+          "desc": "What a click on a file does: a new view holding a file tab of it (the view that shows it already comes forward instead), a file tab on the right, a terminal tab running your editor, or whatever app owns it. A file tab is drawn by the enabled viewer that fits the file, such as the Monaco editor."
         },
         "editor": {
           "type": "string",
@@ -110,7 +110,7 @@
         },
         {
           "id": "reveal",
-          "title": "Files: reveal the current pane's file in the tree"
+          "title": "Files: reveal the current tab's file in the tree"
         },
         {
           "id": "filter",
@@ -125,7 +125,7 @@
       ],
       "slots": {
         "panel": {
-          "view": "Tree",
+          "component": "Tree",
           "title": "Files",
           "icon": "folder_open"
         }
