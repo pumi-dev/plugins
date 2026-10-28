@@ -1,0 +1,128 @@
+{
+  "name": "pumi-vscode-editor",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "VS Code's editor (Monaco) for file tabs: highlighting for about 35 languages, multiple cursors, find and replace, the command palette, and the window's theme.",
+  "keywords": [
+    "editor",
+    "monaco",
+    "vscode",
+    "code",
+    "text"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "vscode-editor"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "build": "bun scripts/build.ts",
+    "test": "bun test",
+    "check": "tsc --noEmit && tsc --noEmit -p page"
+  },
+  "dependencies": {
+    "monaco-editor": "0.57.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "vscode-editor",
+    "owner": "pumi_dev",
+    "api": 1,
+    "icon": "icon.png",
+    "uses": [
+      "files"
+    ],
+    "contributes": {
+      "options": {
+        "dirty": {
+          "type": "boolean",
+          "scope": "tab",
+          "default": false,
+          "blocks": [
+            "file"
+          ],
+          "label": "Unsaved",
+          "group": "VSCode Editor",
+          "desc": "Whether the file tab's file has changes not saved yet. The editor sets it; setting it does nothing."
+        },
+        "tab_size": {
+          "type": "number",
+          "default": 4,
+          "min": 1,
+          "max": 16,
+          "step": 1,
+          "label": "Tab size",
+          "group": "VSCode Editor",
+          "desc": "How many columns a tab is, for a file whose own indentation says nothing."
+        },
+        "word_wrap": {
+          "type": "boolean",
+          "default": true,
+          "label": "Word wrap",
+          "group": "VSCode Editor",
+          "desc": "Wrap long lines at the tab's edge."
+        },
+        "minimap": {
+          "type": "boolean",
+          "default": false,
+          "label": "Minimap",
+          "group": "VSCode Editor",
+          "desc": "Draw the file in miniature along the tab's right edge."
+        }
+      },
+      "commands": [
+        {
+          "id": "save",
+          "title": "VSCode Editor: save"
+        },
+        {
+          "id": "find",
+          "title": "VSCode Editor: find"
+        },
+        {
+          "id": "goToLine",
+          "title": "VSCode Editor: go to line"
+        },
+        {
+          "id": "commands",
+          "title": "VSCode Editor: show the editor's commands"
+        },
+        {
+          "id": "toggleWordWrap",
+          "title": "VSCode Editor: toggle word wrap"
+        },
+        {
+          "id": "toggleMinimap",
+          "title": "VSCode Editor: toggle the minimap"
+        }
+      ],
+      "keys": [
+        {
+          "key": "<D-s>",
+          "command": "save"
+        }
+      ],
+      "slots": {
+        "tab.toolbar": {
+          "component": "Toolbar"
+        }
+      },
+      "renderers": {
+        "file": {
+          "export": "Editor",
+          "match": [
+            "*"
+          ]
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
