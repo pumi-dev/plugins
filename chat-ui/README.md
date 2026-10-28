@@ -34,6 +34,19 @@ back exactly as it was.
 The tab's toolbar has the button; *Chat UI: flip the focused tab between the terminal and the chat*
 is in the palette.
 
+## Keys
+
+They work wherever the keyboard is in the chat. A pane given the focus puts it in the prompt.
+
+| | |
+| --- | --- |
+| Enter, Shift+Enter | send; a new line |
+| Esc | close the `/` or `@` list, or the edit; else stop the agent while it works |
+| ↑ / ↓ | in an empty prompt, the prompts you sent before, and back |
+| ↑ ↓ Tab Enter | in the `/` or `@` list, move and pick |
+| ⌃1 … ⌃9 | answer the waiting permission with its first … ninth button |
+| any letter | typed while a button has the keyboard, it goes into the prompt |
+
 ## Options
 
 Settings → Chat UI.
@@ -55,7 +68,7 @@ Settings → Chat UI.
 
 ```sh
 pumi plugin dev chat-ui   # link it, reload on save
-bun test                  # the parsers, finding session files, the conversation model, mentions, commands
+bun test                  # the parsers, finding session files, the conversation model, mentions, commands, keys
 ```
 
 The tests run on synthetic records shaped like each agent's files; no real session is in them.

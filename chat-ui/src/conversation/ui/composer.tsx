@@ -2,14 +2,17 @@
 // behind the running turn, and Stop while the agent works. Above it, a list to pick from while the
 // draft asks for one: the slash commands while it is `/name`, the files while the caret is after an
 // `@`. Up/Down (or Ctrl+P/Ctrl+N) move in it, Tab or Enter takes the one marked, Escape closes it.
-// Files dropped on it are mentioned (`@path`); pictures are attached and shown above the field.
-import { useEffect, useRef, useState } from "react";
-import { call, Icon, useMetrics, useTheme } from "pumi";
+// With no list, Up in an empty draft brings back the prompts sent before (`keys.ts`), Down goes
+// the other way. Files dropped on it are mentioned (`@path`); pictures are attached and shown above
+// the field.
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { call, Icon, useMetrics, useTheme, type ElementRef } from "pumi";
 
 import type { ConfigOption, Image, Queued, SlashCommand, Status } from "../model.ts";
+import { recallTakes, stepRecall, type RecallAt } from "../keys.ts";
 import { applyHint, applyMention, baseName, caretAfterEdit, imageSource, imageTypeOf, insertMentions, mentionAt, relativeTo, slashHints, type MentionHit } from "../view.ts";
 import { OptionPicker } from "./header.tsx";
-import { OwnClicks, Press } from "./press.tsx";
+import { keepTyping, OwnClicks, Press } from "./press.tsx";
 import { SEND_ICON } from "./timeline.tsx";
 import { swallow, useTextTheme, useType } from "./style.ts";
 
@@ -45,6 +48,18 @@ export interface ComposerProps {
   options?: ConfigOption[];
   /** One of them changed; without it they are shown but not changed. */
   onOption?(option: ConfigOption, value: string | boolean): void;
+  /** The prompts sent before, oldest first, which Up brings back (`keys.ts` `sentPrompts`). */
+  history?: string[];
+  /** Set to what the chat around asks of the composer: the keyboard, a letter typed elsewhere. */
+  handle?: RefObject<ComposerHandle | null>;
+}
+
+/** What the chat around a composer asks of it. */
+export interface ComposerHandle {
+  /** Take the keyboard focus. */
+  focus(): void;
+  /** Put `text` at the draft's end, and take the keyboard (a letter typed while a button had it). */
+  type(text: string): void;
 }
 
 /** One row of the list over the field. */
@@ -64,6 +79,9 @@ const MAX_SLASH = 50;
 const MAX_MENTIONS = 30;
 /** The keys the field hands to the list while it shows, rather than moving its caret or sending. */
 const LIST_KEYS = ["up", "down", "enter"];
+/** The keys it hands to bringing a prompt back. */
+const RECALL_UP = ["up"];
+const RECALL_BOTH = ["up", "down"];
 
 export function Composer({
   status,
@@ -84,12 +102,17 @@ export function Composer({
   focus,
   options = [],
   onOption,
+  history = [],
+  handle,
 }: ComposerProps) {
   const t = useTheme();
   const m = useMetrics();
   const type = useType();
   const text = useTextTheme();
   const [draft, setDraftState] = useState("");
+  // The draft as of the last render, for the handle (called from outside, between renders).
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const [attached, setAttached] = useState<Image[]>([]);
   // Where the caret is, as the last edit showed it (the field does not say), and the list's state.
   const caret = useRef(0);
@@ -99,19 +122,37 @@ export function Composer({
   const [found, setFound] = useState<{ query: string; hits: MentionHit[] }>({ query: "", hits: [] });
   const asked = useRef(0);
   const working = status === "working" || status === "blocked";
-  // Whether the field has the keyboard focus, and the mount that takes it: a field is focused only
-  // as it is built (`autoFocus`), so a focus asked for builds it again, its draft kept.
+  // Whether the field has the keyboard focus, and the mount that takes it: the field's ref gives it
+  // the focus (`focus()`); in an app without that, a focus asked for builds the field again, its
+  // draft kept, since a field is focused as it is built (`autoFocus`).
   const hasFocus = useRef(false);
   const [mount, setMount] = useState(0);
+  const field = useRef<ElementRef | null>(null);
+  /** The keyboard to the field: its ref's `focus()`, or (an app without it) the field built again. */
+  const takeFocus = () => {
+    if (field.current?.focus) return field.current.focus();
+    if (hasFocus.current) return;
+    caret.current = draftRef.current.length;
+    setAt(draftRef.current.length);
+    setMount((n) => n + 1);
+  };
   const lastFocus = useRef(focus);
   useEffect(() => {
     if (focus === undefined || focus === lastFocus.current) return;
     lastFocus.current = focus;
-    if (hasFocus.current) return;
-    caret.current = draft.length;
-    setAt(draft.length);
-    setMount((n) => n + 1);
+    takeFocus();
   }, [focus]);
+  // Where Up is among the prompts sent before (`keys.ts`).
+  const [recall, setRecall] = useState<RecallAt>(null);
+  if (handle) {
+    handle.current = {
+      focus: takeFocus,
+      type: (text) => {
+        setDraft(draftRef.current + text);
+        takeFocus();
+      },
+    };
+  }
 
   /** The draft set from here: the field's caret goes to its end, so that is where it is. */
   const setDraft = (value: string) => {
@@ -141,6 +182,7 @@ export function Composer({
     setDraft("");
     setAttached([]);
     setClosed(null);
+    setRecall(null);
   };
 
   const picks: Pick[] = mention
@@ -206,6 +248,7 @@ export function Composer({
   });
 
   const onKey = (e: any) => {
+    keepTyping(e);
     const key = e?.key ?? "";
     const ctrl = e?.modifiers?.ctrl === true;
     // Moving the caret by one, while the list shows: the field does not say where it went, and the
@@ -216,7 +259,17 @@ export function Composer({
       setAt(at);
       return;
     }
-    if (!shown) return;
+    if (!shown) {
+      // Up and Down, handed over while they bring a prompt back (`interceptKeys`).
+      if (key !== "up" && key !== "down") return;
+      const step = recallTakes(key, history, recall, draft) ? stepRecall(history, recall, draft, key) : undefined;
+      if (!step) return;
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      setRecall(step.at);
+      setDraft(step.draft);
+      return;
+    }
     const move = (by: number) => setMarked((current + by + picks.length) % picks.length);
     let handled = true;
     if (key === "up" || (ctrl && key === "p")) move(-1);
@@ -326,12 +379,13 @@ export function Composer({
             value={draft}
             placeholder={placeholder ?? hint}
             readOnly={disabled}
+            ref={field}
             key={mount}
             autoFocus={autoFocus || mount > 0}
             minRows={3}
             maxRows={12}
             theme={text}
-            interceptKeys={shown ? LIST_KEYS : undefined}
+            interceptKeys={shown ? LIST_KEYS : recallTakes("down", history, recall, draft) ? RECALL_BOTH : recallTakes("up", history, recall, draft) ? RECALL_UP : undefined}
             onChange={(e) => {
               const value = e.value ?? "";
               caret.current = caretAfterEdit(draft, value);

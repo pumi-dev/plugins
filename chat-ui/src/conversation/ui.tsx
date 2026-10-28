@@ -1,12 +1,14 @@
 // The chat, drawn from a transcript: `<Conversation transcript onCommand />`. It knows nothing of
 // where the transcript comes from or where a command goes: a package gives it the transcript it
 // follows (`change.ts` `follow`) and sends the commands it makes to its producer. Each part is
-// usable alone.
+// usable alone. Its keys (`keys.ts`) work wherever in it the keyboard is: Esc stops the agent,
+// ⌃1 … ⌃9 answer the request waiting, ↑ in an empty prompt brings back the one sent before.
 import { useTheme } from "pumi";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Header } from "./ui/header.tsx";
-import { Composer } from "./ui/composer.tsx";
+import { Composer, type ComposerHandle } from "./ui/composer.tsx";
+import { chatKey, keystrokeOf, sentPrompts } from "./keys.ts";
 import { ImageViewerHost } from "./ui/image.tsx";
 import { PermissionCard } from "./ui/question.tsx";
 import { PENCIL_ICON, Spinner, Timeline, type MessageAction } from "./ui/timeline.tsx";
@@ -16,9 +18,10 @@ import { newCommandId, type Command, type ConfigOption, type Entry, type Transcr
 import type { MentionHit } from "./view.ts";
 
 export { Header, OptionPicker, type HeaderProps } from "./ui/header.tsx";
-export { Composer, type ComposerProps } from "./ui/composer.tsx";
+export { Composer, type ComposerHandle, type ComposerProps } from "./ui/composer.tsx";
+export { chatKey, keystrokeOf, sentPrompts, stepRecall, type ChatKey, type Keystroke } from "./keys.ts";
 export { Button, PermissionCard, QuestionCard, type ButtonProps, type PermissionCardProps, type QuestionCardProps } from "./ui/question.tsx";
-export { OwnClicks, Press, useTap, type PressProps } from "./ui/press.tsx";
+export { keepTyping, OwnClicks, Press, useTap, type PressProps } from "./ui/press.tsx";
 export { CodeBlock, Inline, Markdown, type MarkdownProps } from "./ui/markdown.tsx";
 export { DiffView } from "./ui/diff.tsx";
 export { ImageViewerHost, Thumb } from "./ui/image.tsx";
@@ -71,6 +74,9 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
   const [editing, setEditing] = useState<Entry | null>(null);
   // Each new number asks the composer to take the keyboard.
   const [focus, setFocus] = useState(0);
+  const composer = useRef<ComposerHandle | null>(null);
+  const entries = transcript?.entries;
+  const history = useMemo(() => sentPrompts(entries ?? []), [entries]);
   const editingNow = useRef(false);
   const takeFocus = () => setTimeout(() => !editingNow.current && setFocus((n) => n + 1), 0);
   const tap = useTap(() => takeFocus());
@@ -103,6 +109,23 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
     setEditing(null);
     takeFocus();
   };
+  const answer = (permissionId: string, optionId: string, text?: string) => {
+    onCommand({ type: "answer", id: newCommandId(), permissionId, optionId, ...(text !== undefined ? { text } : {}) });
+    // Its card goes, and the keyboard with it when one of its buttons had it.
+    takeFocus();
+  };
+  // The chat's keys, from wherever in it the keyboard is: what a field or a list took is not here.
+  const first = transcript.permissions[0];
+  const onKey = (e: any) => {
+    if (e?.defaultPrevented) return;
+    const key = chatKey(keystrokeOf(e), { working: transcript.status === "working" || transcript.status === "blocked", answers: first?.options.length ?? 0 });
+    if (!key) return;
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (key.type === "stop") onCommand({ type: "cancel", id: newCommandId() });
+    else if (key.type === "answer" && first) answer(first.id, first.options[key.index]!.id);
+    else if (key.type === "type") composer.current?.type(key.text);
+  };
   const actionsOf = (entry: Entry): MessageAction[] => {
     const own = messageActions?.(entry) ?? [];
     if (entry.kind !== "user" || !idle || !rewinds) return own;
@@ -111,9 +134,10 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
     return [{ id: "edit", label: "Edit this message", icon: PENCIL_ICON, onPress: () => startEdit(entry) }, ...own];
   };
   return (
-    <ImageViewerHost>
+    <ImageViewerHost onClose={takeFocus}>
       <div
         {...tap}
+        onKeyDown={onKey}
         onFileDrop={(e: any) => {
           const paths: string[] = Array.isArray(e?.paths) ? e.paths : [];
           if (paths.length > 0) setDropped((last) => ({ paths, n: last.n + 1 }));
@@ -134,12 +158,8 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
         {transcript.permissions.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, paddingLeft: 10, paddingRight: 10, paddingTop: 8 }}>
             {/* Not focused when they appear: an Enter meant for the composer must not answer one. */}
-            {transcript.permissions.map((permission) => (
-              <PermissionCard
-                key={permission.id}
-                permission={permission}
-                onAnswer={(permissionId, optionId, text) => onCommand({ type: "answer", id: newCommandId(), permissionId, optionId, ...(text !== undefined ? { text } : {}) })}
-              />
+            {transcript.permissions.map((permission, at) => (
+              <PermissionCard key={permission.id} permission={permission} keys={at === 0} onAnswer={answer} />
             ))}
           </div>
         ) : null}
@@ -155,6 +175,8 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           dropped={dropped}
           agent={transcript.session?.agent}
           focus={focus}
+          handle={composer}
+          history={history}
           options={transcript.options.filter((option) => option.category === "model" && (option.choices?.length ?? 0) > 0)}
           onOption={setOption}
           onSend={(text, pictures) => onCommand({ type: "prompt", id: newCommandId(), text, ...(pictures.length > 0 ? { images: pictures } : {}) })}

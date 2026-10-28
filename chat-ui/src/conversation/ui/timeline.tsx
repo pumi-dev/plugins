@@ -11,7 +11,7 @@ import { activitySummary, clipLines, formatDuration, imagePathsIn, outputShown, 
 import { DiffView, Stats } from "./diff.tsx";
 import { Thumb } from "./image.tsx";
 import { CopyButton, Inline, Markdown, Mono, MoreLines } from "./markdown.tsx";
-import { OwnClicks, Press, useTap } from "./press.tsx";
+import { keepTyping, OwnClicks, Press, useTap } from "./press.tsx";
 import { QuestionCard } from "./question.tsx";
 import { tint, useTextTheme, useType } from "./style.ts";
 
@@ -309,6 +309,7 @@ function EditMessage({ entry }: { entry: Entry }) {
           onChange={(e) => setValue(e.value ?? "")}
           onSubmit={(e) => submit(e.value ?? value)}
           onKeyDown={(e: any) => {
+            keepTyping(e);
             if (e?.key !== "escape") return;
             e?.preventDefault?.();
             e?.stopPropagation?.();
