@@ -1,0 +1,64 @@
+{
+  "name": "pumi-pixel-office",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A UI theme: pumi as a pixel-art office you walk around, with a desk for every view, its agent at it and its screen live.",
+  "keywords": [
+    "theme",
+    "pixel-art",
+    "office",
+    "game",
+    "agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "pixel-office"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "pixel-office",
+    "owner": "pumi_dev",
+    "api": 1,
+    "icon": "icon.png",
+    "themes": [
+      "themes/pixel-office"
+    ],
+    "contributes": {
+      "options": {
+        "appearance": {
+          "type": "string",
+          "default": "system",
+          "label": "Mode",
+          "desc": "The office by day (light), at night (dark), or as the system is.",
+          "choices": [
+            "system",
+            "light",
+            "dark"
+          ],
+          "labels": [
+            "System",
+            "Day",
+            "Night"
+          ],
+          "group": "Pixel Office"
+        },
+        "desk_per_tab": {
+          "type": "boolean",
+          "default": false,
+          "label": "One desk per tab",
+          "desc": "Every tab of a split view gets a desk of its own, with its agent sitting at it and its own screen, instead of one desk whose screen holds the whole view. Sitting at one opens that tab.",
+          "group": "Pixel Office"
+        }
+      }
+    }
+  }
+}
