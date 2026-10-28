@@ -1,0 +1,84 @@
+{
+  "name": "pumi-chat-ui",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A chat view for Claude Code, Codex and pi tabs: the same live session, drawn as a chat you can type into, with the terminal one click away.",
+  "keywords": [
+    "chat",
+    "agents",
+    "claude-code",
+    "codex",
+    "pi"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "chat-ui"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "chat-ui",
+    "owner": "pumi_dev",
+    "api": 1,
+    "icon": "icon.png",
+    "uses": [
+      "files"
+    ],
+    "contributes": {
+      "options": {
+        "auto": {
+          "type": "boolean",
+          "default": true,
+          "label": "Open agents as chats",
+          "group": "Chat UI",
+          "desc": "Show every Claude Code, Codex and pi tab as the chat as soon as its agent starts. A tab flipped back to its terminal stays there until its agent starts again."
+        },
+        "key": {
+          "type": "string",
+          "default": "",
+          "label": "Key",
+          "placeholder": "<D-S-c>",
+          "group": "Chat UI",
+          "desc": "A chord that flips the focused agent tab between its terminal and the chat (the root key table). Empty for none; the title bar's button and the command work regardless."
+        },
+        "history_mb": {
+          "type": "number",
+          "default": 4,
+          "min": 1,
+          "max": 64,
+          "step": 1,
+          "unit": "MB",
+          "label": "History read",
+          "group": "Chat UI",
+          "desc": "How much of the end of a session file the chat reads when it opens. Older turns are left out of a bigger file."
+        }
+      },
+      "commands": [
+        {
+          "id": "toggle",
+          "title": "Chat UI: flip the focused tab between the terminal and the chat"
+        }
+      ],
+      "renderers": {
+        "terminal": "Chat"
+      },
+      "slots": {
+        "tab.toolbar": {
+          "component": "Toolbar"
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
