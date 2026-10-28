@@ -1,5 +1,7 @@
 # browser
 
+<p align="center"><img src="preview.svg" width="640" alt="A web page in a tab with its address bar, and a button picked with a note for an agent"></p>
+
 A web page in a tab, with back, forward, reload and an address bar over it, and where cmd+click
 sends a terminal's links. pumi itself has only the webview (`<WebView>`, `useWebview`), which any
 plugin draws pages with; the browser is this plugin.

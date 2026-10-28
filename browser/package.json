@@ -29,6 +29,13 @@
     "name": "browser",
     "owner": "pumi_dev",
     "api": 1,
+    "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A web page in a tab with its address bar, and a button picked with a note for an agent"
+      }
+    ],
     "contributes": {
       "options": {
         "url": {
