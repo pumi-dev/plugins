@@ -1,0 +1,159 @@
+{
+  "name": "pumi-csv-viewer",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "CSV, TSV and other delimited files as a table: sort, search, resize columns, copy and edit cells, and save them back.",
+  "keywords": [
+    "csv",
+    "tsv",
+    "table",
+    "viewer",
+    "editor",
+    "data"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "csv-viewer"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-table": "8.21.3"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "csv-viewer",
+    "owner": "pumi_dev",
+    "api": 1,
+    "icon": "icon.png",
+    "uses": [
+      "files"
+    ],
+    "contributes": {
+      "options": {
+        "header": {
+          "type": "string",
+          "default": "auto",
+          "choices": [
+            "auto",
+            "first",
+            "none"
+          ],
+          "labels": [
+            "Guess",
+            "The first row",
+            "None: number every row"
+          ],
+          "label": "Header row",
+          "group": "CSV Viewer",
+          "desc": "`Guess` treats the first row as names when it looks like names: no blanks, no repeats, and a column under it that holds numbers."
+        },
+        "delimiter": {
+          "type": "string",
+          "default": "auto",
+          "choices": [
+            "auto",
+            "comma",
+            "tab",
+            "semicolon",
+            "pipe"
+          ],
+          "labels": [
+            "Guess",
+            "Comma ( , )",
+            "Tab",
+            "Semicolon ( ; )",
+            "Pipe ( | )"
+          ],
+          "label": "Delimiter",
+          "group": "CSV Viewer",
+          "desc": "`Guess` reads the first lines and takes the one field separator they agree on; `.tsv` and `.tab` are tabs, `.psv` is pipes."
+        },
+        "numbers": {
+          "type": "boolean",
+          "default": true,
+          "label": "Right-align numbers",
+          "group": "CSV Viewer",
+          "desc": "A column whose values are mostly numbers has them lined up on the right, and sorts them as numbers rather than as text."
+        },
+        "striped": {
+          "type": "boolean",
+          "default": true,
+          "label": "Striped rows",
+          "group": "CSV Viewer",
+          "desc": "Tint every other row, so a wide row is followed across the page."
+        },
+        "watch_file": {
+          "type": "boolean",
+          "default": true,
+          "label": "Follow the file",
+          "group": "CSV Viewer",
+          "desc": "Read the file again when something rewrites it, which is what a script that regenerates it does."
+        },
+        "columns": {
+          "type": "string",
+          "default": "natural",
+          "choices": [
+            "natural",
+            "fit"
+          ],
+          "labels": [
+            "As wide as they need, scrolling sideways",
+            "Squeezed to share the pane's width"
+          ],
+          "label": "Column widths",
+          "group": "CSV Viewer",
+          "desc": "`As wide as they need` keeps each column at the width its contents ask for and lets the table scroll sideways when that is wider than the pane; `Squeezed` shares the pane's width out between them instead. The button in the table's bar flips it."
+        },
+        "max_rows": {
+          "type": "number",
+          "default": 100000,
+          "min": 100,
+          "max": 1000000,
+          "step": 1000,
+          "label": "Rows at most",
+          "group": "CSV Viewer",
+          "desc": "A file with more rows than this shows the first of them, with a note saying how many were left. Searching and sorting see only those."
+        }
+      },
+      "commands": [
+        {
+          "id": "open",
+          "title": "CSV Viewer: open a file"
+        },
+        {
+          "id": "reload",
+          "title": "CSV Viewer: read the file again"
+        }
+      ],
+      "slots": {
+        "tab.toolbar": {
+          "component": "Toolbar"
+        }
+      },
+      "renderers": {
+        "file": {
+          "export": "Table",
+          "match": [
+            "*.csv",
+            "*.tsv",
+            "*.tab",
+            "*.psv",
+            "*.dsv"
+          ]
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
