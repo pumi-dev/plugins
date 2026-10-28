@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+  <!-- Chat UI: an agent's live session as a chat, with tool calls, a permission card and a queued prompt. -->
+  <clipPath id="w"><rect width="320" height="200" rx="10"/></clipPath>
+  <g clip-path="url(#w)">
+  <rect x="0" y="0" width="320" height="200" fill="#1e1f22"/>
+  <!-- The agent's tab, and the button that flips it between its terminal and the chat. -->
+  <rect x="0" y="0" width="320" height="22" fill="#26282b"/>
+  <rect x="0" y="21" width="320" height="1" fill="#393b41"/>
+  <circle cx="11" cy="11" r="3" fill="#ff5f57"/>
+  <circle cx="21" cy="11" r="3" fill="#febc2e"/>
+  <circle cx="31" cy="11" r="3" fill="#28c840"/>
+  <rect x="44" y="0" width="76" height="22" fill="#1e1f22"/>
+  <rect x="120" y="0" width="1" height="22" fill="#393b41"/>
+  <rect x="52" y="8" width="6" height="6" rx="1.5" fill="#d97757"/>
+  <rect x="62" y="9" width="40" height="4" rx="2" fill="#dfe1e5"/>
+  <rect x="248" y="4.5" width="64" height="13" rx="4" stroke="#393b41" fill="#1e1f22"/>
+  <rect x="280" y="6" width="30.5" height="10" rx="3" fill="#494a4d"/>
+  <path d="M256 8.5l2.5 2.5-2.5 2.5M261 13.5h5" fill="none" stroke="#888a8f" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M289 8h12a1.5 1.5 0 0 1 1.5 1.5v3.5a1.5 1.5 0 0 1-1.5 1.5h-8l-2.5 2v-2h-1.5a1.5 1.5 0 0 1-1.5-1.5v-3.5a1.5 1.5 0 0 1 1.5-1.5z" fill="#dfe1e5"/>
+  <!-- What you sent. -->
+  <rect x="176" y="30" width="112" height="24" rx="8" fill="#3474f0"/>
+  <rect x="184" y="36" width="90" height="4" rx="2" fill="#ffffffd9"/>
+  <rect x="184" y="44" width="56" height="4" rx="2" fill="#ffffffd9"/>
+  <!-- The agent's answer, a tool it ran, and a permission it asks for. -->
+  <circle cx="40" cy="66" r="5" fill="#d97757"/>
+  <rect x="52" y="62" width="170" height="4" rx="2" fill="#dfe1e5"/>
+  <rect x="52" y="70" width="150" height="4" rx="2" fill="#dfe1e5"/>
+  <rect x="52" y="78" width="96" height="4" rx="2" fill="#dfe1e5"/>
+  <rect x="52.5" y="88.5" width="196" height="17" rx="5" stroke="#393b41" fill="#26282b"/>
+  <circle cx="62" cy="97" r="3.5" fill="#a6e3a133"/>
+  <path d="M60.3 97l1.2 1.2 2.3-2.4" fill="none" stroke="#a6e3a1" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="70" y="95" width="20" height="4" rx="2" fill="#b0b1b3"/>
+  <rect x="93" y="95" width="50" height="4" rx="2" fill="#888a8f"/>
+  <rect x="206" y="95" width="14" height="4" rx="2" fill="#a6e3a1"/>
+  <rect x="223" y="95" width="14" height="4" rx="2" fill="#f38ba8"/>
+  <rect x="52.5" y="111.5" width="220" height="30" rx="6" stroke="#fab38766" fill="#26282b"/>
+  <path d="M62 116.5l4.5 8h-9z" fill="#fab387"/>
+  <rect x="72" y="118" width="104" height="4" rx="2" fill="#dfe1e5"/>
+  <rect x="72" y="126" width="70" height="4" rx="2" fill="#888a8f"/>
+  <rect x="198" y="116" width="32" height="11" rx="3" fill="#3474f0"/>
+  <rect x="204" y="119.5" width="20" height="4" rx="2" fill="#ffffff"/>
+  <rect x="234" y="116" width="32" height="11" rx="3" fill="#494a4d"/>
+  <rect x="240" y="119.5" width="20" height="4" rx="2" fill="#dfe1e5"/>
+  <!-- A prompt queued while it works. -->
+  <rect x="208" y="148" width="80" height="13" rx="6" opacity=".45" fill="#3474f0"/>
+  <rect x="216" y="152.5" width="52" height="4" rx="2" fill="#ffffff" opacity=".7"/>
+  <circle cx="200" cy="154.5" r="3.5" fill="none" stroke="#888a8f" stroke-width="1"/><path d="M200 152.5v2l1.4 1" fill="none" stroke="#888a8f" stroke-width="1" stroke-linecap="round"/>
+  <circle cx="52" cy="154.5" r="1.8" fill="#888a8f"/>
+  <circle cx="59" cy="154.5" r="1.8" fill="#5c5f66"/>
+  <circle cx="66" cy="154.5" r="1.8" fill="#5c5f66"/>
+  <!-- The prompt: a file added with @, the model picker, Send. -->
+  <rect x="32.5" y="167.5" width="256" height="26" rx="8" stroke="#393b41" fill="#26282b"/>
+  <rect x="40" y="172" width="46" height="9" rx="3" fill="#89b4fa26"/>
+  <rect x="44" y="174.5" width="38" height="4" rx="2" fill="#89b4fa"/>
+  <rect x="90" y="174.5" width="60" height="4" rx="2" fill="#b0b1b3"/>
+  <rect x="152" y="172.5" width="1.2" height="8" fill="#dfe1e5"/>
+  <rect x="222" y="182" width="40" height="8" rx="4" fill="#494a4d"/>
+  <rect x="227" y="184" width="24" height="4" rx="2" fill="#b0b1b3"/>
+  <path d="M254.5 185l1.5 1.5 1.5-1.5" fill="none" stroke="#b0b1b3" stroke-width="0.9"/>
+  <circle cx="276" cy="180.5" r="7" fill="#3474f0"/>
+  <path d="M276 184v-7M273 180l3-3 3 3" fill="none" stroke="#ffffff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

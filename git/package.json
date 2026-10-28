@@ -1,5 +1,6 @@
 {
   "name": "pumi-git",
+  "displayName": "Git",
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
   "description": "Git in the sidebar: stage, commit, history and diffs.",
@@ -30,6 +31,12 @@
     "owner": "pumi_dev",
     "api": 1,
     "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "The git panel with staged files, changes and history, beside a diff in a tab"
+      }
+    ],
     "uses": [
       "files",
       "processes"

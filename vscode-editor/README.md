@@ -1,5 +1,7 @@
 # VSCode Editor
 
+<p align="center"><img src="preview.svg" width="640" alt="A Rust file in Monaco, with the find box, folding marks and the minimap"></p>
+
 [Monaco](https://microsoft.github.io/monaco-editor/), the editor inside VS Code, for file tabs. It
 uses the terminals' colours and font, and the app's menus and clipboard.
 

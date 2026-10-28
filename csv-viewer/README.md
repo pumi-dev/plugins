@@ -1,5 +1,7 @@
 # CSV Viewer
 
+<p align="center"><img src="preview.svg" width="640" alt="A CSV file as a table, sorted by a column, with a block of cells picked and one being edited"></p>
+
 CSV, TSV and other delimited files as a table: sort by a column, search every cell, drag a
 column wider, pick and copy cells, and edit them. Edits are written to the file when you save.
 
