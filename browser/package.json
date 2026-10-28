@@ -1,9 +1,9 @@
 {
   "name": "pumi-browser",
   "displayName": "Browser",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "GPL-3.0-or-later",
-  "description": "A web page in a tab: back, forward, reload and an address bar over the app's webview, and where cmd+click opens a terminal's links. Without it, links open in the system's browser.",
+  "description": "A web page in a tab: back, forward, reload and an address bar over the app's webview, and where cmd+click opens a terminal's links. An agent reads and drives the page (snapshot, click, fill, eval, console, screenshot), and the user picks elements and leaves notes the agent is told about. Without it, links open in the system's browser.",
   "keywords": [
     "browser",
     "web",
@@ -89,7 +89,23 @@
             "navigate",
             "back",
             "forward",
-            "reload"
+            "reload",
+            "snapshot",
+            "text",
+            "html",
+            "find",
+            "click",
+            "hover",
+            "fill",
+            "type",
+            "press",
+            "scroll",
+            "waitFor",
+            "eval",
+            "console",
+            "screenshot",
+            "notes",
+            "clearNotes"
           ]
         }
       ]
