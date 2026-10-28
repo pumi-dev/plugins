@@ -164,7 +164,7 @@ const GitAt = memo(function GitAt({ cwd }: { cwd: string | null }) {
             >
               {active ? <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: 2, backgroundColor: t.border }} /> : null}
               <text style={{ fontSize: 13, color: active ? t.text : t.muted }}>{each === "changes" ? "Changes" : "History"}</text>
-              {each === "changes" && changes && changes.total > 0 ? <text style={{ fontSize: 12, color: t.faint }}>{`(${count(changes.total)})`}</text> : null}
+              {each === "changes" && changes && (changes.all ?? changes.total) > 0 ? <text style={{ fontSize: 12, color: t.faint }}>{`(${count(changes.all ?? changes.total)})`}</text> : null}
             </div>
           );
         })}
@@ -217,7 +217,9 @@ function Changes({ view, menu }: { view: ChangesView | undefined; menu(where: At
     },
     open: (id) => void opened(id).catch(swallow),
     check: (line) => {
-      if (line.kind === "header") void chose(line.id === "group:staged" ? "unstage-all" : "stage-all", "").catch(swallow);
+      // A repository's header, or a group's: the whole of that repository.
+      if (line.kind === "repo") void chose(line.checkbox === "on" ? "unstage-all" : "stage-all", line.id).catch(swallow);
+      else if (line.kind === "header") void chose(line.id.endsWith("group:staged") ? "unstage-all" : "stage-all", line.id).catch(swallow);
       else void chose(line.checkbox === "on" ? "unstage" : "stage", line.id).catch(swallow);
     },
     menu: (line, where) => {
@@ -360,6 +362,7 @@ function sameLine(a: Line, b: Line): boolean {
     a.open === b.open &&
     a.text === b.text &&
     a.status === b.status &&
+    a.detail === b.detail &&
     a.checkbox === b.checkbox &&
     a.count === b.count &&
     a.selected === b.selected &&
@@ -374,8 +377,9 @@ const LineView = memo(
     const m = useMetrics();
     if (line.kind === "empty") {
       return (
-        <div style={{ display: "flex", alignItems: "center", width: "100%", height: ROW, paddingLeft: PAD }}>
-          <text style={{ fontSize: 13, color: t.faint }}>{line.text}</text>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, width: "100%", height: ROW, paddingLeft: PAD, overflow: "hidden" }}>
+          <Indent depth={line.depth} />
+          <text style={{ fontSize: 13, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0 }}>{line.text}</text>
         </div>
       );
     }
@@ -387,7 +391,8 @@ const LineView = memo(
         </div>
       );
     }
-    const header = line.kind === "header";
+    const header = line.kind === "header" || line.kind === "repo";
+    const repo = line.kind === "repo";
     return (
       <div
         onClick={() => actions.pick(line.id)}
@@ -415,28 +420,42 @@ const LineView = memo(
         }}
       >
         {header ? (
-          <Icon name={line.open ? "chevron_down" : "chevron_right"} size={12} color={t.muted} />
+          <>
+            <Indent depth={line.depth} />
+            {/* As wide as a folder's icon, so the guides under it run from its middle. */}
+            <div style={{ display: "flex", width: 14, flexShrink: 0, justifyContent: "center" }}>
+              <Icon name={line.open ? "chevron_down" : "chevron_right"} size={12} color={t.muted} />
+            </div>
+          </>
         ) : (
           <>
             <Indent depth={line.depth} />
             {line.kind === "folder" ? <Icon name={line.open ? "folder_open" : "folder"} size={14} color={t.muted} /> : <Status status={line.status} />}
           </>
         )}
-        <div style={{ display: "flex", flexGrow: 1, flexShrink: 1, minWidth: 0, overflow: "hidden" }}>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, flexGrow: 1, flexShrink: 1, minWidth: 0, overflow: "hidden" }}>
           <text
             style={{
               fontSize: 13,
-              color: header ? t.muted : line.status === "deleted" ? t.muted : t.text,
+              color: repo ? t.text : header ? t.muted : line.status === "deleted" ? t.muted : t.text,
               whiteSpace: "nowrap",
               textOverflow: "ellipsis",
               overflow: "hidden",
               minWidth: 0,
+              flexShrink: 1,
             }}
           >
             {line.text}
           </text>
+          {repo && line.detail !== "" ? (
+            // The branch gives way before the name does.
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3, minWidth: 0, flexShrink: 100, overflow: "hidden" }}>
+              <Icon name="git_branch" size={11} color={t.faint} />
+              <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0 }}>{line.detail}</text>
+            </div>
+          ) : null}
         </div>
-        {header && line.count > 0 && line.id !== "group:staged" ? (
+        {header && line.count > 0 && !line.id.endsWith("group:staged") ? (
           <div style={{ display: "flex", alignItems: "center", height: 18, paddingLeft: 6, paddingRight: 6, flexShrink: 0, borderRadius: m.radiusSmall, backgroundColor: t.active }}>
             <text style={{ fontSize: 11, color: t.muted }}>{count(line.count)}</text>
           </div>
@@ -577,6 +596,7 @@ function Branch({ view, menu }: { view: ChangesView; menu(where: At, items: Item
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 34, flexShrink: 0, paddingLeft: PAD, paddingRight: 8, borderTopWidth: 1, borderColor: t.border }}>
       <Icon name="git_branch" size={13} color={t.muted} />
+      {view.repo ? <text style={{ fontSize: 13, color: t.muted, flexShrink: 100, minWidth: 0, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>{`${view.repo} ·`}</text> : null}
       <text style={{ fontSize: 13, color: t.text, flexGrow: 1, flexShrink: 1, minWidth: 0, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>{view.branch || "no branch"}</text>
       {remote !== null ? (
         <SplitButton
@@ -721,7 +741,7 @@ function History({ view }: { view: HistoryView | undefined }) {
   const start = Math.max(0, Math.min(made.start, commits.length - 1));
   const end = Math.min(commits.length, Math.max(made.end, start));
   const now = Date.now();
-  return (
+  const list = (
     <virtual-list
       itemCount={commits.length}
       estimatedItemHeight={COMMIT_ROW}
@@ -743,6 +763,17 @@ function History({ view }: { view: HistoryView | undefined }) {
         <CommitView key={commit.sha} commit={commit} date={when(commit.timestamp, view.dates, now)} author={view.author} />
       ))}
     </virtual-list>
+  );
+  if (!view.repo) return list;
+  // With several repositories listed, the history is of the one selected last: it says which.
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 30, flexShrink: 0, paddingLeft: PAD, paddingRight: PAD, borderBottomWidth: 1, borderColor: t.border }}>
+        <Icon name="git_branch" size={12} color={t.muted} />
+        <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0 }}>{view.repo}</text>
+      </div>
+      {list}
+    </div>
   );
 }
 

@@ -90,6 +90,17 @@ export class Panel {
   private seen = "";
   /** The history is being read. */
   private reading = false;
+  /** It is no longer shown: it watches nothing and says nothing. */
+  private disposed = false;
+
+  /** Stops watching the repository and telling anyone: the page shows it no more. */
+  dispose(): void {
+    this.disposed = true;
+    this.stopWatching?.();
+    this.stopWatching = null;
+    this.watched = null;
+    this.listeners.clear();
+  }
 
   /** Calls `draw` whenever the panel changes; undo it when the view goes. */
   watch(draw: () => void): () => void {
@@ -208,7 +219,7 @@ export class Panel {
 
   /** Watches the repository now, and stops watching the one before it. */
   private followRoot(): void {
-    if (this.watched === this.root) return;
+    if (this.disposed || this.watched === this.root) return;
     this.stopWatching?.();
     this.stopWatching = null;
     this.watched = this.root;
