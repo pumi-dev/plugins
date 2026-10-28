@@ -1,0 +1,155 @@
+{
+  "name": "pumi-file-tree",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "The project tree in the sidebar: folders and files with their icons and git's marks, to open, rename, move, trash and search.",
+  "keywords": [
+    "files",
+    "file-tree",
+    "explorer",
+    "project",
+    "sidebar"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "file-tree"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "material-icon-theme": "5.39.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "file-tree",
+    "owner": "pumi_dev",
+    "api": 1,
+    "icon": "icon.png",
+    "uses": [
+      "files",
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "hide_gitignore": {
+          "type": "boolean",
+          "default": false,
+          "label": "Hide ignored files",
+          "group": "File Tree",
+          "desc": "Leave out of the tree what a .gitignore hides."
+        },
+        "hide_hidden": {
+          "type": "boolean",
+          "default": false,
+          "label": "Hide dotfiles",
+          "group": "File Tree",
+          "desc": "Leave out of the tree what starts with a dot."
+        },
+        "file_icons": {
+          "type": "boolean",
+          "default": true,
+          "label": "File icons",
+          "group": "File Tree",
+          "desc": "Draw each file's icon, by its name and its extension."
+        },
+        "folder_icons": {
+          "type": "boolean",
+          "default": true,
+          "label": "Folder icons",
+          "group": "File Tree",
+          "desc": "Draw each folder's icon, open or closed."
+        },
+        "git_status": {
+          "type": "boolean",
+          "default": true,
+          "label": "Mark git's changes",
+          "group": "File Tree",
+          "desc": "Tint a row by what git says of it, and by what is under it."
+        },
+        "auto_fold_dirs": {
+          "type": "boolean",
+          "default": true,
+          "label": "Fold single-child folders",
+          "group": "File Tree",
+          "desc": "Draw a folder that holds one folder as one row, `a/b/c`, which opens a level at a time."
+        },
+        "indent_size": {
+          "type": "number",
+          "default": 12,
+          "min": 4,
+          "max": 64,
+          "step": 2,
+          "label": "Indent",
+          "unit": "px",
+          "group": "File Tree",
+          "desc": "How far one level of the tree is indented."
+        },
+        "open_with": {
+          "type": "string",
+          "default": "tab",
+          "choices": [
+            "tab",
+            "beside",
+            "editor",
+            "system"
+          ],
+          "labels": [
+            "A view of its own (the one showing it already, if any)",
+            "A tab on the right, drawn by the viewer that fits it",
+            "Your editor, in a terminal tab",
+            "The system's default app"
+          ],
+          "label": "Open a file with",
+          "group": "File Tree",
+          "desc": "What a click on a file does: a new view holding the file (the view that shows it already comes forward instead), a tab on the right, a terminal tab running your editor, or whatever app owns it. A file's tab is drawn by the enabled viewer that fits it, such as the Code Editor."
+        },
+        "editor": {
+          "type": "string",
+          "default": "",
+          "placeholder": "$EDITOR",
+          "label": "Editor",
+          "group": "File Tree",
+          "desc": "The editor a file opens in when `open_with` is your editor: `code -w`, `nvim`, `hx`. Empty is `$EDITOR`, and `vi` when that is empty too."
+        }
+      },
+      "commands": [
+        {
+          "id": "toggle",
+          "title": "File Tree: show the project tree"
+        },
+        {
+          "id": "reveal",
+          "title": "File Tree: reveal the current file in the tree"
+        },
+        {
+          "id": "filter",
+          "title": "File Tree: search the project"
+        }
+      ],
+      "keys": [
+        {
+          "key": "<D-S-e>",
+          "command": "toggle"
+        }
+      ],
+      "slots": {
+        "panel": {
+          "component": "Tree",
+          "title": "Files",
+          "icon": "folder_open"
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
