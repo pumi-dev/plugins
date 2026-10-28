@@ -1,0 +1,111 @@
+{
+  "name": "pumi-code-editor",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A native code editor for file tabs, written in TSX: CodeMirror's state, parsers and commands, drawn by pumi's renderer with no web page.",
+  "keywords": [
+    "editor",
+    "code"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "code-editor"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "6.20.4",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-cpp": "6.0.3",
+    "@codemirror/lang-css": "6.3.1",
+    "@codemirror/lang-go": "6.0.1",
+    "@codemirror/lang-html": "6.4.12",
+    "@codemirror/lang-java": "6.0.2",
+    "@codemirror/lang-javascript": "6.2.5",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/lang-python": "6.2.1",
+    "@codemirror/lang-rust": "6.0.2",
+    "@codemirror/lang-yaml": "6.1.3",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/state": "6.7.6",
+    "@lezer/common": "1.5.4",
+    "@lezer/highlight": "1.2.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "code-editor",
+    "owner": "pumi_dev",
+    "api": 1,
+    "minPumi": "0.43.0",
+    "icon": "icon.png",
+    "contributes": {
+      "options": {
+        "dirty": {
+          "type": "boolean",
+          "scope": "tab",
+          "default": false,
+          "blocks": [
+            "file"
+          ],
+          "label": "Unsaved",
+          "group": "Code Editor",
+          "desc": "Whether the file tab's file has changes not saved yet. The editor sets it; setting it does nothing."
+        },
+        "tab_size": {
+          "type": "number",
+          "default": 4,
+          "min": 1,
+          "max": 16,
+          "step": 1,
+          "label": "Tab size",
+          "group": "Code Editor",
+          "desc": "How many columns a tab is, and an indent for a file whose own indentation says nothing."
+        },
+        "insert_spaces": {
+          "type": "boolean",
+          "default": true,
+          "label": "Indent with spaces",
+          "group": "Code Editor",
+          "desc": "Indent with spaces rather than a tab, for a file whose own indentation says nothing."
+        }
+      },
+      "commands": [
+        {
+          "id": "save",
+          "title": "Code Editor: save the file"
+        }
+      ],
+      "keys": [
+        {
+          "key": "<D-s>",
+          "command": "save"
+        }
+      ],
+      "slots": {
+        "tab.toolbar": {
+          "component": "Toolbar"
+        }
+      },
+      "renderers": {
+        "file": {
+          "export": "Editor",
+          "match": [
+            "*"
+          ]
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
