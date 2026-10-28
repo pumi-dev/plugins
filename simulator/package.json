@@ -1,0 +1,126 @@
+{
+  "name": "pumi-simulator",
+  "displayName": "iOS Simulator",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "An iOS Simulator in a tab: serve-sim streams it, a webview draws it, and touches, keys and the device's buttons go back to it.",
+  "keywords": [
+    "ios",
+    "simulator",
+    "screenshot",
+    "simctl",
+    "serve-sim",
+    "device"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "simulator"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "simulator",
+    "owner": "pumi_dev",
+    "api": 1,
+    "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "An iPhone simulator streaming in a tab beside a terminal, with its toolbar and device buttons"
+      }
+    ],
+    "uses": [
+      "processes",
+      "network"
+    ],
+    "contributes": {
+      "options": {
+        "udid": {
+          "type": "string",
+          "scope": "tab",
+          "blocks": [
+            "device"
+          ],
+          "label": "Device",
+          "desc": "The simulator this pane shows, by udid or name."
+        },
+        "port": {
+          "type": "number",
+          "default": 3210,
+          "min": 1024,
+          "max": 65535,
+          "label": "First port",
+          "desc": "The first port serve-sim may take; it moves up from here when one is busy."
+        },
+        "version": {
+          "type": "string",
+          "default": "0.1.48",
+          "label": "serve-sim version",
+          "desc": "The serve-sim release installed into this plugin's cache on first use."
+        },
+        "node": {
+          "type": "string",
+          "default": "",
+          "label": "node",
+          "placeholder": "found on PATH",
+          "desc": "The node binary that runs serve-sim (its native helper needs Node, not Bun)."
+        },
+        "keepalive": {
+          "type": "number",
+          "default": 120,
+          "min": 0,
+          "max": 3600,
+          "unit": "s",
+          "label": "Keep streaming",
+          "desc": "How long the streamer stays up after the last pane showing it closes."
+        }
+      },
+      "blocks": [
+        {
+          "id": "device",
+          "title": "Simulator",
+          "icon": "box",
+          "version": 1
+        }
+      ],
+      "commands": [
+        {
+          "id": "open",
+          "title": "Simulator: open"
+        },
+        {
+          "id": "stop",
+          "title": "Simulator: stop streaming"
+        },
+        {
+          "id": "screenshot",
+          "title": "Simulator: screenshot"
+        }
+      ],
+      "slots": {
+        "palette.actions": {
+          "actions": [
+            {
+              "id": "open",
+              "title": "Simulator: open",
+              "icon": "box",
+              "command": "open"
+            }
+          ]
+        }
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
