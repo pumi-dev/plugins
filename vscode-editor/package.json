@@ -1,5 +1,6 @@
 {
   "name": "pumi-vscode-editor",
+  "displayName": "VSCode Editor",
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
   "description": "VS Code's editor (Monaco) for file tabs: highlighting for about 35 languages, multiple cursors, find and replace, the command palette, and the window's theme.",
@@ -34,6 +35,12 @@
     "owner": "pumi_dev",
     "api": 1,
     "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A Rust file in Monaco, with the find box, folding marks and the minimap"
+      }
+    ],
     "uses": [
       "files"
     ],

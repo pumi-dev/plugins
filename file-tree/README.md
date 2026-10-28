@@ -1,5 +1,7 @@
 # File Tree
 
+<p align="center"><img src="preview.svg" width="640" alt="The file tree in the sidebar, with file icons and git's marks, beside the file it opened"></p>
+
 The project tree in the sidebar: the folders and files of the repository the current tab is in,
 with their icons and git's marks. Open, rename, move, trash and search them without leaving pumi.
 

@@ -1,5 +1,6 @@
 {
   "name": "pumi-pixel-office",
+  "displayName": "Pixel Office",
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
   "description": "A UI theme: pumi as a pixel-art office you walk around, with a desk for every view, its agent at it and its screen live.",
@@ -29,6 +30,12 @@
     "owner": "pumi_dev",
     "api": 1,
     "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "pumi as a pixel-art office: desks with agents at them, typing, asking and done"
+      }
+    ],
     "themes": [
       "themes/pixel-office"
     ],

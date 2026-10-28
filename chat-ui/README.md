@@ -1,5 +1,7 @@
 # Chat UI
 
+<p align="center"><img src="preview.svg" width="640" alt="A Claude Code session as a chat: messages, a tool call, a permission card and the prompt"></p>
+
 A chat view for Claude Code, Codex and pi (or omp) tabs. One click flips the tab between the agent's
 own terminal and a chat of the same live session, and back.
 

@@ -1,5 +1,6 @@
 {
   "name": "pumi-file-tree",
+  "displayName": "File Tree",
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
   "description": "The project tree in the sidebar: folders and files with their icons and git's marks, to open, rename, move, trash and search.",
@@ -33,6 +34,12 @@
     "owner": "pumi_dev",
     "api": 1,
     "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "The file tree in the sidebar, with file icons and git's marks, beside the file it opened"
+      }
+    ],
     "uses": [
       "files",
       "processes"

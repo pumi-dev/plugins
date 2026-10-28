@@ -1,5 +1,7 @@
 # Code Editor
 
+<p align="center"><img src="preview.svg" width="640" alt="A TypeScript file in the code editor, with syntax colours and three carets"></p>
+
 A code editor for file tabs, drawn by pumi itself, with no web page. The text, undo, syntax
 trees and indentation are CodeMirror 6's.
 
