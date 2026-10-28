@@ -1,5 +1,6 @@
 {
   "name": "pumi-csv-viewer",
+  "displayName": "CSV Viewer",
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
   "description": "CSV, TSV and other delimited files as a table: sort, search, resize columns, copy and edit cells, and save them back.",
@@ -34,6 +35,12 @@
     "owner": "pumi_dev",
     "api": 1,
     "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A CSV file as a table, sorted by a column, with a block of cells picked and one being edited"
+      }
+    ],
     "uses": [
       "files"
     ],

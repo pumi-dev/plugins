@@ -1,5 +1,6 @@
 {
   "name": "pumi-chat-ui",
+  "displayName": "Chat UI",
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
   "description": "A chat view for Claude Code, Codex and pi tabs: the same live session, drawn as a chat you can type into, with the terminal one click away.",
@@ -30,6 +31,12 @@
     "owner": "pumi_dev",
     "api": 1,
     "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A Claude Code session as a chat: messages, a tool call, a permission card and the prompt"
+      }
+    ],
     "uses": [
       "files"
     ],

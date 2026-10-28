@@ -1,5 +1,7 @@
 # git
 
+<p align="center"><img src="preview.svg" width="640" alt="The git panel with staged files, changes and history, beside a diff in a tab"></p>
+
 Git in the sidebar: stage, commit, history and diffs, for the repository of the tab you are in.
 
 ```sh
