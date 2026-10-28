@@ -8,7 +8,7 @@
 // whose unchanged rows are not drawn again, and the commit box keeps its own text. The repository,
 // the lines and every action are the worker's (`main.ts`, `panel.ts`, `tree.ts`).
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Icon, useChannel, useMetrics, usePlugin, useTab, useTheme, type RendererProps } from "pumi";
+import { Icon, useChannel, useMetrics, usePlugin, useSession, useTab, useTheme, type RendererProps } from "pumi";
 
 import {
   chose,
@@ -87,13 +87,16 @@ function at(e: any): At {
  * or status changing draws nothing of the page. */
 export function Git() {
   const focused = useTab();
+  const session = useSession();
   const prefix = usePrefix();
   // A tab with no directory of its own (this plugin's diff, a page, nothing focused yet) is not
-  // somewhere the user went: the page stays on the repository it was showing.
+  // somewhere the user went: the page stays on the repository it was showing. Before any tab has
+  // said, the session's own directory is where the user works.
   const last = useRef<string | null>(null);
   const cwd = focused?.cwd;
   if (cwd && cwd !== "/" && focused?.block !== `${prefix}diff`) last.current = cwd;
-  return <GitAt cwd={last.current} />;
+  const own = session?.cwd;
+  return <GitAt cwd={last.current ?? (own && own !== "/" ? own : null)} />;
 }
 
 /** The newer of what was posted and what an export answered. */

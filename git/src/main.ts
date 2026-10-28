@@ -182,11 +182,19 @@ panel.watch(post);
 
 // ---- what the window asks for
 
+/** Whether the window has said where the user is (`follow` with a directory): from then on, the
+ * worker's own guess at startup is not looked at. */
+let told = false;
+
 /** The user is in `cwd`: the repository around it, and the page as it is (for a window the posts
  * do not reach, and the first draw of one that has none yet). With no directory yet, the page as
  * it is, after the first look. */
 export async function follow(cwd: string | null): Promise<Views> {
-  if (cwd !== null) await panel.follow(cwd);
+  if (cwd !== null) {
+    // The window's word wins over the worker's own guess at startup, whichever lands last.
+    told = true;
+    await panel.follow(cwd);
+  }
   else if (!panel.looked) await panel.refresh();
   return views();
 }
@@ -384,20 +392,28 @@ async function start(): Promise<void> {
     console.error(`git: no state directory: ${message(err)}`);
   }
   await panel.start(state);
-  await panel.follow(await directory());
+  // The page may have asked while this was starting (the window opens with the app): what it said
+  // stays, rather than the guess below pointing the panel back at `/`.
+  const guess = await directory();
+  if (!told && guess !== null) await panel.follow(guess);
 }
 
 /** The directory of the tab the user is in, as the window will ask for it when the page opens. */
-async function directory(): Promise<string> {
+async function directory(): Promise<string | null> {
   try {
+    // The workspace fills in after the worker starts: without waiting, there is no tab yet.
+    await workspace.ready;
     const current = workspace.currentTab;
-    if (current === null) return process.cwd();
-    const path = await option.get("tab_current_path", { scope: "tab", id: current.id });
-    if (typeof path === "string" && path !== "") return path;
+    if (current !== null) {
+      const path = await option.get("tab_current_path", { scope: "tab", id: current.id });
+      if (typeof path === "string" && path !== "" && path !== "/") return path;
+    }
   } catch {
     // No tab in front yet: the worker's own directory.
   }
-  return process.cwd();
+  // An app opened from the Finder starts its workers in `/`, which is nowhere the user went.
+  const own = process.cwd();
+  return own === "/" ? null : own;
 }
 
 void start().catch((err) => console.error(`git: starting threw:`, err));
