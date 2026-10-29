@@ -1,22 +1,25 @@
-// What the chat draws, in the window: the title bar's button that flips an agent tab between its
-// terminal and the chat, and the agent's block (`term`, on pumi's terminal engine), drawn by `Term`:
-// the chat while the tab's `@tab_renderer` names this plugin, else the terminal. The
+// What the plugin draws, in the window: the title bar's button that flips an agent tab between its
+// terminal and the chat, the agent's block (`term`, on pumi's terminal engine), drawn by `Term`:
+// the chat while the tab's `@tab_renderer` names this plugin, else the terminal; a session tab
+// (`Session`); and Settings → Agents (`settings.tsx`). The
 // conversation is the worker's (`main.ts` `read`, `send`); the chat follows its batches, on the
 // channel in the plugin host's windows and by the convention's event in any app's.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Icon, IconButton, useChannelListener, useEvent, useMetrics, usePlugin, useTab, useTheme, type RendererProps, type TabId } from "pumi";
+import { Icon, IconButton, useChannelListener, useEvent, useMetrics, useOption, usePlugin, useTab, useTheme, type RendererProps, type TabId } from "pumi";
 
 import { follow, type Update } from "./conversation/change.ts";
 import type { Transcript } from "./conversation/model.ts";
 import { questionsOf } from "./conversation/question.ts";
 import { Button, Conversation, Header, Press, tint } from "./conversation/ui.tsx";
 import { agentSpec, type AgentSpec } from "./agents.ts";
-import { mentions, read, send, setChat, toggle } from "./main.ts";
-import { AGENT, CONVERSATION_CHANGED, STATUS } from "./names.ts";
+import { mentions, read, send, setChat, toggle, toolbarPress } from "./main.ts";
+import { catalogAgent, modeOf } from "./catalog.ts";
+import { AGENT, CONVERSATION_CHANGED, PREFIX, SESSION_ENGINE, STATUS } from "./names.ts";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 
-// Settings' page and its Hooks section (the manifest's `settings`).
-export { HooksSection, SettingsPage } from "./settings.tsx";
+export { Session } from "./ui/session.tsx";
+// Settings' page (the manifest's `settings`).
+export { SettingsPage } from "./settings.tsx";
 
 /** A throw the chat cannot answer: said in the log, not drawn over the window. */
 function swallow(err: unknown): void {
@@ -55,8 +58,14 @@ export function Toolbar({ tab }: { tab: TabId }) {
   const t = useTheme();
   const plugin = usePlugin() ?? "";
   const options = useTabOptions(tab);
+  const [modes] = useOption<Record<string, string>>(`${PREFIX}modes`);
+  const def = typeof options[AGENT] === "string" ? catalogAgent(options[AGENT]) : undefined;
+  // A session tab of this plugin's: its button continues the session in the agent's terminal.
+  if (typeof options[SESSION_ENGINE] === "string" && def?.resume) {
+    return <IconButton icon="terminal" title={`Continue in ${def.title}'s terminal`} onClick={() => void toolbarPress(tabId(tab)).catch(swallow)} />;
+  }
   const spec = agentSpec(options[AGENT]);
-  if (!spec) return null;
+  if (!spec || (def && modeOf(def, modes) === "off")) return null;
   const chat = options["@tab_renderer"] === plugin;
   const asking = options[STATUS] === "blocked";
   const tip = chat ? `Show ${spec.label}'s terminal` : asking ? `${spec.label} is asking: show the chat` : `Show ${spec.label} as a chat`;
@@ -171,6 +180,8 @@ function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
           transcript={transcript}
           hideHeader
           autoFocus={focused}
+          // The draft outlives a flip to the terminal and back.
+          draftKey={`tab:${tab}`}
           onMentions={findFiles}
           onAnswerElsewhere={showTerminal}
           elsewhereLabel={`Answer in ${label}`}

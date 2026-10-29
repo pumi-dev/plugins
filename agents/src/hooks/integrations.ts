@@ -13,8 +13,8 @@ import { OPENCODE_PLUGIN, PI_EXTENSION, PI_LIVE, PI_STOP, PI_STOP_QUEUE } from "
 
 /** What marks a hook, or a file, as the plugin's. */
 export const MARKER = "pumi-agents";
-/** The hooks' version: an installed hook of another is `outdated`. */
-export const VERSION = 1;
+/** The hooks' version: an installed hook of another is `outdated`. 2: pi and OpenCode hand on the workspace context. */
+export const VERSION = 2;
 /**
  * How long a permission hook waits for an answer in pumi before the agent asks in its own
  * prompt, in seconds.

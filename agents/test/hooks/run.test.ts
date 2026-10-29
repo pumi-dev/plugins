@@ -7,12 +7,14 @@ import { agentIcon, ICON } from "../../src/icons.ts";
 import { requestClosed, runHook, type HookApi } from "../../src/hooks/run.ts";
 
 /** A fake pumi: what was set and reported, in order, and the answers it is given. */
-function fake(given: { options?: Record<string, unknown>; queued?: string[]; refuse?: boolean } = {}) {
+function fake(given: { options?: Record<string, unknown>; queued?: string[]; refuse?: boolean; context?: string } = {}) {
   const sets: [string, unknown, string][] = [];
   const reports: string[] = [];
   const opened: Record<string, unknown>[] = [];
   const closed: string[] = [];
   const queued = [...(given.queued ?? [])];
+  const asked: { event: string; resumed: boolean; full: unknown }[] = [];
+  const forgot: string[] = [];
   let next = 0;
   const api: HookApi = {
     report: async (tab, body) => reports.push(`${tab} ${body}`),
@@ -28,8 +30,13 @@ function fake(given: { options?: Record<string, unknown>; queued?: string[]; ref
       requestClosed(id, null);
     },
     takeQueued: async () => queued.shift(),
+    context: async (turn) => {
+      asked.push({ event: turn.event, resumed: turn.resumed, full: turn.full });
+      return given.context ?? null;
+    },
+    compacted: async (turn) => void forgot.push(`${turn.tab} ${turn.agent} ${turn.session}`),
   };
-  return { api, sets, reports, opened, closed };
+  return { api, sets, reports, opened, closed, asked, forgot };
 }
 
 describe("the hook function", () => {
@@ -86,6 +93,29 @@ describe("the hook function", () => {
     expect(reports).toEqual(["%3 state=working:app=claude"]);
     expect(await runHook(api, "%3", "claude", "stop", { session_id: "s" })).toBeNull();
     expect(reports.at(-1)).toBe("%3 state=done:app=claude");
+  });
+
+  test("tells the agent the workspace at its start and its prompts, in its format", async () => {
+    const claude = fake({ context: "the map" });
+    const start = await runHook(claude.api, "%3", "claude", "start", { session_id: "s", source: "resume", hook_event_name: "SessionStart" });
+    expect(JSON.parse(start!)).toEqual({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "the map" } });
+    expect(JSON.parse((await runHook(claude.api, "%3", "claude", "prompt", { session_id: "s" }))!).hookSpecificOutput.hookEventName).toBe("UserPromptSubmit");
+    expect(claude.asked).toEqual([
+      { event: "start", resumed: true, full: false },
+      { event: "prompt", resumed: false, full: false },
+    ]);
+    const pi = fake({ context: "the map" });
+    expect(await runHook(pi.api, "%4", "pi", "prompt", { session_id: "p" })).toBe("the map");
+    // Nothing to tell: the hook prints nothing.
+    expect(await runHook(fake().api, "%3", "claude", "prompt", { session_id: "s" })).toBeNull();
+  });
+
+  test("forgets what the agent was told when its context is compacted", async () => {
+    const { api, forgot, asked } = fake();
+    await runHook(api, "%3", "claude", "compact", { session_id: "s" });
+    await runHook(api, "%3", "claude", "start", { session_id: "s", source: "compact" });
+    expect(forgot).toEqual(["%3 claude s", "%3 claude s"]);
+    expect(asked).toEqual([{ event: "start", resumed: false, full: false }]);
   });
 
   test("hands nothing to an agent that takes no queued prompt", async () => {

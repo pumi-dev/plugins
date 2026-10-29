@@ -2,7 +2,7 @@
 // `pumi skill hook` it took them from.
 import { describe, expect, test } from "bun:test";
 
-import { continuation, formatOf, hookEvent, modelOf, permissionAsk, permissionDecision, plainLine, reportBody, reportState, told } from "../../src/hooks/hook.ts";
+import { contextOutput, continuation, formatOf, hookEvent, modelOf, permissionAsk, permissionDecision, plainLine, reportBody, reportState, startOf, told } from "../../src/hooks/hook.ts";
 import { findAgent } from "../../src/hooks/integrations.ts";
 
 describe("a hook's event", () => {
@@ -23,6 +23,17 @@ describe("a hook's event", () => {
     expect(reportBody("claude", "working")).toBe("state=working:app=claude");
   });
 
+  test("tells the agent the workspace in its format", () => {
+    const claude = findAgent("claude");
+    expect(JSON.parse(contextOutput("hooks", claude, "start", "map"))).toEqual({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: "map" } });
+    expect(JSON.parse(contextOutput("hooks", claude, "prompt", "map"))).toEqual({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: "map" } });
+    // Gemini's prompt hook is `BeforeAgent`; the event the hook names wins.
+    expect(JSON.parse(contextOutput("hooks", findAgent("gemini"), "prompt", "map")).hookSpecificOutput.hookEventName).toBe("BeforeAgent");
+    expect(JSON.parse(contextOutput("hooks", undefined, "prompt", "map", "Other")).hookSpecificOutput.hookEventName).toBe("Other");
+    expect(contextOutput("cursor", findAgent("cursor"), "start", "map")).toBe(`{"additional_context":"map"}`);
+    expect(contextOutput("text", findAgent("pi"), "start", "map")).toBe("map");
+  });
+
   test("is answered in its agent's format", () => {
     expect(formatOf(findAgent("claude"))).toBe("hooks");
     expect(formatOf(findAgent("cursor"))).toBe("cursor");
@@ -34,7 +45,10 @@ describe("a hook's event", () => {
 describe("a hook's input", () => {
   test("is read by its well-known keys", () => {
     const claude = { session_id: "s", transcript_path: "/home/u/.claude/projects/p/s.jsonl", model: "claude-x", source: "resume", hook_event_name: "SessionStart" };
-    expect(told(claude)).toEqual({ session: "s", transcript: "/home/u/.claude/projects/p/s.jsonl", model: "claude-x" });
+    expect(told(claude)).toEqual({ session: "s", transcript: "/home/u/.claude/projects/p/s.jsonl", model: "claude-x", hookEvent: "SessionStart" });
+    expect(startOf(claude)).toEqual({ resumed: true, compacted: false, full: false });
+    expect(startOf({ source: "compact" })).toEqual({ resumed: false, compacted: true, full: false });
+    expect(startOf({ resumed: true, full: true })).toEqual({ resumed: true, compacted: false, full: true });
     const pi = { session_file: "/s.jsonl", model: { provider: "anthropic", id: "m" } };
     expect(told(pi)).toEqual({ transcript: "/s.jsonl", model: "anthropic/m" });
     expect(modelOf({ model: { display_name: "Opus" } })).toBe("Opus");

@@ -132,7 +132,7 @@ export class PiParser implements Parser {
 }
 
 /** How an assistant message ended its turn: `stop`, `aborted` and `error` do; `toolUse` goes on. */
-function stopOf(reason: unknown): StopReason | undefined {
+export function stopOf(reason: unknown): StopReason | undefined {
   switch (reason) {
     case "stop":
       return "end_turn";
@@ -157,7 +157,7 @@ function textOf(content: unknown): string {
 }
 
 /** What a call shows before its result: an edit's changes, a write's text. */
-function callContent(name: string, args: Rec | undefined): ToolContent[] {
+export function callContent(name: string, args: Rec | undefined): ToolContent[] {
   const path = args ? str(args.path) : undefined;
   if (!args || !path) return [];
   if (name === "write" && typeof args.content === "string") return [{ type: "diff", path, new: args.content }];

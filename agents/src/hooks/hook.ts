@@ -35,6 +35,8 @@ export interface Told {
   /** The session file's absolute path. */
   transcript?: string;
   model?: string;
+  /** The event that ran the hook, as the agent names it (Claude's `hook_event_name`). */
+  hookEvent?: string;
 }
 
 /** One line of text, short enough to be an option's value. */
@@ -69,6 +71,8 @@ export function told(given: unknown): Told {
   if (session && plainLine(session)) out.session = session;
   if (transcript && plainLine(transcript) && transcript.startsWith("/")) out.transcript = transcript;
   if (model && plainLine(model)) out.model = model;
+  const ran = firstString(input, ["hook_event_name"]);
+  if (ran && /^[A-Za-z]{1,64}$/.test(ran)) out.hookEvent = ran;
   return out;
 }
 
@@ -89,6 +93,35 @@ export function reportState(event: HookEvent): "idle" | "working" | "done" | und
 /** The OSC 7501 report of `state` (and why it is blocked, `kind`), as the agent would send it: `tab.call`'s `report` body. */
 export function reportBody(agent: string, state: string, kind?: "permission" | "question"): string {
   return `state=${state}${kind ? `:kind=${kind}` : ""}:app=${agent}`;
+}
+
+/**
+ * What the agent is told about the workspace, in its format: Claude's (and the like) as the
+ * hook's `additionalContext` for the event that ran it, Cursor's as `additional_context`, and the
+ * rest as the text itself.
+ */
+export function contextOutput(format: Format, agent: HookAgent | undefined, event: "start" | "prompt", text: string, hookEvent?: string): string {
+  switch (format) {
+    case "text":
+      return text;
+    case "hooks": {
+      const shape = agent?.shape.kind === "hooks" ? agent.shape : undefined;
+      const named = event === "start" ? shape?.start : (shape?.prompt ?? shape?.start);
+      const name = hookEvent || named || (event === "start" ? "SessionStart" : "UserPromptSubmit");
+      return JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } });
+    }
+    case "cursor":
+      return JSON.stringify({ additional_context: text });
+  }
+}
+
+/**
+ * How a turn began, from its input: Claude's `source` (`resume`, `compact`) or pi's `resumed` at a
+ * start, and OpenCode's `full`, which asks for the whole context at each prompt.
+ */
+export function startOf(given: unknown): { resumed: boolean; compacted: boolean; full: boolean } {
+  const input = isObject(given) ? given : {};
+  return { resumed: input.source === "resume" || input.resumed === true, compacted: input.source === "compact", full: input.full === true };
 }
 
 /** A queued prompt, as the stop hook hands it on: the turn goes on with it. */

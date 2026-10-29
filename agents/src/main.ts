@@ -1,12 +1,16 @@
-// agents: a chat button in the title bar of every Claude Code, Codex and pi tab, flipping the tab
-// between the agent's own terminal and a rendered chat of the same live session.
+// agents: coding agents in pumi's tabs. Each agent opens from the `+` menu as Settings says (its
+// mode): its own TUI in a terminal, the TUI with a chat drawn over it, or a chat tab the plugin
+// runs the agent in itself (ACP or the agent's own protocol, `sessions.ts`). Its hook tells the
+// plugin its session and state, and the agent is told about the workspace around it (`tell.ts`).
 //
-//   the title bar's button, or the `key` option      the focused tab: the chat, or back to the TUI
-//   pumi call pumi_dev.agents.toggle                the same
-//   pumi call pumi_dev.agents.conversation.read %3  the conversation of tab %3
-//   pumi call pumi_dev.agents.hook %3 claude stop …  what an agent's hook runs (`hooks/`)
+//   the `+` menu, or pumi call pumi_dev.agents.open claude   a new agent tab, as its mode says
+//   the title bar's button, or the `key` option              the focused tab: the chat, or the TUI
+//   pumi call pumi_dev.agents.toggle                         the same
+//   pumi call pumi_dev.agents.conversation.read %3           the conversation of tab %3
+//   pumi call pumi_dev.agents.queue %3 "next"                a prompt for tab %3's agent, after its turn
+//   pumi call pumi_dev.agents.hook %3 claude stop …          what an agent's hook runs (`hooks/`)
 //
-// An agent's tab is the plugin's own block, `term`, on pumi's terminal engine (`openAgent`). The
+// An agent's terminal is the plugin's own block, `term`, on pumi's terminal engine (`openTerminal`). The
 // chat is how `ui.tsx`'s `Term` draws it while the tab's `@tab_renderer` option names this
 // plugin: the terminal keeps running under it, untouched, and shows again as it was when the
 // option goes. What the chat shows is the session file the agent writes (`bridge.ts`), and what
@@ -19,6 +23,7 @@ import {
   fn,
   on,
   option,
+  plugin,
   request,
   self,
   workspace,
@@ -38,11 +43,35 @@ import { agentIcon, ICON } from "./icons.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
 import type { ConversationRead } from "./topics.ts";
+import { CATALOG, catalogAgent, MODE_LABELS, modeOf, modesOf, type CatalogAgent, type Mode } from "./catalog.ts";
+import { findProgram, searchPath } from "./session/launch.ts";
+import {
+  attach,
+  authenticate,
+  back,
+  cwdFrom,
+  engineInstalled,
+  followFile,
+  handoff,
+  isSessionTab,
+  login,
+  openSession,
+  reconcile,
+  restart,
+  retry,
+  sessionRead,
+  sessionSend,
+  setOpenTerminal,
+  startSession,
+} from "./sessions.ts";
+import { forget, tell } from "./tell.ts";
+
+export { attach, authenticate, followFile, login, restart, retry, sessionSend, startSession };
 
 /** The tab option naming the plugin drawing the tab's block (`@tab_renderer`): this one, or none. */
 const TAB_RENDERER = "@tab_renderer";
 /**
- * Set on an agent tab once the `auto` option has drawn it as the chat, for as long as its agent
+ * Set on an agent tab once its `chat` mode has drawn it as the chat, for as long as its agent
  * runs: a tab the user then flips back to the terminal stays there, through a restart too (tab
  * options are kept with the tab). It goes when the agent does, so the next agent there is taken.
  */
@@ -76,8 +105,14 @@ let history = 4 << 20;
 
 /** A flag option as the server answers it: set to anything but nothing, `false` or "". */
 const isSet = (value: unknown): boolean => value !== undefined && value !== null && value !== false && value !== "" && value !== "false";
-/** Whether an agent tab is drawn as the chat as soon as its agent starts (the `auto` option). */
-let auto = true;
+/** Each agent's mode, as the `modes` option says (`catalog.ts`). */
+let modes: unknown = {};
+
+/** The mode of the agent a tab's trait names: `terminal` for one the catalog does not know. */
+function modeFor(agent: unknown): Mode {
+  const def = typeof agent === "string" ? catalogAgent(agent) : undefined;
+  return def ? modeOf(def, modes) : "terminal";
+}
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
@@ -167,6 +202,11 @@ export async function mentions(tab: number, query: string): Promise<MentionHit[]
   return findMentions(bridge.cwd, typeof query === "string" ? query : "");
 }
 
+/** The same, for a session tab: from its agent's directory. */
+export async function sessionMentions(tab: number, query: string): Promise<MentionHit[]> {
+  return findMentions(await cwdFrom(undefined, tab), typeof query === "string" ? query : "");
+}
+
 // ── The conversation, for everyone else ──────────────────────────────────────────────────────
 
 fn.set(
@@ -179,7 +219,8 @@ fn.set(
     ],
   },
   async (tab: string, since?: Cursor): Promise<ConversationRead> => {
-    const update = await read(numberOf(tab), since ?? undefined);
+    const id = numberOf(tab);
+    const update = (await isSessionTab(id)) ? await sessionRead(id, since ?? undefined) : await read(id, since ?? undefined);
     return update.type === "snapshot" ? { snapshot: update.transcript, cursor: { epoch: update.transcript.epoch, seq: update.transcript.seq } } : { changes: update.changes, cursor: update.to };
   },
 );
@@ -193,7 +234,27 @@ fn.set(
       ["table", "command"],
     ],
   },
-  (tab: string, cmd: Command) => send(numberOf(tab), cmd),
+  (tab: string, cmd: Command) => sendTo(numberOf(tab), cmd),
+);
+
+/** A command for any agent tab of the plugin's: a terminal's, or a session tab's. */
+async function sendTo(tab: number, cmd: Command): Promise<Ack> {
+  return (await isSessionTab(tab)) ? sessionSend(tab, cmd) : send(tab, cmd);
+}
+
+fn.set(
+  "queue",
+  {
+    desc: "A prompt for an agent tab's agent: it goes now when the agent is ready, else at its turn's end. What one agent sends another (`pumi call pumi_dev.agents.queue %5 \"…\"`). Answers `{id, rejected?}`.",
+    parameters: [
+      ["string", "tab"],
+      ["string", "text"],
+    ],
+  },
+  async (tab: string, text: string) => {
+    if (typeof text !== "string" || text.trim() === "") throw new Error("agents: nothing to queue");
+    return sendTo(numberOf(String(tab)), { type: "prompt", id: crypto.randomUUID(), text });
+  },
 );
 
 // ── Requests ─────────────────────────────────────────────────────────────────────────────────
@@ -241,6 +302,8 @@ const hookApi: HookApi = {
   open: (ask, opts) => request.open(ask as Parameters<typeof request.open>[0], opts),
   close: (id) => request.close(id),
   takeQueued,
+  context: tell,
+  compacted: forget,
 };
 
 fn.set(
@@ -262,34 +325,134 @@ const TERM = self.plugin.prefixed("term");
 
 /**
  * Opens a terminal for agent `id` (`claude`) and starts it there, with `PUMI_AGENT` so its hook
- * runs; answers the tab's id. `cwd` is where it starts, the caller's view's folder without.
+ * runs; `run` is what is typed instead of the agent's own command (a resume). Answers the tab's id.
  */
-export async function openAgent(id: string, cwd?: string): Promise<string> {
-  const agent = findAgent(id);
-  if (!agent) throw new Error(`agents: no agent \`${id}\``);
-  const launch = agentLaunch(agent);
-  const tab = await call("tab.open", TERM, { env: launch.env, ...(typeof cwd === "string" && cwd !== "" ? { cwd } : {}) });
-  const icon = agentIcon(agent.id);
+async function openTerminal(id: string, opts: { cwd?: string; place?: unknown; run?: string } = {}): Promise<string> {
+  const hooked = findAgent(id);
+  const program = hooked?.command ?? catalogAgent(id)?.program;
+  if (!program) throw new Error(`agents: no agent \`${id}\``);
+  const launch = hooked ? agentLaunch(hooked) : { env: {}, command: program };
+  const args = { env: launch.env, ...(opts.cwd ? { cwd: opts.cwd } : {}) };
+  const tab = (await workspace.openTab(TERM, args, opts.place ?? undefined)).id;
+  const icon = agentIcon(id);
   if (icon) await option.set(ICON, icon, { scope: "tab", id: tab }).catch((err: unknown) => console.error(`agents: ${message(err)}`));
-  await call("tab.call", tab, "run", { command: launch.command });
+  await call("tab.call", tab, "run", { command: opts.run ?? launch.command });
   return tab;
+}
+
+setOpenTerminal(openTerminal);
+
+/** Where a `tab.new` action was pressed and where the tab goes, or where an agent starts. */
+interface NewArgs {
+  /** The tab or pane it was pressed on (`%3`, `:4`). */
+  tab?: unknown;
+  /** Where it goes, as `tab.open` takes it. */
+  place?: unknown;
+  cwd?: unknown;
+}
+
+/** A new tab of agent `id`, as its mode says: its TUI in a terminal (the chat over it, for `chat`), or a session tab. */
+export async function openAgent(id: string, args: NewArgs = {}): Promise<string> {
+  const agent = catalogAgent(id);
+  if (!agent && !findAgent(id)) throw new Error(`agents: no agent \`${id}\``);
+  const beside = typeof args.tab === "string" && /^%\d+$/.test(args.tab) ? numberOf(args.tab) : undefined;
+  const place = args.place && typeof args.place === "object" ? args.place : beside !== undefined ? { kind: "tiled", beside: tabRef(beside) } : undefined;
+  const given = typeof args.cwd === "string" && args.cwd !== "" ? args.cwd : undefined;
+  const mode = agent ? modeOf(agent, modes) : "terminal";
+  if (agent && (mode === "acp" || mode === "sdk")) {
+    const engine = mode === "acp" ? "acp" : agent.sdk!;
+    return tabRef(await openSession({ agent: agent.id, engine, cwd: given, beside, ...(place ? { place } : {}) }));
+  }
+  // `chat`: the hook names the agent as it starts, and the tab is taken then (`takeOver`).
+  const cwd = given !== undefined || beside !== undefined ? await cwdFrom(given, beside) : undefined;
+  return openTerminal(id, { cwd, place });
 }
 
 fn.set(
   "open",
   {
-    desc: "Opens a terminal for an agent (`claude`, `codex`, `pi`, …) and starts it there, where its hook runs. Answers the tab's id.",
+    desc: "Opens an agent (`claude`, `codex`, `pi`, …) in a new tab, as its mode in Settings says: its terminal, where its hook runs, or a chat tab. Answers the tab's id.",
     parameters: [
       ["string", "agent"],
       ["string", "cwd"],
     ],
   },
-  (agent: string, cwd?: string) => openAgent(agent, cwd ?? undefined),
+  (agent: string, cwd?: string) => openAgent(agent, { cwd: cwd ?? undefined }),
 );
 
-/** Every agent and its hook, for Settings' Hooks section. */
-export async function hookList(): Promise<HookRow[]> {
-  return hookRows();
+// ── Opening agents: the `+` menu ─────────────────────────────────────────────────────────────
+
+/** The command that opens a new `agent` tab (`tab.new`'s action runs it). */
+const newCommand = (agent: CatalogAgent) => `new_${agent.id}`;
+
+for (const agent of CATALOG) {
+  fn.set(newCommand(agent), { desc: `Open ${agent.title} in a new tab, as Settings → Agents says.`, parameters: [["table", "args"]] }, (args?: NewArgs) => openAgent(agent.id, args ?? {}));
+}
+
+/** Whether `agent` can open here now, in the mode it has. */
+function available(agent: CatalogAgent, mode: Mode, path: string): boolean {
+  if (mode === "off") return false;
+  if (mode === "acp") return engineInstalled(agent, "acp", path) || (findProgram("npx", path) !== undefined && agent.acp!.run.some((c) => c[0] === "npx"));
+  return findProgram(agent.program, path) !== undefined;
+}
+
+/**
+ * What the plugin contributes now, beside its manifest: a `tab.new` action and a command for each
+ * agent installed here whose mode is not `off`, in the catalog's order (`plugin.contribute`).
+ */
+async function contribute(): Promise<void> {
+  const path = searchPath(process.env.PATH);
+  const shown = CATALOG.filter((agent) => available(agent, modeOf(agent, modes), path));
+  const own = (self.plugin.manifest.contributes?.commands ?? []) as { id: string; title: string }[];
+  const commands = [...own, ...shown.map((agent) => ({ id: newCommand(agent), title: `New ${agent.title}` }))];
+  const actions = shown.map((agent) => ({ id: agent.id, title: agent.title, icon: "sparkle", command: newCommand(agent) }));
+  await plugin.contribute(self.plugin.id, { commands, slots: { "tab.new": actions.length ? { actions } : null } });
+}
+
+// ── Settings ────────────────────────────────────────────────────────────────────────────────
+
+/** One agent as Settings lists it: how it opens, whether it is here, and its hook. */
+export interface AgentRow {
+  id: string;
+  title: string;
+  modes: { value: Mode; label: string }[];
+  mode: Mode;
+  /** Its program is on the PATH. */
+  installed: boolean;
+  /** Said under its name: why to think before its mode (the SDK's billing). */
+  note?: string;
+  /** Its mark, as an image's `src`. */
+  icon?: string;
+  /** Its hook, when it has one. */
+  hook?: HookRow;
+}
+
+/** Every agent the plugin opens, those installed here first, each with its mode and its hook. */
+export async function agentRows(): Promise<AgentRow[]> {
+  const path = searchPath(process.env.PATH);
+  const hooks = new Map(hookRows().map((row) => [row.id, row]));
+  const rows: AgentRow[] = CATALOG.map((agent) => {
+    const hook = hooks.get(agent.id);
+    return {
+      id: agent.id,
+      title: agent.title,
+      modes: modesOf(agent).map((value) => ({ value, label: MODE_LABELS[value] })),
+      mode: modeOf(agent, modes),
+      installed: findProgram(agent.program, path) !== undefined,
+      ...(agent.sdkNote ? { note: agent.sdkNote } : {}),
+      ...(agentIcon(agent.id) ? { icon: agentIcon(agent.id) } : {}),
+      ...(hook && hook.hook !== "unsupported" ? { hook } : {}),
+    };
+  });
+  return rows.sort((a, b) => Number(b.installed) - Number(a.installed));
+}
+
+/** Sets `agent`'s mode (Settings' dropdown). */
+export async function setMode(agent: string, mode: Mode): Promise<void> {
+  const def = catalogAgent(agent);
+  if (!def || !modesOf(def).includes(mode)) throw new Error(`agents: ${agent} has no mode ${mode}`);
+  const now = { ...((modes && typeof modes === "object" ? modes : {}) as Record<string, unknown>), [agent]: mode };
+  await option.set("modes", now);
 }
 
 /** Installs (or brings up to date) the hooks of agents `ids`, or takes them out; throws what went wrong, one agent a line. */
@@ -310,17 +473,19 @@ export async function changeHooks(ids: string[], add: boolean): Promise<void> {
 
 // ── Following the tabs ──────────────────────────────────────────────────────────────────────
 
-/** An agent tab the chat reads says so, unless another package serves its conversation. */
+/** An agent tab the chat reads says so, unless another package serves its conversation or its mode is `off`. */
 async function claim(tab: number): Promise<void> {
+  if (modeFor(await tabOption(AGENT, tab)) === "off") return;
   if (!text(await tabOption(AGENT_CONVERSATION, tab))) await setTabOption(AGENT_CONVERSATION, self.plugin.id, tab);
 }
 
 /**
- * With `auto` on, an agent tab the chat has not taken yet is drawn as the chat, unless another
- * plugin draws it. Answers whether it was taken.
+ * An agent tab whose mode is `chat`, not taken yet, is drawn as the chat, unless another plugin
+ * draws it. Answers whether it was taken.
  */
 async function takeOver(tab: number): Promise<boolean> {
-  if (!auto || !agentSpec(await tabOption(AGENT, tab))) return false;
+  const agent = await tabOption(AGENT, tab);
+  if (!agentSpec(agent) || modeFor(agent) !== "chat") return false;
   if (isSet(await tabOption(TAKEN, tab))) return false;
   const owner = text(await tabOption(TAB_RENDERER, tab));
   if (owner && owner !== self.plugin.id) return false;
@@ -415,17 +580,20 @@ let bound: string | null = null;
 type Keys = Record<string, Record<string, unknown>>;
 
 /**
- * Reads the options: the history size, and the chord bound to `toggle` (unbinding the one before).
+ * Reads the options: the history size, the modes, and the chord bound to `toggle` (unbinding the one before).
  * The keys are the server's `keys` option, which has no disposer: the app takes a plugin's own
  * away when it stops.
  */
 async function configure(): Promise<void> {
   const mb = Number(await option.get("history_mb").catch(() => 4));
   history = Math.max(1, Number.isFinite(mb) ? mb : 4) << 20;
-  const was = auto;
-  auto = (await option.get("auto").catch(() => true)) !== false;
-  // Turned on: the agent tabs open now are taken too.
-  if (auto && !was) void takeOverAll().catch((err) => console.error(`agents: ${message(err)}`));
+  const was = JSON.stringify(modes);
+  modes = (await option.get("modes").catch(() => ({}))) ?? {};
+  if (JSON.stringify(modes) !== was) {
+    // A mode changed: the `+` menu says so, and agent tabs now of the `chat` mode are taken.
+    void contribute().catch((err) => console.error(`agents: ${message(err)}`));
+    void takeOverAll().catch((err) => console.error(`agents: ${message(err)}`));
+  }
   const chosen = await option.get("key").catch(() => "");
   const chord = typeof chosen === "string" ? chosen.trim() : "";
   if (bound === chord) return;
@@ -444,11 +612,15 @@ async function configure(): Promise<void> {
 on("option.changed", { match: `${self.plugin.prefix}*`, desc: "Agents follows its options" }, () => void configure());
 
 /**
- * At start: every agent tab claimed, the chats that were showing (`@tab_renderer` is kept with the
- * tab) read again, and with `auto` on, the agent tabs not taken yet drawn as chats.
+ * At start: the options of the plugins this one took over, every agent tab claimed, the chats that
+ * were showing (`@tab_renderer` is kept with the tab) read again, the agent tabs of the `chat`
+ * mode not taken yet drawn as chats, and each session tab's host found again.
  */
 async function startup(): Promise<void> {
+  await migrate();
   await configure();
+  await contribute().catch((err) => console.error(`agents: ${message(err)}`));
+  void reconcile().catch((err) => console.error(`agents: ${message(err)}`));
   for (const each of await workspace.tabs()) {
     const tab = numberOf(each.id);
     if (!agentSpec(await tabOption(AGENT, tab))) continue;
@@ -459,3 +631,101 @@ async function startup(): Promise<void> {
 }
 
 void startup().catch((err) => console.error(`agents: ${message(err)}`));
+
+// ── Session tabs: handing off and back ──────────────────────────────────────────────────────
+
+// From the palette, the focused tab; from the toolbar, the `{ tab }` it was pressed on.
+const tabArg = async (arg?: unknown): Promise<number> => {
+  const asked = typeof arg === "object" && arg !== null ? (arg as { tab?: unknown }).tab : arg;
+  if (typeof asked === "string") return numberOf(asked);
+  if (typeof asked === "number") return asked;
+  const at = await here();
+  if (at === undefined) throw new Error("agents: no tab in front");
+  return at;
+};
+
+fn.set("handoff", { desc: "Continue this terminal agent's session in a chat tab of the plugin's own (its ACP or SDK mode).", parameters: [["table", "arg"]] }, async (arg?: unknown) => {
+  const tab = await tabArg(arg);
+  const agent = catalogAgent(String((await tabOption(AGENT, tab)) ?? ""));
+  if (!agent) throw new Error("agents: this tab runs no agent the plugin knows");
+  const mode = modeOf(agent, modes);
+  const engine = mode === "sdk" && agent.sdk ? agent.sdk : agent.acp ? "acp" : agent.sdk;
+  if (!engine) throw new Error(`agents: ${agent.title} has no ACP or SDK mode`);
+  return tabRef(await handoff(tab, engine));
+});
+
+fn.set("back", { desc: "Continue this chat tab's session in its agent's own terminal.", parameters: [["table", "arg"]] }, async (arg?: unknown) => tabRef(await back(await tabArg(arg))));
+
+/** The toolbar's button: a session tab goes back to a terminal, a terminal agent tab flips its chat. */
+export async function toolbarPress(tab: number): Promise<void> {
+  if (await isSessionTab(tab)) await back(tab);
+  else await toggle(tab);
+}
+
+// ── Taking over from the plugins this one replaces ─────────────────────────────────────────
+
+/** The plugins this one took over from: Chat UI (the chat, ACP and SDK tabs), and before it agent-chat and acp. */
+const FORMER = { chatUi: "pumi_dev/chat-ui", chat: "amresyd/agent-chat", acp: "amresyd/acp" } as const;
+
+/** Read by its full name: another plugin's option, or one of this plugin's no longer declared. */
+const optionNamed = (name: string): Promise<unknown> => option.get(name).catch(() => null);
+
+/**
+ * Once: the options the plugins this one replaces had, as this one's. Chat UI's modes and chat
+ * options; the version before modes, whose `auto` off meant agents stayed in their terminals (the
+ * `terminal` mode now); and the workspace context's (`amresyd/agents`).
+ */
+async function migrate(): Promise<void> {
+  await adopt().catch((err) => console.error(`agents: ${message(err)}`));
+  if (await option.get("migrated").catch(() => null)) return;
+  const given = await option.get("modes").catch(() => null);
+  if (!given || typeof given !== "object" || Object.keys(given).length === 0) {
+    const former = await optionNamed("pumi_dev.chat_ui.modes");
+    if (former && typeof former === "object" && Object.keys(former).length > 0) await option.set("modes", former).catch(() => null);
+    else if ((await optionNamed(self.plugin.prefixed("auto"))) === false) {
+      const now: Record<string, Mode> = {};
+      for (const agent of CATALOG) if (agent.default === "chat") now[agent.id] = "terminal";
+      await option.set("modes", now).catch(() => null);
+    }
+  }
+  for (const [from, to] of [
+    ["pumi_dev.chat_ui.key", "key"],
+    ["pumi_dev.chat_ui.history_mb", "history_mb"],
+    ["pumi_dev.chat_ui.bun", "bun"],
+    ["amresyd.agents.context", "context"],
+    ["amresyd.agents.updates", "context_updates"],
+    ["amresyd.agents.other_sessions", "context_other_sessions"],
+  ] as const) {
+    const value = await optionNamed(from);
+    if (value !== null && value !== undefined && value !== "") await option.set(to, value).catch(() => null);
+  }
+  await option.set("migrated", true).catch(() => null);
+}
+
+/**
+ * Tabs the former plugins drew, while they are not on: a terminal's chat is drawn by this plugin
+ * now, and a chat tab of theirs opens again as a session tab of this one's on its session.
+ */
+async function adopt(): Promise<void> {
+  const on = new Set(((await call("registry.list", "plugin", {}).catch(() => [])) as { id?: string; active?: boolean }[]).filter((p) => p.active).map((p) => p.id));
+  const former: string[] = Object.values(FORMER).filter((id) => !on.has(id));
+  if (former.length === 0) return;
+  const sessionBlocks: Record<string, string> = { "pumi_dev.chat_ui.session": FORMER.chatUi, "amresyd.acp.chat": FORMER.acp };
+  for (const each of await workspace.tabs()) {
+    const tab = numberOf(each.id);
+    const renderer = text(await tabOption(TAB_RENDERER, tab));
+    const serves = text(await tabOption(AGENT_CONVERSATION, tab)) ?? text(await tabOption("@agent.conversation", tab));
+    if (renderer && former.includes(renderer)) await setTabOption(TAB_RENDERER, self.plugin.id, tab);
+    if (serves && former.includes(serves)) await setTabOption(AGENT_CONVERSATION, self.plugin.id, tab);
+    const owner = sessionBlocks[each.block ?? ""];
+    if (!owner || !former.includes(owner)) continue;
+    const agent = text(await tabOption("@agent", tab));
+    const def = agent ? catalogAgent(agent) : undefined;
+    if (!agent || !def) continue;
+    const engine = owner === FORMER.acp ? "acp" : ((text(await tabOption("@chat_ui.engine", tab)) ?? "acp") as "acp" | "pi" | "claude" | "codex");
+    if (engine === "acp" ? !def.acp : def.sdk !== engine) continue;
+    const session = text(await tabOption("@agent.session", tab));
+    const cwd = text(await tabOption("@chat_ui.cwd", tab)) ?? text(await tabOption("@acp.cwd", tab));
+    await openSession({ agent, engine, ...(cwd ? { cwd } : {}), ...(session ? { session } : {}), place: { kind: "tiled", replace: tabRef(tab) } });
+  }
+}

@@ -117,6 +117,49 @@ export function baseName(path: string): string {
   return path.replace(/\/+$/, "").split("/").pop() ?? path;
 }
 
+/**
+ * Where each of `tokens` is in `draft`, wherever it is: text typed against a mention leaves it a
+ * mention. Longer first, none overlapping. The textarea draws the same spans as its inline nodes
+ * (`inlines`), so what is sent is what shows.
+ */
+export function tokenSpans(draft: string, tokens: string[]): { token: string; start: number; end: number }[] {
+  const spans: { token: string; start: number; end: number }[] = [];
+  // Longest first, so `@a/b c` is one mention and not `@a/b` with ` c` after it.
+  for (const token of [...new Set(tokens)].filter((each) => each !== "").sort((a, b) => b.length - a.length)) {
+    let from = 0;
+    for (let at = draft.indexOf(token, from); at !== -1; at = draft.indexOf(token, from)) {
+      const end = at + token.length;
+      from = at + 1;
+      if (spans.some((span) => at < span.end && end > span.start)) continue;
+      spans.push({ token, start: at, end });
+    }
+  }
+  return spans.sort((a, b) => a.start - b.start);
+}
+
+/** `draft` with a space between each of `tokens` and text typed against it, so the agent reads the mention whole. */
+export function spaceTokens(draft: string, tokens: string[]): string {
+  let out = draft;
+  for (const span of tokenSpans(draft, tokens).reverse()) {
+    const after = out[span.end];
+    const before = out[span.start - 1];
+    if (after !== undefined && !/\s/.test(after)) out = `${out.slice(0, span.end)} ${out.slice(span.end)}`;
+    if (before !== undefined && !/\s/.test(before)) out = `${out.slice(0, span.start)} ${out.slice(span.start)}`;
+  }
+  return out;
+}
+
+/** `draft` without `tokens`, each with the space before it (or after, at the start). */
+export function withoutTokens(draft: string, tokens: string[]): string {
+  let out = draft;
+  for (const span of tokenSpans(draft, tokens).reverse()) {
+    const before = out.slice(0, span.start);
+    const after = out.slice(span.end);
+    out = before === "" || /\n$/.test(before) ? before + after.replace(/^[ \t]/, "") : before.replace(/[ \t]$/, "") + after;
+  }
+  return out;
+}
+
 /** `path` as the agent in `cwd` names it: from `cwd` when it is under it, else whole. */
 export function relativeTo(cwd: string, path: string): string {
   const root = cwd.replace(/\/+$/, "");
@@ -425,4 +468,82 @@ export function toolHeadline(tool: Tool): { verb: string; target?: string; mono:
   }
   if (tool.kind === "subagent") return { verb: running ? "Agent working" : "Agent", target: detail ?? title, mono: false };
   return { verb: title, target: detail?.split("\n")[0], mono: false };
+}
+
+// ── Zed's bar ────────────────────────────────────────────────────────────────────────────────
+
+/** A thought level as Zed's thinking control has it: whether it toggles, whether it is on, its effort levels. */
+export interface ThinkingState {
+  /** It has a choice that turns thinking off: the bulb is a toggle. */
+  toggles: boolean;
+  on: boolean;
+  /** The level in use (none while off). */
+  level?: string;
+  /** The choices that are levels, in order (not the off one). */
+  levels: { id: string; name: string; description?: string }[];
+  /** The level the model uses when none was picked. */
+  fallback?: string;
+}
+
+export function thinkingOf(option: ConfigOption): ThinkingState {
+  const levels = (option.choices ?? []).filter((choice) => choice.id !== option.off);
+  const current = typeof option.current === "string" ? option.current : undefined;
+  const on = option.off === undefined || current !== option.off;
+  return { toggles: option.off !== undefined, on, ...(on && current ? { level: current } : {}), levels, ...(option.default ? { fallback: option.default } : {}) };
+}
+
+/**
+ * Zed's context ring as an SVG's markup, 16 across: a 2-wide stroke around a circle of radius 6,
+ * filled clockwise from the top for `ratio` of it (a whole circle from 0.999). Nothing for 0.
+ */
+export function ringArc(ratio: number): string | undefined {
+  const r = Math.max(0, Math.min(1, ratio));
+  if (r <= 0) return undefined;
+  const open = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">';
+  if (r >= 0.999) return `${open}<circle cx="8" cy="8" r="6" stroke="black" stroke-width="2"/></svg>`;
+  const angle = r * 2 * Math.PI;
+  const x = (8 + 6 * Math.sin(angle)).toFixed(3);
+  const y = (8 - 6 * Math.cos(angle)).toFixed(3);
+  return `${open}<path d="M8 2A6 6 0 ${r > 0.5 ? 1 : 0} 1 ${x} ${y}" stroke="black" stroke-width="2" stroke-linecap="butt"/></svg>`;
+}
+
+/** The ring's tooltip, as Zed's: `Context: 42% • 84k/200k`. */
+export function contextTooltip(usage: Usage): string {
+  const pct = usage.contextPct ?? (usage.tokens !== undefined && usage.contextSize ? Math.round((usage.tokens / usage.contextSize) * 100) : undefined);
+  const parts = [pct !== undefined ? `${pct}%` : undefined, usage.tokens !== undefined ? (usage.contextSize ? `${formatCount(usage.tokens)}/${formatCount(usage.contextSize)}` : `${formatCount(usage.tokens)} tokens`) : undefined].filter(Boolean);
+  const cost = usage.cost ? ` · ${usage.cost.currency === "USD" ? "$" : ""}${usage.cost.amount.toFixed(2)}${usage.cost.currency === "USD" ? "" : ` ${usage.cost.currency}`}` : "";
+  return `Context: ${parts.join(" • ")}${cost}`;
+}
+
+/** The maker of a model, by its id (`anthropic/claude-…`, `gpt-5`), for the model selector's mark. */
+export function modelMaker(model: string | undefined, agent?: string): "claude" | "openai" | "anthropic" | "gemini" | "deepseek" | "openrouter" | "google" | "mistral" | "xai" | "ollama" | undefined {
+  const id = (model ?? "").toLowerCase();
+  const provider = id.includes("/") ? id.slice(0, id.indexOf("/")) : "";
+  if (provider === "ollama") return "ollama";
+  if (/deepseek/.test(id)) return "deepseek";
+  if (/gemini/.test(id)) return "gemini";
+  if (/grok|xai/.test(id)) return "xai";
+  if (/mistral|codestral/.test(id)) return "mistral";
+  if (/gpt|^o\d|codex|openai/.test(id)) return "openai";
+  if (/claude|opus|sonnet|haiku|anthropic/.test(id)) return provider === "anthropic" ? "anthropic" : "claude";
+  if (provider === "openrouter" || id.startsWith("~")) return "openrouter";
+  if (provider === "google") return "google";
+  const who = (agent ?? "").toLowerCase();
+  if (who.includes("claude")) return "claude";
+  if (who.includes("codex")) return "openai";
+  return undefined;
+}
+
+/**
+ * Whether the files can be put back as they were before the user's message at `at`: its producer
+ * keeps a checkpoint of it, and something after it changed a file.
+ */
+export function restorable(entries: Entry[], at: number): boolean {
+  const entry = entries[at];
+  if (entry?.kind !== "user" || entry.checkpoint !== true) return false;
+  for (let i = at + 1; i < entries.length; i++) {
+    const tool = entries[i]!.tool;
+    if (tool && (tool.kind === "edit" || tool.kind === "write") && tool.status !== "failed") return true;
+  }
+  return false;
 }

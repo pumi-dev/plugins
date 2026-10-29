@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { HOOK_FN } from "../../src/names.ts";
-import { AGENT_ENV, agentLaunch, findAgent, HOOK_AGENTS, hookCommand, hookRows, hookState, hookStatus, install, MARKER, merge, ownedFile, PERMISSION_WAIT, resumeCommand, resumeLine, strip, uninstall, type HookAgent } from "../../src/hooks/integrations.ts";
+import { AGENT_ENV, agentLaunch, findAgent, HOOK_AGENTS, hookCommand, hookRows, hookState, hookStatus, install, MARKER, merge, ownedFile, PERMISSION_WAIT, resumeCommand, resumeLine, strip, uninstall, VERSION, type HookAgent } from "../../src/hooks/integrations.ts";
 
 const agent = (id: string): HookAgent => findAgent(id)!;
 type Json = Record<string, any>;
@@ -98,7 +98,7 @@ describe("the files installed whole", () => {
       expect(file).toContain(`"compact"`);
       expect(file).toContain(`"call", "${HOOK_FN}"`);
       expect(file).toContain("if (!process.env.PUMI_AGENT) return;");
-      expect(file).toContain(`// ${MARKER} v1`);
+      expect(file).toContain(`// ${MARKER} v${VERSION}`);
       // The chat's live view of a turn reads what it writes.
       expect(file).toContain(`".live"`);
     }
@@ -110,12 +110,18 @@ describe("the files installed whole", () => {
     expect(ownedFile(agent("claude"))).toBeUndefined();
   });
 
-  test("nothing in them tells the agent anything unseen", () => {
-    for (const each of ["pi", "omp", "opencode", "kilo"]) {
+  test("hand the agent what it is told about the workspace, unseen by the user", () => {
+    for (const each of ["pi", "omp"]) {
       const file = ownedFile(agent(each))!;
-      expect(file).not.toContain("customType");
-      expect(file).not.toContain("system.transform");
-      expect(file).not.toContain(`deliverAs: "nextTurn"`);
+      // At a start, with its next turn; at a prompt, with that prompt.
+      expect(file).toContain(`customType: "pumi-context"`);
+      expect(file).toContain(`deliverAs: "nextTurn"`);
+      expect(file).toContain("return { message: hidden(text) }");
+    }
+    for (const each of ["opencode", "kilo"]) {
+      const file = ownedFile(agent(each))!;
+      expect(file).toContain("experimental.chat.system.transform");
+      expect(file).toContain("full: true");
     }
   });
 

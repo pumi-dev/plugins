@@ -18,13 +18,21 @@ interface Shown {
 const Viewer = createContext<((shown: Shown) => void) | null>(null);
 
 /** Gives the parts under it a viewer, drawn over `children`. */
-export function ImageViewerHost({ children }: { children: ReactNode }) {
+export function ImageViewerHost({ children, onClose }: { children: ReactNode; /** The picture shown closed (the keyboard it had goes back). */ onClose?(): void }) {
   const [shown, setShown] = useState<Shown | null>(null);
   return (
     <Viewer.Provider value={setShown}>
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, position: "relative" }}>
         {children}
-        {shown ? <Lightbox shown={shown} onClose={() => setShown(null)} /> : null}
+        {shown ? (
+          <Lightbox
+            shown={shown}
+            onClose={() => {
+              setShown(null);
+              onClose?.();
+            }}
+          />
+        ) : null}
       </div>
     </Viewer.Provider>
   );

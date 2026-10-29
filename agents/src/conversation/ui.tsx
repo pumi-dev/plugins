@@ -1,29 +1,49 @@
 // The chat, drawn from a transcript: `<Conversation transcript onCommand />`. It knows nothing of
 // where the transcript comes from or where a command goes: a package gives it the transcript it
 // follows (`change.ts` `follow`) and sends the commands it makes to its producer. Each part is
-// usable alone.
+// usable alone. Its keys (`keys.ts`) work wherever in it the keyboard is: Esc stops the agent,
+// ⌃1 … ⌃9 answer the request waiting, ↑ in an empty prompt brings back the one sent before.
 import { useTheme } from "pumi";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Header } from "./ui/header.tsx";
-import { Composer } from "./ui/composer.tsx";
+import { Composer, type ComposerHandle } from "./ui/composer.tsx";
+import { chatKey, keystrokeOf, sentPrompts } from "./keys.ts";
 import { ImageViewerHost } from "./ui/image.tsx";
 import { PermissionCard } from "./ui/question.tsx";
-import { PENCIL_ICON, Spinner, Timeline, type MessageAction } from "./ui/timeline.tsx";
+import { PENCIL_ICON, PlanBar, Spinner, Timeline, type MessageAction } from "./ui/timeline.tsx";
 import { useTap } from "./ui/press.tsx";
 import { useType } from "./ui/style.ts";
 import { newCommandId, type Command, type ConfigOption, type Entry, type Transcript } from "./model.ts";
-import type { MentionHit } from "./view.ts";
+import { modelMaker, type MentionHit } from "./view.ts";
+import type { ZedIcon } from "./ui/icons.ts";
 
 export { Header, OptionPicker, type HeaderProps } from "./ui/header.tsx";
-export { Composer, type ComposerProps } from "./ui/composer.tsx";
+export { Composer, type ComposerHandle, type ComposerProps } from "./ui/composer.tsx";
+export { chatKey, keystrokeOf, sentPrompts, stepRecall, type ChatKey, type Keystroke } from "./keys.ts";
 export { Button, PermissionCard, QuestionCard, type ButtonProps, type PermissionCardProps, type QuestionCardProps } from "./ui/question.tsx";
-export { OwnClicks, Press, useTap, type PressProps } from "./ui/press.tsx";
+export { keepTyping, OwnClicks, Press, useTap, type PressProps } from "./ui/press.tsx";
 export { CodeBlock, Inline, Markdown, type MarkdownProps } from "./ui/markdown.tsx";
 export { DiffView } from "./ui/diff.tsx";
 export { ImageViewerHost, Thumb } from "./ui/image.tsx";
-export { EntryView, PENCIL_ICON, PlanList, RETURN_ICON, SEND_ICON, Spinner, Thought, Timeline, ToolCard, ToolPart, type EntryViewProps, type MessageAction, type TimelineProps } from "./ui/timeline.tsx";
+export { EntryView, PENCIL_ICON, PlanBar, PlanList, RETURN_ICON, SEND_ICON, Spinner, Thought, Timeline, ToolCard, ToolPart, type EntryViewProps, type MessageAction, type TimelineProps } from "./ui/timeline.tsx";
 export { tint, useTextTheme, useType, type ChatType, type TextTheme } from "./ui/style.ts";
+export { AddContext, BarButton, ContextRing, ModelPicker, Picker, SendButton, ThinkingControl, ZIcon, type ContextAction, type PickerProps } from "./ui/bar.tsx";
+export { ZED_ICONS, type ZedIcon } from "./ui/icons.ts";
+
+/** The mark the model selector shows for a maker (`view.ts` `modelMaker`). */
+const MAKER_ICONS: Record<NonNullable<ReturnType<typeof modelMaker>>, ZedIcon> = {
+  claude: "ai_claude",
+  anthropic: "ai_anthropic",
+  openai: "ai_open_ai",
+  gemini: "ai_gemini",
+  google: "ai_google",
+  deepseek: "ai_deep_seek",
+  openrouter: "ai_open_router",
+  mistral: "ai_mistral",
+  xai: "ai_x_ai",
+  ollama: "ai_ollama",
+};
 
 export interface ConversationProps {
   /** The conversation as it is now; `undefined` while the first snapshot is on its way. */
@@ -61,19 +81,45 @@ export interface ConversationProps {
   rewinds?: "exact" | "terminal";
   /** Who `terminal` rewinds in (`Claude Code`), for its button. */
   rewindsIn?: string;
+  /** The producer forks a session from a turn (`fork`): each turn's controls offer it. */
+  forks?: boolean;
+  /** Open a file the agent reads or edits, while the chat follows it (the crosshair); no crosshair without. */
+  onFollowFile?(path: string, line?: number): void;
+  /** Where the composer keeps its draft while the chat is not drawn (`ComposerProps.draftKey`). */
+  draftKey?: string;
 }
 
 /** The whole chat: the header, the timeline, the requests waiting, and the composer. */
-export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn }: ConversationProps) {
+export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, onFollowFile, draftKey }: ConversationProps) {
   // Files dropped anywhere on the chat go to the composer, as if dropped on it.
   const [dropped, setDropped] = useState<{ paths: string[]; n: number }>({ paths: [], n: 0 });
   // The message being edited in place.
   const [editing, setEditing] = useState<Entry | null>(null);
   // Each new number asks the composer to take the keyboard.
   const [focus, setFocus] = useState(0);
+  const composer = useRef<ComposerHandle | null>(null);
+  const entries = transcript?.entries;
+  const history = useMemo(() => sentPrompts(entries ?? []), [entries]);
   const editingNow = useRef(false);
   const takeFocus = () => setTimeout(() => !editingNow.current && setFocus((n) => n + 1), 0);
   const tap = useTap(() => takeFocus());
+  // Following the agent: each file a new call of its names opens, once.
+  const [following, setFollowing] = useState(false);
+  const followed = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!following || !onFollowFile || !entries) return;
+    for (let at = entries.length - 1; at >= 0; at--) {
+      const tool = entries[at]!.tool;
+      if (!tool) continue;
+      const place: { path: string; line?: number } | undefined = tool.locations?.[0] ?? tool.content.flatMap((part) => (part.type === "diff" ? [{ path: part.path }] : []))[0];
+      if (!place) continue;
+      const key = `${tool.id}:${place.path}`;
+      if (followed.current === key) return;
+      followed.current = key;
+      onFollowFile(place.path, place.line);
+      return;
+    }
+  }, [following, entries, onFollowFile]);
   // The pane given the focus again (a click on its tab, a key that moves there): the composer has it.
   const hadFocus = useRef(autoFocus);
   useEffect(() => {
@@ -103,6 +149,23 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
     setEditing(null);
     takeFocus();
   };
+  const answer = (permissionId: string, optionId: string, text?: string) => {
+    onCommand({ type: "answer", id: newCommandId(), permissionId, optionId, ...(text !== undefined ? { text } : {}) });
+    // Its card goes, and the keyboard with it when one of its buttons had it.
+    takeFocus();
+  };
+  // The chat's keys, from wherever in it the keyboard is: what a field or a list took is not here.
+  const first = transcript.permissions[0];
+  const onKey = (e: any) => {
+    if (e?.defaultPrevented) return;
+    const key = chatKey(keystrokeOf(e), { working: transcript.status === "working" || transcript.status === "blocked", answers: first?.options.length ?? 0 });
+    if (!key) return;
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    if (key.type === "stop") onCommand({ type: "cancel", id: newCommandId() });
+    else if (key.type === "answer" && first) answer(first.id, first.options[key.index]!.id);
+    else if (key.type === "type") composer.current?.type(key.text);
+  };
   const actionsOf = (entry: Entry): MessageAction[] => {
     const own = messageActions?.(entry) ?? [];
     if (entry.kind !== "user" || !idle || !rewinds) return own;
@@ -111,16 +174,17 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
     return [{ id: "edit", label: "Edit this message", icon: PENCIL_ICON, onPress: () => startEdit(entry) }, ...own];
   };
   return (
-    <ImageViewerHost>
+    <ImageViewerHost onClose={takeFocus}>
       <div
         {...tap}
+        onKeyDown={onKey}
         onFileDrop={(e: any) => {
           const paths: string[] = Array.isArray(e?.paths) ? e.paths : [];
           if (paths.length > 0) setDropped((last) => ({ paths, n: last.n + 1 }));
         }}
         style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}
       >
-        {hideHeader ? null : <Header transcript={transcript} onOption={setOption} except={["model"]} />}
+        {hideHeader ? null : <Header transcript={transcript} onOption={setOption} except={["model", "mode", "thought_level"]} />}
         <Timeline transcript={transcript} pageSize={pageSize} onLink={onLink} onAnswerElsewhere={onAnswerElsewhere} elsewhereLabel={elsewhereLabel} messageActions={actionsOf}
           editing={edited?.id}
           editable={editable}
@@ -130,16 +194,15 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
             if (edited) onCommand({ type: "prompt", id: newCommandId(), text, replaces: edited.id });
             stopEdit();
           }}
+          onFork={forks && idle ? (entry) => onCommand({ type: "fork", id: newCommandId(), entry: entry.id }) : undefined}
+          onRestore={idle ? (entry) => onCommand({ type: "restore", id: newCommandId(), entry: entry.id }) : undefined}
         />
+        <PlanBar plan={transcript.plan} />
         {transcript.permissions.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, paddingLeft: 10, paddingRight: 10, paddingTop: 8 }}>
             {/* Not focused when they appear: an Enter meant for the composer must not answer one. */}
-            {transcript.permissions.map((permission) => (
-              <PermissionCard
-                key={permission.id}
-                permission={permission}
-                onAnswer={(permissionId, optionId, text) => onCommand({ type: "answer", id: newCommandId(), permissionId, optionId, ...(text !== undefined ? { text } : {}) })}
-              />
+            {transcript.permissions.map((permission, at) => (
+              <PermissionCard key={permission.id} permission={permission} keys={at === 0} onAnswer={answer} />
             ))}
           </div>
         ) : null}
@@ -155,8 +218,16 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           dropped={dropped}
           agent={transcript.session?.agent}
           focus={focus}
-          options={transcript.options.filter((option) => option.category === "model" && (option.choices?.length ?? 0) > 0)}
+          handle={composer}
+          draftKey={draftKey}
+          history={history}
+          options={transcript.options}
           onOption={setOption}
+          modelIcon={iconOf(transcript)}
+          usage={transcript.usage}
+          following={following}
+          onFollow={onFollowFile ? () => setFollowing(!following) : undefined}
+          expandable={transcript.entries.length > 0}
           onSend={(text, pictures) => onCommand({ type: "prompt", id: newCommandId(), text, ...(pictures.length > 0 ? { images: pictures } : {}) })}
           onStop={() => onCommand({ type: "cancel", id: newCommandId() })}
           onUnqueue={(queued) => onCommand({ type: "unqueue", id: newCommandId(), queued })}
@@ -164,6 +235,13 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
       </div>
     </ImageViewerHost>
   );
+}
+
+/** The model's maker's mark, by the model running (or picked) and the agent. */
+function iconOf(t: Transcript): ZedIcon | undefined {
+  const picked = t.options.find((option) => option.category === "model");
+  const maker = modelMaker(t.session?.model ?? (typeof picked?.current === "string" ? picked.current : undefined), t.session?.agent);
+  return maker ? MAKER_ICONS[maker] : undefined;
 }
 
 function Loading() {

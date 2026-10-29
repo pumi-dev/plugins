@@ -27,11 +27,15 @@ describe("the manifest", () => {
     expect(manifest.activation).toEqual(["onStartup"]);
   });
 
-  test("an agent's tab is a block of its own on the terminal engine, drawn by an export of ui.tsx", () => {
+  test("an agent's tab is a block of its own: its terminal on the terminal engine, or a chat tab, each drawn by an export of ui.tsx", () => {
     const blocks: { id: string; engine?: string }[] = manifest.contributes.blocks;
-    expect(blocks.map((b) => [b.id, b.engine])).toEqual([["term", "terminal"]]);
-    // A block `term` is drawn by the export named for it, `Term`.
+    expect(blocks.map((b) => [b.id, b.engine])).toEqual([
+      ["term", "terminal"],
+      ["session", undefined],
+    ]);
+    // A block is drawn by the export named for it: `term` by `Term`, `session` by `Session`.
     expect(exported(ui).has("Term")).toBe(true);
+    expect(exported(ui).has("Session")).toBe(true);
   });
 
   test("gives its slot components from ui.tsx", () => {
@@ -41,18 +45,26 @@ describe("the manifest", () => {
     for (const slot of Object.values(slots)) expect(names.has(slot.component!)).toBe(true);
   });
 
-  test("gives its Settings page and section from ui.tsx, and draws every option there", () => {
+  test("gives its one Settings page from ui.tsx, and draws every option there", () => {
     const names = exported(ui);
-    const { pages, sections } = manifest.contributes.settings as { pages: { id: string; component: string }[]; sections: { page: string; component: string }[] };
+    const { pages, sections } = manifest.contributes.settings as { pages: { id: string; component: string }[]; sections?: unknown[] };
     expect(pages.map((page) => page.component)).toEqual(["SettingsPage"]);
-    expect(sections.map((section) => [section.page, section.component])).toEqual([["settings", "HooksSection"]]);
-    for (const each of [...pages, ...sections]) expect(names.has(each.component)).toBe(true);
-    // A plugin with pages of its own gets no page made of its options: each is drawn by one of them.
-    for (const key of Object.keys(manifest.contributes.options)) expect(settings).toContain(`"${key}"`.replace(/^"(permissions|restore)"$/, "${PREFIX}$1"));
+    expect(sections).toBeUndefined();
+    expect(names.has("SettingsPage")).toBe(true);
+    // A plugin with a page of its own gets no page made of its options: each is on it. The modes
+    // are the agents' dropdowns.
+    for (const key of Object.keys(manifest.contributes.options)) {
+      if (key === "modes") expect(settings).toContain("${PREFIX}modes");
+      else expect(settings).toContain(`<OptionRow name={\`\${PREFIX}${key}\`} />`);
+    }
   });
 
-  test("names a command the toggle runs", () => {
-    expect(manifest.contributes.commands.map((command: { id: string }) => command.id)).toEqual(["toggle"]);
+  test("names the commands it serves", () => {
+    expect(manifest.contributes.commands.map((command: { id: string }) => command.id)).toEqual(["toggle", "handoff", "back"]);
+  });
+
+  test("declares the options main.ts and tell.ts read", () => {
+    expect(Object.keys(manifest.contributes.options).sort()).toEqual(["bun", "context", "context_other_sessions", "context_updates", "history_mb", "key", "modes", "permissions", "restore"]);
   });
 
   test("is the plugin whose prefix the hooks call and its trait is named by", () => {

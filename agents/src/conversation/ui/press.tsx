@@ -86,3 +86,11 @@ export function OwnClicks({ style, children }: { style?: StyleDesc; children?: R
     </div>
   );
 }
+
+/**
+ * A field's own keystroke: one that types text stays the field's, so neither the chat's keys nor
+ * the window's take it. A field's `onKeyDown` calls this first.
+ */
+export function keepTyping(event: { keyChar?: string | null; modifiers?: { ctrl?: boolean; cmd?: boolean } | null; stopPropagation?(): void } | undefined): void {
+  if (event?.keyChar && !event.modifiers?.ctrl && !event.modifiers?.cmd) event.stopPropagation?.();
+}

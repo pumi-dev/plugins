@@ -43,8 +43,10 @@ export class ClaudeParser implements Parser {
     if (record.isCompactSummary === true) return [noticeChange("The conversation was compacted.", "info", stamp)];
     const content = message?.content;
     const changes: Change[] = [];
+    // A prompt's record uuid: what a rewind or a fork of the conversation names.
+    const source = str(record.uuid);
     if (typeof content === "string") {
-      if (record.isMeta !== true) changes.push(...promptText(content, at, stamp));
+      if (record.isMeta !== true) changes.push(...promptText(content, at, stamp, source));
       return changes;
     }
     const result = obj(record.toolUseResult);
@@ -57,7 +59,7 @@ export class ClaudeParser implements Parser {
         continue;
       }
       if (record.isMeta === true) continue;
-      if (block.type === "text") changes.push(...promptText(str(block.text) ?? "", at, stamp));
+      if (block.type === "text") changes.push(...promptText(str(block.text) ?? "", at, stamp, source));
       const image = imageOf(block);
       if (image) changes.push({ type: "push", entry: { id: stamp.id(), kind: "image", at, image, from: "user" } });
     }
@@ -102,18 +104,19 @@ export class ClaudeParser implements Parser {
 }
 
 /** What a typed prompt says: a slash command as `/name args`, its output as a notice, an interruption as a stopped turn, else the text. */
-function promptText(text: string, at: number, stamp: Stamp): Change[] {
+function promptText(text: string, at: number, stamp: Stamp, source?: string): Change[] {
+  const from = source ? { source } : {};
   if (text.trim() === "") return [];
   if (/^\[Request interrupted by user/.test(text)) return [{ type: "push", entry: { id: stamp.id(), kind: "turn", at, turn: { stop: "cancelled" } } }];
   const name = /<command-name>([\s\S]*?)<\/command-name>/.exec(text)?.[1]?.trim();
   if (name) {
     const args = /<command-args>([\s\S]*?)<\/command-args>/.exec(text)?.[1]?.trim();
-    return [{ type: "push", entry: { id: stamp.id(), kind: "user", at, text: args ? `${name} ${args}` : name } }];
+    return [{ type: "push", entry: { id: stamp.id(), kind: "user", at, text: args ? `${name} ${args}` : name, ...from } }];
   }
   const stdout = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/.exec(text)?.[1];
   if (stdout !== undefined) return stdout.trim() === "" ? [] : [noticeChange(plain(stdout).trim(), "info", stamp)];
   if (/^<local-command-caveat>/.test(text) || /^<system-reminder>/.test(text)) return [];
-  return [{ type: "push", entry: { id: stamp.id(), kind: "user", at, text } }];
+  return [{ type: "push", entry: { id: stamp.id(), kind: "user", at, text, ...from } }];
 }
 
 /** A prompt sent while a turn ran is written as a `queued_command` attachment, not a `user` record. */
@@ -123,7 +126,7 @@ function queuedPrompt(record: Rec, at: number, stamp: Stamp): Change[] {
   const origin = obj(attachment.origin)?.kind;
   if (origin !== undefined && origin !== "human") return [];
   const prompt = typeof attachment.prompt === "string" ? attachment.prompt : objs(attachment.prompt).map((block) => str(block.text) ?? "").join("\n");
-  return promptText(prompt, at, stamp);
+  return promptText(prompt, at, stamp, str(record.uuid));
 }
 
 function system(record: Rec, at: number, stamp: Stamp): Change[] {

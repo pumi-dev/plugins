@@ -5,14 +5,15 @@
 /**
  * pi's extension: at each point of a session's life it calls the hook function (`pumi call`), with
  * the session's id, its file and the model as an agent's hook names them (`session_id`,
- * `transcript_path`, `model`).
+ * `transcript_path`, `model`). What the hook answers at a start and a prompt (the workspace) goes
+ * to pi as a message it reads and the user does not see.
  */
 export const PI_EXTENSION = `import { execFile } from "node:child_process";
 import { renameSync, unlinkSync, writeFileSync } from "node:fs";
 
 const bin = process.env.PUMI_BIN || "pumi";
 
-// One call of the hook function: what pi is to be sent next (a queued prompt), or "".
+// One call of the hook function: what pi is told (the workspace, or a queued prompt), or "".
 function hook(event: string, input: Record<string, unknown>): Promise<string> {
   return new Promise((resolve) => {
     const args = ["call", "{fn}", String(process.env.PUMI_TAB ?? ""), "{agent}", event, JSON.stringify(input)];
@@ -35,19 +36,28 @@ export default function (pi: any) {
     } catch {}
     return input;
   };
-  pi.on("session_start", async (_event: any, ctx: any) => {
+  // What the plugin tells pi about the workspace, handed to it unseen.
+  const hidden = (content: string) => ({ customType: "pumi-context", content, display: false });
+  pi.on("session_start", async (event: any, ctx: any) => {
     // What a session that ended mid-turn left of its live file no longer holds.
     live.at(ctx);
     live.clear();
     if (ctx?.mode !== "tui") return;
-    await hook("start", about(ctx));
+    const resumed = ["resume", "reload", "fork"].includes(event?.reason);
+    const text = (await hook("start", { ...about(ctx), resumed })).trim();
+    if (text) {
+      try {
+        pi.sendMessage(hidden(text), { deliverAs: "nextTurn" });
+      } catch {}
+    }
   });
   pi.on("session_compact", async (_event: any, ctx: any) => {
     await hook("compact", about(ctx));
   });
   pi.on("before_agent_start", async (event: any, ctx: any) => {
     if (ctx?.mode !== "tui" || event?.messageType !== "user") return;
-    await hook("prompt", about(ctx));
+    const text = (await hook("prompt", about(ctx))).trim();
+    if (text) return { message: hidden(text) };
   });
   pi.on("agent_end", async (_event: any, ctx: any) => {
     if (ctx?.mode !== "tui") return;
@@ -160,7 +170,11 @@ export const PI_LIVE = `  const live = (() => {
   });
   pi.on("agent_end", async () => live.clear());`;
 
-/** OpenCode's plugin: a prompt says the agent works, an idle session that its turn is over. */
+/**
+ * OpenCode's plugin: a prompt says the agent works, an idle session that its turn is over. The
+ * workspace goes in the system prompt, the whole of it each time (`full`), since the system prompt
+ * is built again for each turn.
+ */
 export const OPENCODE_PLUGIN = `import { execFile } from "node:child_process";
 
 function hook(event, input) {
@@ -171,11 +185,21 @@ function hook(event, input) {
   });
 }
 
+// What the plugin tells each session about the workspace: in its system prompt from each prompt on.
+const known = new Map();
+
 export const PumiAgentsPlugin = async () => {
   if (!process.env.PUMI_AGENT) return {};
   return {
     "chat.message": async ({ sessionID }) => {
-      if (sessionID) await hook("prompt", { session_id: sessionID });
+      if (!sessionID) return;
+      const text = (await hook("prompt", { session_id: sessionID, full: true })).trim();
+      if (text) known.set(sessionID, text);
+      else known.delete(sessionID);
+    },
+    "experimental.chat.system.transform": async ({ sessionID }, output) => {
+      const text = sessionID && known.get(sessionID);
+      if (text && Array.isArray(output?.system)) output.system.push(text);
     },
     // The turn is over: the agent is done (OSC 7501, which opencode does not say itself).
     event: async ({ event }) => {

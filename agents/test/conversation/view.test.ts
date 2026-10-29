@@ -12,6 +12,9 @@ import {
   insertMentions,
   mentionAt,
   mentionText,
+  spaceTokens,
+  tokenSpans,
+  withoutTokens,
   conversationTitle,
   currentName,
   formatCount,
@@ -35,6 +38,11 @@ import {
   timelineRows,
   tint,
   toolHeadline,
+  contextTooltip,
+  modelMaker,
+  restorable,
+  ringArc,
+  thinkingOf,
 } from "../../src/conversation/view.ts";
 
 const entries: Entry[] = Array.from({ length: 5 }, (_, i) => ({ id: String(i), kind: "agent", at: 0, text: String(i) }));
@@ -161,6 +169,33 @@ test("dropped files are mentioned where the caret is, spaced from the words arou
   expect(insertMentions("x", 1, []).draft).toBe("x");
 });
 
+test("a chip's mention stands whole between spaces, as the textarea draws it", () => {
+  expect(tokenSpans("see @a.ts and @a.ts", ["@a.ts"])).toEqual([
+    { token: "@a.ts", start: 4, end: 9 },
+    { token: "@a.ts", start: 14, end: 19 },
+  ]);
+  // Text typed against a mention leaves it a mention, as the field draws it.
+  expect(tokenSpans("x@a.ts @a.tsx", ["@a.ts"])).toEqual([
+    { token: "@a.ts", start: 1, end: 6 },
+    { token: "@a.ts", start: 7, end: 12 },
+  ]);
+  expect(tokenSpans('@"a b.png" c', ['@"a b.png"', "@a"])).toEqual([{ token: '@"a b.png"', start: 0, end: 10 }]);
+});
+
+test("a picture's mention is left out of the text it is sent with", () => {
+  const shot = '@"Desktop/Shot 1.png"';
+  expect(withoutTokens(`like this ${shot} inline`, [shot])).toBe("like this inline");
+  expect(withoutTokens(`${shot} first`, [shot])).toBe("first");
+  expect(withoutTokens(`last ${shot}`, [shot])).toBe("last");
+  expect(withoutTokens(spaceTokens(`keep ${shot}x`, [shot]), [shot])).toBe("keep x");
+});
+
+test("text typed against a mention is sent apart from it", () => {
+  expect(spaceTokens("see@a.tsnow", ["@a.ts"])).toBe("see @a.ts now");
+  expect(spaceTokens("@a.ts @b.ts", ["@a.ts", "@b.ts"])).toBe("@a.ts @b.ts");
+  expect(spaceTokens("@a.ts@b.ts", ["@a.ts", "@b.ts"])).toBe("@a.ts @b.ts");
+});
+
 test("an image, by its extension", () => {
   expect(imageTypeOf("/tmp/Shot 1.PNG")).toBe("image/png");
   expect(imageTypeOf("a.jpeg")).toBe("image/jpeg");
@@ -221,4 +256,29 @@ test("a call's headline: its verb in the tense it is in, and what it acted on", 
   expect(toolHeadline(tool({ input: { command: "cargo test\nmore" } }))).toEqual({ verb: "Ran", target: "cargo test", mono: true });
   expect(toolHeadline(tool({ kind: "read", title: "read", status: "running", locations: [{ path: "src/a.ts" }] }))).toEqual({ verb: "Reading", target: "src/a.ts", mono: false });
   expect(toolHeadline(tool({ kind: "mcp", title: "blender: run", input: { query: "q" } }))).toEqual({ verb: "blender: run", target: "q", mono: false });
+});
+
+test("Zed's bar: the thinking toggle and its levels, the ring, its tooltip, a model's maker", () => {
+  const option = { id: "t", category: "thought_level" as const, name: "Thinking", current: "high", off: "off", default: "medium", choices: [{ id: "off", name: "Off" }, { id: "low", name: "Low" }, { id: "high", name: "High" }] };
+  expect(thinkingOf(option)).toEqual({ toggles: true, on: true, level: "high", levels: option.choices.slice(1), fallback: "medium" });
+  expect(thinkingOf({ ...option, current: "off" }).on).toBe(false);
+  expect(thinkingOf({ ...option, off: undefined }).toggles).toBe(false);
+  expect(ringArc(0)).toBeUndefined();
+  expect(ringArc(1)).toContain("<circle");
+  expect(ringArc(0.25)).toContain('A6 6 0 0 1 14.000 8.000');
+  expect(ringArc(0.75)).toContain("A6 6 0 1 1 2.000 8.000");
+  expect(contextTooltip({ contextPct: 42, tokens: 84_000, contextSize: 200_000 })).toBe("Context: 42% • 84k/200k");
+  expect(modelMaker("anthropic/claude-sonnet-5")).toBe("anthropic");
+  expect(modelMaker("claude-opus-5")).toBe("claude");
+  expect(modelMaker("gpt-5.5")).toBe("openai");
+  expect(modelMaker("~deepseek/deepseek-flash-latest")).toBe("deepseek");
+  expect(modelMaker("default", "Claude Code")).toBe("claude");
+});
+
+test("a checkpoint is offered once something after its message changed a file", () => {
+  const tool = (kind: Tool["kind"]): Entry => ({ id: kind, kind: "tool", at: 0, tool: { id: kind, kind, title: kind, status: "completed", content: [] } });
+  const user: Entry = { id: "u", kind: "user", at: 0, text: "hi", checkpoint: true };
+  expect(restorable([user, tool("read")], 0)).toBe(false);
+  expect(restorable([user, tool("read"), tool("edit")], 0)).toBe(true);
+  expect(restorable([{ ...user, checkpoint: undefined }, tool("edit")], 0)).toBe(false);
 });

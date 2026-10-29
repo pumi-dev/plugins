@@ -7,7 +7,8 @@
 // pumi is `main.ts`'s to give (`HookApi`), so a test gives its own. No `import … from "pumi"` here.
 import { AGENT, AGENT_ACCEPTS, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "../names.ts";
 import { agentIcon, ICON } from "../icons.ts";
-import { continuation, formatOf, hookEvent, permissionAsk, permissionDecision, reportBody, reportState, told } from "./hook.ts";
+import type { Moment, Turn } from "../context/wire.ts";
+import { contextOutput, continuation, formatOf, hookEvent, permissionAsk, permissionDecision, reportBody, reportState, startOf, told } from "./hook.ts";
 import { findAgent, PERMISSION_WAIT, resumeLine } from "./integrations.ts";
 
 /** What the hook function calls: pumi's functions, and the chat's queue. */
@@ -24,6 +25,10 @@ export interface HookApi {
   close(request: string): Promise<unknown>;
   /** The next prompt the chat queued for tab `tab`, taken to hand its agent at its turn's end. */
   takeQueued(tab: number): Promise<string | undefined>;
+  /** What the agent is told about the workspace now (`context/wire.ts` `answer`), or `null`. */
+  context(turn: Turn): Promise<string | null>;
+  /** Its context was compacted: what it was told is gone from it. */
+  compacted(turn: Moment): Promise<void>;
 }
 
 /** An agent's id as a hook names it: one short word. */
@@ -158,6 +163,14 @@ export async function runHook(api: HookApi, tabId: unknown, agentId: unknown, wo
   if (event !== "compact") dismiss(api, tab);
   let state = reportState(event);
   let out: string | null = null;
+  const moment: Moment = { tab: id, agent: agentId, session: said.session ?? null, event };
+  const start = startOf(input);
+  if (event === "compact" || (event === "start" && start.compacted)) await api.compacted(moment).catch((err: unknown) => warn("context", err));
+  if (event === "start" || event === "prompt") {
+    const turn: Turn = { ...moment, resumed: event === "start" && start.resumed, full: start.full, peek: false };
+    const text = await api.context(turn).catch((err: unknown) => (warn("context", err), null));
+    if (text) out = contextOutput(formatOf(agent), agent, event, text, said.hookEvent);
+  }
   if (event === "stop" && agent?.accepts.includes("queue")) {
     const next = await api.takeQueued(tab);
     if (next) {

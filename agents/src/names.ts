@@ -26,5 +26,10 @@ export const AGENT_ACCEPTS = `${AGENT}.accepts`;
 /** The plugin serving the tab's conversation (`conversation.read`, `.send`, `.changed`): this one, for an agent the chat reads. */
 export const AGENT_CONVERSATION = `${AGENT}.conversation`;
 
+/** A session tab's own options (`sessions.ts`), beside the trait's: its directory, how its first session begins (`new` or `pick`), and its engine (`session/wire.ts` `Engine`). */
+export const SESSION_CWD = "@agents.cwd";
+export const SESSION_START = "@agents.start";
+export const SESSION_ENGINE = "@agents.engine";
+
 /** A tab's status, any block's (`working`, `blocked`, `error`, `done`, `idle`, `unknown`): pumi-host's, from what its program reports. */
 export const STATUS = "@status";
