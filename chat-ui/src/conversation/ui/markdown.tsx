@@ -3,6 +3,7 @@
 // one with marks is its words in a wrapping row, so a bold word or a link sits in the line. Colours
 // are the theme's; code is in the terminal's font.
 import { useState, type ReactNode } from "react";
+import * as pumi from "pumi";
 import { call, Icon, useMetrics, useTheme, type StyleDesc } from "pumi";
 
 import { hasMarks, parseBlocks, parseInline, words, type Block, type ListItem, type Run } from "../markdown.ts";
@@ -33,8 +34,9 @@ export interface MarkdownProps {
 /** A message's markdown, block by block. */
 export function Markdown({ text, muted = false, small = false, onLink }: MarkdownProps) {
   const blocks = parseBlocks(text);
+  // Selectable text shows the text cursor; a link or button in it keeps its own.
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0, cursor: "text" }}>
       {blocks.map((block, at) => (
         <BlockView key={at} block={block} muted={muted} small={small} onLink={onLink} />
       ))}
@@ -146,6 +148,29 @@ export function Inline({ text, size, line, color, weight, strike = false, align,
   const type = useType();
   const base = { fontSize: size, lineHeight: line, color, ...(weight ? { fontWeight: weight } : {}), ...(strike ? { textDecoration: "line-through" as const } : {}) };
   const justify = align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start";
+  // An app that draws a paragraph of runs (`<text inline>`): one text, wrapped and selected as
+  // one, its marks styled runs in it.
+  if (pumi.features?.inlineText && hasMarks(text)) {
+    return (
+      <text inline style={{ ...base, minWidth: 0, ...(align ? { textAlign: align } : {}) }}>
+        {parseInline(text).map((run, r) =>
+          run.code ? (
+            <text key={r} style={{ ...style(run), fontFamily: type.mono, color: run.href ? t.accent : t.text, backgroundColor: tint(t.text, 0.08), borderRadius: m.radiusSmall, paddingLeft: 3 }} {...(run.href ? { onClick: () => openLink(run.href!, onLink) } : {})}>
+              {run.text}
+            </text>
+          ) : run.href ? (
+            <text key={r} style={{ ...style(run), color: t.accent }} onClick={() => openLink(run.href!, onLink)}>
+              {run.text}
+            </text>
+          ) : (
+            <text key={r} style={style(run)}>
+              {run.text}
+            </text>
+          ),
+        )}
+      </text>
+    );
+  }
   if (!hasMarks(text)) {
     return (
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0, alignItems: justify }}>
@@ -229,7 +254,7 @@ export function Mono({ text, color, padding = 10 }: { text: string; color?: stri
   const t = useTheme();
   const type = useType();
   return (
-    <div style={{ display: "flex", flexDirection: "column", minWidth: 0, paddingLeft: padding, paddingRight: padding, paddingTop: 6, paddingBottom: 6 }}>
+    <div style={{ display: "flex", flexDirection: "column", minWidth: 0, paddingLeft: padding, paddingRight: padding, paddingTop: 6, paddingBottom: 6, cursor: "text" }}>
       {text.split("\n").map((line, at) => (
         <text key={at} style={{ fontFamily: type.mono, fontSize: type.code, lineHeight: type.codeLine, color: color ?? t.text }}>
           {line === "" ? " " : line}

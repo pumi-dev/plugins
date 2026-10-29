@@ -9,16 +9,17 @@ const dir = join(import.meta.dir, "..");
 const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).pumi;
 const ui = readFileSync(join(dir, "src", "ui.tsx"), "utf8");
 
-/** The names `ui.tsx` exports as functions or consts. */
+/** The names `ui.tsx` exports as functions or consts, or passes on from another file (`export { Session } from`). */
 function exported(source: string): Set<string> {
   const names = new Set<string>();
   for (const match of source.matchAll(/export\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z0-9_]+)/g)) names.add(match[1]!);
+  for (const match of source.matchAll(/export\s+\{([^}]*)\}\s+from/g)) for (const name of match[1]!.split(",")) names.add(name.trim());
   return names;
 }
 
 describe("the manifest", () => {
   test("contributes what pumi reads, and nothing it refuses", () => {
-    expect(Object.keys(manifest.contributes).sort()).toEqual(["commands", "options", "renderers", "slots"]);
+    expect(Object.keys(manifest.contributes).sort()).toEqual(["blocks", "commands", "options", "renderers", "settings", "slots"]);
     expect(manifest.activation).toEqual(["onStartup"]);
   });
 
@@ -36,7 +37,18 @@ describe("the manifest", () => {
     for (const slot of Object.values(slots)) expect(names.has(slot.component!)).toBe(true);
   });
 
-  test("names a command the toggle runs", () => {
-    expect(manifest.contributes.commands.map((command: { id: string }) => command.id)).toEqual(["toggle"]);
+  test("names the commands it serves", () => {
+    expect(manifest.contributes.commands.map((command: { id: string }) => command.id)).toEqual(["toggle", "handoff", "back"]);
+  });
+
+  test("draws its own block and its Settings page with exports of ui.tsx", () => {
+    const names = exported(ui);
+    expect(manifest.contributes.blocks.map((block: { id: string }) => block.id)).toEqual(["session"]);
+    expect(names.has("Session")).toBe(true);
+    for (const page of manifest.contributes.settings.pages) expect(names.has(page.component)).toBe(true);
+  });
+
+  test("declares the options main.ts reads", () => {
+    expect(Object.keys(manifest.contributes.options).sort()).toEqual(["bun", "history_mb", "key", "modes"]);
   });
 });

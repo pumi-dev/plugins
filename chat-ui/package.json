@@ -1,7 +1,7 @@
 {
   "name": "pumi-chat-ui",
   "displayName": "Chat UI",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "GPL-3.0-or-later",
   "description": "A chat view for Claude Code, Codex and pi tabs: the same live session, drawn as a chat you can type into, with the terminal one click away.",
   "keywords": [
@@ -22,6 +22,9 @@
     "test": "bun test",
     "check": "tsc --noEmit"
   },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.310"
+  },
   "devDependencies": {
     "@types/bun": "1.3.14",
     "typescript": "5.9.3"
@@ -38,16 +41,18 @@
       }
     ],
     "uses": [
-      "files"
+      "files",
+      "processes"
     ],
     "contributes": {
       "options": {
-        "auto": {
-          "type": "boolean",
-          "default": true,
-          "label": "Open agents as chats",
+        "modes": {
+          "type": "table",
+          "default": {},
+          "control": "json",
+          "label": "Modes",
           "group": "Chat UI",
-          "desc": "Show every Claude Code, Codex and pi tab as the chat as soon as its agent starts. A tab flipped back to its terminal stays there until its agent starts again."
+          "desc": "How each agent opens, by its id: `off`, `terminal`, `chat` (the terminal with the chat over it), `acp` or `sdk`. Settings → Chat UI sets it with a dropdown per agent; an agent left out has its default."
         },
         "key": {
           "type": "string",
@@ -67,12 +72,34 @@
           "label": "History read",
           "group": "Chat UI",
           "desc": "How much of the end of a session file the chat reads when it opens. Older turns are left out of a bigger file."
+        },
+        "bun": {
+          "type": "string",
+          "default": "",
+          "label": "Bun",
+          "group": "Chat UI",
+          "desc": "The Bun that runs each ACP or SDK tab's host process. Empty: the app's own."
         }
       },
       "commands": [
         {
           "id": "toggle",
           "title": "Chat UI: flip the focused tab between the terminal and the chat"
+        },
+        {
+          "id": "handoff",
+          "title": "Chat UI: continue this terminal agent in a chat tab (ACP or SDK)"
+        },
+        {
+          "id": "back",
+          "title": "Chat UI: continue this chat tab's session in the agent's terminal"
+        }
+      ],
+      "blocks": [
+        {
+          "id": "session",
+          "title": "Agent",
+          "icon": "sparkle"
         }
       ],
       "renderers": {
@@ -82,6 +109,25 @@
         "tab.toolbar": {
           "component": "Toolbar"
         }
+      },
+      "settings": {
+        "pages": [
+          {
+            "id": "chat",
+            "title": "Chat UI",
+            "icon": "sparkle",
+            "component": "ChatPage",
+            "keywords": [
+              "agents",
+              "modes",
+              "acp",
+              "sdk",
+              "claude",
+              "codex",
+              "pi"
+            ]
+          }
+        ]
       }
     },
     "activation": [
