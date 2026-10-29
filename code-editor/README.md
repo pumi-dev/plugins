@@ -9,7 +9,7 @@ trees and indentation are CodeMirror 6's.
 pumi plugin add pumi-dev/plugins/code-editor
 ```
 
-It needs pumi 0.43 or later.
+It needs pumi 0.44 or later.
 
 - **Languages**: highlighting and indentation for JavaScript and TypeScript (JSX), JSON, Rust,
   Python, Go, C and C++, Java, CSS, HTML, Markdown and YAML, in the terminal's colours. Any other

@@ -26,6 +26,7 @@
     "name": "launcher",
     "owner": "pumi_dev",
     "api": 1,
+    "minPumi": "0.44.0",
     "contributes": {
       "blocks": [
         {

@@ -46,7 +46,7 @@
     "name": "code-editor",
     "owner": "pumi_dev",
     "api": 1,
-    "minPumi": "0.43.0",
+    "minPumi": "0.44.0",
     "icon": "icon.png",
     "images": [
       {
