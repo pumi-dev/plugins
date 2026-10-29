@@ -1,19 +1,20 @@
 // The agents the plugin can open, and how. Settings offers three choices per agent (`modes`): `off`
-// leaves it out of the `+` menu and alone, `terminal` opens its own TUI, and `chat` opens it as a
-// chat. A chat is the agent's terminal with the chat drawn over it where the plugin reads its
-// session file (`chat`), else a tab of the plugin's own over ACP (`acp`), else over the agent's own
-// protocol (`sdk`): `modeOf` picks, so no one has to know which. No `import … from "pumi"` here.
+// leaves it out of the `+` menu and alone, `terminal` opens its own TUI (its tab's button flips it
+// to the chat drawn over it), and `gui` opens a chat tab of the plugin's own that runs the agent:
+// over its own protocol (`sdk`) or over ACP (`acp`), the one `prefer` puts first when it has both.
+// No `import … from "pumi"` here.
 import type { Engine } from "./session/wire.ts";
-import { AGENTS as BRIDGED } from "./agents.ts";
 import { SESSION } from "./session/launch.ts";
 
 /** How an agent tab opens: `chat` is its terminal with the chat over it, `acp` and `sdk` a session tab. */
 export type Mode = "off" | "terminal" | "chat" | "acp" | "sdk";
 /** What Settings offers for an agent, and the `modes` option holds. */
-export type Choice = "off" | "terminal" | "chat";
+export type Choice = "off" | "terminal" | "gui";
+/** The `prefer` option: what Settings sets every agent to at once, and which a GUI tries first. */
+export type Prefer = "terminal" | "sdk" | "acp";
 
 /** What each choice is called in Settings. */
-export const CHOICE_LABELS: Record<Choice, string> = { off: "Off", terminal: "Terminal", chat: "Chat" };
+export const CHOICE_LABELS: Record<Choice, string> = { off: "Off", terminal: "Terminal", gui: "GUI" };
 
 export interface CatalogAgent {
   /** The id its hook sets as the trait (`names.ts` `AGENT`), and its key in `modes`. */
@@ -30,6 +31,8 @@ export interface CatalogAgent {
   resume?: string[];
   /** The choice it has until Settings says otherwise. */
   default: Choice;
+  /** Said under its row while its GUI runs its SDK: why to think before picking it. */
+  sdkNote?: string;
 }
 
 /** The ACP adapters' versions, pinned: `npx` fetches exactly these when the adapter is not installed. */
@@ -47,7 +50,7 @@ export const CATALOG: CatalogAgent[] = [
     acp: { run: [["pi-acp"], ["npx", "-y", PINS.pi]], login: ["pi"] },
     sdk: "pi",
     resume: ["pi", "--session", SESSION],
-    default: "chat",
+    default: "terminal",
   },
   {
     id: "claude",
@@ -56,7 +59,8 @@ export const CATALOG: CatalogAgent[] = [
     acp: { run: [["claude-agent-acp"], ["npx", "-y", PINS.claude]], login: ["claude", "/login"] },
     sdk: "claude",
     resume: ["claude", "--resume", SESSION],
-    default: "chat",
+    default: "terminal",
+    sdkNote: "GUI runs it through Anthropic's Agent SDK: on a Pro or Max plan that may be billed as extra usage.",
   },
   {
     id: "codex",
@@ -65,9 +69,9 @@ export const CATALOG: CatalogAgent[] = [
     acp: { run: [["codex-acp"], ["npx", "-y", PINS.codex]], login: ["codex", "login"] },
     sdk: "codex",
     resume: ["codex", "resume", SESSION],
-    default: "chat",
+    default: "terminal",
   },
-  { id: "omp", title: "omp", program: "omp", resume: ["omp", "--session", SESSION], default: "chat" },
+  { id: "omp", title: "omp", program: "omp", resume: ["omp", "--session", SESSION], default: "terminal" },
   { id: "gemini", title: "Gemini", program: "gemini", acp: { run: [["gemini", "--acp"]], login: ["gemini"] }, default: "terminal" },
   {
     id: "opencode",
@@ -92,31 +96,45 @@ export function catalogAgent(id: string): CatalogAgent | undefined {
   return CATALOG.find((a) => a.id === id);
 }
 
-/** The way `agent` opens as a chat: over its terminal where the chat reads it, else ACP, else its SDK. */
-function chatMode(agent: CatalogAgent): Mode | undefined {
-  if (BRIDGED[agent.id]) return "chat";
-  if (agent.acp) return "acp";
-  if (agent.sdk) return "sdk";
-  return undefined;
+/** `prefer` as the option holds it: `terminal` when it is not one of the three. */
+export function preferOf(value: unknown): Prefer {
+  return value === "sdk" || value === "acp" ? value : "terminal";
 }
 
-/** The choices `agent` has, in the order Settings lists them. */
+/** How `agent`'s GUI runs: the protocol `prefer` puts first when it has both, else the one it has. */
+export function guiMode(agent: CatalogAgent, prefer: Prefer = "terminal"): "sdk" | "acp" | undefined {
+  if (prefer === "acp") return agent.acp ? "acp" : agent.sdk ? "sdk" : undefined;
+  return agent.sdk ? "sdk" : agent.acp ? "acp" : undefined;
+}
+
+/** The choices `agent` has, in the order Settings lists them: a GUI when it has an SDK or ACP. */
 export function choicesOf(agent: CatalogAgent): Choice[] {
-  return chatMode(agent) ? ["off", "terminal", "chat"] : ["off", "terminal"];
+  return guiMode(agent) ? ["off", "terminal", "gui"] : ["off", "terminal"];
 }
 
 /**
- * `agent`'s choice as `modes` (the option) says, else its default. `acp` and `sdk`, which Settings
- * once offered, are `chat` now; a choice it does not have is its default.
+ * `agent`'s choice as `modes` (the option) says, else its default. Of what Settings once offered,
+ * `acp` and `sdk` are `gui`, and `chat` (the terminal with the chat over it) is `terminal`; a
+ * choice it does not have is its default.
  */
 export function choiceOf(agent: CatalogAgent, modes: unknown): Choice {
   const given = modes && typeof modes === "object" ? (modes as Record<string, unknown>)[agent.id] : undefined;
-  const choice = given === "acp" || given === "sdk" ? "chat" : given;
+  const choice = given === "acp" || given === "sdk" ? "gui" : given === "chat" ? "terminal" : given;
   return typeof choice === "string" && (choicesOf(agent) as string[]).includes(choice) ? (choice as Choice) : agent.default;
 }
 
-/** How `agent` opens, as its choice in `modes` says. */
-export function modeOf(agent: CatalogAgent, modes: unknown): Mode {
+/** How `agent` opens, as its choice in `modes` says, its GUI as `prefer` puts first. */
+export function modeOf(agent: CatalogAgent, modes: unknown, prefer: Prefer = "terminal"): Mode {
   const choice = choiceOf(agent, modes);
-  return choice === "chat" ? (chatMode(agent) ?? "terminal") : choice;
+  return choice === "gui" ? (guiMode(agent, prefer) ?? "terminal") : choice;
+}
+
+/** Every agent set as `prefer` says, those `off` left off: `terminal`, or a GUI where it has one. */
+export function preferred(modes: unknown, prefer: Prefer): Record<string, Choice> {
+  const out: Record<string, Choice> = {};
+  for (const agent of CATALOG) {
+    const was = choiceOf(agent, modes);
+    out[agent.id] = was === "off" ? "off" : prefer !== "terminal" && guiMode(agent, prefer) ? "gui" : "terminal";
+  }
+  return out;
 }
