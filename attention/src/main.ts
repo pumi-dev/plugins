@@ -2,10 +2,11 @@
 // logic, so all of it is here: the package contributes no slot and opens no pane, and has no
 // `ui.tsx` for the window to draw.
 //
-// An agent's state is its pane's `traits.agent.status` (one word: `working`, `blocked`, `done`,
-// `idle`, `error`), which agents' hooks report (`pumi skill add` installs them). A notice says
-// how many are blocked once each time the count goes up; the Dock bounce and the badge come with
-// the system mod (phase 4). What is said is `count.ts`'s rule; this reads the panes.
+// An agent's state is its tab's `@status` option (one word: `working`, `blocked`, `error`, `done`,
+// `idle`, `unknown`), which pumi-host keeps from what the program reports, and agents' hooks
+// report (`pumi skill add` installs them). A notice says how many are blocked once each time the
+// count goes up; the Dock bounce and the badge come with the system mod (phase 4). What is said is
+// `count.ts`'s rule; this reads the tabs.
 import { on, option, self, workspace } from "pumi";
 import { count, said } from "./count.ts";
 
@@ -17,10 +18,10 @@ async function bounce(): Promise<string> {
   return (await option.get("bounce")) ?? "once";
 }
 
-/** How many panes' agents are blocked. */
+/** How many tabs' agents are blocked. */
 async function blocked(): Promise<number> {
-  const panes = await workspace.panes();
-  return count(panes.map((each) => each.traits?.agent?.status ?? null));
+  const tabs = await workspace.tabs();
+  return count(tabs.map((tab) => (tab.options["@status"] as string | undefined) ?? null));
 }
 
 /** Count them again: say so if more are waiting than before. */
@@ -35,9 +36,9 @@ async function update(): Promise<void> {
 
 const desc = "count the agents waiting for you";
 on("option.changed", { match: [self.plugin.prefixed("bounce"), self.plugin.prefixed("badge")], desc }, () => update());
-// An agent's state is a trait of its pane: it changed when the pane's agent traits did.
-on("pane.changed", { desc }, (e) => {
+// An agent's state is a tab's `@status`: it changed when that option did.
+on("tab.changed", { desc }, (e) => {
   const keys: string[] = e.data?.keys ?? [];
-  if (keys.some((key) => key === "traits.agent" || key.startsWith("traits.agent."))) void update();
+  if (keys.some((key) => key === "options.@status")) void update();
 });
-on("pane.closed", { desc }, () => update());
+on("tab.closed", { desc }, () => update());

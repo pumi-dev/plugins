@@ -2,7 +2,7 @@
 // more than at the last look. `main.ts` reads the panes and says the notice; this decides what
 // there is to say, so a test can decide too.
 
-/** How many of the panes' agents say `blocked`. */
+/** How many of the tabs say `blocked`. */
 export function count(states: (string | null | undefined)[]): number {
   return states.filter((state) => state === "blocked").length;
 }
