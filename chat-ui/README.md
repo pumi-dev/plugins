@@ -22,8 +22,10 @@ back exactly as it was.
   (`/model`, `/resume`) shows the terminal.
 - **Pictures**: drop one on the chat to attach it to the next prompt.
 - **Model picker** beside Send, for Claude Code and pi.
-- **Permission prompts** as cards you answer in the chat (Claude's, with Settings → "Answer
-  permissions in pumi").
+- **Permission prompts** as cards you answer in the chat (Claude's, with "Answer permissions in
+  pumi" on).
+- **Queued prompts reach the agent at its turn's end** through its stop hook (Claude Code, pi),
+  rather than typed once it is idle.
 - **Edit a message** you sent: click it, change it, Enter. pi goes back to that exact message
   (through a small pi extension the plugin installs on first use, `~/.pi/agent/extensions/pumi-chat.ts`);
   Claude Code and Codex open their own rewind.
@@ -45,6 +47,8 @@ Settings → Chat UI.
 | Open agents as chats | show every agent tab as a chat as soon as its agent starts (on) |
 | Key | a chord that flips the focused agent tab (none) |
 | History read | how much of a session file's end is read when the chat opens (4 MB) |
+| Answer permissions in pumi | ask Claude Code's permission prompts in pumi, the chat or any client; unanswered in two minutes, Claude asks itself (off) |
+| Restore recipes | how each agent resumes its session when its tab comes back, by agent id (`{"claude": ["claude", "--resume", "{session}"]}`) |
 
 ## Limits
 

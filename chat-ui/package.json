@@ -67,6 +67,22 @@
           "label": "History read",
           "group": "Chat UI",
           "desc": "How much of the end of a session file the chat reads when it opens. Older turns are left out of a bigger file."
+        },
+        "permissions": {
+          "type": "boolean",
+          "default": false,
+          "label": "Answer permissions in pumi",
+          "group": "Hooks",
+          "desc": "Ask an agent's permission prompts in pumi (`request.open`), where the chat and any client can answer them; unanswered in two minutes, the agent asks in its own prompt. Claude Code's `PermissionRequest` hook."
+        },
+        "restore": {
+          "type": "table",
+          "default": {},
+          "label": "Restore recipes",
+          "group": "Hooks",
+          "control": "json",
+          "placeholder": "{\"claude\": [\"claude\", \"--resume\", \"{session}\"]}",
+          "desc": "How an agent resumes its session when its tab comes back, by agent id: the program and its arguments, with {session} for the session. Adds to or replaces the plugin's recipe for that agent; an empty list turns one off. The hook writes the line to the tab's `restore_command`."
         }
       },
       "commands": [

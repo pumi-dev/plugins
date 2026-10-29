@@ -4,6 +4,7 @@
 //   the title bar's button, or the `key` option      the focused tab: the chat, or back to the TUI
 //   pumi call pumi_dev.chat_ui.toggle                the same
 //   pumi call pumi_dev.chat_ui.conversation.read %3  the conversation of tab %3
+//   pumi call pumi_dev.chat_ui.hook %3 claude stop …  what an agent's hook runs (`hooks/`)
 //
 // The chat is how the plugin draws the tab's `terminal` block (the manifest's `renderers`, the
 // `Chat` export in `ui.tsx`), picked for one tab by its `@tab_renderer` option naming this
@@ -18,6 +19,7 @@ import {
   fn,
   on,
   option,
+  request,
   self,
   workspace,
   type Disposer,
@@ -30,6 +32,7 @@ import { agentSpec } from "./agents.ts";
 import { Bridge, type TabOptions } from "./bridge.ts";
 import { mentions as findMentions } from "./mentions.ts";
 import { PICK_IN_TERMINAL } from "./models.ts";
+import { runHook, requestClosed, type HookApi } from "./hooks/run.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
 import type { ConversationRead } from "./topics.ts";
@@ -214,10 +217,43 @@ function listen(): void {
 on("request.closed", { desc: "Chat UI takes an ended request out of its chat" }, (e) => {
   const asked = e.data;
   if (typeof asked?.request !== "string") return;
+  requestClosed(asked.request, asked.answer);
   if (typeof asked.tab !== "string") return;
   const tab = numberOf(asked.tab);
   bridges.get(tab)?.then((bridge) => bridge.resolved(asked.request), () => {});
 });
+
+// ── The agents' hooks ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** The next prompt queued in `tab`'s chat, for its agent's stop hook; none without a chat. */
+async function takeQueued(tab: number): Promise<string | undefined> {
+  const running = bridges.get(tab);
+  return running ? running.then((bridge) => bridge.handOff(), () => undefined) : undefined;
+}
+
+/** What the hook function calls of pumi, and the chat's queue. */
+const hookApi: HookApi = {
+  report: (tab, body) => call("tab.call", tab, "report", { body }),
+  get: (name, tab) => (tab === undefined ? option.get(name) : option.get(name, { scope: "tab", id: tab })),
+  set: (name, value, tab) => option.set(name, value, { scope: "tab", id: tab }),
+  open: (ask, opts) => request.open(ask as Parameters<typeof request.open>[0], opts),
+  close: (id) => request.close(id),
+  takeQueued,
+};
+
+fn.set(
+  "hook",
+  {
+    desc: "What an agent's hook calls from its terminal (`hooks/integrations.ts` installs it): its tab, the agent's id, the point of its life (`start`, `prompt`, `stop`, `compact`, `permission`, `question`, `resume`) and its input. Answers what the hook prints: a permission's decision, or a queued prompt at its turn's end.",
+    parameters: [
+      ["string", "tab"],
+      ["string", "agent"],
+      ["string", "event"],
+      ["table", "input"],
+    ],
+  },
+  (tab: unknown, agent: unknown, event: unknown, input: unknown) => runHook(hookApi, tab, agent, event, input),
+);
 
 // ── Following the tabs ──────────────────────────────────────────────────────────────────────
 

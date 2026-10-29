@@ -639,18 +639,7 @@ export class Bridge {
   async #deliver(id: string, prompt: string, images: Image[] = []): Promise<Ack> {
     this.#delivering = true;
     const { pastes, text } = promptParts(this.spec, prompt, images.map((image) => image.uri!));
-    const shown = text.trim();
-    if (shown !== "") {
-      const entry = this.producer.id();
-      this.#push({ type: "push", entry: { id: entry, kind: "user", at: this.producer.now(), text: shown } });
-      this.#echoes.push({ entry, text: shown });
-    }
-    this.#awaiting = setTimeout(() => {
-      this.#awaiting = undefined;
-      this.#syncStatus();
-      this.#drain();
-    }, AWAIT_WORKING);
-    this.#syncStatus();
+    this.#sent(text.trim());
     try {
       for (const paste of pastes) {
         await call("tab.call", `%${this.tab}`, "input", { paste });
@@ -672,6 +661,21 @@ export class Bridge {
     }
   }
 
+  /** A prompt on its way to the agent: shown at once as an echo, and the agent waited on to say it works. */
+  #sent(shown: string): void {
+    if (shown !== "") {
+      const entry = this.producer.id();
+      this.#push({ type: "push", entry: { id: entry, kind: "user", at: this.producer.now(), text: shown } });
+      this.#echoes.push({ entry, text: shown });
+    }
+    this.#awaiting = setTimeout(() => {
+      this.#awaiting = undefined;
+      this.#syncStatus();
+      this.#drain();
+    }, AWAIT_WORKING);
+    this.#syncStatus();
+  }
+
   /** The next queued prompt, once the agent takes one. */
   #drain(): void {
     if (!this.#ready()) return;
@@ -679,6 +683,20 @@ export class Bridge {
     if (!next) return;
     this.#push({ type: "queue", queue: rest });
     void this.#deliver(next.id, next.text, next.images ?? []).then(() => this.#drain());
+  }
+
+  /**
+   * The next queued prompt, taken for the agent's stop hook to hand on (`hooks/run.ts`) rather
+   * than typed. None while a request waits or a prompt is being typed, nor when the next one has
+   * pictures: those go in through the terminal.
+   */
+  handOff(): string | undefined {
+    if (this.#delivering || this.transcript.permissions.length > 0) return undefined;
+    const [next, ...rest] = this.transcript.queue;
+    if (!next || (next.images?.length ?? 0) > 0) return undefined;
+    this.#push({ type: "queue", queue: rest });
+    this.#sent(next.text);
+    return next.text;
   }
 
   // ── Requests (`request.open`) ───────────────────────────────────────────────────────────────
