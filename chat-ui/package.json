@@ -112,6 +112,38 @@
         "tab.toolbar": {
           "component": "Toolbar"
         }
+      },
+      "settings": {
+        "pages": [
+          {
+            "id": "settings",
+            "title": "Chat UI",
+            "icon": "sparkle",
+            "component": "SettingsPage",
+            "keywords": [
+              "chat",
+              "agents"
+            ]
+          }
+        ],
+        "sections": [
+          {
+            "id": "hooks",
+            "page": "settings",
+            "title": "Hooks",
+            "component": "HooksSection",
+            "keywords": [
+              "hook",
+              "install",
+              "agents",
+              "claude",
+              "codex",
+              "pi",
+              "permissions",
+              "restore"
+            ]
+          }
+        ]
       }
     },
     "activation": [

@@ -33,7 +33,7 @@ import { Bridge, type TabOptions } from "./bridge.ts";
 import { mentions as findMentions } from "./mentions.ts";
 import { PICK_IN_TERMINAL } from "./models.ts";
 import { runHook, requestClosed, type HookApi } from "./hooks/run.ts";
-import { agentLaunch, findAgent } from "./hooks/integrations.ts";
+import { agentLaunch, findAgent, hookRows, install, uninstall, type HookRow } from "./hooks/integrations.ts";
 import { agentIcon, ICON } from "./icons.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
@@ -225,7 +225,7 @@ on("request.closed", { desc: "Chat UI takes an ended request out of its chat" },
   bridges.get(tab)?.then((bridge) => bridge.resolved(asked.request), () => {});
 });
 
-// ── The agents' hooks ─────────────────────────────────────────────────────────────────────────────────────────
+// ── The agents' hooks ───────────────────────────────────────────────────────────────────────
 
 /** The next prompt queued in `tab`'s chat, for its agent's stop hook; none without a chat. */
 async function takeQueued(tab: number): Promise<string | undefined> {
@@ -283,6 +283,27 @@ fn.set(
   },
   (agent: string, cwd?: string) => openAgent(agent, cwd ?? undefined),
 );
+
+/** Every agent and its hook, for Settings' Hooks section. */
+export async function hookList(): Promise<HookRow[]> {
+  return hookRows();
+}
+
+/** Installs (or brings up to date) the hooks of agents `ids`, or takes them out; throws what went wrong, one agent a line. */
+export async function changeHooks(ids: string[], add: boolean): Promise<void> {
+  const failed: string[] = [];
+  for (const id of ids) {
+    const agent = findAgent(id);
+    try {
+      if (!agent) throw new Error("no such agent");
+      if (add) install(agent);
+      else uninstall(agent);
+    } catch (err) {
+      failed.push(`${agent?.label ?? id}: ${message(err)}`);
+    }
+  }
+  if (failed.length > 0) throw new Error(failed.join("\n"));
+}
 
 // ── Following the tabs ──────────────────────────────────────────────────────────────────────
 

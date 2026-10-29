@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { HOOK_FN } from "../../src/names.ts";
-import { AGENT_ENV, agentLaunch, findAgent, HOOK_AGENTS, hookCommand, hookRows, hookState, install, MARKER, merge, ownedFile, PERMISSION_WAIT, resumeCommand, resumeLine, strip, uninstall, type HookAgent } from "../../src/hooks/integrations.ts";
+import { AGENT_ENV, agentLaunch, findAgent, HOOK_AGENTS, hookCommand, hookRows, hookState, hookStatus, install, MARKER, merge, ownedFile, PERMISSION_WAIT, resumeCommand, resumeLine, strip, uninstall, type HookAgent } from "../../src/hooks/integrations.ts";
 
 const agent = (id: string): HookAgent => findAgent(id)!;
 type Json = Record<string, any>;
@@ -263,5 +263,14 @@ describe("a tab opened for an agent", () => {
     expect(agentLaunch(agent("claude"))).toEqual({ env: { [AGENT_ENV]: "claude" }, command: "claude" });
     expect(agentLaunch(agent("cursor")).command).toBe("cursor-agent");
     expect(hookCommand("claude", "start")).toStartWith(`[ -n "$${AGENT_ENV}" ] && `);
+  });
+});
+
+describe("a hook's row in Settings", () => {
+  test("says its state and the one thing its button does", () => {
+    expect(hookStatus({ hook: "installed", available: true })).toEqual({ text: "Installed" });
+    expect(hookStatus({ hook: "outdated", available: true })).toEqual({ text: "Outdated", action: "update" });
+    expect(hookStatus({ hook: "not_installed", available: false })).toEqual({ text: "Not found", action: "install" });
+    expect(hookStatus({ hook: "unsupported", available: true }).action).toBeUndefined();
   });
 });

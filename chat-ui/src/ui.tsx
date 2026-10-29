@@ -15,6 +15,9 @@ import { mentions, read, send, setChat, toggle } from "./main.ts";
 import { AGENT, CONVERSATION_CHANGED, STATUS } from "./names.ts";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 
+// Settings' page and its Hooks section (the manifest's `settings`).
+export { HooksSection, SettingsPage } from "./settings.tsx";
+
 /** A throw the chat cannot answer: said in the log, not drawn over the window. */
 function swallow(err: unknown): void {
   console.error(`chat-ui: ${err instanceof Error ? err.message : String(err)}`);

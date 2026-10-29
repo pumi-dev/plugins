@@ -40,7 +40,11 @@ is in the palette.
 
 ## Agent tabs
 
-An agent's hook runs only in a terminal opened for that agent, which has `PUMI_AGENT` set:
+Settings → Chat UI → **Hooks** installs each agent's hook into the agent's own config (Claude
+Code's `~/.claude/settings.json`, Codex's `~/.codex/hooks.json`, pi's extension
+`~/.pi/agent/extensions/pumi-context.ts`, …), brings it up to date or takes it out; the user's own
+hooks there are left as they are, and the first copy of a config is kept as `.pumi-bak`. A hook
+runs only in a terminal opened for its agent, which has `PUMI_AGENT` set:
 
 ```sh
 pumi call pumi_dev.chat_ui.open claude [cwd]   # a terminal running Claude Code, its hook on
@@ -52,7 +56,7 @@ resumes the session (`restore_command`).
 
 ## Options
 
-Settings → Chat UI.
+Settings → Chat UI; the last two are under Hooks.
 
 | | |
 | --- | --- |
@@ -66,16 +70,20 @@ Settings → Chat UI.
 
 - A reply shows as each message is written to the session file, not token by token.
 - The mode can't be changed from the chat, nor Codex's model: those pickers are the TUI's.
-- An agent without pumi's hook (`pumi skill add …`) is taken to be ready 15 s after a prompt, so a
-  queued prompt may arrive while it still works.
+- An agent without its hook (Settings → Chat UI → Hooks) is taken to be ready 15 s after a prompt,
+  so a queued prompt may arrive while it still works.
+- A hook hands its input to `pumi call` as one argument: an input past the system's argument limit
+  (128 KB on Linux; a permission to write a big file) fails, and the agent asks in its own prompt.
 
 ## Development
 
 ```sh
 pumi plugin dev chat-ui   # link it, reload on save
-bun test                  # the parsers, finding session files, the conversation model, mentions, commands
+bun test                  # the parsers, finding session files, the conversation model, mentions, commands, the hooks
 ```
 
 The tests run on synthetic records shaped like each agent's files; no real session is in them.
 `src/conversation/` is the agent-agnostic conversation (the model, its changes, the chat's drawing),
-`src/parse/` turns each agent's session file into it, and `src/bridge.ts` follows one tab.
+`src/parse/` turns each agent's session file into it, `src/bridge.ts` follows one tab, and
+`src/hooks/` is the agents' hooks: the table and their files (`integrations.ts`), and what the hook
+function answers (`hook.ts`, `run.ts`).

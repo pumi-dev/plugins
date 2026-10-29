@@ -375,6 +375,20 @@ export interface HookRow {
   file?: string;
 }
 
+/** What Settings says of a row's hook, and the one thing its button does. */
+export function hookStatus(row: Pick<HookRow, "hook" | "available">): { text: string; action?: "install" | "update" } {
+  switch (row.hook) {
+    case "installed":
+      return { text: "Installed" };
+    case "outdated":
+      return { text: "Outdated", action: "update" };
+    case "not_installed":
+      return { text: row.available ? "Not installed" : "Not found", action: "install" };
+    case "unsupported":
+      return { text: "No hook" };
+  }
+}
+
 /** Every agent, whether it is here, and whether its hook is in. */
 export function hookRows(home = homedir(), path = agentPath(process.env.PATH ?? "", home)): HookRow[] {
   return HOOK_AGENTS.map((agent) => ({
