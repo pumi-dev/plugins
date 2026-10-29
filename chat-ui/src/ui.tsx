@@ -4,14 +4,17 @@
 // conversation is the worker's (`main.ts` `read`, `send`); the chat follows its batches, on the
 // channel in the plugin host's windows and by the convention's event in any app's.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { conversationNames, Icon, IconButton, useChannelListener, useEvent, useMetrics, usePlugin, useTab, useTheme, type RendererProps, type TabId } from "pumi";
+import { conversationNames, Icon, IconButton, OptionRow, Page, Row, Section, SelectField, useChannelListener, useEvent, useMetrics, useOption, usePlugin, useTab, useTheme, type RendererProps, type TabId } from "pumi";
 
 import { follow, type Update } from "./conversation/change.ts";
 import type { Transcript } from "./conversation/model.ts";
 import { questionsOf } from "./conversation/question.ts";
 import { Button, Conversation, Header, Press, tint } from "./conversation/ui.tsx";
 import { agentSpec, type AgentSpec } from "./agents.ts";
-import { mentions, read, send, setChat, toggle } from "./main.ts";
+import { agentModes, mentions, read, send, setChat, setMode, toggle, toolbarPress } from "./main.ts";
+import { catalogAgent, modeOf, type Mode } from "./catalog.ts";
+
+export { Session } from "./ui/session.tsx";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 
 /** A throw the chat cannot answer: said in the log, not drawn over the window. */
@@ -51,8 +54,14 @@ export function Toolbar({ tab }: { tab: TabId }) {
   const t = useTheme();
   const plugin = usePlugin() ?? "";
   const options = useTabOptions(tab);
+  const [modes] = useOption<Record<string, string>>(`${plugin.replace("/", ".").replaceAll("-", "_")}.modes`);
+  const def = typeof options["@agent"] === "string" ? catalogAgent(options["@agent"]) : undefined;
+  // A session tab of this plugin's: its button continues the session in the agent's terminal.
+  if (typeof options["@chat_ui.engine"] === "string" && def?.resume) {
+    return <IconButton icon="terminal" title={`Continue in ${def.title}'s terminal`} onClick={() => void toolbarPress(tabId(tab)).catch(swallow)} />;
+  }
   const spec = agentSpec(options["@agent"]);
-  if (!spec) return null;
+  if (!spec || (def && modeOf(def, modes) === "off")) return null;
   const chat = options["@tab_renderer"] === plugin;
   const asking = options["@agent.status"] === "blocked";
   const tip = chat ? `Show ${spec.label}'s terminal` : asking ? `${spec.label} is asking: show the chat` : `Show ${spec.label} as a chat`;
@@ -166,6 +175,8 @@ function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
           transcript={transcript}
           hideHeader
           autoFocus={focused}
+          // The draft outlives a flip to the terminal and back.
+          draftKey={`tab:${tab}`}
           onMentions={findFiles}
           onAnswerElsewhere={showTerminal}
           elsewhereLabel={`Answer in ${label}`}
@@ -219,5 +230,53 @@ function AskingThere({ label, onShow }: { label: string; onShow(): void }) {
       </div>
       <Button label="Show it" icon="terminal" primary onPress={onShow} />
     </div>
+  );
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────────────────────
+
+type AgentModes = Awaited<ReturnType<typeof agentModes>>;
+
+/**
+ * Settings → Chat UI: how each agent opens, one dropdown each (those installed here first), then
+ * the chat's own options.
+ */
+export function ChatPage() {
+  const plugin = usePlugin() ?? "";
+  const prefix = `${plugin.replace("/", ".").replaceAll("-", "_")}.`;
+  const [modes] = useOption<Record<string, string>>(`${prefix}modes`);
+  const [list, setList] = useState<AgentModes>();
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    agentModes().then(setList, (err) => setError(String(err?.message ?? err)));
+  }, [JSON.stringify(modes ?? {})]);
+  const agents = [...(list ?? [])].sort((a, b) => Number(b.installed) - Number(a.installed));
+  const pick = (id: string, mode: string) => {
+    setError(undefined);
+    setMode(id, mode as Mode).then(
+      () => agentModes().then(setList),
+      (err) => setError(String(err?.message ?? err)),
+    );
+  };
+  return (
+    <Page title="Chat UI" description="How each agent opens from the + menu, and whether its tab shows the chat.">
+      <Section id={`${prefix}agents`} title="Agents" description="Terminal: its own TUI. Terminal + chat: the TUI with the chat drawn over it. ACP and SDK: a chat tab that runs the agent itself. Off: left out of the + menu and left alone.">
+        {agents.map((a) => (
+          <Row
+            key={a.id}
+            link={`${prefix}agent-${a.id}`}
+            title={a.title}
+            description={a.mode === "sdk" && a.note ? a.note : a.installed ? undefined : "Not installed here"}
+            control={<SelectField options={a.modes} value={a.mode} onChange={(mode) => pick(a.id, mode)} width={170} testId={`chat-ui-mode-${a.id}`} />}
+          />
+        ))}
+        {error ? <Row title={error} /> : null}
+      </Section>
+      <Section id={`${prefix}chat`} title="Chat">
+        <OptionRow name={`${prefix}key`} />
+        <OptionRow name={`${prefix}history_mb`} />
+        <OptionRow name={`${prefix}bun`} />
+      </Section>
+    </Page>
   );
 }

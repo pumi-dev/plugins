@@ -530,6 +530,9 @@ export class Bridge {
         if (!ack.rejected && this.spec.rewind === "command") this.#push(noticeChange(`Went back to before that message. ${this.spec.label} keeps what was left in /tree.`, "info", this.producer));
         return ack;
       }
+      case "fork":
+      case "restore":
+        return { id: command.id, rejected: `A terminal session can't be ${command.type === "fork" ? "forked" : "restored"} from the chat: continue it in a chat tab (ACP or SDK).` };
     }
   }
 

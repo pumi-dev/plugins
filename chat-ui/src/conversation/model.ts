@@ -49,8 +49,10 @@ export interface Entry {
   turn?: TurnSummary;
   /** Its text was cut to stay in bounds (`Bounds.entryText`). */
   clipped?: boolean;
-  /** The agent's own id for what it came from (pi's entry id, Claude's record uuid): what a rewind names. */
+  /** The agent's own id for what it came from (pi's entry id, Claude's record uuid, Codex's turn id): what a rewind or a fork names. */
   source?: string;
+  /** user: the files can be put back as they were before it (`restore`). */
+  checkpoint?: boolean;
 }
 
 export type NoticeLevel = "info" | "warning" | "error";
@@ -135,6 +137,10 @@ export interface ConfigOption {
   description?: string;
   current: string | boolean;
   choices?: Choice[];
+  /** thought_level: the choice that turns thinking off, which a view draws as the thinking toggle. */
+  off?: string;
+  /** The choice the agent uses when none was picked (its model's default level). */
+  default?: string;
 }
 
 /** A slash command the agent offers. */
@@ -229,12 +235,21 @@ export type Command =
   /** Text the agent is given unseen with its next prompt (what pumi knows: `agent.turn`). */
   | { type: "context"; id: CommandId; text: string }
   /** Goes back to before the user's message `entry` (an entry id): it and what followed are left behind. */
-  | { type: "rewind"; id: CommandId; entry: string };
+  | { type: "rewind"; id: CommandId; entry: string }
+  /**
+   * A new session with the conversation up to the end of the turn the user's message `entry` began;
+   * this one goes on as it was. The ack names the new session.
+   */
+  | { type: "fork"; id: CommandId; entry: string }
+  /** Puts the files back as they were before the user's message `entry` (one with `checkpoint`). The conversation stays. */
+  | { type: "restore"; id: CommandId; entry: string };
 
 /** The producer's answer to a command: done, or why not. */
 export interface Ack {
   id: CommandId;
   rejected?: string;
+  /** fork: the new session's id, as the agent resumes it. */
+  session?: string;
 }
 
 /** A random id, for an epoch or a command. */
