@@ -19,7 +19,6 @@ import {
   run,
   serverOf,
   shortcut,
-  useAgentOf,
   useApp,
   useComponents,
   useDock,
@@ -38,6 +37,7 @@ import {
   useSessions,
   useSlot,
   useTab,
+  useTabStatus,
   useTabs,
   useWindow,
   via,
@@ -54,6 +54,15 @@ type Tokens = ReturnType<typeof useTheme>
 
 const swallow = (err: unknown) => console.error(String(err))
 const stop = (e: any) => e?.stopPropagation?.()
+
+/** The agent a tab runs, from the Agents plugin's trait: its id (`claude`), or nothing when none said. */
+const agentOf = (tab: { options?: Record<string, unknown> } | undefined): string | undefined => {
+  const id = tab?.options?.["@pumi_dev.agents.agent"]
+  return typeof id === "string" ? id : undefined
+}
+
+/** Whether a tab runs on the terminal engine: one whose `tab_pid` the engine keeps. */
+const isTerminal = (tab: { options?: Record<string, unknown> } | undefined): boolean => typeof tab?.options?.tab_pid === "number"
 
 // ── Icons ──────────────────────────────────────────────────────────────────────────────────────
 
@@ -119,23 +128,13 @@ function initials(label: string): string {
   return tag.toUpperCase()
 }
 
-/** The most urgent first: what a row says of the agents in it. */
-const URGENCY = ["error", "blocked", "working", "done", "idle", "unknown"]
-
-function lead(statuses: string[]): string | undefined {
-  let best: string | undefined
-  for (const s of statuses) {
-    const status = s || "unknown"
-    if (URGENCY.indexOf(status) >= 0 && (best === undefined || URGENCY.indexOf(status) < URGENCY.indexOf(best))) best = status
-  }
-  return best
-}
 
 /** A pane's glyph: an agent's spark, a terminal's prompt, a page's globe. */
-function glyphOf(p: Pick<PaneInfo, "block" | "agent"> | undefined): string {
+function glyphOf(p: { block: string; options?: Record<string, unknown> } | undefined): string {
   if (!p) return "terminal"
-  if (p.agent) return p.agent.toLowerCase().includes("codex") ? "zap" : "sparkle"
-  if (p.block === "terminal") return "terminal"
+  const agent = agentOf(p)
+  if (agent) return agent.toLowerCase().includes("codex") ? "zap" : "sparkle"
+  if (isTerminal(p)) return "terminal"
   if (p.block === "file") return "code"
   if (p.block === "image" || p.block.endsWith(".image")) return "image"
   if (p.block === "browser" || p.block.endsWith(".page")) return "globe"
@@ -162,7 +161,7 @@ const ProjectTag = memo(function ProjectTag({ label }: { label?: string | null }
 /** An agent's state, as a dot: a slow pulse while it works. */
 const StatusDot = memo(function StatusDot({ status }: { status: string }) {
   const t = useTheme()
-  const style = { width: 6, height: 6, borderRadius: 6, flexShrink: 0, backgroundColor: t[`agent.${status}`] ?? t["agent.unknown"] } as const
+  const style = { width: 6, height: 6, borderRadius: 6, flexShrink: 0, backgroundColor: t[`status.${status}`] ?? t["status.unknown"] } as const
   if (status !== "working") return <div style={style} />
   // A few steps a second: each one draws the window again.
   return <motion.div animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut", fps: 12 }} style={style} />
@@ -548,7 +547,7 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
   const focused = useFocusedPane(id)
   const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === id && (p.place as { kind?: string } | undefined)?.kind !== "float") ?? NO_PANES)
   const p = panes.find((x) => x.pane_id === focused) ?? panes[0]
-  const status = lead(panes.filter((x) => x.agent).map((x) => x.agent_status))
+  const status = useApp((s) => s.snapshot?.tabs.find((x) => x.tab_id === id)?.status)
   const label = tabTitle(named, p)
   const loud = status === "done" || status === "blocked" || status === "error"
   const { renaming, start, input } = useRename({ tab: id }, label)
@@ -558,8 +557,8 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
     accept: (data: any): data is { kind: "pumi.pane"; pane: string } => data?.kind === "pumi.pane" && typeof data.pane === "string" && !panes.some((x) => x.pane_id === data.pane) && serverOf(data.pane) === serverOf(id),
     onDrop: (data) => call(via(data.pane, "pane.update"), data.pane, { place: { kind: "tiled", tab: id } }).catch(swallow),
   })
-  const controls = useSlot("agent.controls")
-  const agent = !!p?.agent
+  const controls = useSlot("tab.row.controls")
+  const agent = !!agentOf(p)
   const word = status ? STATUS_WORD[status] : undefined
   const glyphs = [...new Set(panes.map((x) => glyphOf(x)))].slice(0, 4)
   const lit = drop.isOver ? t.active : front ? t.selected : undefined
@@ -599,13 +598,13 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
           <div style={{ flexGrow: 1 }} />
           {(hovered || shown) && !renaming ? (
             <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1, flexShrink: 0 }}>
-              {agent && controls.actions.length + controls.views.length > 0 ? <C.AgentControls pane={p!.pane_id} /> : null}
+              {agent && controls.actions.length + controls.views.length > 0 ? <C.TabRowControls tab={id} /> : null}
               <RowButton icon="ellipsis" title="More" onClick={show} />
             </div>
           ) : word && status ? (
             <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, flexShrink: 0 }}>
               <StatusDot status={status} />
-              <text style={{ fontSize: 11, color: t[`agent.${status}`] ?? t.faint, whiteSpace: "nowrap" }}>{word}</text>
+              <text style={{ fontSize: 11, color: t[`status.${status}`] ?? t.faint, whiteSpace: "nowrap" }}>{word}</text>
             </div>
           ) : null}
         </div>
@@ -622,7 +621,7 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
             </div>
           ) : null}
           <div style={{ flexGrow: 1 }} />
-          {agent ? <SlotRow slot="agent.footer" args={{ pane: p!.pane_id }} /> : null}
+          {agent ? <SlotRow slot="tab.row.footer" args={{ tab: id }} /> : null}
           {glyphs.map((g) => (
             <Glyph key={g} name={g} size={12} color={t.faint} />
           ))}
@@ -633,10 +632,10 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
   )
 })
 
-/** An agent's actions (`agent.controls`), given the agent: on its thread while hovered. */
-function AgentControls({ pane }: { pane: string }) {
-  const args = useMemo(() => ({ pane }), [pane])
-  return <SlotRow slot="agent.controls" args={args} />
+/** A tab row's actions (`tab.row.controls`), given the tab: on its thread while hovered. */
+function TabRowControls({ tab }: { tab: string }) {
+  const args = useMemo(() => ({ tab }), [tab])
+  return <SlotRow slot="tab.row.controls" args={args} />
 }
 
 /** What a pane or tab drag carries, by the mouse: its glyph and its name. */
@@ -941,7 +940,6 @@ function PaneTitle({ pane: id, focused, zoomed, over, menu }: { pane: string; fo
   const t = useTheme()
   const C = useComponents()
   const p = usePane(id)
-  const agent = useAgentOf(id)
   const tree = useLayout(p?.tab_id)
   const draggable = useDraggable({ kind: "pumi.pane", pane: id })
   const toolbar = useMemo(() => ({ pane: id }), [id])
@@ -949,8 +947,8 @@ function PaneTitle({ pane: id, focused, zoomed, over, menu }: { pane: string; fo
   const zoomable = zoomed || (!!tree && "axis" in tree)
   const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: num(id), split: side }).catch(swallow)
   const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
-  const status = agent?.agent_status || "unknown"
-  const busy = !!agent && status !== "idle" && status !== "unknown"
+  const status = useTabStatus(p?.tab_id) || "unknown"
+  const busy = status !== "idle" && status !== "unknown"
   return (
     <div
       {...draggable.props}
@@ -1036,7 +1034,7 @@ function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boolean; z
   const stripArgs = useMemo(() => ({ pane: id }), [id])
   const floating = (pane?.place as { kind?: string } | undefined)?.kind === "float"
   const titled = titles && !!live && !floating
-  const terminal = pane?.block === "terminal"
+  const terminal = isTerminal(pane)
   return (
     <div
       onMouseDown={() => {
@@ -1094,7 +1092,7 @@ export const P3: Partial<Components> = {
   Window,
   Starting,
   Pane,
-  AgentControls,
+  TabRowControls,
   Action,
   Menu,
   Dialog,
