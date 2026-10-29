@@ -31,28 +31,31 @@ function runs(name: string, args: Json[]): Binding["call"] {
 const DIRECTIONS = { L: "left", R: "right", U: "up", D: "down" } as const;
 
 function split(side: "right" | "down"): Binding["call"] {
-  return runs("pane.open", ["terminal", {}, { split: side }]);
+  // A split makes a pane, and the new terminal is a tab of it.
+  return runs("tab.open", [null, {}, { kind: "tiled", pane: "current", split: side }]);
 }
 
 function select(direction: "L" | "R" | "U" | "D"): Binding["call"] {
-  return runs("pane.focus", [null, { direction: DIRECTIONS[direction] }]);
+  // The tab in front of the pane beside it: herdr's pane, one way.
+  return runs("tab.focus", [null, { direction: DIRECTIONS[direction] }]);
 }
 
 function resize(direction: "L" | "R" | "U" | "D"): Binding["call"] {
-  return runs("pane.update", [null, { size: { direction: DIRECTIONS[direction], amount: 1 } }]);
+  // Its pane's border moves, and its neighbour gives or takes the cells.
+  return runs("tab.update", [null, { size: { direction: DIRECTIONS[direction], amount: 1 } }]);
 }
 
-/** Every key, its call and what it does. */
+/** Every key, its call and what it does. herdr's panes are pumi tabs, its tabs pumi views. */
 export function bindings(): Binding[] {
   const keys: Binding[] = [
-    { key: "N", call: runs("pane.open", ["terminal", {}, { kind: "session", focus: false }]), desc: "New workspace" },
+    { key: "N", call: runs("tab.open", [null, {}, { kind: "session", focus: false }]), desc: "New workspace" },
     { key: "D", call: runs("session.close", [null]), desc: "Close the workspace" },
     { key: "[", call: runs("session.focus", [null, { offset: -1 }]), desc: "Previous workspace" },
     { key: "]", call: runs("session.focus", [null, { offset: 1 }]), desc: "Next workspace" },
-    { key: "c", call: runs("pane.open", ["terminal", {}, { kind: "tab" }]), desc: "New tab" },
-    { key: "p", call: runs("tab.focus", [null, { offset: -1 }]), desc: "Previous tab" },
-    { key: "n", call: runs("tab.focus", [null, { offset: 1 }]), desc: "Next tab" },
-    { key: "X", call: runs("tab.close", [null]), desc: "Close the tab" },
+    { key: "c", call: runs("tab.open", [null, {}, { kind: "view" }]), desc: "New tab" },
+    { key: "p", call: runs("view.focus", [null, { offset: -1 }]), desc: "Previous tab" },
+    { key: "n", call: runs("view.focus", [null, { offset: 1 }]), desc: "Next tab" },
+    { key: "X", call: runs("view.close", [null]), desc: "Close the tab" },
     { key: "h", call: select("L"), desc: "Pane left" },
     { key: "j", call: select("D"), desc: "Pane below" },
     { key: "k", call: select("U"), desc: "Pane above" },
@@ -61,7 +64,7 @@ export function bindings(): Binding[] {
     { key: "BTab", call: runs("pane.focus", [null, { offset: -1 }]), desc: "Previous pane" },
     { key: "v", call: split("right"), desc: "Split right" },
     { key: "-", call: split("down"), desc: "Split down" },
-    { key: "x", call: runs("pane.close", [null]), desc: "Close the pane" },
+    { key: "x", call: runs("tab.close", [null]), desc: "Close the pane" },
     { key: "z", call: runs("pane.update", [null, { zoom: "toggle" }]), desc: "Zoom the pane" },
     { key: "H", call: resize("L"), desc: "Resize left" },
     { key: "L", call: resize("R"), desc: "Resize right" },
@@ -69,7 +72,7 @@ export function bindings(): Binding[] {
     { key: "J", call: resize("D"), desc: "Resize down" },
   ];
   // herdr counts tabs from 1.
-  for (let i = 1; i <= 9; i++) keys.push({ key: String(i), call: runs("tab.focus", [null, { index: i - 1 }]), desc: "Tab by number" });
+  for (let i = 1; i <= 9; i++) keys.push({ key: String(i), call: runs("view.focus", [null, { index: i - 1 }]), desc: "Tab by number" });
   return keys;
 }
 

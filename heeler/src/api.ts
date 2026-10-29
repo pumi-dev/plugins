@@ -3,11 +3,11 @@
 // `unsupported` at once, from `methods.ts`; the ones herdr has and pumi has not answers
 // `unsupported` too, saying so.
 //
-// Nothing here keeps a screen: a pane's text is `pane.call`'s `read`, its keys are `{"keys": […]}` on
+// Nothing here keeps a screen: a pane's text is `tab.call`'s `read`, its keys are `{"keys": […]}` on
 // the same call (the host encodes them for the modes the program set), and what an agent is doing
-// is the pane's `@agent`/`@agent.status` (OSC 7501), which the host decides.
+// is the tab's `@status`, with its name in the Agents plugin's trait (`@pumi_dev.agents.agent`).
 import { join } from "node:path";
-import { call, option, workspace, type Pane, type Session, type Tab } from "pumi";
+import { call, option, workspace, type Session, type Tab, type View as ViewModel } from "pumi";
 import { terminal, workspace as workspaceId } from "./ids.ts";
 import { find } from "./methods.ts";
 import { heelerConfigDir } from "./paths.ts";
@@ -27,23 +27,31 @@ import {
 } from "./types.ts";
 import { View } from "./view.ts";
 
-/** A pane's id, as the API has it: herdr reads numbers, the wire takes `%3`. */
+/** A pane's id, as the API has it: herdr reads numbers, the wire takes `%3`.
+ *
+ * herdr's panes are pumi's tabs (`%`), and its tabs are pumi's views (`@`). */
 export function paneRef(number: number): string {
   return `%${number}`;
 }
 
-/** The pane `number` names, as the SDK's model of it: its methods are the API's calls. */
-function paneModel(number: number): Pane {
-  const pane = workspace.getPane(paneRef(number));
-  if (pane === null) throw new Fail(codes.PANE_NOT_FOUND, `pane not found: ${number}`);
-  return pane;
+/** A tab's id, as the API has it: herdr reads numbers, the wire takes `@3`. */
+function tabRef(number: number): string {
+  return `@${number}`;
 }
 
-/** The tab `number` names, as the SDK's model of it. */
-function tabModel(number: number): Tab {
-  const tab = workspace.getTab(`@${number}`);
-  if (tab === null) throw new Fail(codes.TAB_NOT_FOUND, `tab not found: ${number}`);
+/** The pane `number` names, as the SDK's model of it: a tab on the terminal engine, whose methods are
+ * the API's calls (`read`, `input`, `focus`). */
+function paneModel(number: number): Tab {
+  const tab = workspace.getTab(paneRef(number));
+  if (tab === null) throw new Fail(codes.PANE_NOT_FOUND, `pane not found: ${number}`);
   return tab;
+}
+
+/** The tab `number` names, as the SDK's model of it: a view, which is herdr's tab. */
+function tabModel(number: number): ViewModel {
+  const view = workspace.getView(tabRef(number));
+  if (view === null) throw new Fail(codes.TAB_NOT_FOUND, `tab not found: ${number}`);
+  return view;
 }
 
 /** The session `number` names, as the SDK's model of it. */
@@ -177,7 +185,7 @@ async function paneInfo(pane: number): Promise<PaneInfo> {
   return info;
 }
 
-/** The text of a pane, from the core's own terminal (`pane.call`'s `read`): the last `lines` rows
+/** The text of a pane, from the core's own terminal (`tab.call`'s `read`): the last `lines` rows
  * it keeps. The core keeps text, not a screen, so nothing is truncated and there is no unwrapped
  * or visible variant. */
 async function read(pane: number, lines: number | undefined): Promise<string> {
@@ -200,12 +208,19 @@ async function write(pane: number, text: string): Promise<void> {
   await paneModel(pane).input({ text });
 }
 
-/** Opens a pane with `block`, `args` and `place`, and answers the number herdr reads it by. */
-async function openPane(block: string, args: Json, place: Record<string, Json>): Promise<number> {
+/** Opens a tab with `block` (`null`: what a new tab holds), `args` and `place`, and answers the
+ * number herdr reads it by: a terminal is a tab, so herdr's panes are tabs. */
+async function openPane(block: string | null, args: Json, place: Record<string, Json>): Promise<number> {
   await workspace.ready;
-  const made = await workspace.openPane(block, args, place);
+  const made = await ask("tab.open", block, args, place);
   const v = await view();
-  return v.pane(made.id) ?? 0;
+  return typeof made === "string" ? (v.pane(made) ?? 0) : 0;
+}
+
+/** The block a pane opens: the Terminal plugin's shell when herdr asks for a program to run, and
+ * what a new tab holds (`null`) otherwise. */
+function blockOf(args: Record<string, Json>): string | null {
+  return args.command === undefined ? null : "pumi_dev.terminal.shell";
 }
 
 /** Runs one request. */
@@ -267,7 +282,8 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       const place: Record<string, Json> = { kind: "session", focus: p.bool("focus", true) };
       const label = p.optStr("label");
       if (label !== undefined) place.name = label;
-      const pane = await openPane("terminal", launch(p), place);
+      const args = launch(p);
+      const pane = await openPane(blockOf(args), args, place);
       const v = await view();
       const tab = v.panes.get(pane)?.tab ?? 0;
       const workspace = v.sessionOfTab(tab)?.id ?? 0;
@@ -306,11 +322,14 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     }
     case "tab.create": {
       let v = await view();
-      const place: Record<string, Json> = { kind: "tab", focus: p.bool("focus", true) };
-      if (p.optStr("workspace_id") !== undefined) place.session = `$${workspaceOf(v, p)}`;
+      // A tab opens as a view of the current session, or of the one it names.
+      const place: Record<string, Json> = { kind: "view", focus: p.bool("focus", true) };
+      const session = p.optStr("workspace_id") === undefined ? v.current?.[0] : workspaceOf(v, p);
+      if (session !== undefined) place.session = `$${session}`;
       const label = p.optStr("label");
       if (label !== undefined) place.name = label;
-      const pane = await openPane("terminal", launch(p), place);
+      const args = launch(p);
+      const pane = await openPane(blockOf(args), args, place);
       v = await view();
       const tab = v.panes.get(pane)?.tab ?? 0;
       return result("tab_created", { tab: v.tabInfo(tab) ?? null, root_pane: v.paneInfo(pane, 0) ?? null });
@@ -347,7 +366,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       if (method === "pane.focus") await paneModel(pane).focus();
       if (method === "pane.rename") {
         const label = p.optStr("label")?.trim();
-        await option.set("@label", label === undefined || label === "" ? null : label, { scope: "pane", id: paneRef(pane) });
+        await option.set("@label", label === undefined || label === "" ? null : label, { scope: "tab", id: paneRef(pane) });
       }
       if (method === "pane.zoom") {
         const tab = v.panes.get(pane)?.tab;
@@ -358,7 +377,7 @@ export async function dispatch(method: string, params: Json | undefined): Promis
         return result("pane_zoom", { pane_id: v.paneId(pane), zoomed: want });
       }
       if (method === "pane.clear") {
-        await call("pane.call", [paneRef(pane), "clear_history"]);
+        await call("tab.call", [paneRef(pane), "clear_history"]);
         return result("ok");
       }
       return result("pane_info", { pane: await paneInfo(pane) });
@@ -381,15 +400,16 @@ export async function dispatch(method: string, params: Json | undefined): Promis
         target = current;
       }
       const direction: SplitDirection = enumParam(p, "direction", ["right", "down"] as const) ?? "right";
-      const place: Record<string, Json> = { beside: paneRef(target), split: direction, focus: p.bool("focus", false) };
+      // The pane's tab is split, and the new terminal is a tab of the pane that makes.
+      const place: Record<string, Json> = { kind: "tiled", beside: paneRef(target), split: direction, focus: p.bool("focus", false) };
       const ratio = p.get("ratio");
       if (typeof ratio === "number") place.size = `${Math.round((1 - ratio) * 100)}%`;
       const args = launch(p);
       if (args.cwd === undefined) {
-        const cwd = v.panes.get(target)?.options.pane_current_path;
+        const cwd = v.panes.get(target)?.options.tab_current_path;
         if (cwd !== undefined) args.cwd = cwd;
       }
-      const pane = await openPane("terminal", args, place);
+      const pane = await openPane(blockOf(args), args, place);
       return result("pane_info", { pane: await paneInfo(pane) });
     }
     case "pane.process_info": {
@@ -398,8 +418,8 @@ export async function dispatch(method: string, params: Json | undefined): Promis
       const pane = named === undefined ? v.current?.[2] : v.pane(named);
       if (pane === undefined) throw new Fail(codes.PANE_NOT_FOUND, "no current pane");
       const options = v.panes.get(pane)?.options ?? {};
-      const pid = options.pane_pid;
-      const tty = options.pane_tty;
+      const pid = options.tab_pid;
+      const tty = options.tab_tty;
       const info: PaneProcessInfo = {
         pane_id: v.paneId(pane),
         ...(typeof pid === "number" ? { shell_pid: pid } : {}),
@@ -493,28 +513,21 @@ export async function dispatch(method: string, params: Json | undefined): Promis
     case "pane.report_agent": {
       const v = await view();
       const pane = paneOf(v, p.str("pane_id"));
+      const at = { scope: "tab", id: paneRef(pane) } as const;
+      // The agent a tab runs is the Agents plugin's trait, and what it is doing the tab's `@status`:
+      // both are the tab's own options, so they live and go as its options do.
       const agent = p.optStr("agent");
-      if (agent !== undefined) await option.set("@agent", agent, { scope: "pane", id: paneRef(pane) });
+      if (agent !== undefined) await option.set("@pumi_dev.agents.agent", agent === "" ? null : agent, at);
       const state = p.optStr("state");
       if (state !== undefined) {
-        // The state is the pane's program status, which the host keeps (OSC 7501): said as the
-        // program would, so it lives and goes as the program's own reports do.
         const known = parseAgentStatus(state);
         if (known === undefined) throw new Fail(codes.INVALID_PARAMS, `no agent state \`${state}\``);
-        const named = agent !== undefined && isApp(agent) ? agent : undefined;
-        const report =
-          known === "unknown" ? "state=clear" : named === undefined ? `state=${known}` : `state=${known}:app=${named}`;
-        await paneModel(pane).report({ body: report });
+        await option.set("@status", known === "unknown" ? null : known, at);
       }
       return result("ok");
     }
   }
   throw new Fail(codes.UNSUPPORTED, `${method} is not implemented by pumi yet`);
-}
-
-/** An OSC 7501 `app`: what a report may name its program. */
-function isApp(name: string): boolean {
-  return name.length >= 1 && name.length <= 32 && /^[A-Za-z0-9_.+-]+$/.test(name);
 }
 
 /** The length of the escape sequence at the start of `seq`, which begins with ESC. */
@@ -557,12 +570,12 @@ export function keepSgr(text: string): string {
   return out + rest;
 }
 
-/** A core event, as the host hands it over: the object it is about by its prefixed id (`%3`). */
+/** A core event, as the host hands it over: the objects it is about by their prefixed ids (`%3`). */
 export interface CoreEvent {
   event: string;
-  pane?: string | null;
-  tab?: string | null;
   session?: string | null;
+  view?: string | null;
+  tab?: string | null;
   data?: Json;
 }
 
@@ -573,11 +586,6 @@ export function numberOf(id: Json | undefined): number | undefined {
   if (found === null) return undefined;
   const number = Number(found[1]);
   return Number.isInteger(number) ? number : undefined;
-}
-
-/** The pane an event says it is about, by its number. */
-export function paneNumber(id: Json | undefined): number | undefined {
-  return numberOf(id);
 }
 
 /** The pane, tab or session an event's data names, by its prefixed id. */
@@ -594,9 +602,10 @@ function idIn(value: Json | undefined): number | undefined {
 export function translate(now: View, before: View, event: CoreEvent): Envelope[] {
   const envelope = (snake: string, data: Record<string, Json>): Envelope => ({ event: snake, data: { ...data, type: snake } });
   const data = isObject(event.data) ? event.data : {};
-  // pumi puts the object an event is about beside it (`pane`, `tab`, `session`) and in its data.
-  const pane = numberOf(event.pane) ?? idIn(data.pane);
-  const tab = numberOf(event.tab) ?? idIn(data.tab);
+  // pumi puts the objects an event is about beside it (`session`, `view`, `tab`) and in its data.
+  // Its tab is herdr's pane, and its view herdr's tab.
+  const pane = numberOf(event.tab) ?? idIn(data.tab);
+  const tab = numberOf(event.view) ?? idIn(data.view);
   const session = numberOf(event.session) ?? idIn(data.session);
   // What changed, as the `<noun>.changed` events name it: `title`, `options.@label`, …
   const keys: string[] = Array.isArray(data.keys) ? data.keys.filter((k): k is string => typeof k === "string") : [];
@@ -614,43 +623,45 @@ export function translate(now: View, before: View, event: CoreEvent): Envelope[]
         return workspace === undefined ? [] : [envelope("workspace_renamed", { workspace_id: workspace.workspace_id, label: workspace.label })];
       }
       // The tab in front of it, which is herdr's `workspace_focused`.
-      if (changed("activeTab")) return session === undefined ? [] : [envelope("workspace_focused", { workspace_id: workspaceId(session) })];
+      if (changed("activeView")) return session === undefined ? [] : [envelope("workspace_focused", { workspace_id: workspaceId(session) })];
       return [];
     }
-    case "tab.opened": {
+    // A view is herdr's tab, and a tab its pane.
+    case "view.opened": {
       const info = tab === undefined ? undefined : now.tabInfo(tab);
       return info === undefined ? [] : [envelope("tab_created", { tab: info })];
     }
-    case "tab.closed":
+    case "view.closed":
       return tab === undefined ? [] : [envelope("tab_closed", { tab_id: before.tabId(tab) })];
-    case "tab.changed": {
+    case "view.changed": {
       const info = tab === undefined ? undefined : now.tabInfo(tab);
       if (info === undefined) return [];
       const out: Envelope[] = [];
       if (changed("name")) out.push(envelope("tab_renamed", { tab_id: info.tab_id, workspace_id: info.workspace_id, label: info.label }));
-      if (changed("activePane")) out.push(envelope("tab_focused", { tab_id: info.tab_id, workspace_id: info.workspace_id }));
-      if (changed("layout", "index", "zoom")) out.push(envelope("layout_updated", { tab_id: info.tab_id, workspace_id: info.workspace_id }));
-      // The pane brought forward, which is herdr's `pane_focused`.
-      const active = idIn(isObject(data.patch) ? data.patch.activePane : undefined);
-      if (changed("activePane") && active !== undefined) {
+      if (changed("activeTab")) out.push(envelope("tab_focused", { tab_id: info.tab_id, workspace_id: info.workspace_id }));
+      if (changed("layout", "zoom", "index")) out.push(envelope("layout_updated", { tab_id: info.tab_id, workspace_id: info.workspace_id }));
+      // The tab brought forward is herdr's `pane_focused`.
+      const active = idIn(isObject(data.patch) ? data.patch.activeTab : undefined);
+      if (changed("activeTab") && active !== undefined) {
         const at = now.paneInfo(active, revision(active));
         if (at !== undefined) out.push(envelope("pane_focused", { pane_id: at.pane_id, tab_id: at.tab_id, workspace_id: at.workspace_id }));
       }
       return out;
     }
-    case "pane.opened": {
+    case "tab.opened": {
       const info = pane === undefined ? undefined : now.paneInfo(pane, 0);
       return info === undefined ? [] : [envelope("pane_created", { pane: info })];
     }
-    case "pane.closed":
+    case "tab.closed":
       return pane === undefined ? [] : [envelope("pane_closed", { pane_id: before.paneId(pane), terminal_id: terminal(pane) })];
-    case "pane.changed": {
+    case "tab.changed": {
       if (pane === undefined) return [];
       const info = now.paneInfo(pane, revision(pane));
       if (info === undefined) return [];
       const out: Envelope[] = [];
-      // What an agent is doing is the pane's `@agent.status`, and its trait's field with it.
-      if (changed("options.@agent.status", "traits.agent.status")) {
+      // What an agent is doing is the tab's `@status`, and which agent it is the Agents plugin's
+      // trait: either changing is herdr's `pane.agent_status_changed`.
+      if (changed("options.@status", "options.@pumi_dev.agents.agent")) {
         out.push({
           event: "pane.agent_status_changed",
           data: {
@@ -661,7 +672,7 @@ export function translate(now: View, before: View, event: CoreEvent): Envelope[]
           },
         });
       }
-      if (changed("title", "options.@label", "options.pane_current_path")) out.push(envelope("pane_updated", { pane: info }));
+      if (changed("title", "options.@label", "options.tab_current_path", "cwd")) out.push(envelope("pane_updated", { pane: info }));
       if (changed("exitCode")) out.push(envelope("pane_exited", { pane_id: now.paneId(pane) }));
       return out;
     }

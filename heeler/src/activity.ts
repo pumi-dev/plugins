@@ -5,7 +5,7 @@
 // Notification Registration entry; herdr's activity hook then pushes `update` and `end` to Heeler's
 // relay from `pane.agent_status_changed`, one envelope per Device, sealed under the same Notification
 // Key as alerts but with AAD `HERDR-ACTIVITY:1`. pumi runs no herdr plugin, so that hook lives here,
-// over pumi's own `@agent.status`: the same latest-wins debounce, the same unchanged-snapshot
+// over a tab's `@status`: the same latest-wins debounce, the same unchanged-snapshot
 // suppression, the same canonical content-state, the same size degradation and the same relay.
 //
 // PROVENANCE: Heeler `plugin/src/activity-hook.js`, `activity-state.js`, `activity-envelope.js`,
@@ -657,7 +657,7 @@ export function start(setup: Settings): void {
   settings = setup;
 }
 
-/** An agent's `@agent.status` changed: the activity hook looks once the change settles. */
+/** An agent's tab's `@status` changed: the activity hook looks once the change settles. */
 export function status(_pane: number, status: string): void {
   const hook = settings;
   if (hook === undefined) return;

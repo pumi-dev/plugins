@@ -1,29 +1,73 @@
-// pumi's sessions, tabs and panes as herdr's workspaces, tabs and panes: each object's shape, the
+// pumi's sessions, views and tabs as herdr's workspaces, tabs and panes: each object's shape, the
 // ids read off pumi's numbers, and the status a pane rolls up to.
 import { expect, test } from "bun:test";
 import type { Json } from "../src/types.ts";
 import { View, stripMark } from "../src/view.ts";
 
-/** session $5 with tabs @7 and @8, session $6 with tab @9, and a float that is no tab's. */
+/**
+ * Session $5 with views @7 and @8, session $6 with view @9, and tabs %1–%4 in them plus a float,
+ * which is in no view. `%4` is a tab that is not a terminal (no `tab_pid`), so it is no pane of
+ * herdr's; `%2` is the one tab the Agents plugin gave its trait, and `%3` is a failed program.
+ */
 const state: Json = {
   sessions: [
-    { id: 5, name: "main", tabs: [[0, 7], [1, 8]], current: 8, cwd: null, last: null, activity: {}, created: 0 },
-    { id: 6, name: "other", tabs: [[0, 9]], current: 9 },
+    { id: 5, name: "main", views: [[0, 7], [1, 8]], current: 8, cwd: null, last: null, activity: {} },
+    { id: 6, name: "other", views: [[0, 9]], current: 9 },
+  ],
+  views: [
+    {
+      id: 7,
+      name: null,
+      layout: ["row", [["leaf", 10, 0.5], ["leaf", 11, 0.5]]],
+      panes: {
+        10: { id: 10, tabs: [1, 2], active: 2, last: null },
+        11: { id: 11, tabs: [3], active: 3, last: null },
+      },
+      active: 1,
+      last: null,
+      zoomed: false,
+    },
+    {
+      id: 8,
+      name: "logs",
+      layout: ["leaf", 12],
+      panes: { 12: { id: 12, tabs: [4], active: 4, last: null } },
+      active: 4,
+      last: null,
+      zoomed: true,
+    },
+    { id: 9, name: null, layout: ["leaf", 13], panes: { 13: { id: 13, tabs: [5], active: 5, last: null } }, active: 5, last: null, zoomed: false },
   ],
   tabs: [
-    { id: 7, name: null, layout: ["row", [["leaf", 1, 0.5], ["leaf", 2, 0.5]]], active: 1, last: null, zoomed: false },
-    { id: 8, name: "logs", layout: ["leaf", 3], active: 3, last: null, zoomed: true },
-    { id: 9, name: null, layout: ["leaf", 4], active: 4, last: null, zoomed: false },
-  ],
-  panes: [
-    { id: 1, type: "terminal", place: { kind: "tiled", tab: 7 }, activity: {}, options: { title: "zsh", pane_current_path: "/tmp", pane_pid: 42, pane_tty: "/dev/ttys001" } },
-    { id: 2, type: "terminal", place: { kind: "tiled", tab: 7 }, options: { "@agent": "claude", "@agent.status": "working", "@label": "worker" } },
-    { id: 3, type: "terminal", place: { kind: "tiled", tab: 8 }, options: { "@agent.status": "error", "@program_status": [{ state: "done" }] } },
-    { id: 4, type: "terminal", place: { kind: "tiled", tab: 9 }, options: {} },
-    { id: 90, type: "terminal", place: { kind: "float", tab: 7 }, options: {} },
+    {
+      id: 1,
+      block: "pumi_dev.terminal.shell",
+      traits: [],
+      place: { kind: "tiled", view: 7 },
+      options: { title: "zsh", tab_current_path: "/tmp", tab_pid: 42, tab_tty: "/dev/ttys001" },
+    },
+    {
+      id: 2,
+      block: "pumi_dev.terminal.shell",
+      traits: ["pumi_dev.agents.agent"],
+      place: { kind: "tiled", view: 7 },
+      options: { tab_pid: 44, "@pumi_dev.agents.agent": "claude", "@status": "working", "@label": "worker" },
+    },
+    {
+      id: 3,
+      block: "pumi_dev.terminal.shell",
+      traits: [],
+      place: { kind: "tiled", view: 7 },
+      options: { tab_pid: 43, "@status": "error", tab_current_command: "make", "@program_status": [{ state: "done" }] },
+    },
+    // Not a terminal: a diagram, say, which is no pane of herdr's.
+    { id: 4, block: "pumi_dev.diagram.view", traits: [], place: { kind: "tiled", view: 8 }, options: {} },
+    { id: 5, block: "pumi_dev.terminal.shell", traits: [], place: { kind: "tiled", view: 9 }, options: { tab_pid: 45 } },
+    // A terminal that floats: in no view's layout, so in no tab of herdr's.
+    { id: 90, block: "pumi_dev.terminal.shell", traits: [], place: { kind: "float", view: 7 }, options: { tab_pid: 46 } },
   ],
   options: {},
-  current: { session: 5, tab: 7, pane: 1 },
+  current: { session: 5, view: 7, tab: 1 },
 };
 
 const view = () => View.fromState(state);
@@ -52,14 +96,14 @@ test("a session is a workspace, numbered by the order it came in", () => {
   expect(view().workspaceInfo(7)).toBeUndefined();
 });
 
-test("a tab is a tab: its label is its name, else its pane's title, else its number", () => {
+test("a tab is a view: its label is its name, else its tab's title, else its number", () => {
   expect(view().tabInfo(7)).toEqual({
     tab_id: "w5:t7",
     workspace_id: "w5",
     number: 1,
     label: "zsh",
     focused: true,
-    pane_count: 2,
+    pane_count: 3,
     agent_status: "working",
   });
   expect(view().tabInfo(8)).toEqual({
@@ -68,13 +112,13 @@ test("a tab is a tab: its label is its name, else its pane's title, else its num
     number: 2,
     label: "logs",
     focused: false,
-    pane_count: 1,
-    agent_status: "done",
+    pane_count: 0,
+    agent_status: "unknown",
   });
   expect(view().tabInfo(9)?.label).toBe("1");
 });
 
-test("a pane is a pane, with nothing empty in it", () => {
+test("a pane is a terminal tab, with nothing empty in it", () => {
   expect(view().paneInfo(1, 3)).toEqual({
     pane_id: "w5:p1",
     terminal_id: "term_1",
@@ -103,16 +147,17 @@ test("a pane is a pane, with nothing empty in it", () => {
   // herdr has no `error`: a failed program is `done`, and pumi's own record says the rest.
   expect(view().paneInfo(3, 0)?.agent_status).toBe("done");
   expect(view().paneInfo(3, 0)?.program_status).toEqual([{ state: "done" }]);
-  // A float is in no tab, so it is no pane of herdr's.
+  // A tab in no view's layout is in no tab: the float, and the diagram that is no terminal.
   expect(view().paneInfo(90, 0)).toBeUndefined();
+  expect(view().paneInfo(4, 0)).toBeUndefined();
 });
 
-test("an agent is a pane's @agent, with the pane around it", () => {
+test("an agent is a terminal tab the Agents plugin gave its trait, named by it", () => {
   expect(view().agentInfo(2)).toEqual({
     terminal_id: "term_2",
-    name: "worker",
+    name: "claude",
     // What Heeler's custom rows read: `$name` is this, and without it every row is nameless.
-    tokens: { name: "worker", agent: "claude", workspace: "main", tab: "zsh", pane: "worker" },
+    tokens: { name: "claude", agent: "claude", workspace: "main", tab: "zsh", pane: "worker" },
     agent: "claude",
     display_agent: "claude",
     agent_status: "working",
@@ -124,11 +169,19 @@ test("an agent is a pane's @agent, with the pane around it", () => {
     state_change_seq: 0,
     revision: 0,
   });
+  // A shell that never said what it runs is no agent, and `@status` alone is not one either.
   expect(view().agentInfo(1)).toBeUndefined();
+  expect(view().agentInfo(3)).toBeUndefined();
+  // Neither is a tab off the terminal engine, whatever its trait says.
+  const diagram: Json = {
+    ...state,
+    tabs: [{ id: 4, block: "pumi_dev.diagram.view", traits: ["pumi_dev.agents.agent"], place: { kind: "tiled", view: 8 }, options: { "@pumi_dev.agents.agent": "claude" } }],
+  };
+  expect(View.fromState(diagram).agentInfo(4)).toBeUndefined();
 });
 
 test("what herdr lists is the panes in tabs, in order", () => {
-  expect(view().tiled()).toEqual([1, 2, 3, 4]);
+  expect(view().tiled()).toEqual([1, 2, 3, 5]);
   const snapshot = view().snapshot((pane) => pane * 10);
   expect(snapshot.version).toBe("0.9.4");
   expect(snapshot.protocol).toBe(22);
@@ -141,7 +194,7 @@ test("what herdr lists is the panes in tabs, in order", () => {
     ["w5:p1", 10],
     ["w5:p2", 20],
     ["w5:p3", 30],
-    ["w6:p4", 40],
+    ["w6:p5", 50],
   ]);
   expect(snapshot.layouts).toEqual([]);
   expect(snapshot.agents.map((agent) => agent.pane_id)).toEqual(["w5:p2"]);
@@ -157,11 +210,11 @@ test("herdr's ids and pumi's name the same tab and pane", () => {
   expect(view().tab("w5:t4")).toBeUndefined();
   expect(view().pane("w5:p2")).toBe(2);
   expect(view().pane("term_3")).toBe(3);
-  expect(view().pane("%4")).toBe(4);
+  expect(view().pane("%5")).toBe(5);
   expect(view().pane("%91")).toBeUndefined();
   expect(view().tabId(9)).toBe("w6:t9");
   expect(view().paneId(2)).toBe("w5:p2");
-  expect(view().paneId(4)).toBe("w6:p4");
+  expect(view().paneId(5)).toBe("w6:p5");
 });
 
 test("nothing to show is an empty view", () => {

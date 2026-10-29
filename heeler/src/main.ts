@@ -12,7 +12,8 @@
 // machine's address, port 22, this account, and the session name `pumi`.
 //
 // Nothing here keeps a screen: `pane.read` is the core's own text, keys are `{"keys": […]}` on the
-// same call, and what an agent is doing is the pane's `@agent`/`@agent.status` (OSC 7501).
+// same call, and what an agent is doing is its tab's `@status`, with the Agents plugin's trait
+// (`@pumi_dev.agents.agent`) naming it.
 //
 // The user-facing half is Settings: `heeler.pair.*` and `heeler.status` are provided functions
 // (functions.ts), and the QR is answered as text rows so any monospaced view can show it. See
@@ -42,22 +43,22 @@ import { closed as paneClosed, start as startNotifications, status as statusChan
 import { Pairing } from "./pair.ts";
 import { HEELER_PLUGIN_VERSION } from "./protocol.ts";
 import { dataDir, heelerConfigDir, sessionDir } from "./paths.ts";
-import { paneNumber } from "./api.ts";
+import { numberOf } from "./api.ts";
 import { onEvent, serve as serveApi } from "./server.ts";
 import type { Json } from "./types.ts";
 
 /** The events herdr's clients hear about: everything that changes the model, every program ending,
- * and what an agent is doing (`pane.changed`, which carries the pane's `@agent.status`). */
+ * and what an agent is doing (`tab.changed`, which carries the tab's `@status`). */
 const EVENTS = [
   "session.opened",
   "session.closed",
   "session.changed",
+  "view.opened",
+  "view.closed",
+  "view.changed",
   "tab.opened",
   "tab.closed",
   "tab.changed",
-  "pane.opened",
-  "pane.closed",
-  "pane.changed",
 ];
 
 /** The option naming the herdr session pumi also answers as. */
@@ -193,8 +194,8 @@ async function writeHostRecord(): Promise<void> {
 await writeHostRecord();
 mkdirSync(heelerConfigDir(), { recursive: true, mode: 0o700 });
 
-// Heeler's Agent Notifications: the same push Heeler's herdr plugin sends, over pumi's
-// `@agent.status` (notify.ts), and its Live Activities (activity.ts).
+// Heeler's Agent Notifications: the same push Heeler's herdr plugin sends, over pumi's `@status`
+// (notify.ts), and its Live Activities (activity.ts).
 const heeler = { session: async () => String((await option.get(SESSION)) ?? "pumi"), state };
 startNotifications(heeler);
 startActivity(heeler);
@@ -240,22 +241,23 @@ on("option.changed", { match: self.plugin.prefixed(PORT), desc: "heeler: the adv
 
 // ---- Heeler's hooks
 
-// A pane's own options are its changes (`pane.changed`), not the server's (`option.changed`): what
-// an agent is doing arrives as the pane's `options.@agent.status` in its patch.
-on("pane.changed", { desc: "Heeler's notifications: an agent's status changed" }, (event: PumiEvent) => {
-  const at = paneNumber(event.pane);
+// A tab's own options are its changes (`tab.changed`), not the server's (`option.changed`): what an
+// agent is doing arrives as the tab's `options.@status` in its patch, and a tab on the terminal
+// engine is a pane of herdr's.
+on("tab.changed", { desc: "Heeler's notifications: an agent's status changed" }, (event: PumiEvent) => {
+  const at = numberOf(event.tab);
   const keys: string[] = event.data?.keys ?? [];
-  const next = (event.data?.patch as { options?: Record<string, unknown> } | undefined)?.options?.["@agent.status"];
-  if (at === undefined || !keys.includes("options.@agent.status") || typeof next !== "string") return;
+  const next = (event.data?.patch as { options?: Record<string, unknown> } | undefined)?.options?.["@status"];
+  if (at === undefined || !keys.includes("options.@status") || typeof next !== "string") return;
   statusChanged(at, next);
   activityStatus(at, next);
 });
-on("pane.closed", { desc: "Heeler's notifications: a closed pane's marker goes" }, (event: PumiEvent) => {
-  const at = paneNumber(event.pane);
+on("tab.closed", { desc: "Heeler's notifications: a closed pane's marker goes" }, (event: PumiEvent) => {
+  const at = numberOf(event.tab);
   if (at !== undefined) paneClosed(at);
 });
 on(EVENTS, { desc: "herdr's socket: the model changing" }, (event: PumiEvent) => {
-  const changed = { event: event.event, pane: event.pane, tab: event.tab, session: event.session, data: event.data as Json };
+  const changed = { event: event.event, session: event.session, view: event.view, tab: event.tab, data: event.data as Json };
   void onEvent(changed).catch((err) => log(`herdr's events: ${why(err)}`));
 });
 

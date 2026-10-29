@@ -10,7 +10,7 @@ itself (its own sshd, pairing, Tailscale and QR — see README.md). The herdr co
 path in
 `src/app/agents.rs`, `src/app/api/{agents,panes,tabs,workspaces,worktrees}.rs`,
 `src/app/api_helpers.rs`, `src/worktree.rs` and `src/detect/mod.rs`; the pumi column is the target
-surface (`../pumi/api/pumi-api.next.json`): the models, `pane.call`'s methods, `option.set`, the
+surface (`../pumi/crates/pumi-api/src/surface.json`): the models, `tab.call`'s methods, `option.set`, the
 `request` table and the public `*.opened`/`closed`/`changed` events.
 
 ## Scoreboard
@@ -38,28 +38,28 @@ Twenty-four of the unhandled methods are one pumi function each, so each is a `c
 | herdr | pumi |
 | --- | --- |
 | `events.wait` | `event.wait(event, {match, timeout})` |
-| `pane.focus_direction` | `pane.focus(null, {direction})` |
-| `pane.neighbor` | `pane.get(pane).neighbors` (`{left, right, up, down}`) |
-| `pane.layout` | `tab.get(tab).layout`; the pane's own place is `pane.get(pane).place` |
-| `layout.apply` | `tab.update(tab, {layout})` |
-| `layout.set_split_ratio` | `tab.update(tab, {layout})`, the ratio written into the tree |
-| `layout.export` | `tab.get(tab).layout` (herdr's own JSON shape stays this package's mapping) |
-| `tab.move` | `tab.update(tab, {index})` |
-| `workspace.move_block` | `pane.update(pane, {place})` |
-| `pane.move` | `pane.update(pane, {place})` |
-| `pane.swap` | `pane.update(pane, {place: {swap}})` |
+| `pane.focus_direction` | `tab.focus(null, {direction})` |
+| `pane.neighbor` | `tab.get(tab).neighbors` (`{left, right, up, down}`) |
+| `pane.layout` | `view.get(view).layout`; a tab's own place is `tab.get(tab).place` |
+| `layout.apply` | `view.update(view, {layout})` |
+| `layout.set_split_ratio` | `view.update(view, {layout})`, the ratio written into the tree |
+| `layout.export` | `view.get(view).layout` (herdr's own JSON shape stays this package's mapping) |
+| `tab.move` | `view.update(view, {index})` |
+| `workspace.move_block` | `tab.update(tab, {place})` |
+| `pane.move` | `tab.update(tab, {place})` |
+| `pane.swap` | `tab.update(tab, {place: {swap}})` |
 | `pane.resize` | `pane.update(pane, {size})` |
-| `pane.report_metadata` | `option.set(name, value, {ttl, source, seq})` on the pane's scope |
+| `pane.report_metadata` | `option.set(name, value, {ttl, source, seq})` on the tab's scope |
 | `workspace.report_metadata` | the same, `{scope: "session", id}` |
-| `pane.report_agent_session` | `option.set("@agent.session", key, {scope: "pane", id: pane})` |
-| `pane.clear_agent_authority`, `pane.release_agent` | `option.set("@agent", null, {scope: "pane", id: pane})` |
-| `agent.rename` | `pane.update(pane, {title})` for the pane, `option.set("@agent.name", …)` for the agent |
-| `agent.wait` | `agent.take(pane, {wait: true})`; `event.wait("agent.turned")` when a turn is what waits |
-| `pane.input.set` | `pane.call(pane, "input", {text})`, `{paste}`, `{keys}`; `"run"` for a line and Enter |
-| `pane.wait_for_output` | `pane.call(pane, "wait", {match})`, `{regex}`, `{exit: true}` |
-| `pane.selection.read` | `pane.call(pane, "selection")` |
+| `pane.report_agent_session` | `option.set("@pumi_dev.agents.agent.session", key, {scope: "tab", id: tab})` |
+| `pane.clear_agent_authority`, `pane.release_agent` | `option.set("@pumi_dev.agents.agent", null, {scope: "tab", id: tab})` |
+| `agent.rename` | `tab.update(tab, {title})` for the tab the agent runs in |
+| `agent.wait` | `tab.call(tab, "wait", {match})`, and `event.wait("tab.changed", {match})` when a status is what waits |
+| `pane.input.set` | `tab.call(tab, "input", {text})`, `{paste}`, `{keys}`; `"run"` for a line and Enter |
+| `pane.wait_for_output` | `tab.call(tab, "wait", {match})`, `{regex}`, `{exit: true}` |
+| `pane.selection.read` | `tab.call(tab, "selection")` |
 | `pumi.fs.dirs` | `fs.list(path, {hidden, recursive})` |
-| `pumi.state` | `session.get(session, {deep: true})`, `pane.get(pane)` |
+| `pumi.state` | `session.get(session)`, `tab.get(tab)` |
 
 ## What is really missing
 
@@ -69,9 +69,9 @@ No pumi function covers these. Each is either this package's own building, or he
 | --- | --- |
 | `worktree.create/list/open/remove` | nothing: the app keeps a worktree as a tab option (`worktree`) and runs its git in `runtime/app/app/worktrees.ts`. A package that wants herdr's worktree API has to build it, and none in this repository does |
 | `workspace.move` | nothing: a session has a name, not an order (`session.update` takes `name`, `cwd`) |
-| `pane.edges` | nothing: `pane.get` gives a pane's neighbors, not the tab's outer edges |
-| `pane.scroll` (the write) | `pane.get.scroll` reads `offsetFromBottom`; scrolling a live pane is the client's own, over `pane.call(pane, "attach")` |
-| `integration.install/list/uninstall` | `pumi skill add`, `pumi skill list`, `pumi skill remove` — the CLI's, not the wire's |
+| `pane.edges` | nothing: `tab.get` gives a tab's neighbors, not the view's outer edges |
+| `pane.scroll` (the write) | `tab.get(tab).scroll` reads `offsetFromBottom`; scrolling a live tab is the client's own, over `tab.call(tab, "attach")` |
+| `integration.install/list/uninstall` | the Agents plugin installs its hooks (Settings → Agents): no `pumi skill` any more |
 | `pumi.server.info`, `server.reload_config` | internal functions, deleted in the target; `pumi server list` and `pumi server stop` are the CLI's, and settings reload themselves. `src/api.ts` still asks for `server.getState`, `server.kill` and `server.restart`, which the target no longer has: the Host's restart has to be its own |
 | `agent.explain`, `agent.view.set/clear`, `pane.link.activate/resolve` | herdr's TUI and its detection engine: `unsupported`, with the reason in `src/methods.ts` |
 
@@ -101,11 +101,11 @@ translation is by key (`translate()` in `src/api.ts`):
 
 | herdr | pumi |
 | --- | --- |
-| `workspace_created/closed/renamed/focused` | `session.opened`/`closed`/`changed {keys: ["name"]}`/`changed {keys: ["activeTab"]}` |
-| `tab_created/closed/renamed/moved/focused` | `tab.opened`/`closed`/`changed {keys: ["name"] \| ["index"] \| ["activePane"]}` |
-| `pane_created/closed/moved/updated/exited` | `pane.opened`/`closed`/`changed {keys: ["place"] \| ["title"] \| ["cwd"] \| ["options.*"] \| ["exitCode"]}` |
-| `pane_agent_detected` | `pane.changed {keys: ["traits.agent.name"]}` |
-| `pane.agent_status_changed` | `pane.changed {keys: ["traits.agent.status"]}` |
+| `workspace_created/closed/renamed/focused` | `session.opened`/`closed`/`changed {keys: ["name"]}`/`changed {keys: ["activeView"]}` |
+| `tab_created/closed/renamed/moved/focused` | `view.opened`/`closed`/`changed {keys: ["name"] \| ["index"] \| ["activeTab"]}` |
+| `pane_created/closed/moved/updated/exited` | `tab.opened`/`closed`/`changed {keys: ["place"] \| ["title"] \| ["cwd"] \| ["options.*"] \| ["exitCode"]}` |
+| `pane_agent_detected` | `tab.changed {keys: ["options.@pumi_dev.agents.agent"]}` |
+| `pane.agent_status_changed` | `tab.changed {keys: ["options.@status"]}` |
 
 Nothing is missing any more except what the model has no field for: `workspace_updated/moved/
 reordered` (sessions are not ordered) and `workspace_metadata_updated` beyond `option.changed`.
@@ -114,10 +114,10 @@ reordered` (sessions are not ordered) and `workspace_metadata_updated` beyond `o
 
 | | herdr | pumi |
 | --- | --- | --- |
-| what an agent is | a terminal whose foreground process matches a manifest, plus a managed name | a pane with `@agent`, told by the agent's own hook (OSC 7501, `agent.turn`) |
-| state | regexes over a kept screen (`detect/manifests/*.toml`) | `@agent.status` from what the program reports; `blocked` from `request.open` |
+| what an agent is | a terminal whose foreground process matches a manifest, plus a managed name | a terminal tab the Agents plugin gave its trait (`@pumi_dev.agents.agent`), told by the agent's own hook (OSC 7501) |
+| state | regexes over a kept screen (`detect/manifests/*.toml`) | `@status` from what the program reports; `blocked` from `request.open` |
 | readiness | `launch_pending` → detected → `interactive_ready` | nothing; the hook's first report is the signal |
-| "send a prompt" | paste + Enter into the TUI | hidden context at send (`agent.turn`), or a message in the queue (`agent.queue`) |
+| "send a prompt" | paste + Enter into the TUI | paste and Enter into the tab, or `pumi_dev.agents.conversation.send` with the Agents plugin |
 | worktrees | a workspace per worktree, with group membership bookkeeping | a tab option (`worktree`) inside a session, app-side git |
 
 The two binary wire formats are the part already ported faithfully: `src/wire.ts` (bincode, herdr's
@@ -134,9 +134,9 @@ client socket) and `src/grid.ts` (postcard, pumi's grid), with vectors from the 
 
 ## Work order
 
-1. `agent.start` and `agent.prompt`: paste and Enter through `pane.call(pane, "run", {command})`,
-   herdr's nine error codes, and `option.set("@agent", kind)` for the trait the hook then reports
-   on. `pane.call(pane, "wait", …)` is the foreground check.
+1. `agent.start` and `agent.prompt`: paste and Enter through `tab.call(tab, "run", {command})`,
+   herdr's nine error codes, and `option.set("@pumi_dev.agents.agent", kind, {scope: "tab"})` for the
+   Agents plugin's trait. `tab.call(tab, "wait", …)` is the foreground check.
 2. `agent.rename` (name rules, uniqueness, by-name targets), then the 24 `case`s of "What the target
    API answers".
 3. `worktree.*` — the only real build: `Bun.spawn git`, porting

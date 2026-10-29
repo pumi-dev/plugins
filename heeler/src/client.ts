@@ -391,7 +391,7 @@ interface MouseModes {
 async function modes(pane: number): Promise<MouseModes | undefined> {
   let answer: Json;
   try {
-    answer = (await call("pane.call", pane, "modes")) as Json;
+    answer = (await call("tab.call", pane, "modes")) as Json;
   } catch {
     return undefined;
   }
