@@ -4,8 +4,9 @@
 // the theme's tokens, or a wash of one (`tint`).
 import { useMemo } from "react";
 import { useFont, useMetrics, useTheme } from "pumi";
+import { blend } from "../view.ts";
 
-export { tint } from "../view.ts";
+export { blend, tint } from "../view.ts";
 
 /** The native text elements' `theme` prop: the fields this sets of gpuix's `GpuixTheme`. */
 export interface TextTheme {
@@ -23,6 +24,16 @@ export interface TextTheme {
   diffDel: string;
   diffHunkBg: string;
   metrics: { mdTextSize: number; codeTextSize: number; diffTextSize: number };
+}
+
+/**
+ * The colour a block sits on — a call's card, a code block, a message of the user's: the chat's own
+ * (`t.surface`) a step toward the text's, so a block reads as one on the page instead of a hole in
+ * it. A step lighter on a dark theme, a step darker on a light one.
+ */
+export function useBlockColor(): string {
+  const t = useTheme();
+  return useMemo(() => blend(t.surface, t.text, 0.06) ?? t.surface, [t.surface, t.text]);
 }
 
 /** The window theme's colours, as the native text elements take them. */
