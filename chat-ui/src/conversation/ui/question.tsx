@@ -6,10 +6,11 @@
 import { useState } from "react";
 import { Icon, useMetrics, useTheme } from "pumi";
 
+import { answerHint } from "../keys.ts";
 import { allows, type Permission, type PermissionOption, type Tool } from "../model.ts";
 import { answersOf, picked, questionOutcome, questionsOf, type Question } from "../question.ts";
 import { Inline, Mono } from "./markdown.tsx";
-import { OwnClicks, Press } from "./press.tsx";
+import { keepTyping, OwnClicks, Press } from "./press.tsx";
 import { tint, useTextTheme, useType } from "./style.ts";
 
 export interface QuestionCardProps {
@@ -124,10 +125,12 @@ export interface PermissionCardProps {
   onAnswer(permissionId: string, optionId: string, text?: string): void;
   /** Take keyboard focus on the first answer when it appears. */
   autoFocus?: boolean;
+  /** Its answers take ⌃1 … ⌃9 (`keys.ts`): each says its key. */
+  keys?: boolean;
 }
 
 /** A request the agent waits on: what it is about, and a button per answer (a field for words). */
-export function PermissionCard({ permission, onAnswer, autoFocus = false }: PermissionCardProps) {
+export function PermissionCard({ permission, onAnswer, autoFocus = false, keys = false }: PermissionCardProps) {
   const t = useTheme();
   const m = useMetrics();
   const type = useType();
@@ -163,7 +166,7 @@ export function PermissionCard({ permission, onAnswer, autoFocus = false }: Perm
       {permission.options.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
           {permission.options.map((option, at) => (
-            <AnswerButton key={option.id} option={option} question={question} autoFocus={autoFocus && at === 0} onPress={() => onAnswer(permission.id, option.id)} />
+            <AnswerButton key={option.id} option={option} question={question} autoFocus={autoFocus && at === 0} hint={keys ? answerHint(at) : undefined} onPress={() => onAnswer(permission.id, option.id)} />
           ))}
         </div>
       ) : null}
@@ -178,6 +181,7 @@ export function PermissionCard({ permission, onAnswer, autoFocus = false }: Perm
             theme={text}
             autoFocus={autoFocus && permission.options.length === 0}
             onChange={(e) => setWords(e.value ?? "")}
+            onKeyDown={keepTyping}
             onSubmit={() => sendWords()}
             style={{ flexGrow: 1, minWidth: 0, fontSize: type.body, color: t.text, backgroundColor: "transparent" }}
           />
@@ -188,10 +192,10 @@ export function PermissionCard({ permission, onAnswer, autoFocus = false }: Perm
   );
 }
 
-function AnswerButton({ option, question, autoFocus, onPress }: { option: PermissionOption; question: boolean; autoFocus: boolean; onPress(): void }) {
+function AnswerButton({ option, question, autoFocus, hint, onPress }: { option: PermissionOption; question: boolean; autoFocus: boolean; hint?: string; onPress(): void }) {
   const primary = !question && allows(option.kind);
   const danger = option.kind === "reject_once" || option.kind === "reject_always";
-  return <Button label={option.label} primary={primary} danger={danger} autoFocus={autoFocus} onPress={onPress} icon={option.kind === "allow_always" ? "check" : undefined} />;
+  return <Button label={option.label} primary={primary} danger={danger} autoFocus={autoFocus} onPress={onPress} icon={option.kind === "allow_always" ? "check" : undefined} hint={hint} />;
 }
 
 export interface ButtonProps {
@@ -201,11 +205,13 @@ export interface ButtonProps {
   danger?: boolean;
   disabled?: boolean;
   autoFocus?: boolean;
+  /** Its key, drawn faint after the label (`⌃1`). */
+  hint?: string;
   onPress(): void;
 }
 
 /** The chat's button: the accent when it is the one to press, else quiet. */
-export function Button({ label, icon, primary = false, danger = false, disabled = false, autoFocus, onPress }: ButtonProps) {
+export function Button({ label, icon, primary = false, danger = false, disabled = false, autoFocus, hint, onPress }: ButtonProps) {
   const t = useTheme();
   const m = useMetrics();
   const type = useType();
@@ -213,6 +219,7 @@ export function Button({ label, icon, primary = false, danger = false, disabled 
   return (
     <Press
       aria-label={label}
+      title={hint ? `${label} (${hint})` : undefined}
       autoFocus={autoFocus}
       disabled={disabled}
       onClick={onPress}
@@ -236,6 +243,7 @@ export function Button({ label, icon, primary = false, danger = false, disabled 
     >
       {icon ? <Icon name={icon} size={11} color={fg} /> : null}
       <text style={{ fontSize: type.small, fontWeight: primary ? 600 : 500, color: fg, whiteSpace: "nowrap" }}>{label}</text>
+      {hint ? <text style={{ fontSize: type.tiny, fontFamily: type.mono, color: fg, opacity: 0.6, whiteSpace: "nowrap" }}>{hint}</text> : null}
     </Press>
   );
 }
