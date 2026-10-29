@@ -1,5 +1,5 @@
-// The composer's bar, as Zed's agent panel draws it: on the left what goes into the prompt (`+`),
-// following the agent, and how it thinks (the thinking toggle, its effort); on the right how full
+// The composer's bar, as Zed's agent panel draws it: on the left what goes into the prompt (`+`)
+// and how it thinks (the thinking toggle, its effort); on the right how full
 // the context is, the mode, the model and Send. Each piece is one of the session's options
 // (`ConfigOption`) drawn as Zed draws its kind: a button 22 high, its icon 14, a menu that opens
 // above it with a check on the choice in use.

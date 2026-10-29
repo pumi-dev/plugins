@@ -563,20 +563,6 @@ export async function retry(id: number): Promise<void> {
   (await ensure(id))?.send({ t: "retry" });
 }
 
-/** The tab each chat follows its agent in (the crosshair): one file tab beside it, its file changed as the agent moves. */
-const following = new Map<number, string>();
-
-/** Shows `path` (at `line`) in the file tab tab `id` follows its agent in, opened beside it the first time; the chat keeps the keyboard. */
-export async function followFile(id: number, path: string, line?: number): Promise<void> {
-  const cwd = (await optionOn<string>(CWD, id)) ?? homedir();
-  const args = { path: resolve(cwd, path.replace(/^~(?=\/|$)/, homedir())), ...(line ? { line } : {}) };
-  const had = following.get(id);
-  const open = had && (await workspace.tabs().catch(() => [])).some((each) => each.id === had || each.id.endsWith(`/${had}`));
-  const place = open ? { kind: "tiled", replace: had, focus: false } : { kind: "tiled", beside: tabRef(id), split: "right", focus: false };
-  const opened = await workspace.openTab("file", args, place);
-  following.set(id, opened.id);
-}
-
 /** A host that stopped, or an agent that exited, started again: on its session when it has one. */
 export async function restart(id: number): Promise<void> {
   await stopHost(id);

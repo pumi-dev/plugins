@@ -21,6 +21,7 @@ import { locate } from "../locate.ts";
 import { ClaudeParser } from "../parse/claude.ts";
 import { num, obj, objs, records, str, type Rec } from "../parse/common.ts";
 import type { Driver, SessionEvents } from "./engines.ts";
+import { expandSkills, findSkills, skillFolders, withBytes, withSkills } from "./prompt.ts";
 import { findProgram, searchPath } from "./launch.ts";
 import type { HostSpec, HostState } from "./wire.ts";
 
@@ -298,7 +299,9 @@ export class ClaudeSession implements Driver {
     if (!this.#model) this.#model = str(this.#models[0]?.value);
     this.#options();
     const listed = objs(commands).map((c) => ({ name: str(c.name) ?? "", ...(str(c.description) ? { description: str(c.description) } : {}), ...(str(c.argumentHint) ? { hint: str(c.argumentHint) } : {}) })).filter((c) => c.name !== "");
-    if (listed.length > 0) this.producer.push({ type: "commands", commands: listed });
+    // Claude's skills, found in its folders: a prompt that names one anywhere is sent with it (`prompt.ts`).
+    const all = withSkills(listed, findSkills(skillFolders("claude", this.spec.cwd)));
+    if (all.length > 0) this.producer.push({ type: "commands", commands: all });
   }
 
   /** The model Claude runs, as its list has it: by its alias, or the id the alias resolves to. */
@@ -641,8 +644,8 @@ export class ClaudeSession implements Driver {
     this.#context = undefined;
     const content: Rec[] = [];
     if (told) content.push({ type: "text", text: told });
-    content.push({ type: "text", text });
-    for (const image of images) {
+    content.push({ type: "text", text: expandSkills(text, this.producer.transcript.commands) });
+    for (const image of withBytes(images)) {
       if (image.data) content.push({ type: "image", source: { type: "base64", media_type: image.mimeType, data: image.data } });
       else if (image.uri) content.push({ type: "text", text: `(An image: ${image.uri.replace(/^file:\/\//, "")})` });
     }

@@ -83,14 +83,12 @@ export interface ConversationProps {
   rewindsIn?: string;
   /** The producer forks a session from a turn (`fork`): each turn's controls offer it. */
   forks?: boolean;
-  /** Open a file the agent reads or edits, while the chat follows it (the crosshair); no crosshair without. */
-  onFollowFile?(path: string, line?: number): void;
   /** Where the composer keeps its draft while the chat is not drawn (`ComposerProps.draftKey`). */
   draftKey?: string;
 }
 
 /** The whole chat: the header, the timeline, the requests waiting, and the composer. */
-export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, onFollowFile, draftKey }: ConversationProps) {
+export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, draftKey }: ConversationProps) {
   // Files dropped anywhere on the chat go to the composer, as if dropped on it.
   const [dropped, setDropped] = useState<{ paths: string[]; n: number }>({ paths: [], n: 0 });
   // The message being edited in place.
@@ -111,23 +109,6 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
   const editingNow = useRef(false);
   const takeFocus = () => setTimeout(() => !editingNow.current && setFocus((n) => n + 1), 0);
   const tap = useTap(() => takeFocus());
-  // Following the agent: each file a new call of its names opens, once.
-  const [following, setFollowing] = useState(false);
-  const followed = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (!following || !onFollowFile || !entries) return;
-    for (let at = entries.length - 1; at >= 0; at--) {
-      const tool = entries[at]!.tool;
-      if (!tool) continue;
-      const place: { path: string; line?: number } | undefined = tool.locations?.[0] ?? tool.content.flatMap((part) => (part.type === "diff" ? [{ path: part.path }] : []))[0];
-      if (!place) continue;
-      const key = `${tool.id}:${place.path}`;
-      if (followed.current === key) return;
-      followed.current = key;
-      onFollowFile(place.path, place.line);
-      return;
-    }
-  }, [following, entries, onFollowFile]);
   // The pane given the focus again (a click on its tab, a key that moves there): the composer has it.
   const hadFocus = useRef(autoFocus);
   useEffect(() => {
@@ -236,8 +217,6 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           onOption={setOption}
           modelIcon={iconOf(transcript)}
           usage={transcript.usage}
-          following={following}
-          onFollow={onFollowFile ? () => setFollowing(!following) : undefined}
           expandable={transcript.entries.length > 0}
           fill={fresh}
           onSend={(text, pictures) => {
