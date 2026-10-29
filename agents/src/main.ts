@@ -43,7 +43,7 @@ import { agentIcon, ICON } from "./icons.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
 import type { ConversationRead } from "./topics.ts";
-import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, guiMode, modeOf, preferOf, preferred, type CatalogAgent, type Choice, type Mode, type Prefer } from "./catalog.ts";
+import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, followsPrefer, guiMode, modeOf, preferOf, preferred, type CatalogAgent, type Choice, type Mode, type Prefer } from "./catalog.ts";
 import { agentPath, agentPathReady, findProgram, loginPath } from "./session/launch.ts";
 import {
   attach,
@@ -598,13 +598,14 @@ fn.set("toggle", { desc: "Flip the tab between its terminal and the chat.", para
   return toggle(Number.isFinite(tab) ? tab : undefined);
 });
 
-/** Reads the options: `prefer` (every agent set as it says when it changes), the modes (the `+` menu follows them), and the hooks'. */
+/** Reads the options: `prefer` (every agent set as it says when it changes, or at the first start), the modes (the `+` menu follows them), and the hooks'. */
 async function configure(): Promise<void> {
   const before = prefer;
   prefer = preferOf(await setting("prefer").catch(() => null));
-  if (before !== undefined && before !== prefer) {
-    // Settings' "Open agents in" changed: every agent is set so (the `modes` change comes back here).
-    await setSetting("modes", preferred(await setting("modes").catch(() => ({})), prefer)).catch((err) => console.error(`agents: ${message(err)}`));
+  const given = await setting("modes").catch(() => ({}));
+  if (followsPrefer(before, prefer, given)) {
+    // "Open agents in" changed, or was set before the first start: every agent is set so (the `modes` change comes back here).
+    await setSetting("modes", preferred(given, prefer)).catch((err) => console.error(`agents: ${message(err)}`));
   }
   const was = JSON.stringify(modes);
   modes = (await setting("modes").catch(() => ({}))) ?? {};

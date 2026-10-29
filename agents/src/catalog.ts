@@ -138,3 +138,15 @@ export function preferred(modes: unknown, prefer: Prefer): Record<string, Choice
   }
   return out;
 }
+
+/**
+ * Whether `prefer` is to set every agent (`preferred`): when it changes (`before` is what it was),
+ * and at start when it asks for a GUI and no agent has a choice of its own yet. Set before the
+ * plugin first ran (pumi's start screen sets it as it installs the plugin), it would else change
+ * nothing: each agent kept its default, the terminal.
+ */
+export function followsPrefer(before: Prefer | undefined, prefer: Prefer, modes: unknown): boolean {
+  if (before !== undefined) return before !== prefer;
+  const none = !modes || typeof modes !== "object" || Object.keys(modes).length === 0;
+  return prefer !== "terminal" && none;
+}

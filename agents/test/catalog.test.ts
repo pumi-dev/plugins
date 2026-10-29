@@ -2,7 +2,7 @@
 // "Open agents in" (`prefer`) sets them all to.
 import { expect, test } from "bun:test";
 
-import { CATALOG, catalogAgent, choiceOf, choicesOf, guiMode, modeOf, preferOf, preferred } from "../src/catalog.ts";
+import { CATALOG, catalogAgent, choiceOf, choicesOf, followsPrefer, guiMode, modeOf, preferOf, preferred } from "../src/catalog.ts";
 
 const agent = (id: string) => catalogAgent(id)!;
 
@@ -46,4 +46,15 @@ test("Open agents in sets every agent, those off left off", () => {
   expect(Object.values(preferred({ ...gui, pi: "off" }, "terminal")).filter((c) => c !== "off").every((c) => c === "terminal")).toBe(true);
   expect(preferOf("acp")).toBe("acp");
   expect(preferOf("chat")).toBe("terminal");
+});
+
+test("Open agents in sets every agent when it changes, and at start when set before any agent has a choice", () => {
+  expect(followsPrefer("terminal", "sdk", { pi: "terminal" })).toBe(true);
+  expect(followsPrefer("sdk", "sdk", {})).toBe(false);
+  // Set as the plugin was installed: the first start follows it.
+  expect(followsPrefer(undefined, "sdk", {})).toBe(true);
+  expect(followsPrefer(undefined, "sdk", undefined)).toBe(true);
+  // An agent set by hand, or the terminal (every default), is left as it is.
+  expect(followsPrefer(undefined, "sdk", { pi: "terminal" })).toBe(false);
+  expect(followsPrefer(undefined, "terminal", {})).toBe(false);
 });
