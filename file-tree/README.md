@@ -53,7 +53,8 @@ and *File Tree: search the project*.
 | `indent_size` | pixels per level |
 
 A file opens in whichever enabled viewer fits it best, such as the Code Editor or the CSV
-Viewer.
+Viewer. `open_with = "editor"` opens it in a tab of the Terminal plugin (`pumi_dev.terminal.shell`),
+so that needs the Terminal plugin; without it the file opens in its app.
 
 ## Development
 
