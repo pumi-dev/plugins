@@ -9,7 +9,7 @@ import { call, Icon, useMetrics, useTheme, type StyleDesc } from "pumi";
 import { hasMarks, parseBlocks, parseInline, words, type Block, type ListItem, type Run } from "../markdown.ts";
 import { clipLines } from "../view.ts";
 import { Press } from "./press.tsx";
-import { swallow, tint, useType } from "./style.ts";
+import { swallow, tint, useBlockColor, useType } from "./style.ts";
 
 /** Opens a link: `onLink` when the chat was given one, else the system's handler for it. */
 export function openLink(url: string, onLink?: (url: string) => void): void {
@@ -231,12 +231,13 @@ const CODE_LINES = 40;
 export function CodeBlock({ code, lang }: { code: string; lang?: string }) {
   const t = useTheme();
   const m = useMetrics();
+  const bg = useBlockColor();
   const type = useType();
   const [all, setAll] = useState(false);
   const text = code.replace(/\t/g, "    ");
   const { text: shown, more } = all ? { text, more: 0 } : clipLines(text, CODE_LINES);
   return (
-    <div style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface, overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: bg, overflow: "hidden" }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", height: 24, paddingLeft: 10, paddingRight: 4, borderBottomWidth: 1, borderColor: t.border }}>
         <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
           <text style={{ fontSize: type.tiny, color: t.faint, whiteSpace: "nowrap" }}>{lang || "code"}</text>

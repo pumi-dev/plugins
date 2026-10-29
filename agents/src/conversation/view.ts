@@ -228,9 +228,11 @@ export function toolLine(tool: Tool): { title: string; detail?: string } {
   return { title: tool.title, detail };
 }
 
-/** Whether a tool card starts open: a change to show, or a failure to read. */
+/**
+ * Whether a tool card starts open: a change to show, or a failure to read. A command's output never
+ * does: while it runs it would open and close by itself, flashing the screen.
+ */
 export function toolOpensByDefault(tool: Tool): boolean {
-  if (tool.status === "running" && tool.content.some((part) => part.type === "terminal" && part.output !== "")) return true;
   return tool.status === "failed" || tool.content.some((part) => part.type === "diff");
 }
 
@@ -450,7 +452,7 @@ export function activitySummary(entries: Entry[]): string {
 
 // ── Colour ────────────────────────────────────────────────────────────────────────────────────
 
-export { tint } from "../diff/patch.ts";
+export { blend, tint } from "../diff/patch.ts";
 
 /** A model's id as a header shows it: its provider left off (`kiro/claude-opus-5.5` is `claude-opus-5.5`). */
 export function shortModel(model: string | undefined): string | undefined {

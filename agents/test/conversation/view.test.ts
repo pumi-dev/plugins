@@ -93,7 +93,7 @@ test("a tool's line says its input only when the title does not", () => {
   expect(toolLine({ ...shell, title: "`ls -la`" })).toEqual({ title: "`ls -la`" });
   expect(toolLine({ ...shell, input: undefined, locations: [{ path: "/a/b.ts" }] })).toEqual({ title: "Terminal", detail: "/a/b.ts" });
   expect(toolOpensByDefault(shell)).toBe(false);
-  expect(toolOpensByDefault({ ...shell, content: [{ type: "terminal", output: "building…" }] })).toBe(true);
+  expect(toolOpensByDefault({ ...shell, content: [{ type: "terminal", output: "building…" }] })).toBe(false);
   expect(toolOpensByDefault({ ...shell, status: "completed", content: [{ type: "terminal", output: "built" }] })).toBe(false);
   expect(toolOpensByDefault({ ...shell, status: "failed" })).toBe(true);
   expect(toolOpensByDefault({ ...shell, content: [{ type: "diff", path: "p", new: "x" }] })).toBe(true);

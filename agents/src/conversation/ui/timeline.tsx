@@ -19,7 +19,7 @@ import { Mention, MentionText } from "./mention.tsx";
 import { copyText, CopyButton, Inline, Markdown, Mono, MoreLines } from "./markdown.tsx";
 import { keepTyping, OwnClicks, Press, useTap } from "./press.tsx";
 import { QuestionCard } from "./question.tsx";
-import { tint, useTextTheme, useType } from "./style.ts";
+import { tint, useBlockColor, useTextTheme, useType } from "./style.ts";
 
 /** Something a message offers on hover, beside Copy (edit it, go back to it). */
 export interface MessageAction {
@@ -396,6 +396,7 @@ function RowButton({ icon, title, label, onPress }: { icon: ZedIcon; title: stri
 function UserMessage({ entry }: { entry: Entry }) {
   const t = useTheme();
   const m = useMetrics();
+  const bg = useBlockColor();
   const type = useType();
   const context = useContext(Context);
   const [hovered, hover] = useHover();
@@ -417,7 +418,7 @@ function UserMessage({ entry }: { entry: Entry }) {
         <div
           {...(editable ? tap : {})}
           title={editable ? "Click to edit" : undefined}
-          style={{ display: "flex", flexDirection: "column", minWidth: 0, paddingLeft: 8, paddingRight: 8, paddingTop: 12, paddingBottom: 12, borderRadius: 6, backgroundColor: t.editor, borderWidth: 1, borderColor: hovered && editable ? tint(t.accent, 0.8) : t.border, cursor: "text" }}
+          style={{ display: "flex", flexDirection: "column", minWidth: 0, paddingLeft: 8, paddingRight: 8, paddingTop: 12, paddingBottom: 12, borderRadius: 6, backgroundColor: bg, borderWidth: 1, borderColor: hovered && editable ? tint(t.accent, 0.8) : t.border, cursor: "text" }}
         >
           <MentionText text={text} cwd={context.cwd} size={type.code} line={type.codeLine} color={t.text} onLink={context.onLink} />
         </div>
@@ -631,9 +632,9 @@ export function ToolCard({ tool }: { tool: Tool }) {
   return <InlineTool tool={tool} />;
 }
 
-/** The face every card has: Zed's `editor_background`, a soft border (dashed in Zed when it failed: the error's tint here). */
-function cardStyle(t: ReturnType<typeof useTheme>, failed: boolean) {
-  return { display: "flex", flexDirection: "column", minWidth: 0, borderRadius: 6, borderWidth: 1, borderColor: failed ? tint(t.error, 0.5) : tint(t.border, 0.8), backgroundColor: t.editor, overflow: "hidden" } as const;
+/** The face every card has: a block's colour (a step off the page), a soft border (dashed in Zed when it failed: the error's tint here). */
+function cardStyle(t: ReturnType<typeof useTheme>, failed: boolean, bg: string) {
+  return { display: "flex", flexDirection: "column", minWidth: 0, borderRadius: 6, borderWidth: 1, borderColor: failed ? tint(t.error, 0.5) : tint(t.border, 0.8), backgroundColor: bg, overflow: "hidden" } as const;
 }
 
 /** A card's head: Zed's `tool_card_header_bg`, the element background with a wash of the text over it. */
@@ -642,6 +643,7 @@ const headerWash = (t: ReturnType<typeof useTheme>) => tint(t.text, 0.04);
 /** An edit: the file's path behind the pencil; the change under it, opened by the chevron. */
 function EditCard({ tool }: { tool: Tool }) {
   const t = useTheme();
+  const bg = useBlockColor();
   const type = useType();
   const [hovered, hover] = useHover();
   const [open, setOpen] = useState<boolean | undefined>(undefined);
@@ -653,7 +655,7 @@ function EditCard({ tool }: { tool: Tool }) {
   const hasBody = tool.content.length > 0;
   const stats = toolDiffStats(tool);
   return (
-    <div style={cardStyle(t, failed)}>
+    <div style={cardStyle(t, failed, bg)}>
       <Press
         aria-label={`Edit ${path}, ${tool.status}${hasBody ? (shown ? ", press to fold" : ", press to open") : ""}`}
         aria-expanded={hasBody ? shown : undefined}
@@ -683,9 +685,10 @@ function EditCard({ tool }: { tool: Tool }) {
   );
 }
 
-/** A command: "Run Command" and the command in the code font; its output under it, opened by the chevron (open while it runs). */
+/** A command: "Run Command" and the command in the code font; its output under it, opened by the chevron (folded while it runs, as it comes: opening and closing by itself flashed the screen). */
 function CommandCard({ tool }: { tool: Tool }) {
   const t = useTheme();
+  const bg = useBlockColor();
   const type = useType();
   const [hovered, hover] = useHover();
   const [open, setOpen] = useState<boolean | undefined>(undefined);
@@ -695,11 +698,11 @@ function CommandCard({ tool }: { tool: Tool }) {
   const failed = tool.status === "failed" || (exit !== undefined && exit !== 0);
   const output = tool.content.filter((part) => part.type !== "terminal" || part.output !== "");
   const hasBody = output.length > 0;
-  const shown = open ?? (running && hasBody);
+  const shown = open ?? false;
   const { target } = toolHeadline(tool);
   const command = target ?? tool.title;
   return (
-    <div {...hover} style={{ ...cardStyle(t, failed), borderColor: failed ? tint(t.error, 0.5) : tint(t.border, 0.6) }}>
+    <div {...hover} style={{ ...cardStyle(t, failed, bg), borderColor: failed ? tint(t.error, 0.5) : tint(t.border, 0.6) }}>
       <Press
         aria-label={`Run Command ${command}, ${tool.status}${hasBody ? (shown ? ", press to fold" : ", press to open") : ""}`}
         aria-expanded={hasBody ? shown : undefined}
@@ -742,6 +745,7 @@ function CommandCard({ tool }: { tool: Tool }) {
 /** A subagent: its status (a check once done) and what it was sent to do; its report under it when opened. */
 function SubagentCard({ tool }: { tool: Tool }) {
   const t = useTheme();
+  const bg = useBlockColor();
   const type = useType();
   const [hovered, hover] = useHover();
   const [open, setOpen] = useState(false);
@@ -751,7 +755,7 @@ function SubagentCard({ tool }: { tool: Tool }) {
   const title = target ?? tool.title;
   const hasBody = tool.content.length > 0;
   return (
-    <div {...hover} style={cardStyle(t, failed)}>
+    <div {...hover} style={cardStyle(t, failed, bg)}>
       <Press
         aria-label={`Subagent: ${title}, ${tool.status}`}
         aria-expanded={hasBody ? open : undefined}

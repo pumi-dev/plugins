@@ -11,7 +11,7 @@ import { allows, type Permission, type PermissionOption, type Tool } from "../mo
 import { answersOf, picked, questionOutcome, questionsOf, type Question } from "../question.ts";
 import { Inline, Mono } from "./markdown.tsx";
 import { keepTyping, OwnClicks, Press } from "./press.tsx";
-import { tint, useTextTheme, useType } from "./style.ts";
+import { tint, useBlockColor, useTextTheme, useType } from "./style.ts";
 
 export interface QuestionCardProps {
   tool: Tool;
@@ -28,6 +28,7 @@ export interface QuestionCardProps {
 export function QuestionCard({ tool, waiting = false, onAnswerElsewhere, elsewhereLabel = "Answer in the terminal", onLink }: QuestionCardProps) {
   const t = useTheme();
   const m = useMetrics();
+  const bg = useBlockColor();
   const type = useType();
   const questions = questionsOf(tool) ?? [];
   const answers = answersOf(tool);
@@ -40,7 +41,7 @@ export function QuestionCard({ tool, waiting = false, onAnswerElsewhere, elsewhe
     <div
       role="group"
       aria-label={`${questions.length === 1 ? "A question" : `${questions.length} questions`}: ${state}`}
-      style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRadius: m.radius, borderWidth: 1, borderColor: live ? tint(tone, 0.7) : t.border, backgroundColor: live ? tint(tone, 0.06) : t.surface, overflow: "hidden" }}
+      style={{ display: "flex", flexDirection: "column", minWidth: 0, borderRadius: m.radius, borderWidth: 1, borderColor: live ? tint(tone, 0.7) : t.border, backgroundColor: live ? tint(tone, 0.06) : bg, overflow: "hidden" }}
     >
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 28, paddingLeft: 10, paddingRight: 10, borderBottomWidth: 1, borderColor: t.border }}>
         <Icon name={live ? "status_alert" : answers.size > 0 ? "status_check" : "status_ring"} size={12} color={tone} />
