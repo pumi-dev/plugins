@@ -8,6 +8,7 @@ pumi plugin add pumi-dev/plugins/file-tree
 
 | Plugin | |
 | --- | --- |
+| [Terminal](terminal) | a shell in a tab: what a new tab opens |
 | [File Tree](file-tree) | the project tree in the sidebar: open, rename, move, trash and search files, with git's marks |
 | [Git](git) | stage, commit, history and diffs in the sidebar |
 | [Browser](browser) | a web page in a tab, with an address bar, and where a terminal's links open |
