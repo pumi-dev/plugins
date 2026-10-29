@@ -1,7 +1,7 @@
 // A patch, read: git's multi-file diffs, a bare one, renames, new and binary files, long lines, folding.
 import { expect, test } from "bun:test";
 
-import { diffRows, diffStats, foldedAtFirst, MAX_LINE, parsePatch, patchItems, widestNumber } from "../../src/diff/patch.ts";
+import { blend, diffRows, diffStats, foldedAtFirst, MAX_LINE, parsePatch, patchItems, widestNumber } from "../../src/diff/patch.ts";
 
 const GIT = [
   "diff --git a/src/a.ts b/src/a.ts",
@@ -91,4 +91,15 @@ test("a patch of a million lines reads fast", () => {
 test("a bare patch of two files: a hunk ends when its lines are in", () => {
   const files = parsePatch("--- a.ts\n+++ a.ts\n@@ -1 +1 @@\n-a\n+b\n--- b.ts\n+++ b.ts\n@@ -1 +1,2 @@\n x\n+y\n");
   expect(files.map((f) => [f.path, f.added, f.removed])).toEqual([["a.ts", 1, 1], ["b.ts", 1, 0]]);
+});
+
+test("two colours mixed: the page a step off toward the text, its own opacity kept", () => {
+  expect(blend("#26282b", "#ffffff", 0)).toBe("#26282b");
+  expect(blend("#26282b", "#ffffff", 1)).toBe("#ffffff");
+  expect(blend("#000000", "#ffffff", 0.5)).toBe("#808080");
+  expect(blend("#fff", "#000", 0.5)).toBe("#808080");
+  expect(blend("#00000080", "#ffffff", 0)).toBe("#00000080");
+  // Anything but a hex colour is left as it came, as `tint` leaves it.
+  expect(blend("var(--x)", "#ffffff", 0.5)).toBe("var(--x)");
+  expect(blend(undefined, "#ffffff", 0.5)).toBe(undefined);
 });

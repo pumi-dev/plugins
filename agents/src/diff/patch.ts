@@ -186,6 +186,17 @@ export function widestNumber(files: FileDiff[]): number {
   return most;
 }
 
+/** A theme colour's `#rgb`, `#rrggbb` or `#rrggbbaa` as red, green, blue and alpha; nothing for anything else. */
+function rgba(color: string | undefined): [number, number, number, number] | undefined {
+  if (!color) return undefined;
+  const hex = /^#([0-9a-f]{3,8})$/i.exec(color.trim())?.[1];
+  if (!hex) return undefined;
+  const full = hex.length === 3 || hex.length === 4 ? [...hex].map((c) => c + c).join("") : hex;
+  if (full.length !== 6 && full.length !== 8) return undefined;
+  const at = (i: number) => parseInt(full.slice(i, i + 2), 16);
+  return [at(0), at(2), at(4), full.length === 8 ? at(6) : 255];
+}
+
 /** A theme colour (`#rgb`, `#rrggbb`, `#rrggbbaa`) at `alpha` of its own opacity: for washes. */
 export function tint(color: string | undefined, alpha: number): string | undefined {
   if (!color) return undefined;
@@ -196,4 +207,18 @@ export function tint(color: string | undefined, alpha: number): string | undefin
   const base = full.length === 8 ? parseInt(full.slice(6, 8), 16) / 255 : 1;
   const a = Math.round(Math.max(0, Math.min(1, alpha * base)) * 255);
   return `#${rgb}${a.toString(16).padStart(2, "0")}`;
+}
+
+/**
+ * Two theme colours mixed: `color` `amount` (0–1) of the way toward `toward`, with `color`'s own
+ * opacity kept — a block a step off the page it sits on, which a wash cannot make.
+ */
+export function blend(color: string | undefined, toward: string | undefined, amount: number): string | undefined {
+  const from = rgba(color);
+  const to = rgba(toward);
+  if (!from || !to) return color;
+  const k = Math.max(0, Math.min(1, amount));
+  const at = (i: number) => Math.max(0, Math.min(255, Math.round(from[i]! + (to[i]! - from[i]!) * k)));
+  const rgb = [at(0), at(1), at(2)].map((n) => n.toString(16).padStart(2, "0")).join("");
+  return at(3) === 255 ? `#${rgb}` : `#${rgb}${at(3).toString(16).padStart(2, "0")}`;
 }
