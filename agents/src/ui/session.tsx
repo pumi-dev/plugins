@@ -3,7 +3,7 @@
 // conversation, which the worker relays (`session.update.<tab>`, folded with `follow`) beside the
 // host's own state (`session.state.<tab>`).
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useChannel, useChannelListener, useMetrics, useTheme, type RendererProps, type TabId } from "pumi";
+import { useChannel, useChannelListener, useMetrics, useTab, useTheme, type RendererProps, type TabId } from "pumi";
 
 import { follow, type Update } from "../conversation/change.ts";
 import type { Command, Transcript } from "../conversation/model.ts";
@@ -25,7 +25,10 @@ function tabNumber(tab: TabId): number {
 /** The `session` block's renderer: one agent the plugin runs. */
 export function Session({ tab, focused }: RendererProps) {
   const id = tabNumber(tab.id);
-  const options = (tab.options ?? {}) as Record<string, unknown>;
+  // The tab as the window has it now: the props are the tab as it was when the renderer was made,
+  // before the worker named its agent, and would say "Starting…" until something else drew it.
+  const live = useTab(tab.id)?.options as Record<string, unknown> | undefined;
+  const options = (live ?? tab.options ?? {}) as Record<string, unknown>;
   if (typeof options[AGENT] !== "string" || options[AGENT] === "") {
     return (
       <Centered>

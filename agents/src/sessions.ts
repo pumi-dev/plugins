@@ -185,7 +185,7 @@ class Link {
     const title = t?.session?.title || this.state?.name;
     if (title && title !== was.title) {
       was.title = title;
-      await call("tab.call", tabRef(id), "report", { title }).catch(() => {});
+      await call("tab.update", tabRef(id), { title }).catch(() => {});
     }
     if (t) await this.#requests(t);
     void this.#told().catch(() => {});
@@ -448,8 +448,15 @@ export async function openSession(given: OpenSession): Promise<number> {
   await setOn(START, given.start ?? "new", id);
   if (given.session) await setOn(SESSION, given.session, id);
   await setOn(AGENT, given.agent, id);
+  await named(id, given.agent);
   await ensure(id);
   return id;
+}
+
+/** A session tab's title until its session has one: its agent's name, not the block's id. */
+async function named(id: number, agent: string): Promise<void> {
+  const title = catalogAgent(agent)?.title ?? agent;
+  await call("tab.update", tabRef(id), { title }).catch(() => {});
 }
 
 /** The busy states a handoff waits out. */
@@ -479,6 +486,7 @@ export async function handoff(from: number, engine: Engine): Promise<number> {
   await call("tab.close", tabRef(from));
   await Bun.sleep(1000);
   await setOn(AGENT, name, id);
+  await named(id, name);
   await ensure(id);
   return id;
 }
