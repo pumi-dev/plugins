@@ -182,7 +182,7 @@ export function agents(here: PaneId): Promise<Agent[]> {
   return agentsOf(here);
 }
 
-/** The note about a clicked node, into an agent's inbox; answers what to tell the user. */
+/** The note about a clicked node, sent to the agent; answers what to tell the user. */
 export function note(agent: Agent, about: About): Promise<string> {
   return attach(agent, about);
 }
