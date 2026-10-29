@@ -1,7 +1,7 @@
 {
   "name": "pumi-pi-session",
   "version": "0.2.0",
-  "description": "Fork a pi session in a pane beside its own, and copy its id, path and directory: two buttons at the end of a pi pane's strip.",
+  "description": "Fork a pi session in a tab beside its own, and copy its id, path and directory: two buttons at the end of a pi tab's strip.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {
@@ -53,8 +53,8 @@
         }
       },
       "slots": {
-        "pane.toolbar": {
-          "view": "Toolbar"
+        "tab.toolbar": {
+          "component": "Toolbar"
         }
       }
     }

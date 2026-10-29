@@ -1,28 +1,29 @@
-// What the buttons know of their pane, read when it acts so it is never stale: the session pi's hook
-// reported (`@agent.session`: an id, or the path of a session file) and the pane's directory. pi
-// names its session files `<time>_<id>.jsonl`, their first record `{"type": "session", "id": …}`.
+// What the buttons know of their tab, read when it acts so it is never stale: the session pi's hook
+// reported (`@pumi_dev.agents.agent.session`: an id, or the path of a session file) and the tab's
+// directory. pi names its session files `<time>_<id>.jsonl`, their first record
+// `{"type": "session", "id": …}`.
 import { closeSync, openSync, readSync } from "node:fs";
 
-import { option, type PaneId } from "pumi";
+import { option, type TabId } from "pumi";
 
-/** A pi pane's session, as the hook reported it. */
+/** A pi tab's session, as the hook reported it. */
 export class Session {
   constructor(
     /** What pi's hook reported: an id, or a session file's path. */
     readonly value: string,
-    /** The pane's directory, when it has one. */
+    /** The tab's directory, when it has one. */
     readonly cwd: string | null,
   ) {}
 
-  /** The session of `pane`, or why it has none. */
-  static async of(pane: PaneId): Promise<Session> {
+  /** The session of `tab`, or why it has none. */
+  static async of(tab: TabId): Promise<Session> {
     const text = async (name: string) => {
-      const value = await option.get(name, { scope: "pane", id: pane });
+      const value = await option.get(name, { scope: "tab", id: tab });
       return typeof value === "string" && value !== "" ? value : null;
     };
-    const value = await text("@agent.session");
+    const value = await text("@pumi_dev.agents.agent.session");
     if (value === null) throw new Error("pi has not said which session it is in");
-    return new Session(value, await text("pane_current_path"));
+    return new Session(value, await text("tab_current_path"));
   }
 
   /** The session's id: the value itself, or read from its file's name or its first record. */
