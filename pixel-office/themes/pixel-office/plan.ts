@@ -318,17 +318,17 @@ export function route(from: Pt, to: Pt, size: { width: number; height: number },
 
 // ── How a desk is ───────────────────────────────────────────────────────────────────────────
 
-/** Which status says the most, when a desk holds more than one agent: the one that needs you. */
+/** Which status says the most, when a desk holds more than one tab: the one that needs you. */
 const URGENCY = ["blocked", "error", "working", "done", "idle"]
 
 /**
- * What a desk's agent is doing: its tab's status for a tab's desk, else the most urgent of its
- * view's tabs (the view's own `agent_status` when it has one and no tab says more). "" for none.
+ * What a desk's tab is doing: its tab's status for a tab's desk, else the most urgent of its view's
+ * tabs (the view's own `status` when it has one and no tab says more). "" for none.
  */
 export function statusOf(seat: Seat, tabs: Tab[]): string {
-  if (seat.tab) return seat.tab.agent_status || ""
-  const all = tabs.filter((t) => t.view_id === seat.view.view_id).map((t) => t.agent_status || "")
-  if (seat.view.agent_status) all.push(seat.view.agent_status)
+  if (seat.tab) return seat.tab.status || ""
+  const all = tabs.filter((t) => t.view_id === seat.view.view_id).map((t) => t.status || "")
+  if (seat.view.status) all.push(seat.view.status)
   let best = ""
   for (const status of all) {
     if (!status) continue

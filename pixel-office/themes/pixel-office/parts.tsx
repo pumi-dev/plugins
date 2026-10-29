@@ -1,19 +1,19 @@
 // The window's parts the office draws in pixel art, beside the room itself (window.tsx):
 // every menu and question of the app's as a framed pixel dialog, the lobby's sections (the players
-// and each plugin's panel on a notice board), an agent as the lobby lists it, and a button.
+// and each plugin's panel on a notice board), a player as the lobby lists it, and a button.
 import { createContext, Fragment, useContext, useState, type ReactNode } from "react"
 import { Icon, useTheme } from "pumi"
 import {
   call,
   grouped,
   renderComponent,
-  useAgentOf,
-  useAgents,
+  useApp,
   useComponents,
   useLocal,
   useMenu,
   useSession,
   useSlot,
+  useTab,
   via,
   type ActionItem,
   type Components,
@@ -28,7 +28,7 @@ const swallow = (err: unknown) => console.error(String(err))
 export const RoomContext = createContext<{ visit(tab: string): void } | null>(null)
 
 /**
- * The `Menu` part: every menu of the app's (a desk's, a view's, a tab's, an agent's: `useMenu`), as
+ * The `Menu` part: every menu of the app's (a desk's, a view's, a tab's, a player's: `useMenu`), as
  * a pixel dialog where the mouse is. Its groups with a rule between; a submenu opens under its row.
  */
 function Menu({ at, actions, components, args, close }: MenuProps) {
@@ -137,15 +137,15 @@ export function Point({ point, args, gap = 4 }: { point: string; args?: Record<s
 // ── The lobby ───────────────────────────────────────────────────────────────────────────────
 
 /**
- * The lobby's sections, each under a sign that folds it: the players (every agent, whatever view
- * it's in) and each plugin's panel on a framed notice board.
+ * The lobby's sections, each under a sign that folds it: the players (every tab with a status,
+ * whatever view it's in) and each plugin's panel on a framed notice board.
  */
 function Panel({ point }: { point: string }) {
   const t = useTheme()
   const { components } = useSlot(point)
   const [collapsed, setCollapsed] = useLocal<string[]>(`office.${point}.collapsed`, [])
   const sections: { key: string; title: string; icon?: string; body: ReactNode; board: boolean }[] = [
-    { key: "agents", title: "Players", icon: "agent", body: <Agents />, board: false },
+    { key: "players", title: "Players", icon: "agent", body: <Players />, board: false },
     ...components.map((c) => ({ key: `${c.plugin}/${c.id}`, title: c.title ?? c.id, icon: c.icon, body: renderComponent(c), board: true })),
   ]
   return (
@@ -198,11 +198,11 @@ function SessionHeader() {
   )
 }
 
-function Agents() {
+function Players() {
   const C = useComponents()
-  const agents = useAgents()
+  const tabs = useApp((s) => s.snapshot?.tabs.filter((p) => p.status) ?? [])
   const t = useTheme()
-  if (!agents.length) {
+  if (!tabs.length) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: 16 }}>
         <text style={{ fontSize: 13, color: t.muted }}>Nobody's online</text>
@@ -211,23 +211,24 @@ function Agents() {
   }
   return (
     <div style={{ display: "flex", flexDirection: "column", paddingLeft: 4, paddingRight: 4, gap: 2 }}>
-      {agents.map((a) => (
-        <C.Agent key={a.tab_id} tab={a.tab_id} />
+      {tabs.map((p) => (
+        <C.TabRow key={p.tab_id} tab={p.tab_id} />
       ))}
     </div>
   )
 }
 
-/** A player: their avatar with a bubble, their tag, what they're on. A click walks you to their desk. */
-function Agent({ tab }: { tab: string }) {
+/** A player: the avatar with a bubble saying what its tab's status does, its tag, its row's footer
+ *  and controls. A click walks you to its desk. */
+function TabRow({ tab }: { tab: string }) {
   const t = useTheme()
   const C = useComponents()
   const room = useContext(RoomContext)
-  const agent = useAgentOf(tab)
+  const p = useTab(tab)
   const [hovered, setHovered] = useState(false)
-  const { open, menu } = useMenu("agent.menu", { tab })
-  if (!agent) return null
-  const status = agent.agent_status || "unknown"
+  const { open, menu } = useMenu("tab.row.menu", { tab })
+  if (!p) return null
+  const status = p.status || "unknown"
   return (
     <div
       onMouseEnter={() => setHovered(true)}
@@ -242,21 +243,20 @@ function Agent({ tab }: { tab: string }) {
         <Bubble status={status} style={{ position: "absolute", left: 20, top: 0 }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3, flexGrow: 1, minWidth: 0 }}>
-        <Nametag dot={t[`agent.${status}`] ?? t["agent.unknown"]}>{agent.name || agent.agent || tab}</Nametag>
-        {agent.title ? <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: "100%" }}>{agent.title}</text> : null}
-        <Point point="agent.footer" args={{ tab }} />
+        <Nametag dot={t[`status.${status}`] ?? t["status.unknown"]}>{p.terminal_title || p.label || tab}</Nametag>
+        <Point point="tab.row.footer" args={{ tab }} />
       </div>
       <div style={{ display: "flex", flexDirection: "row", opacity: hovered ? 1 : 0 }}>
-        <C.AgentControls tab={tab} />
+        <C.TabRowControls tab={tab} />
       </div>
       {menu}
     </div>
   )
 }
 
-function AgentControls({ tab }: { tab: string }) {
+function TabRowControls({ tab }: { tab: string }) {
   const C = useComponents()
-  const { components, actions } = useSlot("agent.controls", { tab })
+  const { components, actions } = useSlot("tab.row.controls", { tab })
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3 }}>
       {actions.map((a) => (
@@ -272,4 +272,4 @@ function Action({ action, args }: { action: ActionItem; args?: unknown }) {
 }
 
 /** The office's parts beside its window: the rest are the app's, in the theme's colours. */
-export const PARTS: Partial<Components> = { Menu, Dialog, Panel, Agent, AgentControls, Action }
+export const PARTS: Partial<Components> = { Menu, Dialog, Panel, TabRow, TabRowControls, Action }

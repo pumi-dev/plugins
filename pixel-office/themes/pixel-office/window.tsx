@@ -126,8 +126,8 @@ function Carpet({ pod }: { pod: Pod }) {
   const window = useWindow()
   const carpet = useFloorArt("carpet")
   const current = pod.session.workspace_id === here?.workspace_id
-  const status = pod.session.agent_status
-  const dot = status ? (t[`agent.${status}`] ?? t["agent.unknown"]) : t.success
+  const status = pod.session.status
+  const dot = status ? (t[`status.${status}`] ?? t["status.unknown"]) : t.success
   return (
     <div style={{ position: "absolute", left: pod.x, top: pod.y, width: pod.width, height: pod.height, zIndex: 2, pointerEvents: "none" }}>
       <div
@@ -232,10 +232,10 @@ function deskTitle(seat: Seat): string {
   return cwd ? cwd.split("/").pop() || "/" : `${viewTitle(seat)} · ${seat.i}`
 }
 
-/** What an agent's name tag says: its tab's title as the tab bar has it (what the agent calls its
- *  session, `π - Fixing the build - pumi`), else the tab's name, else the agent's own (`pi`). */
-function agentName(tab: { terminal_title?: string | null; label?: string | null; agent?: string | null }): string {
-  return tab.terminal_title || tab.label || tab.agent || ""
+/** What a player's name tag says: its tab's title as the tab bar has it (what the agent calls its
+ *  session, `π - Fixing the build - pumi`), else the tab's label. */
+function agentName(tab: { terminal_title?: string | null; label?: string | null }): string {
+  return tab.terminal_title || tab.label || ""
 }
 
 /** A tab's screen in its box, scaled: one pane of the layout's insides. */
@@ -274,7 +274,7 @@ function Peek({ seat, left }: { seat: Seat; left: boolean }) {
   const tree = useLayout(seat.view.view_id)
   const tabs = useApp((s) => s.snapshot?.tabs.filter((x) => x.view_id === seat.view.view_id) ?? [])
   const status = statusOf(seat, tabs)
-  const colour = status ? (t[`agent.${status}`] ?? t["agent.unknown"]) : undefined
+  const colour = status ? (t[`status.${status}`] ?? t["status.unknown"]) : undefined
   return (
     <div
       style={{
@@ -334,14 +334,14 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
   const tabs = useApp((s) => s.snapshot?.tabs.filter((x) => x.view_id === seat.view.view_id) ?? [])
   const shown = seat.tab?.tab_id ?? focused ?? tabs[0]?.tab_id
   const status = statusOf(seat, tabs)
-  const agentTab = seat.tab ?? tabs.find((x) => x.agent_status === status && status) ?? tabs.find((x) => x.agent || x.agent_status)
-  const busy = !!(agentTab && (agentTab.agent || agentTab.agent_status))
+  const agentTab = seat.tab ?? tabs.find((x) => x.status === status && status) ?? tabs.find((x) => x.status)
+  const busy = !!(agentTab && agentTab.status)
   const title = deskTitle(seat)
   const agent = (agentTab && agentName(agentTab)) || title
   const working = status === "working"
   const alarmed = status === "blocked" || status === "error"
   const bob = useBeat(working ? 300 : 450, busy && (working || alarmed)) % 2
-  const colour = t[`agent.${status || "unknown"}`] ?? t["agent.unknown"]
+  const colour = t[`status.${status || "unknown"}`] ?? t["status.unknown"]
   const [over, hover] = useHover(350)
   const press = useRef<{ x: number; y: number; base: Pt; moved: boolean } | null>(null)
   const ring = sitting ? t.slotActive : alarmed ? t["office.blocked"] : status === "done" ? t["office.done"] : "#00000000"
@@ -533,7 +533,7 @@ function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt
               <div
                 key={deskKey(seat)}
                 onClick={() => onWalk(deskSpot(cell))}
-                style={{ position: "absolute", left: (cell.x + DESK_ART.x) * k, top: (cell.y + DESK_ART.y) * k, width: Math.max(3, DESK_ART.w * k), height: Math.max(2, DESK_ART.h * k), backgroundColor: status ? (t[`agent.${status}`] ?? t.desk) : t.desk, cursor: "pointer" }}
+                style={{ position: "absolute", left: (cell.x + DESK_ART.x) * k, top: (cell.y + DESK_ART.y) * k, width: Math.max(3, DESK_ART.w * k), height: Math.max(2, DESK_ART.h * k), backgroundColor: status ? (t[`status.${status}`] ?? t.desk) : t.desk, cursor: "pointer" }}
               />
             )
           }),
@@ -573,7 +573,7 @@ function Monitor({ seat, onStand }: { seat: Seat; onStand(): void }) {
         style={{ display: "flex", flexDirection: "column", width: "92%", height: "90%", padding: 10, paddingBottom: 6, borderRadius: 5, backgroundColor: t.desk, borderWidth: 2, borderColor: t.deskFocus, boxShadow: [{ offsetX: 0, offsetY: 5, blurRadius: 0, spreadRadius: 0, color: t.deskEdge }, { offsetX: 0, offsetY: 16, blurRadius: 40, spreadRadius: 0, color: "#00000055" }] }}
       >
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 34, flexShrink: 0, paddingBottom: 6 }}>
-          <Nametag dot={status ? (t[`agent.${status}`] ?? t["agent.unknown"]) : t["office.online"]} size={13}>
+          <Nametag dot={status ? (t[`status.${status}`] ?? t["status.unknown"]) : t["office.online"]} size={13}>
             {deskTitle(seat)}
           </Nametag>
           <text style={{ fontSize: 12, color: t.muted }}>{one ? `tab ${seat.i} of ${viewTitle(seat)}` : `${tabs.length} tab${tabs.length === 1 ? "" : "s"}`}</text>
@@ -656,7 +656,7 @@ function Door({ onClose }: { onClose(): void }) {
             key: session.workspace_id,
             label: session.label || session.workspace_id,
             detail: session.workspace_id === here?.workspace_id ? "you are here" : undefined,
-            dot: session.agent_status ? (t[`agent.${session.agent_status}`] ?? t["agent.unknown"]) : t["agent.unknown"],
+            dot: session.status ? (t[`status.${session.status}`] ?? t["status.unknown"]) : t["status.unknown"],
             run: () => go(session),
           })),
           {
@@ -737,8 +737,8 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
   const session = useSession()
   const now = useNow(15000)
   const perTab = useThemeOption<boolean>("desk_per_tab", false)
-  const agents = useApp((s) => s.snapshot?.tabs.filter((p) => p.agent) ?? [])
-  const count = (status: string) => agents.filter((a) => a.agent_status === status).length
+  const players = useApp((s) => s.snapshot?.tabs.filter((p) => p.status) ?? [])
+  const count = (status: string) => players.filter((a) => a.status === status).length
   const run = (name: string) => {
     const context = windowContext(window.id)
     if (context) commands.run(name, context)
@@ -780,12 +780,12 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
               key={status}
               title={status === "blocked" ? "Walk to the one waiting for you" : "Walk to one at work"}
               onClick={() => {
-                const next = agents.find((a) => a.agent_status === status)
+                const next = players.find((a) => a.status === status)
                 if (next) onAgent(next.tab_id)
               }}
               style={{ display: "flex", flexDirection: "row", cursor: "pointer", flexShrink: 0 }}
             >
-              <Nametag dot={t[`agent.${status}`]}>{`${count(status)} ${status}`}</Nametag>
+              <Nametag dot={t[`status.${status}`]}>{`${count(status)} ${status}`}</Nametag>
             </div>
           ) : null,
         )}
@@ -946,7 +946,7 @@ export function Office() {
       .catch(swallow)
       .finally(() => setFocus((n) => n + 1))
   }
-  const newDesk = (pod: Pod) => call(via(pod.session.workspace_id, "tab.open"), "terminal", {}, { kind: "view", session: pod.session.workspace_id }).catch(swallow)
+  const newDesk = (pod: Pod) => call(via(pod.session.workspace_id, "tab.open"), null, {}, { kind: "view", session: pod.session.workspace_id }).catch(swallow)
   const useProp = (prop: Prop) => {
     if (prop.id === "shelf") setLobby((v) => !v)
     else if (prop.id === "coffee") {
