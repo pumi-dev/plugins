@@ -46,7 +46,7 @@
     "name": "code-editor",
     "owner": "pumi_dev",
     "api": 1,
-    "minPumi": "0.43.0",
+    "minPumi": "0.44.0",
     "icon": "icon.png",
     "images": [
       {
@@ -89,6 +89,10 @@
         {
           "id": "save",
           "title": "Code Editor: save the file"
+        },
+        {
+          "id": "open",
+          "title": "Code Editor: open a file"
         }
       ],
       "keys": [
@@ -100,6 +104,19 @@
       "slots": {
         "tab.toolbar": {
           "component": "Toolbar"
+        },
+        "tab.new": {
+          "actions": [
+            {
+              "id": "file",
+              "title": "File…",
+              "icon": "file",
+              "command": "open",
+              "pick": {
+                "title": "Open"
+              }
+            }
+          ]
         }
       },
       "renderers": {

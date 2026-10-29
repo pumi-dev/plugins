@@ -5,11 +5,13 @@
 //   pumi open src/main.rs                   # any text file; the languages ship colours
 //   pumi call pumi_dev.code_editor.save %7  # the file the file tab %7 shows, to disk
 //
+// The `+` menu's File… is its own (`tab.new`): pumi picks the file, and `open` opens it.
+//
 // This half holds the disk: it reads a file for the view, writes what the view hands it, and
 // keeps the tab's `dirty` option, which says whether its file has unsaved changes.
 import { dirname } from "node:path";
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
-import { ApiError, fn, option, request, ui, workspace } from "pumi";
+import { ApiError, call, fn, option, request, ui, workspace } from "pumi";
 
 /** A file larger than this is not opened: the view would hold it all. */
 const LIMIT = 16 * 1024 * 1024;
@@ -62,6 +64,28 @@ function tabOf(what: unknown): string | undefined {
   if (typeof id !== "string" || !/^(?:[A-Za-z0-9._-]+\/)?%[1-9][0-9]*$/.test(id)) throw new ApiError("invalid_params", `not a tab: ${String(named)}`);
   return id;
 }
+
+fn.set(
+  "open",
+  {
+    desc: "Open a file in a file tab: `path`, or the one the user picks. The `+` menu's File… picks it first.",
+    effect: "write",
+    paramsSchema: {
+      type: "object",
+      properties: { path: { type: "string" }, tab: { type: "string" }, place: { type: "object" } },
+    },
+    examples: [{ args: [{ path: "/tmp/notes.md" }], desc: "Below the caller's tab." }, { args: [], desc: "Asks which file." }],
+    returns: "The file tab, or null when the picker was cancelled.",
+  },
+  async ({ path, tab, place }: { path?: string; tab?: string; place?: Record<string, unknown> } = {}) => {
+    // From the palette, with nothing picked yet.
+    path ??= ((await call("fs.pick", { kind: "file", title: "Open" })) as string | null) ?? undefined;
+    if (!path) return null;
+    // A pane of a remote server's (`devbox/:4`) opens the tab on that server.
+    const server = tab && tab.indexOf("/") > 0 ? tab.slice(0, tab.indexOf("/")) : undefined;
+    return call(server ? `${server}/tab.open` : "tab.open", "file", { path }, ...(place ? [place] : []));
+  },
+);
 
 fn.set(
   "save",
