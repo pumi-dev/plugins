@@ -3,8 +3,8 @@
 // `ui.tsx` for the window to draw.
 //
 // An agent's state is its tab's `@status` option (one word: `working`, `blocked`, `error`, `done`,
-// `idle`, `unknown`), which pumi-host keeps from what the program reports, and agents' hooks
-// report (`pumi skill add` installs them). A notice says how many are blocked once each time the
+// `idle`, `unknown`), which pumi-host keeps from what the program reports, and the Agents plugin's
+// hooks report (Settings → Agents). A notice says how many are blocked once each time the
 // count goes up; the Dock bounce and the badge come with the system mod (phase 4). What is said is
 // `count.ts`'s rule; this reads the tabs.
 import { on, option, self, workspace } from "pumi";
