@@ -3,7 +3,7 @@
 // to its pane.
 //
 // It reads nothing on its own: an agent says what it is doing itself, over OSC 7501, and the host
-// keeps that as a pane's `@agent.status` and `@program_status` (docs/v2/23 §6). The dashboard is the
+// keeps that as a tab's `@status` and its records' `@program_status` (docs/v2/23 §6). The dashboard is the
 // window's own state (`ui.tsx` reads the app's panes); what is here is what the rest of pumi asks
 // for: `amresyd.agent_overview.open` opens it (its command `open` in the palette, its menu item
 // under View), `amresyd.agent_overview.list` answers with the agents as JSON, and the `key` option

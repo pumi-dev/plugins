@@ -23,9 +23,9 @@ export function state(): State {
         title: "⠋ claude",
         cwd: "/Users/me/Kitchen/pumi",
         options: {
-          "@agent": "claude",
-          "@agent.status": "blocked",
-          "@agent.session": "conv-1",
+          "@pumi_dev.agents.agent": "claude",
+          "@status": "blocked",
+          "@pumi_dev.agents.agent.session": "conv-1",
           pane_current_path: "/Users/me/Kitchen/pumi",
           pane_current_command: "claude",
           "@program_status": [
@@ -43,7 +43,7 @@ export function state(): State {
         options: {
           pane_current_path: "/Users/me/Kitchen/pumi",
           pane_current_command: "make",
-          "@agent.status": "done",
+          "@status": "done",
           "@program_status": [{ id: "", state: "error", msg: "recipe failed" }],
         },
       },
@@ -53,12 +53,12 @@ export function state(): State {
         session: "$2",
         title: "π - other",
         cwd: "/Users/me/other",
-        options: { "@agent": "pi", "@agent.status": "idle", pane_current_path: "/Users/me/other" },
+        options: { "@pumi_dev.agents.agent": "pi", "@status": "idle", pane_current_path: "/Users/me/other" },
       },
       // A shell nobody reported on: not an agent, so not in the list.
       { id: "%201", tab: "@20", session: "$2", title: "", cwd: "/tmp", options: { pane_current_path: "/tmp" } },
       // A float that reports: in no tab, so not in the list either.
-      { id: "%300", tab: null, session: null, title: "float", cwd: "/tmp", options: { "@agent": "claude", "@agent.status": "blocked" } },
+      { id: "%300", tab: null, session: null, title: "float", cwd: "/tmp", options: { "@pumi_dev.agents.agent": "claude", "@status": "blocked" } },
     ],
     here: "%100",
   };

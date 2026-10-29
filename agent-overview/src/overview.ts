@@ -3,8 +3,9 @@
 // the server.
 //
 // An agent says what it is doing itself (OSC 7501, docs/v2/23 §6): the host keeps a pane's records
-// as `@program_status` and the most demanding state among them as `@agent.status`. Who the agent is
-// (`@agent`: `pi`, `claude`, …) and which conversation it is in (`@agent.session`) the agent's hook
+// as `@program_status` and the most demanding state among them as `@status`. Who the agent is
+// (`@pumi_dev.agents.agent`: `pi`, `claude`, …) and which conversation it is in
+// (`@pumi_dev.agents.agent.session`) the agent's hook
 // writes. Nothing here reads a screen or a process.
 
 import {
@@ -23,7 +24,7 @@ export interface Agent {
   sessionName: string;
   tab: string;
   tabName: string;
-  /** `@agent`: the program's own name for itself (`pi`, `claude`, …), or the app that last
+  /** `@pumi_dev.agents.agent`: the program's own name for itself (`pi`, `claude`, …), or the app that last
    * reported if it has none. */
   kind: string;
   status: Status;
@@ -31,7 +32,7 @@ export interface Agent {
   why: string;
   /** What it last said, when it said more than its state. */
   message: string;
-  /** `@agent.session`: the conversation it is in, when the agent's hook knows. */
+  /** `@pumi_dev.agents.agent.session`: the conversation it is in, when the agent's hook knows. */
   conversation: string;
   cwd: string;
   command: string;
@@ -52,7 +53,7 @@ export interface PaneState {
   title: string;
   /** Its `pane_current_path`. */
   cwd: string;
-  /** Its options: `@agent`, `@agent.status`, `@program_status`, `@agent.session`, … */
+  /** Its options: `@pumi_dev.agents.agent`, `@status`, `@program_status`, `.session`, … */
   options: Record<string, unknown>;
 }
 
@@ -143,8 +144,8 @@ export class Overview {
       const options = pane.options;
       const option = (key: string) => str(options[key]).trim();
       const records = Array.isArray(options["@program_status"]) ? (options["@program_status"] as unknown[]) : undefined;
-      const { status, why } = statusOf(option("@agent.status"), records);
-      const agent = option("@agent");
+      const { status, why } = statusOf(option("@status"), records);
+      const agent = option("@pumi_dev.agents.agent");
       // A shell nobody has reported on is not an agent; a program that said what it is doing is one
       // even when it never named itself.
       if (agent === "" && (status === "idle" || status === "unknown")) continue;
@@ -161,7 +162,7 @@ export class Overview {
         status,
         why,
         message,
-        conversation: option("@agent.session"),
+        conversation: option("@pumi_dev.agents.agent.session"),
         cwd: pane.cwd.trim() !== "" ? pane.cwd : option("pane_current_path"),
         command: option("pane_current_command"),
         title: stripTitle(pane.title),
@@ -215,7 +216,7 @@ export class Overview {
   }
 }
 
-/** `@agent.status`, corrected by the records behind it: a host that predates `error` said `done`
+/** `@status`, corrected by the records behind it: a host that predates `error` said `done`
  * for one, and the record still tells. `why` is what the protocol's `kind` says it waits for. */
 export function statusOf(word: string, records: unknown[] | undefined): { status: Status; why: string } {
   const record = worst(records);
