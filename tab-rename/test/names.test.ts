@@ -1,30 +1,19 @@
 import { expect, test } from "bun:test";
 import { Names } from "../src/names.ts";
 
-test("a tab it named stays its own; a tab you named is left alone", () => {
+test("the names it gave are kept, and the tabs still open are the ones it knows", () => {
   const names = new Names();
-  names.load({ "1": "Key Binding Fix" });
+  names.load({ "1": "Key Binding Fix", "4": "Gone" });
   names.seed([
     { id: 1, name: "Key Binding Fix" },
     { id: 2, name: "logs" },
     { id: 3, name: null },
   ]);
-  expect([names.mine(1), names.mine(2), names.mine(3)]).toEqual([true, false, true]);
+  // A tab that closed while the package did not run is not named again.
+  expect(names.toJSON()).toEqual({ "1": "Key Binding Fix" });
 
-  // Its own rename comes back as `tab.changed` with `name` and changes nothing.
   names.naming(3, "Theme Cleanup");
-  names.renamed(3, "Theme Cleanup");
-  expect(names.mine(3)).toBe(true);
-
-  // You rename it: it is yours, until you give it back its automatic name.
-  names.renamed(3, "mine");
-  expect(names.mine(3)).toBe(false);
-  names.renamed(3, null);
-  expect(names.mine(3)).toBe(true);
-
-  // The command takes a tab back.
-  names.claim(2);
-  expect(names.mine(2)).toBe(true);
+  expect(names.toJSON()).toEqual({ "1": "Key Binding Fix", "3": "Theme Cleanup" });
 });
 
 test("closed tabs are forgotten, and only its names are kept", () => {

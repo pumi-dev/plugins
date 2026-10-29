@@ -2,12 +2,13 @@
 // so the tab bar reads "Key Binding Fix" rather than "Tab 3". All of it is logic: it contributes
 // no slot and draws nothing, so there is no `ui.tsx`.
 //
-// An agent's pane title is what the agent says it is doing (pi's `π - <session> - <folder>`,
-// Claude Code's `✳ <summary>`). Each time one changes, the tab it is in is named again from the
-// titles of every agent in it, the one in front first. A tab you named yourself is left alone
-// (`names.ts`); `amresyd.tab_rename.rename` takes it back.
+// An agent's tab title is what the agent says it is doing (pi's `π - <session> - <folder>`,
+// Claude Code's `✳ <summary>`). Each time one changes, the tab is named again from it. The core
+// keeps one title per tab (`tab.title`, the program's until something sets it), so a name given
+// from the tab bar and the agent's own are the same field: this names it again with the next title
+// the agent reports. `amresyd.tab_rename.rename` names it now.
 import { join } from "node:path";
-import { call, fn, on, option, paths, request, self, workspace, type PaneId, type TabId, type PumiEvent } from "pumi";
+import { call, fn, on, option, paths, request, self, workspace, type TabId, type PumiEvent } from "pumi";
 import { Namer, Unavailable } from "./namer.ts";
 import { Names } from "./names.ts";
 import { basename, clean, key, topic } from "./titles.ts";
@@ -16,15 +17,12 @@ import { basename, clean, key, topic } from "./titles.ts";
 const SETTLE_MS = 1500;
 /** After the model was unavailable, how long until it is tried again (Apple Intelligence may be turned on). */
 const RETRY_MS = 10 * 60 * 1000;
-/** At most this many agents' titles go to the model for one tab. */
-const MAX_TITLES = 6;
-
 const namer = new Namer(join(self.plugin.dir, "swift", "namer.swift"), paths.cache);
 const names = new Names();
-/** A tab's id as the API has it (`@2`), from the number this package keeps of it. */
-const tabRef = (tab: number): TabId => `@${tab}`;
+/** A tab's id as the API has it (`%2`), from the number this package keeps of it. */
+const tabRef = (tab: number): TabId => `%${tab}`;
 
-/** The number a tab's id names (`@2` is `2`). */
+/** The number a tab's id names (`%2` is `2`). */
 const numberOf = (id: string): number => Number(id.slice(id.indexOf("/") + 1).replace(/^[%@$]/, ""));
 
 /** Names already answered, by `key(topics)`: the same titles are not asked about twice. */
@@ -53,21 +51,18 @@ async function maxWords(): Promise<number> {
   return Number.isFinite(n) && n >= 1 ? Math.min(Math.round(n), 6) : 3;
 }
 
-/** What the agents in `tab` work on, the one in front first; empty when none says. */
+/** What the agent in `tab` works on; empty when it says nothing, or says no task. */
 async function topics(tab: number): Promise<string[]> {
-  const front = workspace.getTab(tabRef(tab))?.activePane?.id ?? "";
-  const panes = await workspace.panes({ tab: tabRef(tab) }).catch(() => []);
-  const said = panes.map((pane) => {
-    const options = (pane.options ?? {}) as Record<string, unknown>;
-    const text = (name: string): string | null => (typeof options[name] === "string" ? (options[name] as string) : null);
-    const agent = text("@agent");
-    const status = text("@agent.status");
-    if (!agent && !status) return null;
-    const words = topic(text("title") ?? "", agent ?? "", basename(text("pane_current_path") ?? ""));
-    return words ? { said: words, front: pane.id === front } : null;
-  });
-  const ordered = said.filter((each) => each !== null).sort((a, b) => Number(b.front) - Number(a.front));
-  return [...new Set(ordered.map((each) => each.said))].slice(0, MAX_TITLES);
+  const each = workspace.getTab(tabRef(tab));
+  if (!each) return [];
+  if ((await each.ready.catch(() => null)) === null) return [];
+  const options = (each.options ?? {}) as Record<string, unknown>;
+  const text = (name: string): string | null => (typeof options[name] === "string" ? (options[name] as string) : null);
+  // A tab is an agent's when the Agents plugin's trait says which agent it is, or when it reports a
+  // state: a shell nobody has reported on says neither.
+  if (!text("@pumi_dev.agents.agent") && !text("@status")) return [];
+  const words = topic(text("title") ?? "", text("@pumi_dev.agents.agent") ?? "", basename(text("tab_current_path") ?? ""));
+  return words ? [words] : [];
 }
 
 /** Names `tab` from its agents' titles, unless it is someone else's or nothing changed. */
@@ -76,7 +71,7 @@ async function name(tab: number, force = false): Promise<void> {
   if (running.has(tab)) return void running.set(tab, true);
   running.set(tab, false);
   try {
-    if (!names.mine(tab) || Date.now() < unavailableUntil) return;
+    if (Date.now() < unavailableUntil) return;
     const words = await maxWords();
     const said = await topics(tab);
     if (said.length === 0) return;
@@ -87,10 +82,10 @@ async function name(tab: number, force = false): Promise<void> {
     if (!answer) return;
     answers.set(k, answer);
     if (answers.size > 500) answers.delete(answers.keys().next().value!);
-    // You may have named it while the model thought.
-    if (!names.mine(tab) || names.ours.get(tab) === answer) return;
+    // Its title may have moved on while the model thought.
+    if (names.ours.get(tab) === answer) return;
     names.naming(tab, answer);
-    await call("tab.update", tabRef(tab), { name: answer });
+    await call("tab.update", tabRef(tab), { title: answer });
     await save();
   } catch (e) {
     asked.delete(tab);
@@ -119,40 +114,19 @@ function soon(tab: number): void {
   );
 }
 
-/** The tab a pane is in, if it is tiled or floating in one. */
-async function tabOf(pane: PaneId): Promise<number | null> {
-  await workspace.ready.catch(() => {});
-  const tab = workspace.getPane(pane)?.tab;
-  return tab ? numberOf(tab.id) : null;
-}
-
-const desc = "name the tab after its agents";
-on("pane.changed", { desc }, async (event: PumiEvent) => {
-  if (typeof event.pane !== "string") return;
-  const keys: string[] = event.data?.keys ?? [];
-  // A status changing says nothing new unless the pane just became an agent's, and a move names
-  // the tab it went to.
-  const named = keys.some((key) => key === "options.title" || key === "options.@agent");
-  const brief = keys.includes("options.@agent.status");
-  const moved = keys.includes("place");
-  if (!named && !brief && !moved) return;
-  const tab = await tabOf(event.pane);
-  if (tab !== null) soon(tab);
-});
-on("tab.changed", { desc: "tell your names from tab-rename's" }, async (event: PumiEvent) => {
+const desc = "name the tab after its agent";
+on("tab.changed", { desc }, async (event: PumiEvent) => {
   await ready.catch(() => {});
+  if (typeof event.tab !== "string") return;
   const keys: string[] = event.data?.keys ?? [];
-  if (!keys.includes("name") || typeof event.data?.tab !== "string") return;
-  const id = numberOf(event.data.tab);
-  // Which name it has now is the tab's own (`null`: its automatic one, back again).
-  const given = (event.data?.patch as { name?: unknown } | undefined)?.name;
-  names.renamed(id, typeof given === "string" && given !== "" ? given : null);
-  await save();
-  // Given back its automatic name: it is the package's again, so it is named now.
-  if (typeof given !== "string" || given === "") {
-    asked.delete(id);
-    soon(id);
-  }
+  // Its title is what it is named from, its agent and its state say whether it is one, and a move
+  // names the tab it went to.
+  const titled = keys.includes("title");
+  const named = keys.some((key) => key === "options.@pumi_dev.agents.agent");
+  const brief = keys.includes("options.@status");
+  const moved = keys.includes("place");
+  if (!titled && !named && !brief && !moved) return;
+  soon(numberOf(event.tab));
 });
 on("tab.closed", { desc: "forget a closed tab" }, async (event: PumiEvent) => {
   await ready.catch(() => {});
@@ -175,7 +149,7 @@ fn.set("rename", { desc: "Name the tab after its agents again, taking it back fr
     return front ? numberOf(front.id) : undefined;
   })());
   if (tab === undefined) throw new Error("tab-rename: no tab in front to name");
-  names.claim(tab);
+  asked.delete(tab);
   unavailableUntil = 0;
   await name(tab, true);
 });
@@ -183,10 +157,7 @@ fn.set("rename", { desc: "Name the tab after its agents again, taking it back fr
 /** Names every tab that is the package's, as at startup. */
 async function everyTab(): Promise<void> {
   await workspace.ready.catch(() => {});
-  const all: { id: number; name: string | null }[] = [];
-  for (const session of workspace.sessions) {
-    for (const tab of session.tabs) all.push({ id: numberOf(tab.id), name: tab.name ?? null });
-  }
+  const all = (await workspace.tabs()).map((tab) => ({ id: numberOf(tab.id), name: tab.title ?? null }));
   names.seed(all);
   await save();
   asked.clear();
