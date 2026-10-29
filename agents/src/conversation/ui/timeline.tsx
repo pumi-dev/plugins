@@ -10,11 +10,12 @@ import { Icon, motion, useHover, useMetrics, useNow, useTheme, type ElementRef }
 
 import type { Entry, PlanItem, Status, Tool, ToolContent, Transcript } from "../model.ts";
 import { questionsOf } from "../question.ts";
-import { clipLines, formatDuration, imagePathsIn, outputShown, patchOf, restorable, statusLabel, toolDiffStats, toolHeadline, visibleEntries } from "../view.ts";
+import { baseName, clipLines, formatDuration, imageSource, messageParts, outputShown, patchOf, restorable, statusLabel, toolDiffStats, toolHeadline, visibleEntries } from "../view.ts";
 import { ZIcon } from "./bar.tsx";
 import { DiffView, Stats } from "./diff.tsx";
 import type { ZedIcon } from "./icons.ts";
-import { Thumb } from "./image.tsx";
+import { Thumb, useViewer } from "./image.tsx";
+import { Mention, MentionText } from "./mention.tsx";
 import { copyText, CopyButton, Inline, Markdown, Mono, MoreLines } from "./markdown.tsx";
 import { keepTyping, OwnClicks, Press, useTap } from "./press.tsx";
 import { QuestionCard } from "./question.tsx";
@@ -105,6 +106,8 @@ interface TimelineContext {
   scrollTo?(entryId: string | null): void;
   /** The last turn's end: its controls go to the top, not to itself. */
   lastTurn?: string;
+  /** The agent's directory, which a relative path in a message is from. */
+  cwd?: string;
 }
 
 const Context = createContext<TimelineContext>({ status: "idle" });
@@ -120,7 +123,10 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
   const { shown, hidden } = visibleEntries(transcript.entries, count);
   const working = transcript.status === "working" || transcript.status === "blocked";
   // Plans show above the composer (`PlanBar`), as Zed's do: not in the timeline.
-  const rows = shown.filter((entry) => entry.kind !== "plan");
+  // A picture the user sent shows as its chip in the message; the copy the agent was given after
+  // it is left out (as many as the message names).
+  const named = useMemo(() => picturesNamed(transcript.entries, transcript.session?.cwd), [transcript.entries, transcript.session?.cwd]);
+  const rows = shown.filter((entry) => entry.kind !== "plan" && !named.has(entry.id));
   const entries = transcript.entries;
   const restorableIds = useMemo(() => new Set(entries.flatMap((entry, at) => (restorable(entries, at) ? [entry.id] : []))), [entries]);
   const turns = useMemo(() => turnsOf(entries), [entries]);
@@ -150,6 +156,7 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
     streaming: working && last ? last.id : undefined,
     scrollTo,
     lastTurn,
+    cwd: transcript.session?.cwd,
   };
   // What an edit would leave behind: the message edited and everything after it.
   const editedAt = editing === undefined ? -1 : rows.findIndex((entry) => entry.id === editing);
@@ -184,6 +191,20 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
       </virtual-list>
     </Context.Provider>
   );
+}
+
+/** The user's pictures each message names inline, by entry id: the image entries just after it, as many as it names. */
+function picturesNamed(entries: Entry[], cwd?: string): Set<string> {
+  const out = new Set<string>();
+  let left = 0;
+  for (const entry of entries) {
+    if (entry.kind === "user") left = messageParts(entry.text ?? "", cwd).filter((part) => part.type === "chip" && part.kind === "image").length;
+    else if (entry.kind === "image" && entry.from === "user" && left > 0) {
+      out.add(entry.id);
+      left--;
+    } else left = 0;
+  }
+  return out;
 }
 
 /** Each turn's end: the user's message that began it, and the agent's words in it. */
@@ -299,10 +320,11 @@ export function EntryView({ entry, onLink }: EntryViewProps) {
     }
     case "image":
       if (!entry.image) return null;
+      if (entry.from === "user") return <SentPicture entry={entry} />;
       return (
         <Indented>
           <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-start" }}>
-            <Thumb image={entry.image} alt={entry.from === "user" ? "A picture you sent" : "A picture from the agent"} />
+            <Thumb image={entry.image} alt="A picture from the agent" />
           </div>
         </Indented>
       );
@@ -378,7 +400,6 @@ function UserMessage({ entry }: { entry: Entry }) {
   const context = useContext(Context);
   const [hovered, hover] = useHover();
   const text = entry.text ?? "";
-  const pictures = imagePathsIn(text);
   const actions = context.messageActions?.(entry) ?? [];
   const editable = context.editable?.(entry) === true && context.onEditStart !== undefined;
   const restore = context.onRestore && context.restorable?.has(entry.id) ? () => context.onRestore!(entry) : undefined;
@@ -398,19 +419,27 @@ function UserMessage({ entry }: { entry: Entry }) {
           title={editable ? "Click to edit" : undefined}
           style={{ display: "flex", flexDirection: "column", minWidth: 0, paddingLeft: 8, paddingRight: 8, paddingTop: 12, paddingBottom: 12, borderRadius: 6, backgroundColor: t.editor, borderWidth: 1, borderColor: hovered && editable ? tint(t.accent, 0.8) : t.border, cursor: "text" }}
         >
-          <Inline text={text} size={type.code} line={type.codeLine} color={t.text} onLink={context.onLink} />
+          <MentionText text={text} cwd={context.cwd} size={type.code} line={type.codeLine} color={t.text} onLink={context.onLink} />
         </div>
-        {pictures.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-            {pictures.map((path) => (
-              <Thumb key={path} image={{ mimeType: "image/png", uri: path }} alt="A picture you sent" maxWidth={200} maxHeight={140} />
-            ))}
-          </div>
-        ) : null}
         <div style={{ position: "absolute", top: -14, right: 12 }}>
           <Actions shown={hovered} text={text} actions={actions} floating />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** A picture the user sent that its message does not name: its chip, which shows it on hover and opens it when pressed. */
+function SentPicture({ entry }: { entry: Entry }) {
+  const type = useType();
+  const open = useViewer();
+  const src = imageSource(entry.image!);
+  if (!src) return null;
+  const path = src.startsWith("/") ? src : undefined;
+  const label = path ? baseName(path) : "Picture";
+  return (
+    <div style={{ display: "flex", flexDirection: "row", paddingLeft: 8 }}>
+      <Mention label={label} kind="image" title={path} preview={src} line={type.codeLine} onPress={open ? () => open({ src, alt: label, path }) : undefined} />
     </div>
   );
 }

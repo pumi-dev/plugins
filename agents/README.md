@@ -40,7 +40,8 @@ back exactly as it was.
 - **`/` for commands**: the agent's own, plus Claude's `.claude/commands` and skills, Codex's
   prompts, and pi's prompt templates and skills. A command that opens a screen of the agent's own
   (`/model`, `/resume`) shows the terminal.
-- **Pictures**: drop one on the chat or the prompt to attach it to the next prompt.
+- **Pictures**: drop one on the chat or the prompt to attach it to the next prompt. It stays in
+  the line as a chip, in the prompt and in the sent message; hover it to see the picture.
 - **The draft stays** when the tab flips to the terminal and back.
 - **Model picker** beside Send, for Claude Code and pi.
 - **Permission prompts** as cards you answer in the chat (Claude's, with "Answer permissions in
@@ -65,6 +66,10 @@ picker. A tab with a session continues it after a restart.
 - The toolbar's terminal button, or *Agents: continue this chat tab's session in the agent's
   terminal*, goes back to the TUI on the same session.
 - ACP adapters that aren't installed are fetched with `npx` at a pinned version.
+- **Skills anywhere in the prompt**: `/` after a space lists the agent's skills (pi's own list,
+  Codex's `skills/list`, Claude's `.claude/skills` from the project up and in the home folder).
+  A picked skill is a chip; on send the host puts its `SKILL.md` before the prompt, as pi does
+  for `/skill:name`.
 - **Claude Code's GUI over the SDK** runs your installed `claude` through Anthropic's Agent SDK, signed
   in as it is. Anthropic asks apps built on the Agent SDK to sign in with an API key; on a Pro or
   Max sign-in this use may be billed as extra usage. Its row says so while its GUI runs the SDK.

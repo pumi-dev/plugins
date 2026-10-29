@@ -11,6 +11,7 @@ import { call, emit, request, ui } from "pumi";
 
 import { ChangeError, CommandLedger, noticeChange, Producer, type Change, type Update } from "./conversation/change.ts";
 import { cursorOf, describeInput, emptyTranscript, randomId, type Ack, type Command, type Cursor, type Image, type Permission, type PermissionKind, type Choice, type SessionInfo, type SlashCommand, type Status, type Transcript } from "./conversation/model.ts";
+import { mentionText, relativeTo, withoutTokens } from "./conversation/view.ts";
 import { extensionCurrent, extensionFile, promptParts, promptWrites, rewindCommand, statusOf, takesPrompt, type AgentSpec } from "./agents.ts";
 import { bareCommand, commandsFor } from "./commands.ts";
 import { matchesEcho } from "./echo.ts";
@@ -637,11 +638,15 @@ export class Bridge {
   /**
    * Types `text` into the terminal (the pictures' paths before it) and submits it; it shows at
    * once, before the file says it. The pictures show when the file does: an echo of them could
-   * not be matched with the file's copy.
+   * not be matched with the file's copy. A picture's mention in the text is left out: the picture
+   * goes in as its own paste.
    */
   async #deliver(id: string, prompt: string, images: Image[] = []): Promise<Ack> {
     this.#delivering = true;
-    const { pastes, text } = promptParts(this.spec, prompt, images.map((image) => image.uri!));
+    const paths = images.map((image) => image.uri!);
+    const cwd = this.#options.cwd;
+    const named = paths.flatMap((path) => [mentionText(path), ...(cwd ? [mentionText(relativeTo(cwd, path))] : [])]);
+    const { pastes, text } = promptParts(this.spec, withoutTokens(prompt, named).trim(), paths);
     this.#sent(text.trim());
     try {
       for (const paste of pastes) {

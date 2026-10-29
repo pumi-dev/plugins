@@ -14,6 +14,7 @@ import { entryIndex, findEntry, findTool, randomId, type Ack, type Command, type
 import { num, obj, objs, resultContent, str, toolPush, toolResult, type Rec } from "../parse/common.ts";
 import { callContent, PiParser, stopOf } from "../parse/pi.ts";
 import type { Driver, SessionEvents } from "./engines.ts";
+import { expandSkills, withBytes } from "./prompt.ts";
 import type { HostSpec, HostState } from "./wire.ts";
 
 /** The pickers' option ids. */
@@ -139,7 +140,13 @@ export class PiSession implements Driver {
       const option: ConfigOption = { id: PI_MODEL, category: "model", name: "Model", current, choices };
       this.producer.push({ type: "options", options: [option] });
     }
-    const listed = objs(commands?.commands).map((c) => ({ name: str(c.name) ?? "", ...(str(c.description) ? { description: str(c.description) } : {}) })).filter((c) => c.name !== "");
+    // A skill's command says its file: a prompt that names it mid-way is sent with it (`prompt.ts`).
+    const listed = objs(commands?.commands)
+      .map((c) => {
+        const file = c.source === "skill" ? str(obj(c.sourceInfo)?.path) : undefined;
+        return { name: str(c.name) ?? "", ...(str(c.description) ? { description: str(c.description) } : {}), ...(file ? { skill: file } : {}) };
+      })
+      .filter((c) => c.name !== "");
     if (listed.length > 0) this.producer.push({ type: "commands", commands: listed });
     await this.#thinking(str(state?.thinkingLevel));
     this.producer.push({ type: "status", status: state?.isStreaming === true ? "working" : "idle" });
@@ -516,8 +523,9 @@ export class PiSession implements Driver {
     this.#turn = { startedAt: this.producer.now() };
     const told = this.#context;
     this.#context = undefined;
-    const message = told ? `${told}\n\n${text}` : text;
-    const inline = images.filter((image) => image.data).map((image) => ({ type: "image", data: image.data, mimeType: image.mimeType }));
+    const expanded = expandSkills(text, this.producer.transcript.commands);
+    const message = told ? `${told}\n\n${expanded}` : expanded;
+    const inline = withBytes(images).filter((image) => image.data).map((image) => ({ type: "image", data: image.data, mimeType: image.mimeType }));
     try {
       const got = await this.#call<{ disposition?: string }>("prompt", { message, ...(inline.length ? { images: inline } : {}) });
       // A command an extension handled starts no run: nothing will settle it.

@@ -51,7 +51,6 @@ import {
   back,
   cwdFrom,
   engineInstalled,
-  followFile,
   handoff,
   isSessionTab,
   login,
@@ -66,7 +65,7 @@ import {
 } from "./sessions.ts";
 import { forget, tell } from "./tell.ts";
 
-export { attach, authenticate, followFile, login, restart, retry, sessionSend, startSession };
+export { attach, authenticate, login, restart, retry, sessionSend, startSession };
 
 /** The tab option naming the plugin drawing the tab's block (`@tab_renderer`): this one, or none. */
 const TAB_RENDERER = "@tab_renderer";

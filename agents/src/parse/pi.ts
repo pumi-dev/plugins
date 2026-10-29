@@ -7,7 +7,7 @@
 // displayed `custom_message`s say the rest. No `import … from "pumi"` here.
 import { noticeChange, type Change, type Stamp } from "../conversation/change.ts";
 import type { StopReason, ToolContent, Transcript, Usage } from "../conversation/model.ts";
-import { imageOf, num, obj, objs, resultContent, str, timeOf, toolPush, toolResult, type Parser, type Rec } from "./common.ts";
+import { collapseSkills, imageOf, num, obj, objs, resultContent, str, timeOf, toolPush, toolResult, type Parser, type Rec } from "./common.ts";
 
 export class PiParser implements Parser {
   #last: string | undefined;
@@ -68,7 +68,7 @@ export class PiParser implements Parser {
       case "user": {
         const source = str(record.id);
         const changes: Change[] = [];
-        const text = textOf(message.content);
+        const text = collapseSkills(textOf(message.content));
         if (text) changes.push({ type: "push", entry: { id: stamp.id(), kind: "user", at, text, ...(source ? { source } : {}) } });
         for (const block of objs(message.content)) {
           const image = imageOf(block);

@@ -34,6 +34,11 @@ import {
   diffRows,
   diffStats,
   imagePathsIn,
+  applySlash,
+  messageParts,
+  skillHints,
+  skillToken,
+  slashAt,
   shortModel,
   timelineRows,
   tint,
@@ -240,6 +245,34 @@ test("a run of calls and thoughts is one activity; the last is live while the ag
 test("pictures named by their path in a prompt", () => {
   expect(imagePathsIn('look at /tmp/a.png and "/Users/me/my shot.jpg", not b.png')).toEqual(["/Users/me/my shot.jpg", "/tmp/a.png"]);
   expect(imagePathsIn("/Users/me/x\\ y.webp")).toEqual(["/Users/me/x y.webp"]);
+});
+
+test("a message's chips: mentions, pictures by their path, and skills, in their places", () => {
+  expect(messageParts('see @src/a.ts, @"my dir/" and /tmp/shot.png then /skill:deploy now', "/w")).toEqual([
+    { type: "text", text: "see " },
+    { type: "chip", kind: "file", text: "@src/a.ts", label: "a.ts", path: "/w/src/a.ts" },
+    { type: "text", text: ", " },
+    { type: "chip", kind: "folder", text: '@"my dir/"', label: "my dir/", path: "/w/my dir/" },
+    { type: "text", text: " and " },
+    { type: "chip", kind: "image", text: "/tmp/shot.png", label: "shot.png", path: "/tmp/shot.png" },
+    { type: "text", text: " then " },
+    { type: "chip", kind: "skill", text: "/skill:deploy", label: "deploy" },
+    { type: "text", text: " now" },
+  ]);
+  expect(messageParts("mail me@example.com about /usr/bin")).toEqual([{ type: "text", text: "mail me@example.com about /usr/bin" }]);
+  expect(messageParts("@shots/a.png")).toEqual([{ type: "chip", kind: "image", text: "@shots/a.png", label: "a.png", path: "shots/a.png" }]);
+});
+
+test("a skill picked after a `/` anywhere in the draft", () => {
+  expect(slashAt("fix it with /dep", 16)).toEqual({ start: 12, end: 16, query: "dep" });
+  expect(slashAt("/dep", 4)).toEqual({ start: 0, end: 4, query: "dep" });
+  expect(slashAt("see src/dep", 11)).toBeUndefined();
+  const commands = [{ name: "review" }, { name: "skill:deploy", skill: "/s/deploy/SKILL.md" }, { name: "skill:redeploy-all", skill: "/s/r/SKILL.md" }];
+  expect(skillHints("dep", commands).map((c) => c.name)).toEqual(["skill:deploy", "skill:redeploy-all"]);
+  expect(skillHints("skill:re", commands).map((c) => c.name)).toEqual(["skill:redeploy-all"]);
+  expect(skillToken({ name: "deploy" })).toBe("/skill:deploy");
+  expect(skillToken({ name: "/skill:deploy" })).toBe("/skill:deploy");
+  expect(applySlash("fix /dep now", { start: 4, end: 8, query: "dep" }, "/skill:deploy")).toEqual({ draft: "fix /skill:deploy now", caret: 18 });
 });
 
 test("small words: a wash of a colour, a clipped text, a model's short name", () => {

@@ -151,6 +151,11 @@ export interface SlashCommand {
   hint?: string;
   /** It opens a screen of the agent's own (a picker, a settings page) rather than answering in the chat. */
   terminal?: boolean;
+  /**
+   * A skill: its `SKILL.md`. Written anywhere in a prompt (`/skill:name`, a chip), the host puts the
+   * file's instructions into what the agent is sent.
+   */
+  skill?: string;
 }
 
 /** How much of the context window is used, and what the session has cost. */

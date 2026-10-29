@@ -10,8 +10,9 @@
 // No `import … from "pumi"` here.
 import { CommandLedger, endTurnChanges, noticeChange, Producer, promptChanges, textChange, type Change } from "../conversation/change.ts";
 import { entryIndex, findEntry, findTool, randomId, type Ack, type Choice, type Command, type ConfigOption, type Image, type Permission, type PlanItem, type StopReason, type ToolContent, type Transcript } from "../conversation/model.ts";
-import { num, obj, objs, str, toolPush, type Rec } from "../parse/common.ts";
+import { collapseSkills, num, obj, objs, str, toolPush, type Rec } from "../parse/common.ts";
 import type { Driver, SessionEvents } from "./engines.ts";
+import { findSkills, skillBlock, skillFolders, skillsNamed, withSkills, type Skill } from "./prompt.ts";
 import { METHOD_NOT_FOUND, Peer, RpcError } from "./rpc.ts";
 import type { HostSpec, HostState } from "./wire.ts";
 
@@ -100,6 +101,7 @@ export class CodexSession implements Driver {
       this.#effort = str(got?.reasoningEffort);
       this.#preset = presetOf(got?.approvalPolicy, obj(got?.sandbox));
       await this.#models(model);
+      await this.#skills();
       this.producer.push({ type: "status", status: "idle" });
       this.producer.flush();
       this.#set({ phase: "ready", session: this.#thread, error: undefined });
@@ -123,6 +125,20 @@ export class CodexSession implements Driver {
     this.#listed = objs(got?.data).filter((m) => m.hidden !== true);
     this.#current = current;
     this.#options();
+  }
+
+  /**
+   * Codex's skills (`skills/list`, its folders without it), as slash commands: a prompt that names
+   * one anywhere is sent with its instructions (`prompt.ts`).
+   */
+  async #skills(): Promise<void> {
+    const got: Rec | null = await this.peer.request("skills/list", { cwds: [this.spec.cwd] }).catch(() => null);
+    const listed: Skill[] = objs(got?.data)
+      .flatMap((entry) => objs(entry.skills))
+      .filter((s) => s.enabled !== false && str(s.name) && str(s.path))
+      .map((s) => ({ name: str(s.name)!, ...(str(s.description) ? { description: str(s.description) } : {}), file: str(s.path)! }));
+    const skills = got ? listed : findSkills(skillFolders("codex", this.spec.cwd));
+    if (skills.length > 0) this.producer.push({ type: "commands", commands: withSkills(this.producer.transcript.commands, skills) });
   }
 
   /** The pickers: the model, its reasoning efforts, and the approval preset. */
@@ -155,7 +171,8 @@ export class CodexSession implements Driver {
           const text = objs(item.content)
             .map((c) => (c.type === "text" ? (str(c.text) ?? "") : ""))
             .join("");
-          if (text) this.producer.push({ type: "push", entry: { id: this.producer.id(), kind: "user", at: this.producer.now(), text, ...(source ? { source } : {}) } });
+          const shown = collapseSkills(text);
+          if (shown) this.producer.push({ type: "push", entry: { id: this.producer.id(), kind: "user", at: this.producer.now(), text: shown, ...(source ? { source } : {}) } });
           continue;
         }
         this.#started(item);
@@ -533,6 +550,11 @@ export class CodexSession implements Driver {
     this.#context = undefined;
     const input: Rec[] = [];
     if (told) input.push({ type: "text", text: told, text_elements: [] });
+    // Each skill the prompt names, its instructions as a part of their own (as Codex keeps a skill's).
+    for (const command of skillsNamed(text, this.producer.transcript.commands)) {
+      const block = skillBlock(command.name.replace(/^\/?skill:/, ""), command.skill!);
+      if (block) input.push({ type: "text", text: block, text_elements: [] });
+    }
     input.push({ type: "text", text, text_elements: [] });
     for (const image of images) {
       if (image.uri && !/^https?:/.test(image.uri)) input.push({ type: "localImage", path: image.uri.replace(/^file:\/\//, "") });

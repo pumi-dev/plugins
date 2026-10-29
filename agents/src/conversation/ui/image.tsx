@@ -17,6 +17,11 @@ interface Shown {
 
 const Viewer = createContext<((shown: Shown) => void) | null>(null);
 
+/** Opens a picture in the viewer of the host around, when there is one. */
+export function useViewer(): ((shown: Shown) => void) | null {
+  return useContext(Viewer);
+}
+
 /** Gives the parts under it a viewer, drawn over `children`. */
 export function ImageViewerHost({ children, onClose }: { children: ReactNode; /** The picture shown closed (the keyboard it had goes back). */ onClose?(): void }) {
   const [shown, setShown] = useState<Shown | null>(null);
