@@ -10,7 +10,7 @@ import type { Command, Transcript } from "../conversation/model.ts";
 import { Conversation, Press } from "../conversation/ui.tsx";
 import type { HostState } from "../session/wire.ts";
 import { AGENT } from "../names.ts";
-import { attach, authenticate, followFile, login, restart, retry, sessionMentions, sessionSend, startSession } from "../main.ts";
+import { attach, authenticate, login, restart, retry, sessionMentions, sessionSend, startSession } from "../main.ts";
 
 /** A throw the tab cannot answer: said in the log. */
 function swallow(err: unknown): void {
@@ -90,7 +90,6 @@ function Live({ id, focused }: { id: number; focused: boolean }) {
           onMentions={(query) => sessionMentions(id, query)}
           rewinds={state?.canEdit ? "exact" : undefined}
           forks={state?.canFork === true}
-          onFollowFile={(path, line) => void followFile(id, path, line).catch(swallow)}
         />
       ) : (
         <Setup id={id} state={state} />
