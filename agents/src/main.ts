@@ -6,8 +6,8 @@
 //   pumi call pumi_dev.agents.conversation.read %3  the conversation of tab %3
 //   pumi call pumi_dev.agents.hook %3 claude stop …  what an agent's hook runs (`hooks/`)
 //
-// The chat is how the plugin draws the tab's `terminal` block (the manifest's `renderers`, the
-// `Chat` export in `ui.tsx`), picked for one tab by its `@tab_renderer` option naming this
+// An agent's tab is the plugin's own block, `term`, on pumi's terminal engine (`openAgent`). The
+// chat is how `ui.tsx`'s `Term` draws it while the tab's `@tab_renderer` option names this
 // plugin: the terminal keeps running under it, untouched, and shows again as it was when the
 // option goes. What the chat shows is the session file the agent writes (`bridge.ts`), and what
 // it sends is typed into the terminal. A tab is an agent's by the plugin's own trait (`names.ts`
@@ -257,6 +257,9 @@ fn.set(
   (tab: unknown, agent: unknown, event: unknown, input: unknown) => runHook(hookApi, tab, agent, event, input),
 );
 
+/** The block an agent's terminal is (`pumi_dev.agents.term`): on pumi's terminal engine, drawn by `Term`. */
+const TERM = self.plugin.prefixed("term");
+
 /**
  * Opens a terminal for agent `id` (`claude`) and starts it there, with `PUMI_AGENT` so its hook
  * runs; answers the tab's id. `cwd` is where it starts, the caller's view's folder without.
@@ -265,7 +268,7 @@ export async function openAgent(id: string, cwd?: string): Promise<string> {
   const agent = findAgent(id);
   if (!agent) throw new Error(`agents: no agent \`${id}\``);
   const launch = agentLaunch(agent);
-  const tab = await call("tab.open", "terminal", { env: launch.env, ...(typeof cwd === "string" && cwd !== "" ? { cwd } : {}) });
+  const tab = await call("tab.open", TERM, { env: launch.env, ...(typeof cwd === "string" && cwd !== "" ? { cwd } : {}) });
   const icon = agentIcon(agent.id);
   if (icon) await option.set(ICON, icon, { scope: "tab", id: tab }).catch((err: unknown) => console.error(`agents: ${message(err)}`));
   await call("tab.call", tab, "run", { command: launch.command });

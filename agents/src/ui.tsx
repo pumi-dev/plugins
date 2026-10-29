@@ -1,6 +1,6 @@
 // What the chat draws, in the window: the title bar's button that flips an agent tab between its
-// terminal and the chat, and the chat itself, which draws the tab's `terminal` block (`Chat`, the
-// manifest's `renderers.terminal`) while the tab's `@tab_renderer` names this plugin. The
+// terminal and the chat, and the agent's block (`term`, on pumi's terminal engine), drawn by `Term`:
+// the chat while the tab's `@tab_renderer` names this plugin, else the terminal. The
 // conversation is the worker's (`main.ts` `read`, `send`); the chat follows its batches, on the
 // channel in the plugin host's windows and by the convention's event in any app's.
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -72,14 +72,16 @@ export function Toolbar({ tab }: { tab: TabId }) {
 }
 
 /**
- * The `terminal` renderer (the manifest's `renderers`): the chat, over the terminal it keeps
- * running under. A tab of a terminal whose agent the chat does not read (it was named by
- * `@tab_renderer`, or nothing else draws terminals) is drawn as the terminal it is.
+ * The `term` block's renderer: the chat, over the terminal it keeps running under, while the tab's
+ * `@tab_renderer` names this plugin; else, or while the chat does not read its agent, the
+ * terminal it is.
  */
-export function Chat({ tab, focused }: RendererProps) {
+export function Term({ tab, focused }: RendererProps) {
+  const plugin = usePlugin() ?? "";
+  const options = useTabOptions(tab.id);
   // Not read yet is not "no agent": the chat waits (it says it is loading) rather than flashing the terminal.
   const spec = useAgentSpec(tab.id);
-  if (spec === null) return <terminal tab={tab.id} autoFocus={focused} />;
+  if (spec === null || options["@tab_renderer"] !== plugin) return <terminal tab={tab.id} autoFocus={focused} style={{ flexGrow: 1, minWidth: 0, minHeight: 0 }} />;
   return <TabChat tab={tabId(tab.id)} focused={focused} />;
 }
 

@@ -1,6 +1,6 @@
 // The manifest against what it names: the app loads a slot's component and a block's renderer by
 // the export named in `package.json`, so a rename that misses one is a tab that draws nothing. The
-// manifest also has one shape (`blocks`, `renderers`, `slots`): `views` and `points` are refused.
+// manifest also has one shape (`blocks`, `slots`): `views` and `points` are refused.
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -23,15 +23,15 @@ function exported(source: string): Set<string> {
 
 describe("the manifest", () => {
   test("contributes what pumi reads, and nothing it refuses", () => {
-    expect(Object.keys(manifest.contributes).sort()).toEqual(["commands", "options", "renderers", "settings", "slots", "traits"]);
+    expect(Object.keys(manifest.contributes).sort()).toEqual(["blocks", "commands", "options", "settings", "slots", "traits"]);
     expect(manifest.activation).toEqual(["onStartup"]);
   });
 
-  test("draws terminals with an export of ui.tsx", () => {
-    const names = exported(ui);
-    const renderers: Record<string, string> = manifest.contributes.renderers;
-    expect(Object.keys(renderers)).toEqual(["terminal"]);
-    for (const name of Object.values(renderers)) expect(names.has(name)).toBe(true);
+  test("an agent's tab is a block of its own on the terminal engine, drawn by an export of ui.tsx", () => {
+    const blocks: { id: string; engine?: string }[] = manifest.contributes.blocks;
+    expect(blocks.map((b) => [b.id, b.engine])).toEqual([["term", "terminal"]]);
+    // A block `term` is drawn by the export named for it, `Term`.
+    expect(exported(ui).has("Term")).toBe(true);
   });
 
   test("gives its slot components from ui.tsx", () => {

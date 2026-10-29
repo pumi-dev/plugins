@@ -91,9 +91,6 @@
           "title": "Agents: flip the focused tab between the terminal and the chat"
         }
       ],
-      "renderers": {
-        "terminal": "Chat"
-      },
       "traits": [
         {
           "id": "agent",
@@ -144,7 +141,15 @@
             ]
           }
         ]
-      }
+      },
+      "blocks": [
+        {
+          "id": "term",
+          "title": "Agent",
+          "icon": "sparkle",
+          "engine": "terminal"
+        }
+      ]
     },
     "activation": [
       "onStartup"

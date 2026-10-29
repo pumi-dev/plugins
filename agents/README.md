@@ -50,6 +50,10 @@ runs only in a terminal opened for its agent, which has `PUMI_AGENT` set:
 pumi call pumi_dev.agents.open claude [cwd]   # a terminal running Claude Code, its hook on
 ```
 
+The tab is the plugin's own block, `pumi_dev.agents.term`, on pumi's terminal engine: a
+terminal like any other, kept across a restart, drawn as the chat or as the terminal. A shell in a
+plain terminal that starts an agent is not an agent tab: its hook does nothing there.
+
 The hook tells the plugin the agent's session, model and session file, and its state (the tab's
 `@status`); the tab shows the agent's mark (`@icon`) and, when the tab comes back after a restart,
 resumes the session (`restore_command`).
