@@ -13,8 +13,7 @@ import {
   grouped,
   num,
   renderView,
-  useAgentOf,
-  useAgents,
+  useApp,
   useComponents,
   useFloats,
   useFocusedPane,
@@ -28,6 +27,7 @@ import {
   useSidebar,
   useSlot,
   useTab,
+  useTabStatus,
   useTabs,
   useWindow,
   useZoomed,
@@ -41,6 +41,12 @@ import {
 import { Avatar, box, Bubble, Decor, Floor, FONT, Nametag, Sign, useBeat, type Facing } from "./art.tsx"
 
 const swallow = (err: unknown) => console.error(String(err))
+
+/** The agent a tab runs, from the Agents plugin's trait: its id (`claude`), or nothing when none said. */
+const agentOf = (tab: { options?: Record<string, unknown> } | undefined): string | undefined => {
+  const id = tab?.options?.["@pumi_dev.agents.agent"]
+  return typeof id === "string" ? id : undefined
+}
 
 // ── The map: where each desk is, for you to walk to ─────────────────────────────────────────
 
@@ -337,7 +343,8 @@ function MiniDesk({ pane: id, here }: { pane: string; here: boolean }) {
   const t = useTheme()
   const pane = usePane(id)
   const blink = useBeat(450, here) % 2 === 0
-  const agent = pane?.agent ? (t[`agent.${pane.agent_status || "unknown"}`] ?? t["agent.unknown"]) : undefined
+  const state = useTabStatus(pane?.tab_id)
+  const agent = state ? (t[`status.${state}`] ?? t["status.unknown"]) : undefined
   return (
     <div
       onClick={() => call("pane.focus", id, {}).catch(swallow)}
@@ -423,7 +430,7 @@ function Tab({ tab: id, active, index }: { tab: string; active: boolean; index: 
   const { actions } = useSlot("tab.actions")
   if (!tab) return null
   const label = tab.label && !/^\d+$/.test(tab.label) ? tab.label : `Tab ${index + 1}`
-  const status = tab.agent_status ? (t[`agent.${tab.agent_status}`] ?? t["agent.unknown"]) : undefined
+  const status = tab.status ? (t[`status.${tab.status}`] ?? t["status.unknown"]) : undefined
   return (
     <div
       onClick={() => call("tab.focus", id, {}).catch(swallow)}
@@ -761,8 +768,8 @@ function Pane({ pane: id, focused }: { pane: string; focused: boolean; zoomed: b
 /** Whoever works at this desk, sitting in its chair — or the empty chair, if no one does. */
 function Sitter({ pane, name, focused }: { pane: string; name: string; focused: boolean }) {
   const t = useTheme()
-  const agent = useAgentOf(pane)
-  const status = agent?.agent_status || "unknown"
+  const status = useTabStatus(pane) || "unknown"
+  const agent = status !== "unknown"
   const working = status === "working"
   const alarmed = status === "blocked" || status === "error"
   const bob = useBeat(working ? 300 : 450, working || alarmed) % 2
@@ -925,7 +932,7 @@ function SessionHeader() {
 
 function Agents() {
   const C = useComponents()
-  const agents = useAgents()
+  const agents = useApp((s) => (s.snapshot?.tabs ?? []).filter((x) => x.status && x.status !== "idle" && x.status !== "unknown"))
   const t = useTheme()
   if (!agents.length) {
     return (
@@ -938,55 +945,55 @@ function Agents() {
   return (
     <div style={{ display: "flex", flexDirection: "column", paddingLeft: 4, paddingRight: 4, gap: 2 }}>
       {agents.map((a) => (
-        <C.Agent key={a.pane_id} pane={a.pane_id} />
+        <C.TabRow key={a.tab_id} tab={a.tab_id} />
       ))}
     </div>
   )
 }
 
 /** A player: their avatar with a bubble, their tag, what they're on. Click to walk to them. */
-function Agent({ pane }: { pane: string }) {
+function TabRow({ tab }: { tab: string }) {
   const t = useTheme()
   const C = useComponents()
-  const agent = useAgentOf(pane)
+  const one = useApp((s) => s.snapshot?.tabs.find((x) => x.tab_id === tab))
   const [hovered, setHovered] = useState(false)
-  const { open, menu } = useMenu("agent.menu", { pane })
-  if (!agent) return null
-  const status = agent.agent_status || "unknown"
+  const { open, menu } = useMenu("tab.row.menu", { tab })
+  if (!one) return null
+  const status = one.status || "unknown"
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAuxClick={open}
-      onClick={() => call("pane.focus", pane, {}).catch(swallow)}
+      onClick={() => call("tab.focus", tab, {}).catch(swallow)}
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingLeft: 4, paddingRight: 4, cursor: "pointer", hover: { backgroundColor: t.floorHover } }}
     >
       <div style={{ position: "relative", width: 44, height: 44, flexShrink: 0 }}>
-        <Avatar who={pane} style={{ position: "absolute", left: 2, top: 8 }} />
+        <Avatar who={tab} style={{ position: "absolute", left: 2, top: 8 }} />
         <Bubble status={status} style={{ position: "absolute", left: 20, top: 0 }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3, flexGrow: 1, minWidth: 0 }}>
-        <Nametag dot={t[`agent.${status}`] ?? t["agent.unknown"]}>{agent.name || agent.agent || pane}</Nametag>
-        {agent.title ? <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: "100%" }}>{agent.title}</text> : null}
-        <Point point="agent.footer" args={{ pane }} />
+        <Nametag dot={t[`status.${status}`] ?? t["status.unknown"]}>{agentOf(one) || one.terminal_title || one.label || tab}</Nametag>
+        {one.terminal_title ? <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: "100%" }}>{one.terminal_title}</text> : null}
+        <Point point="tab.row.footer" args={{ tab }} />
       </div>
       <div style={{ display: "flex", flexDirection: "row", opacity: hovered ? 1 : 0 }}>
-        <C.AgentControls pane={pane} />
+        <C.TabRowControls tab={tab} />
       </div>
       {menu}
     </div>
   )
 }
 
-function AgentControls({ pane }: { pane: string }) {
+function TabRowControls({ tab }: { tab: string }) {
   const C = useComponents()
-  const { views, actions } = useSlot("agent.controls")
+  const { views, actions } = useSlot("tab.row.controls")
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3 }}>
       {actions.map((a) => (
-        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={{ pane }} />
+        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={{ tab }} />
       ))}
-      {views.map((v) => renderView(v, { pane }))}
+      {views.map((v) => renderView(v, { tab }))}
     </div>
   )
 }
@@ -1076,8 +1083,8 @@ export const GATHER: Partial<Components> = {
   Panel,
   StatusBar,
   Float,
-  Agent,
-  AgentControls,
+  TabRow,
+  TabRowControls,
   Action,
   Menu,
   Dialog,
