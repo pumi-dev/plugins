@@ -10,7 +10,8 @@ reads `Key Binding Fix` and `Screenshot UI Redesign` instead of `Tab 1`, `Tab 2`
 
 Each time an agent's tab title changes (pi's `π - <session> - <folder>`, Claude Code's
 `✳ <summary>`), the tab is named again from it. A tab counts as an agent's when it has the Agents
-plugin's trait (`@pumi_dev.agents.agent`) or a `@status` (`pumi skill add` installs the hooks).
+plugin's trait (`@pumi_dev.agents.agent`) or a `@status` (the Agents plugin's hooks install them —
+Settings → Agents).
 Titles that name no task (`π - pumi`, `Claude Code`) are skipped, and the same titles are never
 asked about twice.
 
