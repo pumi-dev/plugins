@@ -1,8 +1,8 @@
 # conversation
 
-What `agent-chat` and `acp` share: an agent-agnostic conversation, the one reducer that keeps every
-copy of it the same, ACP mapped onto it, and the chat drawn from it. It is a **library**: no
-view, command or option, so pumi never starts it. A package imports its files by relative path
+An agent-agnostic conversation, the one reducer that keeps every copy of it the same, ACP mapped
+onto it, and the chat drawn from it. It is a **library**: no view, command or option, so pumi never
+starts it. A package imports its files by relative path
 (`../../lib/conversation/src/change.ts`), as `scripts` does `script-panel`.
 
 | File | |
@@ -35,6 +35,7 @@ Only `ui.tsx` and `ui/` import `pumi`; the rest runs anywhere.
 - **`Command`** (view → producer), each with a `CommandId` so a resend is acted on once
   (`CommandLedger`): `prompt{text, images?}`, `cancel`, `answer{permissionId, optionId}`,
   `setOption{category, value, option?}`, `unqueue{queued}`. The producer answers an `Ack {id, rejected?}`.
+  A block does not push text into an agent any more, so there is no `context` command.
 
 ## A producer
 
@@ -42,10 +43,10 @@ Only `ui.tsx` and `ui/` import `pumi`; the rest runs anywhere.
 import { Producer, promptChanges, endTurnChanges } from "../../lib/conversation/src/change.ts";
 import { fromSessionUpdate, fromPermissionRequest } from "../../lib/conversation/src/acp.ts";
 
-const producer = new Producer({ publish: (update) => emit("conversation.changed", { pane, update }) });
+const producer = new Producer({ publish: (update) => emit("pumi_dev.agents.conversation.changed", { tab, update }) });
 producer.push(...promptChanges(text, [], producer));                       // the user's prompt
 producer.push(...fromSessionUpdate(producer.transcript, update, producer)); // each session/update
-// conversation.read(pane, since?) answers:
+// pumi_dev.agents.conversation.read(tab, since) answers:
 producer.read(since);                                                       // the batches missed, or a snapshot
 ```
 
@@ -83,7 +84,7 @@ click, Enter or Space.
 ### The composer's picks
 
 `/` lists the transcript's `commands`, `@` lists the files `onMentions(query)` answers (paths as
-the draft writes them, `MentionHit {path, dir?}`: `agent-chat`'s walk of the agent's directory).
+the draft writes them, `MentionHit {path, dir?}`: a walk of the agent's directory).
 Up/Down or Ctrl+P/Ctrl+N move in the list, Tab or a click takes the one marked (a directory keeps
 its `/` for the next part), Enter takes it or sends a command that takes nothing, Escape closes
 it. While the list shows the field is given `interceptKeys`, so those keys reach the view rather

@@ -20,10 +20,10 @@ export function PermissionCard({ permission, onAnswer, autoFocus = false }: Perm
     <div
       role="alertdialog"
       aria-label={`The agent asks: ${permission.title}`}
-      style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, borderRadius: m.radius, borderWidth: 1, borderColor: t["agent.blocked"], backgroundColor: t.surface }}
+      style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, borderRadius: m.radius, borderWidth: 1, borderColor: t["status.blocked"], backgroundColor: t.surface }}
     >
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <Icon name="lock" size={13} color={t["agent.blocked"]} />
+        <Icon name="lock" size={13} color={t["status.blocked"]} />
         <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
           <text style={{ fontSize: m.fontSize, fontWeight: 600, color: t.text }}>{permission.title}</text>
         </div>

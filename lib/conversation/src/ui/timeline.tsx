@@ -182,7 +182,7 @@ export function ToolCard({ tool }: { tool: Tool }) {
   const [open, setOpen] = useState<boolean | undefined>(undefined);
   const shown = open ?? toolOpensByDefault(tool);
   const { title, detail } = toolLine(tool);
-  const tone = tool.status === "failed" ? t.error : tool.status === "running" ? t["agent.working"] : tool.status === "completed" ? t.success : t.faint;
+  const tone = tool.status === "failed" ? t.error : tool.status === "running" ? t["status.working"] : tool.status === "completed" ? t.success : t.faint;
   const hasBody = tool.content.length > 0;
   return (
     <div style={{ display: "flex", flexDirection: "column", borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
@@ -254,7 +254,7 @@ export function PlanList({ plan }: { plan: PlanItem[] }) {
       <text style={{ fontSize: 11, fontWeight: 600, color: t.muted }}>Plan</text>
       {plan.map((item, at) => (
         <div key={at} role="listitem" aria-label={`${item.content}, ${item.status.replace("_", " ")}`} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <Icon name={item.status === "completed" ? "status_check" : item.status === "in_progress" ? "status_spinner" : "circle"} size={12} color={item.status === "completed" ? t.success : item.status === "in_progress" ? t["agent.working"] : t.faint} />
+          <Icon name={item.status === "completed" ? "status_check" : item.status === "in_progress" ? "status_spinner" : "circle"} size={12} color={item.status === "completed" ? t.success : item.status === "in_progress" ? t["status.working"] : t.faint} />
           <text style={{ fontSize: 12, color: item.status === "completed" ? t.faint : t.text, textDecoration: item.status === "completed" ? "line-through" : "none" }}>{item.content}</text>
         </div>
       ))}

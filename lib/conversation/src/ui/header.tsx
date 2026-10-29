@@ -24,7 +24,7 @@ const STATUS_ICON: Record<string, string> = {
 export function Header({ transcript, onOption }: HeaderProps) {
   const t = useTheme();
   const m = useMetrics();
-  const status = t[`agent.${transcript.status}`] ?? t["agent.unknown"];
+  const status = t[`status.${transcript.status}`] ?? t["status.unknown"];
   const icon = STATUS_ICON[transcript.status] ?? "status_unknown";
   const usage = usageLine(transcript.usage);
   const agent = transcript.session?.agent;

@@ -215,9 +215,7 @@ export type Command =
   /** Sets the option of `category` (or the one named `option`, when a category has several). */
   | { type: "setOption"; id: CommandId; category: OptionCategory; value: string | boolean; option?: string }
   /** Withdraws a queued prompt before it goes. */
-  | { type: "unqueue"; id: CommandId; queued: CommandId }
-  /** Text the agent is given unseen with its next prompt (what pumi knows: `agent.turn`). */
-  | { type: "context"; id: CommandId; text: string };
+  | { type: "unqueue"; id: CommandId; queued: CommandId };
 
 /** The producer's answer to a command: done, or why not. */
 export interface Ack {
