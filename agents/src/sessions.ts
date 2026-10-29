@@ -18,13 +18,14 @@ import { join, resolve } from "node:path";
 import { ApiError, call, emit, on, option, paths, request, self, ui, workspace } from "pumi";
 
 import { follow, type Update } from "./conversation/change.ts";
-import { optionOf, type Ack, type Command, type Cursor, type Transcript } from "./conversation/model.ts";
+import { optionOf, type Ack, type Choice, type Command, type ConfigOption, type Cursor, type Transcript } from "./conversation/model.ts";
 import { currentName } from "./conversation/view.ts";
 import { catalogAgent, type CatalogAgent } from "./catalog.ts";
 import { agentPath, agentPathReady, installed, launchOf, resumeLine } from "./session/launch.ts";
 import { lineReader } from "./session/rpc.ts";
 import { fallbackDir, socketPath, type Engine, type FromHost, type HostSpec, type HostState, type ToHost } from "./session/wire.ts";
-import { AGENT, AGENT_CONVERSATION as CONVERSATION, AGENT_MODEL as MODEL, AGENT_SESSION as SESSION, SESSION_CWD as CWD, SESSION_ENGINE as ENGINE, SESSION_START as START, STATUS } from "./names.ts";
+import { AGENT, AGENT_CONVERSATION as CONVERSATION, AGENT_MODEL as MODEL, AGENT_SESSION as SESSION, SESSION_CWD as CWD, SESSION_ENGINE as ENGINE, SESSION_MODEL as CHOSEN, SESSION_START as START, STATUS } from "./names.ts";
+import { titled } from "./open.ts";
 import { tell } from "./tell.ts";
 
 
@@ -102,6 +103,8 @@ class Link {
   #swept = false;
   /** Whether the agent has been told the workspace at its start. */
   #started = false;
+  /** Opened on a model (`open`'s `model`): the title names the model. */
+  chosen = false;
 
   constructor(readonly tab: number) {}
 
@@ -182,13 +185,20 @@ class Link {
       was.model = model;
       await setOn(MODEL, model, id).catch(() => {});
     }
-    const title = t?.session?.title || this.state?.name;
+    const named = t?.session?.title || this.state?.name;
+    const title = named ? titled(named, this.chosen ? model : undefined) : undefined;
     if (title && title !== was.title) {
       was.title = title;
       await call("tab.update", tabRef(id), { title }).catch(() => {});
     }
     if (t) await this.#requests(t);
     void this.#told().catch(() => {});
+  }
+
+  /** The tab's title again, as `#sync` makes it. */
+  retitle(): Promise<void> {
+    this.#reported.title = undefined;
+    return this.#sync();
   }
 
   /** What the agent is told about the workspace before a prompt (`tell.ts`), handed to the host ahead of it. */
@@ -339,6 +349,7 @@ async function link(id: number): Promise<Link | undefined> {
   }
   const each = new Link(id);
   each.socket = socket;
+  each.chosen = (await optionOn<string>(CHOSEN, id)) !== undefined;
   socket.on(
     "data",
     lineReader((line) => {
@@ -516,6 +527,21 @@ async function transcriptOf(id: number): Promise<Transcript | undefined> {
   const each = await ensure(id);
   for (let i = 0; i < 50 && each && !each.transcript; i++) await Bun.sleep(100);
   return each?.transcript;
+}
+
+/** Tab `id`'s session's options (its models, its modes) as its agent last said them; none before it has. */
+export async function sessionOptions(id: number): Promise<ConfigOption[] | undefined> {
+  const t = (await ensure(id))?.transcript;
+  return t && t.options.length > 0 ? t.options : undefined;
+}
+
+/** Marks session tab `id` as opened on `model`: its title names the model from now on. */
+export async function chooseModel(id: number, model: Choice): Promise<void> {
+  await setOn(CHOSEN, model.id, id);
+  const each = await ensure(id);
+  if (!each) return;
+  each.chosen = true;
+  await each.retitle();
 }
 
 /** What brings a reader of tab `id`'s conversation at `since` up to now: nothing new, or a snapshot. */

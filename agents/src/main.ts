@@ -19,6 +19,7 @@
 // conversation (`AGENT_CONVERSATION`), so anything can read it and send to it
 // (`conversation.read` / `send` / `changed`).
 import {
+  ApiError,
   call,
   fn,
   on,
@@ -44,11 +45,13 @@ import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT
 import type { MentionHit } from "./conversation/view.ts";
 import type { ConversationRead } from "./topics.ts";
 import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, guiMode, modeOf, preferOf, preferred, type CatalogAgent, type Choice, type Mode, type Prefer } from "./catalog.ts";
-import { agentPath, agentPathReady, findProgram, loginPath } from "./session/launch.ts";
+import { agentPath, agentPathReady, findProgram, loginPath, quote } from "./session/launch.ts";
+import { OpenError, openWith } from "./open.ts";
 import {
   attach,
   authenticate,
   back,
+  chooseModel,
   cwdFrom,
   engineInstalled,
   handoff,
@@ -58,6 +61,7 @@ import {
   reconcile,
   restart,
   retry,
+  sessionOptions,
   sessionRead,
   sessionSend,
   setOpenTerminal,
@@ -83,6 +87,22 @@ const tabRef = (tab: number): string => `%${tab}`;
 
 /** The number a tab's id names (`%3` is `3`). */
 const numberOf = (id: string): number => Number(id.slice(id.indexOf("/") + 1).replace(/^[%@$]/, ""));
+
+/**
+ * The tab a function is called about (`%3`, or `3`), once it is there: `no tab %3` (not_found)
+ * for one that is gone, before anything of the plugin's asks the tab for its options.
+ */
+async function knownTab(tab: unknown): Promise<number> {
+  const id = typeof tab === "number" ? tab : typeof tab === "string" && /^(%?\d+)$/.test(tab.trim()) ? numberOf(tab.trim()) : NaN;
+  if (!Number.isInteger(id)) throw new ApiError("invalid_params", `agents: \`${String(tab)}\` is not a tab (\`%3\`)`);
+  try {
+    await call("tab.get", tabRef(id));
+  } catch (err) {
+    if ((err as { kind?: unknown })?.kind === "not_found" || /no tab/.test(message(err))) throw new ApiError("not_found", `no tab ${tabRef(id)}`);
+    throw err;
+  }
+  return id;
+}
 
 /** The tab a command was called from, or nothing. */
 async function here(): Promise<number | undefined> {
@@ -223,12 +243,12 @@ fn.set(
   {
     desc: "An agent tab's conversation, as the chat reads it from its session file: `{snapshot, cursor}`, or `{changes, cursor}` after `since`.",
     parameters: [
-      ["number", "tab"],
-      ["table", "since"],
+      ["string", "tab"],
+      ["table", "since?"],
     ],
   },
-  async (tab: string, since?: Cursor): Promise<ConversationRead> => {
-    const id = numberOf(tab);
+  async (tab: unknown, since?: Cursor): Promise<ConversationRead> => {
+    const id = await knownTab(tab);
     const update = (await isSessionTab(id)) ? await sessionRead(id, since ?? undefined) : await read(id, since ?? undefined);
     return update.type === "snapshot" ? { snapshot: update.transcript, cursor: { epoch: update.transcript.epoch, seq: update.transcript.seq } } : { changes: update.changes, cursor: update.to };
   },
@@ -239,11 +259,11 @@ fn.set(
   {
     desc: "Sends a command to an agent tab: `{type: \"prompt\", id, text}` (typed into its terminal, or queued while it works), `cancel`, `answer`, `unqueue`. Answers `{id, rejected?}`.",
     parameters: [
-      ["number", "tab"],
+      ["string", "tab"],
       ["table", "command"],
     ],
   },
-  (tab: string, cmd: Command) => sendTo(numberOf(tab), cmd),
+  async (tab: unknown, cmd: Command) => sendTo(await knownTab(tab), cmd),
 );
 
 /** A command for any agent tab of the plugin's: a terminal's, or a session tab's. */
@@ -260,9 +280,9 @@ fn.set(
       ["string", "text"],
     ],
   },
-  async (tab: string, text: string) => {
+  async (tab: unknown, text: string) => {
     if (typeof text !== "string" || text.trim() === "") throw new Error("agents: nothing to queue");
-    return sendTo(numberOf(String(tab)), { type: "prompt", id: crypto.randomUUID(), text });
+    return sendTo(await knownTab(tab), { type: "prompt", id: crypto.randomUUID(), text });
   },
 );
 
@@ -336,7 +356,7 @@ const TERM = self.plugin.prefixed("term");
  * Opens a terminal for agent `id` (`claude`) and starts it there, with `PUMI_AGENT` so its hook
  * runs; `run` is what is typed instead of the agent's own command (a resume). Answers the tab's id.
  */
-async function openTerminal(id: string, opts: { cwd?: string; place?: unknown; run?: string } = {}): Promise<string> {
+async function openTerminal(id: string, opts: { cwd?: string; place?: unknown; run?: string; args?: string[] } = {}): Promise<string> {
   const hooked = findAgent(id);
   const program = hooked?.command ?? catalogAgent(id)?.program;
   if (!program) throw new Error(`agents: no agent \`${id}\``);
@@ -345,7 +365,8 @@ async function openTerminal(id: string, opts: { cwd?: string; place?: unknown; r
   const tab = (await workspace.openTab(TERM, args, opts.place ?? undefined)).id;
   const icon = agentIcon(id);
   if (icon) await option.set(ICON, icon, { scope: "tab", id: tab }).catch((err: unknown) => console.error(`agents: ${message(err)}`));
-  await call("tab.call", tab, "run", { command: opts.run ?? launch.command });
+  const words = opts.args?.length ? ` ${opts.args.map(quote).join(" ")}` : "";
+  await call("tab.call", tab, "run", { command: opts.run ?? `${launch.command}${words}` });
   return tab;
 }
 
@@ -358,35 +379,81 @@ interface NewArgs {
   /** Where it goes, as `tab.open` takes it. */
   place?: unknown;
   cwd?: unknown;
+  /** The model it starts on: a model's id (`kiro/claude-opus-5.5`) or name, set before any prompt goes. */
+  model?: unknown;
+  /** Its first prompt, sent once it is on `model`. */
+  prompt?: unknown;
 }
 
-/** A new tab of agent `id`, as its mode says: its TUI in a terminal (the chat over it, for `chat`), or a session tab. */
+/**
+ * A new tab of agent `id`, as its mode says: its TUI in a terminal (the chat over it, for `chat`),
+ * or a session tab. With `model`, a session tab is on that model before `prompt` (or anything)
+ * goes, and its title names it; a model it does not have closes the tab and says which it has. A
+ * terminal agent starts with the model on its command line (`modelFlag`). Answers the tab's id.
+ */
 export async function openAgent(id: string, args: NewArgs = {}): Promise<string> {
   const agent = catalogAgent(id);
-  if (!agent && !findAgent(id)) throw new Error(`agents: no agent \`${id}\``);
+  if (!agent && !findAgent(id)) throw new ApiError("not_found", `agents: no agent \`${id}\``);
   const beside = typeof args.tab === "string" && /^%\d+$/.test(args.tab) ? numberOf(args.tab) : undefined;
   const place = args.place && typeof args.place === "object" ? args.place : beside !== undefined ? { kind: "tiled", beside: tabRef(beside) } : undefined;
   const given = typeof args.cwd === "string" && args.cwd !== "" ? args.cwd : undefined;
+  const model = typeof args.model === "string" && args.model.trim() !== "" ? args.model.trim() : undefined;
+  const prompt = typeof args.prompt === "string" && args.prompt.trim() !== "" ? args.prompt : undefined;
+  if (args.model !== undefined && args.model !== null && typeof args.model !== "string") throw new ApiError("invalid_params", "agents: `model` is a model's id or name");
+  if (args.prompt !== undefined && args.prompt !== null && typeof args.prompt !== "string") throw new ApiError("invalid_params", "agents: `prompt` is text");
+  const label = agent?.title ?? id;
   const mode = agent ? modeOf(agent, modes, prefer) : "terminal";
   if (agent && (mode === "acp" || mode === "sdk")) {
     const engine = mode === "acp" ? "acp" : agent.sdk!;
-    return tabRef(await openSession({ agent: agent.id, engine, cwd: given, beside, ...(place ? { place } : {}) }));
+    const open = async () => openSession({ agent: agent.id, engine, cwd: given, beside, ...(place ? { place } : {}) });
+    const opened = await openWith(
+      {
+        open,
+        options: sessionOptions,
+        send: sessionSend,
+        close: async (tab) => void (await call("tab.close", tabRef(tab))),
+        chosen: chooseModel,
+        newId: () => crypto.randomUUID(),
+        sleep: (ms) => Bun.sleep(ms),
+      },
+      { model, prompt, label },
+    ).catch((err) => {
+      throw err instanceof OpenError ? new ApiError(err.kind, err.message) : err;
+    });
+    return tabRef(opened);
   }
+  // A terminal agent: the model on its command line, as it starts; the prompt once its hook names it.
+  if (model && !agent?.modelFlag) throw new ApiError("invalid_params", `agents: ${label} opens in its terminal here, with no way to start it on a model; set it to GUI in Settings → Agents to open it on \`${model}\``);
+  if (prompt && !agentSpec(id)) throw new ApiError("invalid_params", `agents: ${label}'s terminal takes no prompt from pumi; set it to GUI in Settings → Agents to open it with one`);
   // `chat`: the hook names the agent as it starts, and the tab is taken then (`takeOver`).
   const cwd = given !== undefined || beside !== undefined ? await cwdFrom(given, beside) : undefined;
-  return openTerminal(id, { cwd, place });
+  const tab = await openTerminal(id, { cwd, place, ...(model ? { args: [agent!.modelFlag!, model] } : {}) });
+  if (prompt) {
+    for (let waited = 0; !(await tabOption(AGENT, numberOf(tab)).catch(() => null)); waited += 200) {
+      if (waited >= 60_000) throw new ApiError("timeout", `agents: ${label} did not start in ${tab} within 60s, so the prompt was not sent`);
+      await Bun.sleep(200);
+    }
+    const ack = await sendTo(numberOf(tab), { type: "prompt", id: crypto.randomUUID(), text: prompt });
+    if (ack.rejected) throw new ApiError("exception", `agents: ${label} did not take the prompt: ${ack.rejected}`);
+  }
+  return tab;
 }
 
 fn.set(
   "open",
   {
-    desc: "Opens an agent (`claude`, `codex`, `pi`, …) in a new tab, as its mode in Settings says: its terminal, where its hook runs, or a chat tab. Answers the tab's id.",
+    desc: "Opens an agent (`claude`, `codex`, `pi`, …) in a new tab, as its mode in Settings says: its terminal, where its hook runs, or a chat tab. `opts`: `{model, prompt}`, the model it starts on (an id, `kiro/claude-opus-5.5`, or a name) and a first prompt that goes once it is on it; a model it does not have is refused, naming those it has. Answers the tab's id.",
     parameters: [
       ["string", "agent"],
-      ["string", "cwd"],
+      ["string", "cwd?"],
+      ["table", "opts?"],
     ],
   },
-  (agent: string, cwd?: string) => openAgent(agent, { cwd: cwd ?? undefined }),
+  // `open pi {model, …}` too: the options in place of the directory.
+  (agent: string, cwd?: unknown, opts?: NewArgs) => {
+    const given = cwd && typeof cwd === "object" ? (cwd as NewArgs) : { ...(opts ?? {}), cwd: cwd ?? opts?.cwd ?? undefined };
+    return openAgent(agent, { cwd: given.cwd, model: given.model, prompt: given.prompt, ...(given.place ? { place: given.place } : {}), ...(given.tab ? { tab: given.tab } : {}) });
+  },
 );
 
 // ── Opening agents: the `+` menu ─────────────────────────────────────────────────────────────
@@ -395,7 +462,11 @@ fn.set(
 const newCommand = (agent: CatalogAgent) => `new_${agent.id}`;
 
 for (const agent of CATALOG) {
-  fn.set(newCommand(agent), { desc: `Open ${agent.title} in a new tab, as Settings → Agents says.`, parameters: [["table", "args"]] }, (args?: NewArgs) => openAgent(agent.id, args ?? {}));
+  fn.set(
+    newCommand(agent),
+    { desc: `Open ${agent.title} in a new tab, as Settings → Agents says. \`args\`: \`{tab, place, cwd, model, prompt}\`, as \`open\` takes them.`, parameters: [["table", "args?"]] },
+    (args?: NewArgs) => openAgent(agent.id, args ?? {}),
+  );
 }
 
 /** Whether `agent` can open here now, in the mode it has. */

@@ -29,6 +29,8 @@ export interface CatalogAgent {
   sdk?: Engine;
   /** Its TUI resuming a session, `{session}` where the id goes. */
   resume?: string[];
+  /** The flag its TUI starts on a model with (`--model`): how `open`'s `model` reaches a terminal agent. */
+  modelFlag?: string;
   /** The choice it has until Settings says otherwise. */
   default: Choice;
   /** Said under its row while its GUI runs its SDK: why to think before picking it. */
@@ -50,6 +52,7 @@ export const CATALOG: CatalogAgent[] = [
     acp: { run: [["pi-acp"], ["npx", "-y", PINS.pi]], login: ["pi"] },
     sdk: "pi",
     resume: ["pi", "--session", SESSION],
+    modelFlag: "--model",
     default: "terminal",
   },
   {
@@ -59,6 +62,7 @@ export const CATALOG: CatalogAgent[] = [
     acp: { run: [["claude-agent-acp"], ["npx", "-y", PINS.claude]], login: ["claude", "/login"] },
     sdk: "claude",
     resume: ["claude", "--resume", SESSION],
+    modelFlag: "--model",
     default: "terminal",
     sdkNote: "GUI runs it through Anthropic's Agent SDK: on a Pro or Max plan that may be billed as extra usage.",
   },
@@ -69,10 +73,11 @@ export const CATALOG: CatalogAgent[] = [
     acp: { run: [["codex-acp"], ["npx", "-y", PINS.codex]], login: ["codex", "login"] },
     sdk: "codex",
     resume: ["codex", "resume", SESSION],
+    modelFlag: "--model",
     default: "terminal",
   },
   { id: "omp", title: "omp", program: "omp", resume: ["omp", "--session", SESSION], default: "terminal" },
-  { id: "gemini", title: "Gemini", program: "gemini", acp: { run: [["gemini", "--acp"]], login: ["gemini"] }, default: "terminal" },
+  { id: "gemini", title: "Gemini", program: "gemini", acp: { run: [["gemini", "--acp"]], login: ["gemini"] }, modelFlag: "--model", default: "terminal" },
   {
     id: "opencode",
     title: "OpenCode",

@@ -30,6 +30,8 @@ export const AGENT_CONVERSATION = `${AGENT}.conversation`;
 export const SESSION_CWD = "@agents.cwd";
 export const SESSION_START = "@agents.start";
 export const SESSION_ENGINE = "@agents.engine";
+/** The model a session tab was opened on (`open`'s `model`): its title names the model while it is set. */
+export const SESSION_MODEL = "@agents.model";
 
 /** A tab's status, any block's (`working`, `blocked`, `error`, `done`, `idle`, `unknown`): pumi-host's, from what its program reports. */
 export const STATUS = "@status";

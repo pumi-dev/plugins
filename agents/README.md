@@ -87,7 +87,14 @@ user's own hooks there are left as they are, and the first copy of a config is k
 
 ```sh
 pumi call pumi_dev.agents.open claude [cwd]   # an agent tab, as Settings says
+pumi call pumi_dev.agents.open pi '{"model": "kiro/claude-opus-5.5", "prompt": "Fix the docs"}'
 ```
+
+With `model` (an id, a name, or the id after its provider), a GUI tab is on that model before
+anything is sent, and its title names it (`Pi · Claude Opus 5.5`); a model the agent does not have
+closes the tab and is refused, naming the models it has. `prompt` goes once the model is set. A
+terminal agent starts with the model on its command line (`--model`). `new_<agent>` takes the same
+in its `{tab, place, cwd, model, prompt}`.
 
 An agent's terminal is the plugin's own block, `pumi_dev.agents.term`, on pumi's terminal engine:
 a terminal like any other, kept across a restart, drawn as the chat or as the terminal. A shell in
