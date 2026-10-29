@@ -13,7 +13,15 @@ export interface TabUpdate {
 }
 
 /**
- * The data of `<prefix>conversation.changed`: the convention's `{tab, changes, cursor}`, and
+ * What `<prefix>conversation.read` answers: the whole of it (`{snapshot, cursor}`), or what
+ * followed `since` (`{changes, cursor}`).
+ */
+export type ConversationRead =
+  | { snapshot: Extract<Update, { type: "snapshot" }>["transcript"]; cursor: Cursor }
+  | { changes: Extract<Update, { type: "changes" }>["changes"]; cursor: Cursor };
+
+/**
+ * The data of `<prefix>conversation.changed`: `{tab, changes, cursor}`, and
  * `from`, the cursor the changes go on from (`null` for a new epoch: read again).
  */
 export interface Changed {

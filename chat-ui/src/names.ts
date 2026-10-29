@@ -8,6 +8,9 @@ export const PREFIX = "pumi_dev.chat_ui.";
 /** The function an agent's hook calls (`pumi call`), from the agent's terminal. */
 export const HOOK_FN = `${PREFIX}hook`;
 
+/** The event an agent tab's conversation moves by (`emit("conversation.changed")`, prefixed). */
+export const CONVERSATION_CHANGED = `${PREFIX}conversation.changed`;
+
 /**
  * The plugin's trait (`agent` in the manifest): a tab is an agent's while it names the agent
  * (`claude`), as its hook sets it. Its fields are the options below.

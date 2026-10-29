@@ -15,14 +15,11 @@
 // (`conversation.read` / `send` / `changed`).
 import {
   call,
-  conversationNames,
   fn,
   on,
   option,
-  request,
   self,
   workspace,
-  type ConversationRead,
   type Disposer,
   type PumiEvent,
 } from "pumi";
@@ -35,6 +32,7 @@ import { mentions as findMentions } from "./mentions.ts";
 import { PICK_IN_TERMINAL } from "./models.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
+import type { ConversationRead } from "./topics.ts";
 
 /** The tab option naming the plugin drawing the tab's block (`@tab_renderer`): this one, or none. */
 const TAB_RENDERER = "@tab_renderer";
@@ -164,12 +162,10 @@ export async function mentions(tab: number, query: string): Promise<MentionHit[]
   return findMentions(bridge.cwd, typeof query === "string" ? query : "");
 }
 
-// ── The convention, for everyone else ────────────────────────────────────────────────────────
-
-const names = conversationNames(self.plugin.id);
+// ── The conversation, for everyone else ──────────────────────────────────────────────────────
 
 fn.set(
-  names.read,
+  "conversation.read",
   {
     desc: "An agent tab's conversation, as the chat reads it from its session file: `{snapshot, cursor}`, or `{changes, cursor}` after `since`.",
     parameters: [
@@ -184,7 +180,7 @@ fn.set(
 );
 
 fn.set(
-  names.send,
+  "conversation.send",
   {
     desc: "Sends a command to an agent tab: `{type: \"prompt\", id, text}` (typed into its terminal, or queued while it works), `cancel`, `answer`, `unqueue`. Answers `{id, rejected?}`.",
     parameters: [

@@ -4,7 +4,7 @@
 // conversation is the worker's (`main.ts` `read`, `send`); the chat follows its batches, on the
 // channel in the plugin host's windows and by the convention's event in any app's.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { conversationNames, Icon, IconButton, useChannelListener, useEvent, useMetrics, usePlugin, useTab, useTheme, type RendererProps, type TabId } from "pumi";
+import { Icon, IconButton, useChannelListener, useEvent, useMetrics, usePlugin, useTab, useTheme, type RendererProps, type TabId } from "pumi";
 
 import { follow, type Update } from "./conversation/change.ts";
 import type { Transcript } from "./conversation/model.ts";
@@ -12,7 +12,7 @@ import { questionsOf } from "./conversation/question.ts";
 import { Button, Conversation, Header, Press, tint } from "./conversation/ui.tsx";
 import { agentSpec, type AgentSpec } from "./agents.ts";
 import { mentions, read, send, setChat, toggle } from "./main.ts";
-import { AGENT, STATUS } from "./names.ts";
+import { AGENT, CONVERSATION_CHANGED, STATUS } from "./names.ts";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 
 /** A throw the chat cannot answer: said in the log, not drawn over the window. */
@@ -82,7 +82,6 @@ export function Chat({ tab, focused }: RendererProps) {
 
 /** The tab's conversation, followed from the worker: a snapshot first, then each batch. */
 function useTranscript(tab: number): Transcript | undefined {
-  const plugin = usePlugin() ?? "";
   const [transcript, setTranscript] = useState<Transcript>();
   const local = useRef<Transcript | undefined>(undefined);
   const reading = useRef<"no" | "yes" | "again">("no");
@@ -130,8 +129,8 @@ function useTranscript(tab: number): Transcript | undefined {
   useChannelListener(UPDATE, (data: TabUpdate) => {
     if (data?.tab === tab) apply(data.update);
   });
-  // In any app's: the convention's event (a batch heard on both is applied once).
-  useEvent<Changed>(conversationNames(plugin).changed, (e) => {
+  // In any app's: the plugin's event (a batch heard on both is applied once).
+  useEvent<Changed>(CONVERSATION_CHANGED, (e) => {
     const data = e.data;
     if (data?.tab !== tab) return;
     if (data.from) return apply({ type: "changes", from: data.from, to: data.cursor, changes: data.changes });
