@@ -20,6 +20,8 @@ It needs pumi 0.43 or later.
   copying lines (`⌥↑`/`⌥↓`, `⇧⌥↑`/`⇧⌥↓`), undo and redo.
 - **Typing**: dead keys, press-and-hold accents, input methods (Japanese, Chinese, Korean), the
   emoji picker and dictation, as in any Mac app.
+- **Opening**: *File…* in a pane's `+` menu (and the list a split opens with) picks a file and
+  opens it in a tab there. The palette has it as *Code Editor: open a file*.
 - **Saving**: `⌘S`, or the dot in the tab's toolbar while the file has unsaved changes. The
   palette has it as *Code Editor: save the file*.
 

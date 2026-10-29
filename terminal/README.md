@@ -2,13 +2,11 @@
 
 A shell in a tab. pumi itself runs terminals (the PTY, the program, its screen and scrollback,
 and keeping them alive across a restart) for any block that asks for them; the terminal is this
-plugin: the block a new tab opens, and what draws it.
+plugin: the block a tab runs a shell in, and what draws it.
 
 ```sh
 pumi plugin add pumi-dev/plugins/terminal
 ```
-
-Without it, a new tab opens the launcher, which lists what the installed plugins can open.
 
 ```sh
 pumi call pumi_dev.terminal.open                                  # a shell beside this tab
@@ -18,10 +16,10 @@ pumi tab open pumi_dev.terminal.shell '{"cwd":"/src"}' --split right
 
 ## New tabs
 
-On its first run the plugin sets pumi's `new_tab` option to its block, so a new tab, split, view
-or session is a shell. It does this once, and only while `new_tab` is empty: set `new_tab` to
-something else (or back to empty, for the launcher) and it stays. It is also in the `+` menu's
-list as Terminal.
+The plugin doesn't change what a new tab opens. Pick Terminal in Settings ▸ General ▸ New tabs
+open (pumi's `new_tab` option, `pumi_dev.terminal.shell`) to make every new tab, split, view and
+session a shell; the start screen does this when Terminal is the first of the plugins it
+installs. It is also in the `+` menu's list as Terminal.
 
 ## The block
 

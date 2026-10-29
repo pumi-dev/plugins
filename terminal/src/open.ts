@@ -22,8 +22,3 @@ export function opening(given: unknown): Opening {
   if (typeof g.tab === "string" && g.tab !== "" && place.beside === undefined && place.pane === undefined) place.beside = g.tab;
   return { args, place };
 }
-
-/** Whether the first run makes new tabs open a shell: only while nobody has chosen what they open. */
-export function claims(newTab: unknown, claimed: unknown): boolean {
-  return claimed !== true && (newTab === "" || newTab === null || newTab === undefined);
-}

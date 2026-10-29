@@ -3,7 +3,7 @@
   "displayName": "Terminal",
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
-  "description": "A shell in a tab. pumi runs the terminal (its program, its screen, its scrollback, across restarts); this plugin is the block a new tab opens and draws it.",
+  "description": "A shell in a tab. pumi runs the terminal (its program, its screen, its scrollback, across restarts); this plugin is the block a tab opens it in, and draws it.",
   "keywords": [
     "terminal",
     "shell"
@@ -28,13 +28,6 @@
     "owner": "pumi_dev",
     "api": 1,
     "contributes": {
-      "options": {
-        "claimed": {
-          "type": "boolean",
-          "default": false,
-          "desc": "Whether this plugin has made new tabs open a shell (`new_tab`) once, when it was first run. It does it once: set `new_tab` back and it stays."
-        }
-      },
       "commands": [
         {
           "id": "open",
