@@ -1,0 +1,40 @@
+{
+  "name": "pumi-launcher",
+  "displayName": "Launcher",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A tab that lists what you can open in it: a file, and whatever your plugins add to the + menu (a terminal, a page, an agent…). Pick one and it takes the tab's place. Set it as what new tabs open, and every new tab, split and session starts with the list.",
+  "keywords": [
+    "launcher",
+    "new tab"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "launcher"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "launcher",
+    "owner": "pumi_dev",
+    "api": 1,
+    "minPumi": "0.44.0",
+    "contributes": {
+      "blocks": [
+        {
+          "id": "new",
+          "title": "New Tab",
+          "icon": "plus"
+        }
+      ]
+    }
+  }
+}
