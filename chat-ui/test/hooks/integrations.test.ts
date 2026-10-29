@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { HOOK_FN } from "../../src/names.ts";
-import { findAgent, HOOK_AGENTS, hookCommand, hookRows, hookState, install, MARKER, merge, ownedFile, PERMISSION_WAIT, resumeCommand, resumeLine, strip, uninstall, type HookAgent } from "../../src/hooks/integrations.ts";
+import { AGENT_ENV, agentLaunch, findAgent, HOOK_AGENTS, hookCommand, hookRows, hookState, install, MARKER, merge, ownedFile, PERMISSION_WAIT, resumeCommand, resumeLine, strip, uninstall, type HookAgent } from "../../src/hooks/integrations.ts";
 
 const agent = (id: string): HookAgent => findAgent(id)!;
 type Json = Record<string, any>;
@@ -255,5 +255,13 @@ describe("the hook's line", () => {
   test("never fails its agent", () => {
     const out = run({ PUMI_AGENT: "claude", PUMI_TAB: "%3", PUMI_BIN: join(dir, "missing") }, "{}");
     expect(out.exitCode).toBe(0);
+  });
+});
+
+describe("a tab opened for an agent", () => {
+  test("is a shell with PUMI_AGENT, the agent typed into it", () => {
+    expect(agentLaunch(agent("claude"))).toEqual({ env: { [AGENT_ENV]: "claude" }, command: "claude" });
+    expect(agentLaunch(agent("cursor")).command).toBe("cursor-agent");
+    expect(hookCommand("claude", "start")).toStartWith(`[ -n "$${AGENT_ENV}" ] && `);
   });
 });

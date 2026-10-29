@@ -33,6 +33,8 @@ import { Bridge, type TabOptions } from "./bridge.ts";
 import { mentions as findMentions } from "./mentions.ts";
 import { PICK_IN_TERMINAL } from "./models.ts";
 import { runHook, requestClosed, type HookApi } from "./hooks/run.ts";
+import { agentLaunch, findAgent } from "./hooks/integrations.ts";
+import { agentIcon, ICON } from "./icons.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
 import type { ConversationRead } from "./topics.ts";
@@ -253,6 +255,33 @@ fn.set(
     ],
   },
   (tab: unknown, agent: unknown, event: unknown, input: unknown) => runHook(hookApi, tab, agent, event, input),
+);
+
+/**
+ * Opens a terminal for agent `id` (`claude`) and starts it there, with `PUMI_AGENT` so its hook
+ * runs; answers the tab's id. `cwd` is where it starts, the caller's view's folder without.
+ */
+export async function openAgent(id: string, cwd?: string): Promise<string> {
+  const agent = findAgent(id);
+  if (!agent) throw new Error(`chat-ui: no agent \`${id}\``);
+  const launch = agentLaunch(agent);
+  const tab = await call("tab.open", "terminal", { env: launch.env, ...(typeof cwd === "string" && cwd !== "" ? { cwd } : {}) });
+  const icon = agentIcon(agent.id);
+  if (icon) await option.set(ICON, icon, { scope: "tab", id: tab }).catch((err: unknown) => console.error(`chat-ui: ${message(err)}`));
+  await call("tab.call", tab, "run", { command: launch.command });
+  return tab;
+}
+
+fn.set(
+  "open",
+  {
+    desc: "Opens a terminal for an agent (`claude`, `codex`, `pi`, …) and starts it there, where its hook runs. Answers the tab's id.",
+    parameters: [
+      ["string", "agent"],
+      ["string", "cwd"],
+    ],
+  },
+  (agent: string, cwd?: string) => openAgent(agent, cwd ?? undefined),
 );
 
 // ── Following the tabs ──────────────────────────────────────────────────────────────────────

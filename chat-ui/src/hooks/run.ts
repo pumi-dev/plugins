@@ -6,6 +6,7 @@
 // answers is what the hook prints, in the agent's format; `null` prints nothing. What it calls of
 // pumi is `main.ts`'s to give (`HookApi`), so a test gives its own. No `import … from "pumi"` here.
 import { AGENT, AGENT_ACCEPTS, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "../names.ts";
+import { agentIcon, ICON } from "../icons.ts";
 import { continuation, formatOf, hookEvent, permissionAsk, permissionDecision, reportBody, reportState, told } from "./hook.ts";
 import { findAgent, PERMISSION_WAIT, resumeLine } from "./integrations.ts";
 
@@ -138,12 +139,15 @@ export async function runHook(api: HookApi, tabId: unknown, agentId: unknown, wo
       return null;
   }
   const said = told(input);
+  // A tab new to this agent shows its mark, which the user may change after.
+  const icon = (await api.get(AGENT, id).catch(() => null)) === agentId ? undefined : agentIcon(agentId);
   // The fields first: a chat that starts when the trait comes reads them at once.
   const fields: [string, unknown][] = [
     [AGENT_SESSION, said.session],
     [AGENT_MODEL, said.model],
     [AGENT_TRANSCRIPT, said.transcript],
     [AGENT_ACCEPTS, agent?.accepts],
+    [ICON, icon],
     [AGENT, agentId],
   ];
   for (const [name, value] of fields) if (value !== undefined) await api.set(name, value, id).catch((err: unknown) => warn(name, err));

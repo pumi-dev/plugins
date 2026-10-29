@@ -22,6 +22,8 @@ export const VERSION = 1;
 export const PERMISSION_WAIT = 120;
 /** Where a resume recipe's session goes. */
 export const SESSION = "{session}";
+/** What a terminal opened for an agent has (`agentLaunch`): the agent's id. Its hook runs only where it is set. */
+export const AGENT_ENV = "PUMI_AGENT";
 
 /** How an agent's hook goes in. */
 export type Shape =
@@ -128,7 +130,16 @@ export function findAgent(id: unknown): HookAgent | undefined {
  * The agent's input (its JSON on stdin) is the call's last argument.
  */
 export function hookCommand(agent: string, event: HookEvent): string {
-  return `[ -n "$PUMI_AGENT" ] && "\${PUMI_BIN:-pumi}" call ${HOOK_FN} "$PUMI_TAB" ${agent} ${event} "$(cat)" || true # ${MARKER} v${VERSION}`;
+  return `[ -n "$${AGENT_ENV}" ] && "\${PUMI_BIN:-pumi}" call ${HOOK_FN} "$PUMI_TAB" ${agent} ${event} "$(cat)" || true # ${MARKER} v${VERSION}`;
+}
+
+/**
+ * How a tab for `agent` opens: a shell with `PUMI_AGENT`, and the agent's command typed into it.
+ * A shell, so that the tab restored runs its `restore_command` there (a tab opened with a command
+ * runs the command again instead).
+ */
+export function agentLaunch(agent: HookAgent): { env: Record<string, string>; command: string } {
+  return { env: { [AGENT_ENV]: agent.id }, command: agent.command };
 }
 
 /**

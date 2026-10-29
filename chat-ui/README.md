@@ -38,6 +38,18 @@ back exactly as it was.
 The tab's toolbar has the button; *Chat UI: flip the focused tab between the terminal and the chat*
 is in the palette.
 
+## Agent tabs
+
+An agent's hook runs only in a terminal opened for that agent, which has `PUMI_AGENT` set:
+
+```sh
+pumi call pumi_dev.chat_ui.open claude [cwd]   # a terminal running Claude Code, its hook on
+```
+
+The hook tells the plugin the agent's session, model and session file, and its state (the tab's
+`@status`); the tab shows the agent's mark (`@icon`) and, when the tab comes back after a restart,
+resumes the session (`restore_command`).
+
 ## Options
 
 Settings → Chat UI.

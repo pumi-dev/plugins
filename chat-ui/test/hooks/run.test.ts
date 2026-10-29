@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { AGENT, AGENT_ACCEPTS, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "../../src/names.ts";
+import { agentIcon, ICON } from "../../src/icons.ts";
 import { requestClosed, runHook, type HookApi } from "../../src/hooks/run.ts";
 
 /** A fake pumi: what was set and reported, in order, and the answers it is given. */
@@ -41,10 +42,20 @@ describe("the hook function", () => {
       [AGENT_MODEL, "opus", "%3"],
       [AGENT_TRANSCRIPT, "/p/s-1.jsonl", "%3"],
       [AGENT_ACCEPTS, ["queue"], "%3"],
+      [ICON, agentIcon("claude"), "%3"],
       [AGENT, "claude", "%3"],
       ["restore_command", "claude --resume s-1", "%3"],
     ]);
     expect(reports).toEqual(["%3 state=idle:app=claude"]);
+  });
+
+  test("shows an agent's mark on a tab new to it only", async () => {
+    const again = fake({ options: { [AGENT]: "claude" } });
+    await runHook(again.api, "%3", "claude", "prompt", {});
+    expect(again.sets.map(([name]) => name)).toEqual([AGENT_ACCEPTS, AGENT]);
+    const unknown = fake();
+    await runHook(unknown.api, "%3", "aider", "start", {});
+    expect(unknown.sets).toEqual([[AGENT, "aider", "%3"]]);
   });
 
   test("takes the user's restore recipe", async () => {
