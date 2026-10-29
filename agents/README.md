@@ -105,12 +105,12 @@ around it, then only what changed.
 You are in a tab of pumi, a terminal workspace. …
 </pumi>
 <pumi-panes>
-$7 pumi (current)
+$7 app (current)
   @3 main (current)
     :11 (focused)
-      %129 π - Move plans out — /Users/amr/Kitchen/pumi — done (current)
+      %129 π - Fix the build — ~/src/app — done (current)
     :12
-      %130 zsh — /Users/amr/Kitchen/pumi/src
+      %130 zsh — ~/src/app/src
 </pumi-panes>
 </pumi-context>
 ```
