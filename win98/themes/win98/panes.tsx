@@ -8,19 +8,19 @@ import {
   call,
   num,
   renderView,
-  useAgentOf,
   useComponents,
   useLayout,
   useMenu,
   usePane,
   usePaneTitles,
   useSlot,
+  useTabStatus,
   via,
   type ActionItem,
   type DialogProps,
   type IconButtonProps,
 } from "pumi/theme"
-import { AnyIcon, Art, bevel, Box, caption, CaptionButton, FONT, Label, paneArt, paneName, PushButton, stop, swallow } from "./kit.tsx"
+import { AnyIcon, Art, bevel, Box, caption, CaptionButton, FONT, isTerminal, Label, paneArt, paneName, PushButton, stop, swallow } from "./kit.tsx"
 
 /**
  * The `Pane` part: a child window. A tiled one has its caption while pane captions show
@@ -51,7 +51,7 @@ export function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boo
         {titled ? <C.PaneTitle pane={id} focused={focused} zoomed={zoomed} menu={open} /> : null}
         {/* The well the block sits in: black for a terminal, as a DOS box's was. */}
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, marginTop: titled ? 1 : 0, borderWidth: 1, ...well }}>
-          <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, borderWidth: 1, ...wellIn!, backgroundColor: pane?.block === "terminal" ? "#000000" : t.editor }}>
+          <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, borderWidth: 1, ...wellIn!, backgroundColor: isTerminal(pane) ? "#000000" : t.editor }}>
             <C.PaneBody pane={id} focused={focused} />
           </div>
         </div>
@@ -70,7 +70,6 @@ export function PaneTitle({ pane: id, focused, zoomed, menu }: { pane: string; f
   const t = useTheme()
   const C = useComponents()
   const p = usePane(id)
-  const agent = useAgentOf(id)
   const tree = useLayout(p?.tab_id)
   const draggable = useDraggable({ kind: "pumi.pane", pane: id })
   const toolbar = useSlot("pane.toolbar")
@@ -79,8 +78,8 @@ export function PaneTitle({ pane: id, focused, zoomed, menu }: { pane: string; f
   const zoomable = zoomed || (!!tree && "axis" in tree)
   const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
   const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: num(id), split: side }).catch(swallow)
-  const status = agent?.agent_status
-  const name = paneName(p) + (agent && status && status !== "idle" && status !== "unknown" ? ` - [${status[0]!.toUpperCase()}${status.slice(1)}]` : "")
+  const status = useTabStatus(p?.tab_id)
+  const name = paneName(p) + (status && status !== "idle" && status !== "unknown" ? ` - [${status[0]!.toUpperCase()}${status.slice(1)}]` : "")
   return (
     <div
       {...draggable.props}

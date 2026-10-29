@@ -300,18 +300,30 @@ export function tabName(tab: { label?: string | null; number?: number } | undefi
   return `Tab ${index !== undefined ? index + 1 : (tab?.number ?? "")}`.trim()
 }
 
-/** A pane by what it shows: an agent by its title, then its name, its title, its folder, its kind. */
-export function paneName(p: { block: string; label?: string; terminal_title?: string | null; cwd?: string | null; agent?: string | null }): string {
+/** The agent a tab runs, from the Agents plugin's trait: its id (`claude`), or nothing when none said. */
+export function agentOf(tab: { options?: Record<string, unknown> } | undefined): string | undefined {
+  const id = tab?.options?.["@pumi_dev.agents.agent"]
+  return typeof id === "string" ? id : undefined
+}
+
+/** Whether a tab runs on the terminal engine: one whose `tab_pid` the engine keeps. */
+export function isTerminal(tab: { options?: Record<string, unknown> } | undefined): boolean {
+  return typeof tab?.options?.tab_pid === "number"
+}
+
+/** A tab by what it shows: an agent by its title, then its name, its title, its folder, its kind. */
+export function paneName(p: { block: string; label?: string; terminal_title?: string | null; cwd?: string | null; options?: Record<string, unknown> }): string {
   const dir = p.cwd ? p.cwd.replace(/\/+$/, "").split("/").pop() : undefined
-  if (p.agent) return p.terminal_title || p.label || p.agent
+  const agent = agentOf(p)
+  if (agent) return p.terminal_title || p.label || agent
   return p.label || p.terminal_title || dir || p.block
 }
 
 /** The picture a pane is shown with: a prompt for a terminal, a globe for a page, a plug for a plugin's. */
-export function paneArt(p: { block: string; agent?: string | null } | undefined): string {
+export function paneArt(p: { block: string; options?: Record<string, unknown> } | undefined): string {
   if (!p) return "dos"
-  if (p.agent) return "help"
-  if (p.block === "terminal") return "dos"
+  if (agentOf(p)) return "help"
+  if (isTerminal(p)) return "dos"
   if (p.block === "file") return "documents"
   if (p.block === "browser" || p.block.endsWith(".page")) return "globe"
   if (p.block === "files" || p.block.endsWith(".files")) return "folder"

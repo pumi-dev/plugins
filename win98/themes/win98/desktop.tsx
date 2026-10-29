@@ -14,7 +14,6 @@ import {
   renderView,
   run,
   startRename,
-  useAgents,
   useApp,
   useAutoEqualize,
   useComponents,
@@ -35,7 +34,7 @@ import {
   type Tab as TabInfo,
 } from "pumi/theme"
 import { ExplorerBar, goTo } from "./explorer.tsx"
-import { Art, bevel, Box, caption, CaptionButton, FONT, Label, paneArt, paneName, Picture, PushButton, Separator, stop, swallow, tabName } from "./kit.tsx"
+import { agentOf, Art, bevel, Box, caption, CaptionButton, FONT, Label, paneArt, paneName, Picture, PushButton, Separator, stop, swallow, tabName } from "./kit.tsx"
 import { DropMenu } from "./menu.tsx"
 
 const TASKBAR = 28
@@ -432,7 +431,9 @@ function StatusBar({ pane, active, grip, onGrip, onGripMove, onGripUp }: { pane?
   const t = useTheme()
   const status = useSlot("status")
   const C = useComponents()
-  const agent = pane?.agent ? `${pane.agent}: ${pane.agent_status || "unknown"}` : undefined
+  const tab = useApp((s) => s.snapshot?.tabs.find((x) => x.tab_id === pane?.tab_id))
+  const who = agentOf(tab)
+  const agent = who ? `${who}: ${tab?.status || "unknown"}` : undefined
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2, height: 20, flexShrink: 0, marginTop: 2 }}>
       <Box kind="status" style={{ flexGrow: 1, flexShrink: 1, minWidth: 0, height: 18 }} inner={{ justifyContent: "center", paddingLeft: 3, paddingRight: 3 }}>
@@ -440,7 +441,7 @@ function StatusBar({ pane, active, grip, onGrip, onGripMove, onGripUp }: { pane?
       </Box>
       {agent ? (
         <Box kind="status" style={{ height: 18, maxWidth: 220 }} inner={{ flexDirection: "row", alignItems: "center", gap: 3, paddingLeft: 3, paddingRight: 3 }}>
-          <div style={{ width: 8, height: 8, flexShrink: 0, backgroundColor: t[`agent.${pane?.agent_status || "unknown"}`] ?? t["agent.unknown"], borderWidth: 1, borderColor: t["w98.dark"] }} />
+          <div style={{ width: 8, height: 8, flexShrink: 0, backgroundColor: t[`status.${tab?.status || "unknown"}`] ?? t["status.unknown"], borderWidth: 1, borderColor: t["w98.dark"] }} />
           <Label>{agent}</Label>
         </Box>
       ) : null}
@@ -506,7 +507,7 @@ function QuickLaunch({ art: picture, title, onClick }: { art: string; title: str
 function Task({ tab, index, pushed, onClick }: { tab: TabInfo; index: number; pushed: boolean; onClick(): void }) {
   const focused = useFocusedPane(tab.tab_id)
   const pane = useApp((s) => s.snapshot?.panes.find((p) => p.pane_id === focused))
-  const status = useApp((s) => lead(s.snapshot?.panes.filter((p) => p.tab_id === tab.tab_id && p.agent).map((p) => p.agent_status) ?? []))
+  const status = useApp((s) => s.snapshot?.tabs.find((x) => x.tab_id === tab.tab_id)?.status)
   const { open, menu } = useMenu(["tab.menu", "tab.actions"], { tab: tab.tab_id })
   const name = tabName(tab, index)
   return (
@@ -527,33 +528,22 @@ function Task({ tab, index, pushed, onClick }: { tab: TabInfo; index: number; pu
   )
 }
 
-/** The most urgent first: what a task says of the agents in its window. */
-const URGENCY = ["error", "blocked", "working", "done", "idle", "unknown"]
-function lead(statuses: string[]): string | undefined {
-  let best: string | undefined
-  for (const s of statuses) {
-    const status = s || "unknown"
-    if (URGENCY.indexOf(status) >= 0 && (best === undefined || URGENCY.indexOf(status) < URGENCY.indexOf(best))) best = status
-  }
-  return best
-}
-
 /** The tray: an icon for each agent (its state; a press goes to it), what plugins put in the status bar, and the clock. */
 function Tray() {
   const t = useTheme()
   const window = useWindow()
-  const agents = useAgents()
+  const agents = useApp((s) => (s.snapshot?.tabs ?? []).filter((x) => x.status && x.status !== "idle" && x.status !== "unknown"))
   const now = useClock()
   return (
     <Box kind="status" style={{ height: 22, flexShrink: 0 }} inner={{ flexDirection: "row", alignItems: "center", gap: 3, paddingLeft: 4, paddingRight: 6 }}>
       {agents.slice(0, 8).map((a) => (
         <div
-          key={a.pane_id}
-          onClick={() => goTo(window, a.workspace_id, a.tab_id, a.pane_id)}
-          title={`${a.title || a.name || a.agent}: ${a.agent_status || "unknown"}`}
+          key={a.tab_id}
+          onClick={() => goTo(window, a.workspace_id, a.tab_id)}
+          title={`${a.terminal_title || a.label || agentOf(a) || a.tab_id}: ${a.status}`}
           style={{ display: "flex", width: 16, height: 16, alignItems: "center", justifyContent: "center" }}
         >
-          <div style={{ width: 9, height: 9, backgroundColor: t[`agent.${a.agent_status || "unknown"}`] ?? t["agent.unknown"], borderWidth: 1, borderColor: t["w98.dark"] }} />
+          <div style={{ width: 9, height: 9, backgroundColor: t[`status.${a.status || "unknown"}`] ?? t["status.unknown"], borderWidth: 1, borderColor: t["w98.dark"] }} />
         </div>
       ))}
       <Label style={{ marginLeft: 4 }}>{now}</Label>
