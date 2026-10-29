@@ -23,7 +23,7 @@ export function parseOn(word: string): On | null {
   }
 }
 
-/** A program's own report (its pane's `@agent.status`). */
+/** A program's own report (its tab's `@status`). */
 export type Agent = "idle" | "working" | "done" | "blocked" | "error";
 
 export function parseAgent(word: string): Agent | null {
@@ -43,7 +43,7 @@ export function parseAgent(word: string): Agent | null {
 export interface Facts {
   /** Its program exited (`pane_dead`). */
   dead: boolean;
-  /** What it reported it is doing (`@agent.status`), if anything. */
+  /** What it reported it is doing (`@status`), if anything. */
   agent: Agent | null;
   /** Its shell has the terminal (`pane_foreground_pgid == pane_pid`). */
   atRest: boolean;

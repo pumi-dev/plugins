@@ -7,7 +7,7 @@
 //   pumi call queue.cancel '{"id":3}'
 //   pumi call queue.clear
 //
-// The waiting is pumi's own — a pane's `@agent.status`, its `pane_foreground_pgid` back to its
+// The waiting is pumi's own — a pane's `@status`, its `pane_foreground_pgid` back to its
 // shell, `pane_dead` — read here, in `queue.ts`. This file is what the app reaches: the functions
 // others call, the bar's view, and the events that end a wait.
 import { ApiError, fn, on, self } from "pumi";

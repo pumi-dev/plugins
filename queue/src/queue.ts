@@ -1,5 +1,5 @@
 // The queue itself: the jobs, one at a time, each after the pane it waits for is done. The waiting
-// is pumi's own — a pane's `@agent.status` (OSC 7501, so an agent's turn), its
+// is pumi's own — a pane's `@status` (OSC 7501, so an agent's turn), its
 // `pane_foreground_pgid` back to its shell (a plain command finished), `pane_dead` (its program
 // exited) — and what the queue does with them is here.
 //
@@ -69,7 +69,7 @@ async function numberOf(at: number, name: string): Promise<number | null> {
  */
 async function factsOf(at: number): Promise<Facts> {
   const [status, dead, foreground, shell] = await Promise.all([
-    textOf(at, "@agent.status"),
+    textOf(at, "@status"),
     optionOf(at, "pane_dead"),
     numberOf(at, "pane_foreground_pgid"),
     numberOf(at, "pane_pid"),
