@@ -1,7 +1,7 @@
 // The page's logic, in the worker: the repository around the current pane, the scripts a package's
 // `Finder` finds in it, and a script run in a terminal beside it. What it draws — the groups, the
 // folding, the toolbar — is `ui.tsx`'s; this answers it as plain data.
-import { workspace } from "pumi";
+import { call, workspace } from "pumi";
 
 import { groupScripts, repoRoot, type Finder, type Group } from "./finder.ts";
 
@@ -19,11 +19,11 @@ export interface Page {
   showDetail: boolean;
 }
 
-/** Opens a terminal beside the current pane in `dir` and types `command` into it. */
+/** Opens a shell tab beside the current one in `dir` and runs `command` in it. */
 export async function run(dir: string, command: string): Promise<void> {
   try {
-    const opened = await workspace.openPane("terminal", { cwd: dir }, {});
-    await opened.input({ text: `${command}\r` });
+    const opened = await workspace.openTab("pumi_dev.terminal.shell", { cwd: dir });
+    await call("tab.call", opened.id, "run", { command });
   } catch (err) {
     await workspace.openRequest({ kind: "notification", title: `${command}: ${err instanceof Error ? err.message : String(err)}`, level: "error" });
   }

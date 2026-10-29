@@ -1,7 +1,7 @@
 # script-panel
 
 What the `scripts` package draws: a dock page listing a repository's runnable scripts, grouped
-under headers that fold, each run in a terminal beside the current pane.
+under headers that fold, each run in a shell beside the current tab.
 
 It is a **library**, not a page of its own: it declares nothing, so pumi never starts it. A package
 imports it, says what a directory holds (its `Finder`), names `ScriptPage` in its own manifest's
@@ -61,7 +61,7 @@ plural's `s` added.
 | --- | --- |
 | `page(make, cwd)` | the page of `cwd`, in the worker: `make` is `() => Finder \| Promise<Finder>`. |
 | `ScriptPage` | the page itself, in the window: `<ScriptPage load={load} run={run} options={[…]} noun="script" />`. |
-| `run(dir, command)` | opens a `terminal` pane in `dir` and types `command` into it. |
+| `run(dir, command)` | opens a shell tab (`pumi_dev.terminal.shell`, the Terminal plugin's) in `dir` and runs `command` in it. |
 | `Page` | what `page` answers: `{ root, groups, empty, showDetail }`. |
 | `Finder`, `Group`, `Item` | what a package says of its scripts: `{ name, detail, command }` in a `{ label, dir, icon?, items }` under a header. |
 | `groupScripts(finder, root)` | every `Group` below `root`, `depth` directories down, hidden, symlinked and `SKIP`ped directories left out, sorted by the finder (`sort(groups)`, else by label). |
@@ -75,8 +75,9 @@ a directory can hold more than one kind of script (a `package.json`'s and its ow
 glyph a group's header leads with, `showDetail` draws an item's `command` beside its name, and
 `empty` is said when nothing was found.
 
-Running one is the page's, through the `run` it is given: it opens a `terminal` pane beside the
-current one in the group's `dir` and types the item's `command` and `\r` there. A library's
+Running one is the page's, through the `run` it is given: it opens a shell tab
+(`pumi_dev.terminal.shell`) beside the current one in the group's `dir` and runs the item's
+`command` there (`tab.call`'s `run`, which pastes the line and enters it). A library's
 `main.ts` is not a page of its own — the window does not reach it — so both `load` and `run` are the
 package's own `main.ts` exports, which `ui.tsx` hands to `ScriptPage`:
 
