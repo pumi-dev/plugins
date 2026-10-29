@@ -3,8 +3,8 @@
 // opens no pane, so it has no `ui.tsx` for the window to draw.
 //
 // An agent's state is its tab's `@status` (one word: `working`, `blocked`, `error`, `done`,
-// `idle`, `unknown`), which pumi-host keeps from what the program reports, and agents' hooks report
-// (`pumi skill add` installs them). A change to `blocked` or `done` (and `error`, when asked for)
+// `idle`, `unknown`), which pumi-host keeps from what the program reports, and the Agents plugin's
+// hooks report (Settings → Agents). A change to `blocked` or `done` (and `error`, when asked for)
 // is posted with `request.open` as a notification: the tab goes with it, so a click can show it
 // where the app supports one, and the tab's id is the notice's group, so a second notice for a tab
 // replaces the first instead of piling up. When the state moves on — you answered it, or looked at
