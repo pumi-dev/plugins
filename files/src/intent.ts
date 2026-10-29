@@ -121,7 +121,7 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
   const command = editor === "" ? `"\${EDITOR:-vi}" ${quote(path)}` : `${editor} ${quote(path)}`;
   try {
     if (panel.settings.openWith === "pane") await workspace.openPane("file", { path }, place);
-    else await workspace.openPane("terminal", { command, cwd: dirname(path) }, place);
+    else await workspace.openTab("pumi_dev.terminal.shell", { command, cwd: dirname(path) }, place);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
     console.error(`${self.plugin.prefix}: cannot open ${path}: ${why}`);
