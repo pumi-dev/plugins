@@ -78,6 +78,20 @@
       "renderers": {
         "terminal": "Chat"
       },
+      "traits": [
+        {
+          "id": "agent",
+          "title": "Agent",
+          "desc": "A tab whose agent has the plugin's hook: the agent's id (`claude`), set by the hook. `session` is its own session id, `model` its model, `transcript` its session file's absolute path, `accepts` what it takes besides typing (`[\"queue\"]`: a queued prompt at its stop hook), and `conversation` the plugin that serves its conversation (`conversation.read`, `.send`, `.changed`).",
+          "fields": [
+            "session",
+            "model",
+            "transcript",
+            "accepts",
+            "conversation"
+          ]
+        }
+      ],
       "slots": {
         "tab.toolbar": {
           "component": "Toolbar"

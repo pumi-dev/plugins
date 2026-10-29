@@ -1,5 +1,5 @@
-// Where an agent keeps the session a tab is in: `@agent.transcript` when its hook said, else
-// worked out from `@agent.session` and the tab's directory, as each agent lays its files out.
+// Where an agent keeps the session a tab is in: the trait's `transcript` when its hook said, else
+// worked out from its `session` and the tab's directory, as each agent lays its files out.
 // Reads directories (node:fs) but no `import … from "pumi"`.
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -8,9 +8,9 @@ import { join } from "node:path";
 import type { Format } from "./agents.ts";
 
 export interface Where {
-  /** `@agent.transcript`: the session file's absolute path, when the hook gave it. */
+  /** The trait's `transcript`: the session file's absolute path, when the hook gave it. */
   transcript?: string;
-  /** `@agent.session`: the session's id (pi's may be its file's path). */
+  /** The trait's `session`: the session's id (pi's may be its file's path). */
   session?: string;
   /** The tab's directory. */
   cwd?: string;

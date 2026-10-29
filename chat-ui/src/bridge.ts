@@ -1,5 +1,5 @@
 // One agent tab's conversation, as the chat has it: its session file followed into a `Producer`
-// (`conversation/`), the hook's `@agent.status` merged in, prompts typed into its terminal (or
+// (`conversation/`), the tab's `@status` merged in, prompts typed into its terminal (or
 // queued behind the running turn), and the requests pumi holds for it (`request.open`) shown as
 // the conversation's. The TUI stays the session's only owner: this reads its file and types into
 // its terminal, nothing else.
@@ -16,6 +16,7 @@ import { bareCommand, commandsFor } from "./commands.ts";
 import { matchesEcho } from "./echo.ts";
 import { modelCommand, modelOption, modelsFor, PICK_IN_TERMINAL } from "./models.ts";
 import { locate, type Where } from "./locate.ts";
+import { AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import { ClaudeParser } from "./parse/claude.ts";
 import { CodexParser } from "./parse/codex.ts";
 import { records, type Parser } from "./parse/common.ts";
@@ -36,7 +37,7 @@ export interface Asked {
   text?: boolean;
 }
 
-/** The tab options a bridge follows: what the hooks set. */
+/** The tab options a bridge follows: what the hook sets, and the tab's status. */
 export interface TabOptions {
   session?: string;
   transcript?: string;
@@ -93,7 +94,7 @@ export class Bridge {
   #retry: ReturnType<typeof setTimeout> | undefined;
   #retryWait = 500;
   #waiting: string | undefined;
-  /** What `@agent.status` says. */
+  /** What `@status` says. */
   #status: Status;
   /** Set while a prompt just typed waits for the agent to say it is working. */
   #awaiting: ReturnType<typeof setTimeout> | undefined;
@@ -213,17 +214,17 @@ export class Bridge {
 
   // ── The tab's options ──────────────────────────────────────────────────────────────────────
 
-  /** A hook changed one of the tab's options. */
+  /** A hook (or pumi-host, for `@status`) changed one of the tab's options. */
   optionChanged(name: string, value: unknown): void {
     const text = typeof value === "string" && value !== "" ? value : undefined;
     switch (name) {
-      case "@agent.status":
+      case STATUS:
         this.#status = statusOf(value);
         if (this.#status === "working") this.#settled();
         this.#syncStatus();
         this.#drain();
         return;
-      case "@agent.model": {
+      case AGENT_MODEL: {
         if (!text) return;
         this.#options.model = text;
         const session = this.transcript.session;
@@ -240,10 +241,10 @@ export class Bridge {
         if (session) this.#push({ type: "session", session: { ...session, cwd: text } });
         return;
       }
-      case "@agent.session":
-      case "@agent.transcript": {
+      case AGENT_SESSION:
+      case AGENT_TRANSCRIPT: {
         const before = { ...this.#options };
-        if (name === "@agent.session") this.#options.session = text;
+        if (name === AGENT_SESSION) this.#options.session = text;
         else this.#options.transcript = text;
         if (before.session === this.#options.session && before.transcript === this.#options.transcript) return;
         // A new session (`/clear`, a resume): another file. A path given for the session it was in already is the same one.
@@ -291,7 +292,7 @@ export class Bridge {
     const file = locate(this.spec.format, this.spec.id, this.#where());
     if (!file) {
       if (this.#waiting === undefined) {
-        const said = this.#options.session ? `Waiting for ${this.spec.label} to write its session file…` : `Waiting for ${this.spec.label} to say which session it is in (its hook: \`pumi skill add ${this.spec.id}\`)…`;
+        const said = this.#options.session ? `Waiting for ${this.spec.label} to write its session file…` : `Waiting for ${this.spec.label} to say which session it is in (its hook: Settings → Chat UI → Hooks)…`;
         const notice = noticeChange(said, "info", this.producer);
         this.#waiting = notice.type === "push" ? notice.entry.id : undefined;
         this.#push(notice);
@@ -442,7 +443,7 @@ export class Bridge {
 
   #publish(update: Update): void {
     ui.post(UPDATE, { tab: this.tab, update } satisfies TabUpdate);
-    // The conversation convention (`@agent.conversation`): `{tab, changes, cursor}`, and `from`
+    // The conversation's event (`conversation.changed`): `{tab, changes, cursor}`, and `from`
     // for a reader that follows batch by batch. A snapshot (a new epoch) moves the cursor's epoch:
     // a reader reads again.
     const changed: Changed =
@@ -520,7 +521,7 @@ export class Bridge {
         const typed = await this.#type(own ? "/model" : modelCommand(command.value));
         if (typed) return { id: command.id, rejected: typed };
         // Its hook says the model at the next turn: shown now, as picked.
-        if (!own) this.optionChanged("@agent.model", command.value);
+        if (!own) this.optionChanged(AGENT_MODEL, command.value);
         return { id: command.id };
       }
       case "context":

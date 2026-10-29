@@ -12,6 +12,7 @@ import { questionsOf } from "./conversation/question.ts";
 import { Button, Conversation, Header, Press, tint } from "./conversation/ui.tsx";
 import { agentSpec, type AgentSpec } from "./agents.ts";
 import { mentions, read, send, setChat, toggle } from "./main.ts";
+import { AGENT, STATUS } from "./names.ts";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 
 /** A throw the chat cannot answer: said in the log, not drawn over the window. */
@@ -35,11 +36,11 @@ function useTabOptions(tab: TabId): Record<string, unknown> {
   return last.current;
 }
 
-/** The agent a tab's `@agent` names, as last read, or `undefined` before its options were ever read. */
+/** The agent a tab's trait (`AGENT`) names, as last read, or `undefined` before its options were ever read. */
 function useAgentSpec(tab: TabId): AgentSpec | null | undefined {
   const options = useTab(tab)?.options as Record<string, unknown> | undefined;
   const last = useRef<AgentSpec | null | undefined>(undefined);
-  if (options) last.current = agentSpec(options["@agent"]) ?? null;
+  if (options) last.current = agentSpec(options[AGENT]) ?? null;
   return last.current;
 }
 
@@ -51,10 +52,10 @@ export function Toolbar({ tab }: { tab: TabId }) {
   const t = useTheme();
   const plugin = usePlugin() ?? "";
   const options = useTabOptions(tab);
-  const spec = agentSpec(options["@agent"]);
+  const spec = agentSpec(options[AGENT]);
   if (!spec) return null;
   const chat = options["@tab_renderer"] === plugin;
-  const asking = options["@agent.status"] === "blocked";
+  const asking = options[STATUS] === "blocked";
   const tip = chat ? `Show ${spec.label}'s terminal` : asking ? `${spec.label} is asking: show the chat` : `Show ${spec.label} as a chat`;
   return (
     <IconButton
@@ -143,7 +144,7 @@ function useTranscript(tab: number): Transcript | undefined {
 /** One agent tab's chat. */
 function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
   const options = useTabOptions(`%${tab}`);
-  const spec = agentSpec(options["@agent"]);
+  const spec = agentSpec(options[AGENT]);
   const label = spec?.label ?? "the agent";
   const transcript = useTranscript(tab);
   const showTerminal = () => void setChat(tab, false).catch(swallow);
@@ -152,7 +153,7 @@ function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
   // The agent waits on its terminal for something pumi was not asked (no request, no question
   // the timeline shows as one): say so.
   const asking = transcript ? openQuestion(transcript) : false;
-  const askingThere = options["@agent.status"] === "blocked" && (transcript?.permissions.length ?? 0) === 0 && !asking;
+  const askingThere = options[STATUS] === "blocked" && (transcript?.permissions.length ?? 0) === 0 && !asking;
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}>
       {transcript ? (

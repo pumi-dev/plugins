@@ -1,11 +1,11 @@
-// The agents the chat knows: which `@agent` ids it bridges, what each is called, which parser reads
+// The agents the chat knows: which agent ids (the trait's, `names.ts` `AGENT`) it bridges, what each is called, which parser reads
 // its session file, and the keys its TUI takes. No `import … from "pumi"` here.
 import type { Status } from "./conversation/model.ts";
 
 export type Format = "claude" | "codex" | "pi";
 
 export interface AgentSpec {
-  /** The `@agent` id its hook sets. */
+  /** The agent's id, as its hook sets the trait. */
   id: string;
   /** What the chat calls it. */
   label: string;
@@ -35,12 +35,12 @@ export const AGENTS: Record<string, AgentSpec> = {
   omp: { id: "omp", label: "omp", format: "pi", cancel: "\x1b", images: "text", home: ".omp/agent", rewind: "command" },
 };
 
-/** The agent a tab's `@agent` names, when the chat can bridge it. */
+/** The agent a tab's trait names, when the chat can bridge it. */
 export function agentSpec(agent: unknown): AgentSpec | undefined {
   return typeof agent === "string" ? AGENTS[agent] : undefined;
 }
 
-/** `@agent.status` as the conversation has it: the hooks say `idle`, `working`, `blocked`, `done`. */
+/** `@status` as the conversation has it: the hooks say `idle`, `working`, `blocked`, `done`; `unknown` is `idle`. */
 export function statusOf(value: unknown): Status {
   switch (value) {
     case "working":

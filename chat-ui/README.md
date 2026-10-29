@@ -27,7 +27,9 @@ back exactly as it was.
 - **Edit a message** you sent: click it, change it, Enter. pi goes back to that exact message
   (through a small pi extension the plugin installs on first use, `~/.pi/agent/extensions/pumi-chat.ts`);
   Claude Code and Codex open their own rewind.
-- **For other plugins**: every agent tab it reads serves its conversation as
+- **For other plugins**: an agent tab is one with the plugin's trait, `@pumi_dev.chat_ui.agent`
+  (the agent's id; its fields `.session`, `.model`, `.transcript`, `.accepts`, `.conversation`), and
+  its status is the tab's `@status`. Every agent tab it reads serves its conversation as
   `pumi_dev.chat_ui.conversation.read(tab, since?)`, `.send(tab, command)` and the
   `.changed` event.
 

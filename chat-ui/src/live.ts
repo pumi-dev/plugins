@@ -1,5 +1,5 @@
-// What pi says and runs before its session file has it: pumi's pi extension (`pumi skill add pi`)
-// keeps `<session file>.live` as the whole of the assistant message being streamed (its text and
+// What pi says and runs before its session file has it: the plugin's pi extension (its hook,
+// `hooks/templates.ts`) keeps `<session file>.live` as the whole of the assistant message being streamed (its text and
 // thinking) and each running tool's output so far. `Live` turns each read of it into the
 // conversation's changes: the message's blocks as entries that grow, a running tool's output in
 // its card. When the file's own record of the message comes, its entries take the live ones'

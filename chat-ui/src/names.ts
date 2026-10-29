@@ -7,3 +7,21 @@ export const PREFIX = "pumi_dev.chat_ui.";
 
 /** The function an agent's hook calls (`pumi call`), from the agent's terminal. */
 export const HOOK_FN = `${PREFIX}hook`;
+
+/**
+ * The plugin's trait (`agent` in the manifest): a tab is an agent's while it names the agent
+ * (`claude`), as its hook sets it. Its fields are the options below.
+ */
+export const AGENT = `@${PREFIX}agent`;
+/** The agent's own session id. */
+export const AGENT_SESSION = `${AGENT}.session`;
+export const AGENT_MODEL = `${AGENT}.model`;
+/** The session file's absolute path. */
+export const AGENT_TRANSCRIPT = `${AGENT}.transcript`;
+/** What it takes besides typing: `["queue"]`, a queued prompt at its stop hook. */
+export const AGENT_ACCEPTS = `${AGENT}.accepts`;
+/** The plugin serving the tab's conversation (`conversation.read`, `.send`, `.changed`): this one, for an agent the chat reads. */
+export const AGENT_CONVERSATION = `${AGENT}.conversation`;
+
+/** A tab's status, any block's (`working`, `blocked`, `error`, `done`, `idle`, `unknown`): pumi-host's, from what its program reports. */
+export const STATUS = "@status";

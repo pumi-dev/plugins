@@ -9,11 +9,11 @@
 // `Chat` export in `ui.tsx`), picked for one tab by its `@tab_renderer` option naming this
 // plugin: the terminal keeps running under it, untouched, and shows again as it was when the
 // option goes. What the chat shows is the session file the agent writes (`bridge.ts`), and what
-// it sends is typed into the terminal. Each agent tab says the chat serves its conversation
-// (`@agent.conversation`), so anything can read it and send to it by the convention
+// it sends is typed into the terminal. A tab is an agent's by the plugin's own trait (`names.ts`
+// `AGENT`), which the agent's hook sets; each one the chat reads says the chat serves its
+// conversation (`AGENT_CONVERSATION`), so anything can read it and send to it
 // (`conversation.read` / `send` / `changed`).
 import {
-  AGENT_CONVERSATION,
   call,
   conversationNames,
   fn,
@@ -33,6 +33,7 @@ import { agentSpec } from "./agents.ts";
 import { Bridge, type TabOptions } from "./bridge.ts";
 import { mentions as findMentions } from "./mentions.ts";
 import { PICK_IN_TERMINAL } from "./models.ts";
+import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
 
 /** The tab option naming the plugin drawing the tab's block (`@tab_renderer`): this one, or none. */
@@ -43,8 +44,8 @@ const TAB_RENDERER = "@tab_renderer";
  * options are kept with the tab). It goes when the agent does, so the next agent there is taken.
  */
 const TAKEN = "@chat_ui.taken";
-/** The options a bridge follows, set by the agents' hooks. */
-const FOLLOWED = ["@agent.status", "@agent.session", "@agent.transcript", "@agent.model", "tab_current_path"];
+/** The options a bridge follows: the agent's hook sets the trait's, pumi-host `@status`. */
+const FOLLOWED = [STATUS, AGENT_SESSION, AGENT_TRANSCRIPT, AGENT_MODEL, "tab_current_path"];
 
 /** A tab's id as the API has it (`%3`), from the number this package keeps of it. */
 const tabRef = (tab: number): string => `%${tab}`;
@@ -85,7 +86,7 @@ function text(value: unknown): string | undefined {
 
 async function tabOptions(tab: number): Promise<TabOptions> {
   const get = async (name: string) => text(await tabOption(name, tab));
-  const [session, transcript, model, status, cwd] = await Promise.all(["@agent.session", "@agent.transcript", "@agent.model", "@agent.status", "tab_current_path"].map(get));
+  const [session, transcript, model, status, cwd] = await Promise.all([AGENT_SESSION, AGENT_TRANSCRIPT, AGENT_MODEL, STATUS, "tab_current_path"].map(get));
   return { session, transcript, model, status, cwd };
 }
 
@@ -94,7 +95,7 @@ function bridgeOf(tab: number): Promise<Bridge> {
   const running = bridges.get(tab);
   if (running) return running;
   const started = (async () => {
-    const spec = agentSpec(await tabOption("@agent", tab));
+    const spec = agentSpec(await tabOption(AGENT, tab));
     if (!spec) throw new Error(`tab %${tab} runs no agent the chat reads (Claude Code, Codex, pi)`);
     return new Bridge(tab, spec, await tabOptions(tab), () => history);
   })();
@@ -129,7 +130,7 @@ export async function setChat(tab: number, on: boolean): Promise<boolean> {
 export async function toggle(tab?: number): Promise<boolean> {
   const at = typeof tab === "number" ? tab : await here();
   if (at === undefined) throw new Error("chat-ui: no tab in front to flip");
-  if (!agentSpec(await tabOption("@agent", at))) throw new Error(`tab %${at} runs no agent the chat reads`);
+  if (!agentSpec(await tabOption(AGENT, at))) throw new Error(`tab %${at} runs no agent the chat reads`);
   return setChat(at, (await tabOption(TAB_RENDERER, at)) !== self.plugin.id);
 }
 
@@ -234,7 +235,7 @@ async function claim(tab: number): Promise<void> {
  * plugin draws it. Answers whether it was taken.
  */
 async function takeOver(tab: number): Promise<boolean> {
-  if (!auto || !agentSpec(await tabOption("@agent", tab))) return false;
+  if (!auto || !agentSpec(await tabOption(AGENT, tab))) return false;
   if (isSet(await tabOption(TAKEN, tab))) return false;
   const owner = text(await tabOption(TAB_RENDERER, tab));
   if (owner && owner !== self.plugin.id) return false;
@@ -282,7 +283,7 @@ function optionChanged(event: PumiEvent): void {
       rendererChanged(tab, patch[name]);
       continue;
     }
-    if (name === "@agent") {
+    if (name === AGENT) {
       const next = patch[name];
       if (agentSpec(next)) {
         stop(tab);
@@ -365,7 +366,7 @@ async function startup(): Promise<void> {
   await configure();
   for (const each of await workspace.tabs()) {
     const tab = numberOf(each.id);
-    if (!agentSpec(await tabOption("@agent", tab))) continue;
+    if (!agentSpec(await tabOption(AGENT, tab))) continue;
     await claim(tab);
     if ((await tabOption(TAB_RENDERER, tab)) === self.plugin.id) rendererChanged(tab, self.plugin.id);
     await takeOver(tab).catch((err) => console.error(`chat-ui: ${message(err)}`));

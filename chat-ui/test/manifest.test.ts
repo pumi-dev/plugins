@@ -5,6 +5,8 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { AGENT, PREFIX } from "../src/names.ts";
+
 const dir = join(import.meta.dir, "..");
 const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).pumi;
 const ui = readFileSync(join(dir, "src", "ui.tsx"), "utf8");
@@ -18,7 +20,7 @@ function exported(source: string): Set<string> {
 
 describe("the manifest", () => {
   test("contributes what pumi reads, and nothing it refuses", () => {
-    expect(Object.keys(manifest.contributes).sort()).toEqual(["commands", "options", "renderers", "slots"]);
+    expect(Object.keys(manifest.contributes).sort()).toEqual(["commands", "options", "renderers", "slots", "traits"]);
     expect(manifest.activation).toEqual(["onStartup"]);
   });
 
@@ -38,5 +40,12 @@ describe("the manifest", () => {
 
   test("names a command the toggle runs", () => {
     expect(manifest.contributes.commands.map((command: { id: string }) => command.id)).toEqual(["toggle"]);
+  });
+
+  test("is the plugin whose prefix the hooks call and its trait is named by", () => {
+    expect(PREFIX).toBe(`${manifest.owner}.${manifest.name.replaceAll("-", "_")}.`);
+    const traits: { id: string; fields: string[] }[] = manifest.contributes.traits;
+    expect(traits.map((each) => `@${PREFIX}${each.id}`)).toEqual([AGENT]);
+    expect(traits[0]!.fields).toEqual(["session", "model", "transcript", "accepts", "conversation"]);
   });
 });
