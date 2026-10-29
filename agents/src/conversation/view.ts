@@ -269,6 +269,82 @@ export function imagePathsIn(text: string): string[] {
   return found;
 }
 
+/** A piece of a message as it is drawn: its text, or a chip for what it names (a file, a folder, a picture, a skill). */
+export type MessagePart =
+  | { type: "text"; text: string }
+  | { type: "chip"; kind: "file" | "folder" | "image" | "skill"; text: string; label: string; path?: string };
+
+/**
+ * Where the chips are in a message: `@path` and `@"a path"` mentions, pictures named by their
+ * absolute path (quoted or not, as pi is told of one), and skills (`/skill:name`). Each starts the
+ * text or follows a space.
+ */
+const CHIP_AT =
+  /(^|[\s(])(?:@"([^"\n]+)"|@([^\s"@]+)|"(\/[^"\n]+?\.(?:png|jpe?g|gif|webp))"|((?:\/|file:\/\/\/)(?:[^\s"'()]|\\ )+?\.(?:png|jpe?g|gif|webp))(?=$|[\s"'),.;:])|\/(skill:[\w.:-]+))/gi;
+
+/** `text` as its plain runs and its chips, in order; a relative path is taken from `cwd`. */
+export function messageParts(text: string, cwd?: string): MessagePart[] {
+  const parts: MessagePart[] = [];
+  let last = 0;
+  const plain = (to: number) => {
+    if (to > last) parts.push({ type: "text", text: text.slice(last, to) });
+  };
+  CHIP_AT.lastIndex = 0;
+  for (let m = CHIP_AT.exec(text); m; m = CHIP_AT.exec(text)) {
+    const start = m.index + m[1]!.length;
+    let token = m[0].slice(m[1]!.length);
+    let chip: MessagePart;
+    if (m[6]) chip = { type: "chip", kind: "skill", text: token, label: m[6].slice("skill:".length) };
+    else {
+      // An unquoted mention ends before the punctuation that closes a sentence.
+      const bare = m[3]?.replace(/[.,;:!?)]+$/, "");
+      if (bare !== undefined) token = `@${bare}`;
+      const named = m[2] ?? bare ?? m[4] ?? m[5]!.replace(/\\ /g, " ").replace(/^file:\/\//, "");
+      if (named === "" || named === "/") continue;
+      const dir = named.endsWith("/");
+      const path = named.startsWith("/") || named.startsWith("~") || !cwd ? named : `${cwd.replace(/\/+$/, "")}/${named}`;
+      chip = { type: "chip", kind: dir ? "folder" : imageTypeOf(named) ? "image" : "file", text: token, label: dir ? `${baseName(named)}/` : baseName(named), path };
+    }
+    plain(start);
+    parts.push(chip);
+    last = start + token.length;
+    CHIP_AT.lastIndex = last;
+  }
+  plain(text.length);
+  return parts;
+}
+
+/** A `/` the user is typing at the start or after a space: what follows it up to the caret, and where it starts. */
+export function slashAt(draft: string, caret: number): MentionQuery | undefined {
+  const match = /(^|\s)\/([^\s/]*)$/.exec(draft.slice(0, caret));
+  if (!match) return undefined;
+  return { start: caret - match[2]!.length - 1, end: caret, query: match[2]! };
+}
+
+/** The skills among `commands` whose name has what is typed, best first: those it starts with, then those with it anywhere. */
+export function skillHints(query: string, commands: SlashCommand[], limit = 8): SlashCommand[] {
+  const typed = query.toLowerCase().replace(/^skill:/, "");
+  const skills = commands.filter((command) => command.skill);
+  const name = (command: SlashCommand) => command.name.replace(/^\/?(skill:)?/, "").toLowerCase();
+  const starts = skills.filter((command) => name(command).startsWith(typed));
+  const contains = typed === "" ? [] : skills.filter((command) => !name(command).startsWith(typed) && name(command).includes(typed));
+  return [...starts, ...contains].slice(0, limit);
+}
+
+/** How a skill is written in a prompt: `/skill:name`. */
+export function skillToken(command: SlashCommand): string {
+  const name = command.name.replace(/^\//, "");
+  return `/${name.startsWith("skill:") ? name : `skill:${name}`}`;
+}
+
+/** The draft with the `/` being typed (`at`) replaced by `token` and a space, and where the caret goes. */
+export function applySlash(draft: string, at: MentionQuery, token: string): { draft: string; caret: number } {
+  const rest = draft.slice(at.end).replace(/^[^\s]*/, "");
+  const tail = rest.startsWith(" ") ? rest.slice(1) : rest;
+  const text = `${token} `;
+  return { draft: draft.slice(0, at.start) + text + tail, caret: at.start + text.length };
+}
+
 // ── Diffs ─────────────────────────────────────────────────────────────────────────────────────
 
 export { diffRows, diffStats, type DiffRow } from "../diff/patch.ts";

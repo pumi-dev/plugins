@@ -6,7 +6,7 @@
 // No `import … from "pumi"` here.
 import { noticeChange, type Change, type Stamp } from "../conversation/change.ts";
 import type { ToolContent, Transcript, Usage } from "../conversation/model.ts";
-import { imageOf, num, obj, objs, plain, resultContent, str, timeOf, toolPush, toolResult, type Parser, type Rec } from "./common.ts";
+import { collapseSkills, imageOf, num, obj, objs, plain, resultContent, str, timeOf, toolPush, toolResult, type Parser, type Rec } from "./common.ts";
 
 export class ClaudeParser implements Parser {
   #usage: Usage = {};
@@ -116,7 +116,7 @@ function promptText(text: string, at: number, stamp: Stamp, source?: string): Ch
   const stdout = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/.exec(text)?.[1];
   if (stdout !== undefined) return stdout.trim() === "" ? [] : [noticeChange(plain(stdout).trim(), "info", stamp)];
   if (/^<local-command-caveat>/.test(text) || /^<system-reminder>/.test(text)) return [];
-  return [{ type: "push", entry: { id: stamp.id(), kind: "user", at, text, ...from } }];
+  return [{ type: "push", entry: { id: stamp.id(), kind: "user", at, text: collapseSkills(text), ...from } }];
 }
 
 /** A prompt sent while a turn ran is written as a `queued_command` attachment, not a `user` record. */

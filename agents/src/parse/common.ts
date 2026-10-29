@@ -183,3 +183,22 @@ export function plain(text: string): string {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: the escape is what is taken out
   return text.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "");
 }
+
+/** A skill's instructions as pi (and the chat's host) put them in a prompt, with the blank line after. */
+const SKILL_BLOCK = /<skill name="([^"]+)" location="[^"\n]*">\n[\s\S]*?\n<\/skill>(?:\n\n|$)/g;
+
+/**
+ * A prompt as its writer typed it: each skill's instructions put in for it taken out, and the
+ * skill named where it was (`/skill:name`), or first when the text does not name it.
+ */
+export function collapseSkills(text: string): string {
+  if (!text.includes("<skill name=")) return text;
+  const names: string[] = [];
+  const rest = text.replace(SKILL_BLOCK, (_, name: string) => {
+    names.push(name);
+    return "";
+  });
+  if (names.length === 0) return text;
+  const named = (name: string) => rest.split(/\s+/).includes(`/skill:${name}`);
+  return [...names.filter((name) => !named(name)).map((name) => `/skill:${name}`), rest.trim()].filter((part) => part !== "").join(" ");
+}
