@@ -318,22 +318,10 @@ export function route(from: Pt, to: Pt, size: { width: number; height: number },
 
 // ── How a desk is ───────────────────────────────────────────────────────────────────────────
 
-/** Which status says the most, when a desk holds more than one agent: the one that needs you. */
-const URGENCY = ["blocked", "error", "working", "done", "idle"]
-
 /**
- * What a desk's agent is doing: its pane's status for a pane's desk, else the most urgent of its
- * tab's agents (the tab's own `agent_status` when it has one and no pane says more). "" for none.
+ * What a desk's agent is doing: its tab's `@status`, which is already the most demanding of the
+ * agents in it (a pane has none of its own). "" for none.
  */
-export function statusOf(seat: Seat, panes: Pane[]): string {
-  if (seat.pane) return seat.pane.agent_status || ""
-  const all = panes.filter((p) => p.tab_id === seat.tab.tab_id).map((p) => p.agent_status || "")
-  if (seat.tab.agent_status) all.push(seat.tab.agent_status)
-  let best = ""
-  for (const status of all) {
-    if (!status) continue
-    const rank = URGENCY.indexOf(status)
-    if (!best || (rank >= 0 && (URGENCY.indexOf(best) < 0 || rank < URGENCY.indexOf(best)))) best = status
-  }
-  return best
+export function statusOf(seat: Seat): string {
+  return seat.tab.status || ""
 }

@@ -7,10 +7,11 @@ import {
   call,
   grouped,
   num,
+  paneOfTab,
   renderView,
-  useAgentOf,
-  useAgents,
+  useApp,
   useComponents,
+  useLayout,
   useLocal,
   useMenu,
   useSession,
@@ -23,6 +24,12 @@ import {
 import { box, Bubble, DialogButton, FONT, Nametag, PixelButton, Sign, Sprite, walkArt, hash } from "./kit.tsx"
 
 const swallow = (err: unknown) => console.error(String(err))
+
+/** The agent a tab runs, from the Agents plugin's trait: its id (`claude`), or nothing when none said. */
+const agentOf = (tab: { options?: Record<string, unknown> } | undefined): string | undefined => {
+  const id = tab?.options?.["@pumi_dev.agents.agent"]
+  return typeof id === "string" ? id : undefined
+}
 
 /** How the room is reached from a part: walk to the desk a pane is at and sit down. */
 export const RoomContext = createContext<{ visit(pane: string): void } | null>(null)
@@ -200,7 +207,7 @@ function SessionHeader() {
 
 function Agents() {
   const C = useComponents()
-  const agents = useAgents()
+  const agents = useApp((s) => (s.snapshot?.tabs ?? []).filter((x) => x.status && x.status !== "idle" && x.status !== "unknown"))
   const t = useTheme()
   if (!agents.length) {
     return (
@@ -212,57 +219,58 @@ function Agents() {
   return (
     <div style={{ display: "flex", flexDirection: "column", paddingLeft: 4, paddingRight: 4, gap: 2 }}>
       {agents.map((a) => (
-        <C.Agent key={a.pane_id} pane={a.pane_id} />
+        <C.TabRow key={a.tab_id} tab={a.tab_id} />
       ))}
     </div>
   )
 }
 
 /** A player: their avatar with a bubble, their tag, what they're on. A click walks you to their desk. */
-function Agent({ pane }: { pane: string }) {
+function TabRow({ tab }: { tab: string }) {
   const t = useTheme()
   const C = useComponents()
   const room = useContext(RoomContext)
-  const agent = useAgentOf(pane)
+  const one = useApp((s) => s.snapshot?.tabs.find((x) => x.tab_id === tab))
+  const pane = paneOfTab(useLayout(one?.view_id), tab)?.pane
   const [hovered, setHovered] = useState(false)
-  const { open, menu } = useMenu("agent.menu", { pane })
-  if (!agent) return null
-  const status = agent.agent_status || "unknown"
+  const { open, menu } = useMenu("tab.row.menu", { tab })
+  if (!one) return null
+  const status = one.status || "unknown"
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onAuxClick={open}
-      onClick={() => (room ? room.visit(pane) : call("pane.focus", pane).catch(swallow))}
+      onClick={() => (room && pane ? room.visit(pane) : call("tab.focus", tab).catch(swallow))}
       title="Walk over to their desk"
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, minHeight: 46, paddingLeft: 4, paddingRight: 4, cursor: "pointer", hover: { backgroundColor: t.floorHover } }}
     >
       <div style={{ position: "relative", width: 46, height: 46, flexShrink: 0 }}>
-        <Sprite src={walkArt(hash(pane), "down", 0)} width={24} height={34} style={{ position: "absolute", left: 2, top: 10 }} />
+        <Sprite src={walkArt(hash(tab), "down", 0)} width={24} height={34} style={{ position: "absolute", left: 2, top: 10 }} />
         <Bubble status={status} style={{ position: "absolute", left: 20, top: 0 }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3, flexGrow: 1, minWidth: 0 }}>
-        <Nametag dot={t[`agent.${status}`] ?? t["agent.unknown"]}>{agent.name || agent.agent || pane}</Nametag>
-        {agent.title ? <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: "100%" }}>{agent.title}</text> : null}
-        <Point point="agent.footer" args={{ pane }} />
+        <Nametag dot={t[`status.${status}`] ?? t["status.unknown"]}>{agentOf(one) || one.terminal_title || one.label || tab}</Nametag>
+        {one.terminal_title ? <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", maxWidth: "100%" }}>{one.terminal_title}</text> : null}
+        <Point point="tab.row.footer" args={{ tab }} />
       </div>
       <div style={{ display: "flex", flexDirection: "row", opacity: hovered ? 1 : 0 }}>
-        <C.AgentControls pane={pane} />
+        <C.TabRowControls tab={tab} />
       </div>
       {menu}
     </div>
   )
 }
 
-function AgentControls({ pane }: { pane: string }) {
+function TabRowControls({ tab }: { tab: string }) {
   const C = useComponents()
-  const { views, actions } = useSlot("agent.controls")
+  const { views, actions } = useSlot("tab.row.controls")
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3 }}>
       {actions.map((a) => (
-        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={{ pane }} />
+        <C.Action key={`${a.plugin}/${a.id}`} action={a} args={{ tab }} />
       ))}
-      {views.map((v) => renderView(v, { pane }))}
+      {views.map((v) => renderView(v, { tab }))}
     </div>
   )
 }
@@ -272,4 +280,4 @@ function Action({ action, args }: { action: ActionItem; args?: unknown }) {
 }
 
 /** The office's parts beside its window: the rest are the app's, in the theme's colours. */
-export const PARTS: Partial<Components> = { Menu, Dialog, Panel, Agent, AgentControls, Action }
+export const PARTS: Partial<Components> = { Menu, Dialog, Panel, TabRow, TabRowControls, Action }

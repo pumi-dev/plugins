@@ -72,6 +72,12 @@ const coffeeArt = art("coffee")
 const matArt = art("mat")
 
 const swallow = (err: unknown) => console.error(String(err))
+
+/** The agent a tab runs, from the Agents plugin's trait: its id (`claude`), or nothing when none said. */
+const agentOf = (tab: { options?: Record<string, unknown> } | undefined): string | undefined => {
+  const id = tab?.options?.["@pumi_dev.agents.agent"]
+  return typeof id === "string" ? id : undefined
+}
 /** How close you stand to something to use it. */
 const REACH = 48
 /** The emotes, on 1–5. */
@@ -125,8 +131,8 @@ function Carpet({ pod }: { pod: Pod }) {
   const window = useWindow()
   const carpet = useFloorArt("carpet")
   const current = pod.session.workspace_id === here?.workspace_id
-  const status = pod.session.agent_status
-  const dot = status ? (t[`agent.${status}`] ?? t["agent.unknown"]) : t.success
+  const status = pod.session.status
+  const dot = status ? (t[`status.${status}`] ?? t["status.unknown"]) : t.success
   return (
     <div style={{ position: "absolute", left: pod.x, top: pod.y, width: pod.width, height: pod.height, zIndex: 2, pointerEvents: "none" }}>
       <div
@@ -260,8 +266,8 @@ function Peek({ seat, left }: { seat: Seat; left: boolean }) {
   const t = useTheme()
   const tree = useLayout(seat.tab.tab_id)
   const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === seat.tab.tab_id) ?? [])
-  const status = statusOf(seat, panes)
-  const colour = status ? (t[`agent.${status}`] ?? t["agent.unknown"]) : undefined
+  const status = statusOf(seat)
+  const colour = status ? (t[`status.${status}`] ?? t["status.unknown"]) : undefined
   return (
     <div
       style={{
@@ -320,15 +326,14 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
   const focused = useFocusedPane(seat.tab.tab_id)
   const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === seat.tab.tab_id) ?? [])
   const shown = seat.pane?.pane_id ?? focused ?? panes[0]?.pane_id
-  const status = statusOf(seat, panes)
-  const agentPane = seat.pane ?? panes.find((p) => p.agent_status === status && status) ?? panes.find((p) => p.agent || p.agent_status)
-  const busy = !!(agentPane && (agentPane.agent || agentPane.agent_status))
+  const status = statusOf(seat)
+  const busy = !!status && status !== "idle" && status !== "unknown"
   const title = deskTitle(seat)
-  const agent = seat.pane?.label || agentPane?.label || agentPane?.agent || title
+  const agent = seat.pane?.label || seat.tab.label || agentOf(seat.tab) || title
   const working = status === "working"
   const alarmed = status === "blocked" || status === "error"
   const bob = useBeat(working ? 300 : 450, busy && (working || alarmed)) % 2
-  const colour = t[`agent.${status || "unknown"}`] ?? t["agent.unknown"]
+  const colour = t[`status.${status || "unknown"}`] ?? t["status.unknown"]
   const [over, hover] = useHover(350)
   const press = useRef<{ x: number; y: number; base: Pt; moved: boolean } | null>(null)
   const ring = sitting ? t.slotActive : alarmed ? t["office.blocked"] : status === "done" ? t["office.done"] : "#00000000"
@@ -514,13 +519,13 @@ function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt
         ))}
         {room.pods.flatMap((pod) =>
           pod.seats.map((seat, i) => {
-            const status = statusOf(seat, panes)
+            const status = statusOf(seat)
             const cell = pod.cells[i]!
             return (
               <div
                 key={deskKey(seat)}
                 onClick={() => onWalk(deskSpot(cell))}
-                style={{ position: "absolute", left: (cell.x + DESK_ART.x) * k, top: (cell.y + DESK_ART.y) * k, width: Math.max(3, DESK_ART.w * k), height: Math.max(2, DESK_ART.h * k), backgroundColor: status ? (t[`agent.${status}`] ?? t.desk) : t.desk, cursor: "pointer" }}
+                style={{ position: "absolute", left: (cell.x + DESK_ART.x) * k, top: (cell.y + DESK_ART.y) * k, width: Math.max(3, DESK_ART.w * k), height: Math.max(2, DESK_ART.h * k), backgroundColor: status ? (t[`status.${status}`] ?? t.desk) : t.desk, cursor: "pointer" }}
               />
             )
           }),
@@ -546,7 +551,7 @@ function Monitor({ seat, onStand }: { seat: Seat; onStand(): void }) {
   const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === tab) ?? [])
   const [whole, setWhole] = useState(false)
   const one = seat.pane && !whole ? seat.pane.pane_id : undefined
-  const status = statusOf(seat, panes)
+  const status = statusOf(seat)
   return (
     <div
       onClick={onStand}
@@ -560,7 +565,7 @@ function Monitor({ seat, onStand }: { seat: Seat; onStand(): void }) {
         style={{ display: "flex", flexDirection: "column", width: "92%", height: "90%", padding: 10, paddingBottom: 6, borderRadius: 5, backgroundColor: t.desk, borderWidth: 2, borderColor: t.deskFocus, boxShadow: [{ offsetX: 0, offsetY: 5, blurRadius: 0, spreadRadius: 0, color: t.deskEdge }, { offsetX: 0, offsetY: 16, blurRadius: 40, spreadRadius: 0, color: "#00000055" }] }}
       >
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 34, flexShrink: 0, paddingBottom: 6 }}>
-          <Nametag dot={status ? (t[`agent.${status}`] ?? t["agent.unknown"]) : t["office.online"]} size={13}>
+          <Nametag dot={status ? (t[`status.${status}`] ?? t["status.unknown"]) : t["office.online"]} size={13}>
             {deskTitle(seat)}
           </Nametag>
           <text style={{ fontSize: 12, color: t.muted }}>{one ? `pane ${seat.i} of ${tabTitle(seat)}` : `${panes.length} pane${panes.length === 1 ? "" : "s"}`}</text>
@@ -643,7 +648,7 @@ function Door({ onClose }: { onClose(): void }) {
             key: session.workspace_id,
             label: session.label || session.workspace_id,
             detail: session.workspace_id === here?.workspace_id ? "you are here" : undefined,
-            dot: session.agent_status ? (t[`agent.${session.agent_status}`] ?? t["agent.unknown"]) : t["agent.unknown"],
+            dot: session.status ? (t[`status.${session.status}`] ?? t["status.unknown"]) : t["status.unknown"],
             run: () => go(session),
           })),
           {
@@ -721,16 +726,16 @@ function Board({ children }: { children: ReactNode }) {
  * lobby, settings, one desk per pane, the emotes), and the tray — the plugins' status views and
  * buttons, the agents' counts and the clock.
  */
-function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, onAgent }: { lobby: boolean; look: number; decorating: boolean; onLobby(): void; onLook(): void; onEmote(index: number): void; onDecorate(): void; onAgent(pane: string): void }) {
+function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, onTab }: { lobby: boolean; look: number; decorating: boolean; onLobby(): void; onLook(): void; onEmote(index: number): void; onDecorate(): void; onTab(tab: string): void }) {
   const t = useTheme()
   const C = useComponents()
   const window = useWindow()
   const session = useSession()
   const now = useNow(15000)
   const perPane = useThemeOption<boolean>("desk_per_pane", false)
-  const agents = useApp((s) => s.snapshot?.panes.filter((p) => p.agent) ?? [])
+  const agents = useApp((s) => (s.snapshot?.tabs ?? []).filter((x) => x.status && x.status !== "idle" && x.status !== "unknown"))
   const { views, actions } = useSlot("status")
-  const count = (status: string) => agents.filter((a) => a.agent_status === status).length
+  const count = (status: string) => agents.filter((a) => a.status === status).length
   const run = (name: string) => {
     const context = windowContext(window.id)
     if (context) commands.run(name, context)
@@ -776,12 +781,12 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
               key={status}
               title={status === "blocked" ? "Walk to the one waiting for you" : "Walk to one at work"}
               onClick={() => {
-                const next = agents.find((a) => a.agent_status === status)
-                if (next) onAgent(next.pane_id)
+                const next = agents.find((a) => a.status === status)
+                if (next) onTab(next.tab_id)
               }}
               style={{ display: "flex", flexDirection: "row", cursor: "pointer", flexShrink: 0 }}
             >
-              <Nametag dot={t[`agent.${status}`]}>{`${count(status)} ${status}`}</Nametag>
+              <Nametag dot={t[`status.${status}`]}>{`${count(status)} ${status}`}</Nametag>
             </div>
           ) : null,
         )}
@@ -1088,6 +1093,14 @@ export function Office() {
     const spot = spots.find((s) => s.key === `desk:${desk.key}`)
     goUse(spot && { ...spot, use: () => sit(desk.seat, pane) })
   }
+  /** Walks you to a tab's desk and sits you down there. */
+  const visitTab = (tab: string) => {
+    const desk = desks.find((d) => d.seat.tab.tab_id === tab)
+    if (!desk) return void call("tab.focus", tab).catch(swallow)
+    setSitting(null)
+    const spot = spots.find((s) => s.key === `desk:${desk.key}`)
+    goUse(spot && { ...spot, use: () => sit(desk.seat, desk.seat.pane?.pane_id) })
+  }
   // The desks' handlers, the same functions each time (so a desk draws again only when it changes),
   // calling what this draw made.
   const latest = useRef({ goUse, spots, rename, setMenu, setDragged, setMoved, clamp })
@@ -1293,7 +1306,7 @@ export function Office() {
           onLook={() => setLook((n) => (n + 1) % LOOKS)}
           onEmote={(index) => sendEmote(EMOTES[index]!)}
           onDecorate={() => (decorating ? stopDecorating() : setDecorating(true))}
-          onAgent={visit}
+          onTab={visitTab}
         />
         {decorating ? (
           <BuildPanel
