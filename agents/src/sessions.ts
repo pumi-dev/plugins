@@ -21,7 +21,7 @@ import { follow, type Update } from "./conversation/change.ts";
 import { optionOf, type Ack, type Command, type Cursor, type Transcript } from "./conversation/model.ts";
 import { currentName } from "./conversation/view.ts";
 import { catalogAgent, type CatalogAgent } from "./catalog.ts";
-import { installed, launchOf, resumeLine, searchPath } from "./session/launch.ts";
+import { agentPath, agentPathReady, installed, launchOf, resumeLine } from "./session/launch.ts";
 import { lineReader } from "./session/rpc.ts";
 import { fallbackDir, socketPath, type Engine, type FromHost, type HostSpec, type HostState, type ToHost } from "./session/wire.ts";
 import { AGENT, AGENT_CONVERSATION as CONVERSATION, AGENT_MODEL as MODEL, AGENT_SESSION as SESSION, SESSION_CWD as CWD, SESSION_ENGINE as ENGINE, SESSION_START as START, STATUS } from "./names.ts";
@@ -80,7 +80,7 @@ export function serverCommand(agent: CatalogAgent, engine: Engine, path: string,
 }
 
 /** Whether `agent` can start with `engine` without fetching anything. */
-export function engineInstalled(agent: CatalogAgent, engine: Engine, path = searchPath(process.env.PATH)): boolean {
+export function engineInstalled(agent: CatalogAgent, engine: Engine, path = agentPath()): boolean {
   if (engine === "acp") return !!agent.acp && installed(agent.acp.run, path);
   return installed([[agent.program]], path);
 }
@@ -288,15 +288,15 @@ function connect(path: string): Promise<Socket | undefined> {
 /** The Bun the host runs on: the app's own (a compiled app acts as Bun with `BUN_BE_BUN`). */
 const bun = (): string => process.execPath;
 
-/** Starts tab `id`'s host, detached, its output in `hosts/<tab>.log`. */
-async function startHost(id: number, spec: HostSpec): Promise<void> {
+/** Starts tab `id`'s host, detached, its output in `hosts/<tab>.log`; it and the agent it starts run on `path`. */
+async function startHost(id: number, spec: HostSpec, path: string): Promise<void> {
   mkdirSync(hostsDir(), { recursive: true, mode: 0o700 });
   const log = openSync(join(hostsDir(), `${id}.log`), "a");
   const child = spawn(bun(), [join(self.plugin.dir, "src", "session", "host.ts"), JSON.stringify(spec)], {
     cwd: self.plugin.dir,
     detached: true,
     stdio: ["ignore", log, log],
-    env: { ...process.env, BUN_BE_BUN: "1" },
+    env: { ...process.env, PATH: path, BUN_BE_BUN: "1" },
   });
   child.unref();
 }
@@ -328,8 +328,9 @@ async function link(id: number): Promise<Link | undefined> {
     const cwd = (await optionOn<string>(CWD, id)) ?? homedir();
     const session = await optionOn<string>(SESSION, id);
     const mode = session ? "load" : (await optionOn<string>(START, id)) === "pick" ? "pick" : "new";
-    const launch = serverCommand(def, engine, searchPath(process.env.PATH), session);
-    await startHost(id, { socket: path, agent: name, name: def.title, engine, command: launch.command, env: launch.env, cwd, mode, ...(session ? { session } : {}) });
+    const run = await agentPathReady();
+    const launch = serverCommand(def, engine, run, session);
+    await startHost(id, { socket: path, agent: name, name: def.title, engine, command: launch.command, env: launch.env, cwd, mode, ...(session ? { session } : {}) }, run);
     for (let i = 0; i < 100 && !socket; i++) {
       await Bun.sleep(100);
       socket = await connect(path);
