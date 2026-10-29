@@ -100,9 +100,10 @@ takes it (`↑` climbs to its parent, `Esc` gives up), and a bar asks what shoul
 stay on the page, outlined and numbered, and in a strip under the toolbar.
 
 The next time an agent in the same session is sent a message, it is told, unseen, that there are
-notes and how to read them (`notes`), once per agent. Reading them marks them read; `clearNotes`
-(or the strip's Clear) takes them off. The notes are kept with the plugin, so they survive a
-restart.
+notes and how to read them, once per agent. It reads them with the block's own method,
+`tab.call(tab, "notes")` (its `describe` says what they are); reading them marks them read, and
+`clearNotes` (or the strip's Clear) takes them off. The notes are kept with the plugin, so they
+survive a restart.
 
 What a webview cannot do for it: no profile, cookies, downloads or zoom of its own; a link the page
 opens in a new window goes to the system's browser; another site's document is not readable, so

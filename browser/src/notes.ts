@@ -1,5 +1,5 @@
-// The user's notes on a page's elements, and what an agent is told of them: the words, no I/O, so
-// both halves and the tests share them.
+// The user's notes on a page's elements, and what `notes` answers about them: the words, no I/O,
+// so both halves and the tests share them.
 
 /** An element as the kit's `find` and `pick` describe it. */
 export interface Described {
@@ -43,28 +43,6 @@ function source(e: Described): string | null {
   const at = s.file ? `${s.file}${s.line ? `:${s.line}${s.column ? `:${s.column}` : ""}` : ""}` : "";
   const comps = s.components?.length ? `components ${s.components.join(" < ")}` : "";
   return [at, comps].filter(Boolean).join(", ") || null;
-}
-
-/** The hidden line an agent gets at its next prompt: there are notes, and how to read them.
- * `fns` is the package's prefix as its functions are called (`pumi_dev.browser`). */
-export function hint(unread: Note[], fns: string): string {
-  const tabs = [...new Set(unread.map((n) => n.tab))];
-  const where = tabs
-    .map((tab) => {
-      const mine = unread.filter((n) => n.tab === tab);
-      return `${mine.length} in browser tab ${tab} (${mine[mine.length - 1]!.url})`;
-    })
-    .join(", ");
-  const read = tabs.map((tab) => `\`pumi call ${fns}.notes ${tab}\``).join(", ");
-  const one = unread.length === 1;
-  const tab = tabs[0]!;
-  return (
-    `The user left ${one ? "a note on an element" : `${unread.length} notes on elements`} of a web page in pumi's browser: ${where}. ` +
-    `They picked ${one ? "the element" : "each element"} and wrote what they want changed. Read ${one ? "it" : "them"} with ${read} before you answer, ` +
-    `and take what ${one ? "it asks" : "they ask"} as part of their message. A note names its element by CSS selector and HTML and, where the site's dev build says, its source file. ` +
-    `The page's other tools take the tab and a JSON object: \`pumi call ${fns}.snapshot ${tab}\`, \`find\`, \`click\`, \`fill\`, \`eval\`, \`console\`, \`screenshot\` ` +
-    `(\`pumi help ${fns}.click\` says what each takes); \`pumi call ${fns}.clearNotes ${tab}\` takes the notes off once they are done.`
-  );
 }
 
 /** What `notes` answers: each note, and its element. */

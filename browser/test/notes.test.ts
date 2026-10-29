@@ -1,6 +1,6 @@
-// What an agent is told of the user's notes, and what `notes` answers.
+// What `notes` answers about the user's notes.
 import { expect, test } from "bun:test";
-import { hint, label, listed, type Note } from "../src/notes.ts";
+import { label, listed, type Note } from "../src/notes.ts";
 
 const note = (id: number, tab: string, read = false): Note => ({
   id,
@@ -20,16 +20,6 @@ const note = (id: number, tab: string, read = false): Note => ({
     html: '<button class="save">Save</button>',
     source: { file: "src/App.tsx", line: 12, components: ["SaveButton", "App"] },
   },
-});
-
-test("the hint says where the notes are and how to read them", () => {
-  const one = hint([note(1, "%3")], "pumi_dev.browser");
-  expect(one).toContain("a note on an element");
-  expect(one).toContain("browser tab %3 (http://localhost:3000/)");
-  expect(one).toContain("`pumi call pumi_dev.browser.notes %3`");
-  const two = hint([note(1, "%3"), note(2, "%5")], "pumi_dev.browser");
-  expect(two).toContain("2 notes on elements");
-  expect(two).toContain("`pumi call pumi_dev.browser.notes %3`, `pumi call pumi_dev.browser.notes %5`");
 });
 
 test("notes lists each note with its element", () => {
