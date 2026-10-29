@@ -15,11 +15,11 @@
 // reach; `ui.tsx` draws the page.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { ApiError, agent, call, fn, option, paths, self, ui, workspace } from "pumi";
+import { ApiError, call, fn, option, paths, self, ui, workspace } from "pumi";
 
 import { resolve } from "./address.ts";
 import type { Described, Note } from "./notes.ts";
-import { hint, listed } from "./notes.ts";
+import { listed } from "./notes.ts";
 
 /** The tab option a page is on and goes to: the block's own (`pumi_dev.browser.url`). */
 const PAGE = "url";
@@ -467,7 +467,7 @@ const TOOLS: Record<string, Tool> = {
     },
   },
   notes: {
-    desc: "The notes the user left on elements of the page (with the picker): what they want done, and each element as `find` describes it. Answers the unread ones (`all: true`: every one) and marks them read.",
+    desc: "The notes the user left on elements of the page (with the picker): what they want done, and each element as `find` describes it. In a tab, an agent reads them with `tab.call(tab, \"notes\")`. Answers the unread ones (`all: true`: every one) and marks them read.",
     effect: "read",
     args: "`{all?, peek?}`: `peek` leaves them unread.",
     run: (tab, a) => readNotes(tab, a.all === true, a.peek === true),
@@ -498,14 +498,12 @@ for (const [name, tool] of Object.entries(TOOLS)) {
 }
 
 // The user's notes: an element of a page picked in the toolbar, and what they want done with it.
-// They are kept with the plugin (its store), and each agent whose turn starts in the tab's
-// session is told, once, that there are some to read; it reads them with `notes`.
+// They are kept with the plugin (its store), and an agent reads them with the block's `notes`
+// method (`tab.call(tab, "notes")`), which marks them read.
 
 const NOTES = "notes";
 let notes: Note[] = [];
 let lastId = 0;
-/** Which notes each agent's tab has been told of. */
-const told = new Map<string, Set<number>>();
 const loaded = option.get(NOTES).then((kept) => {
   if (Array.isArray(kept)) notes = kept as Note[];
   lastId = notes.reduce((n, note) => Math.max(n, note.id), 0);
@@ -550,27 +548,3 @@ async function readNotes(tab: string, all: boolean, peek: boolean): Promise<stri
   }
   return answer;
 }
-
-/** The session a tab is in. */
-async function sessionOf(tab: string): Promise<string | null> {
-  const got = (await call("tab.get", tab).catch(() => null)) as { session?: string } | null;
-  return got?.session ?? null;
-}
-
-agent.onSend(async (turn) => {
-  await loaded;
-  const unread = notes.filter((n) => !n.read);
-  if (!unread.length) return null;
-  const seen = told.get(turn.tab) ?? new Set<number>();
-  if (unread.every((n) => seen.has(n.id))) return null;
-  const session = await sessionOf(turn.tab);
-  const here: Note[] = [];
-  for (const tab of new Set(unread.map((n) => n.tab))) {
-    if (session !== null && (await sessionOf(tab)) !== session) continue;
-    here.push(...unread.filter((n) => n.tab === tab));
-  }
-  if (!here.length || here.every((n) => seen.has(n.id))) return null;
-  for (const n of here) seen.add(n.id);
-  told.set(turn.tab, seen);
-  return hint(here, self.plugin.prefix.replace(/\.$/, ""));
-});
