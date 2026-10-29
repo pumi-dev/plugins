@@ -13,8 +13,9 @@ with `IconButton` from `pumi`, so the theme draws them as it draws the tab's own
 buttons. The component draws nothing for a tab that is not pi's.
 
 A tab is pi's when its agent's hook said so: the Agents plugin's trait `pumi_dev.agents.agent` has
-`pi` as its id and its `session` field set — what `pumi skill add pi` writes on the tab
-(`@pumi_dev.agents.agent`, `@pumi_dev.agents.agent.session`). A tab that stops being pi's loses its
+`pi` as its id and its `session` field set (`@pumi_dev.agents.agent`,
+`@pumi_dev.agents.agent.session`) — what the Agents plugin's pi hooks write on the tab (Settings →
+Agents). A tab that stops being pi's loses its
 buttons, and one that becomes pi's gets them. The session is read from the tab each time a button is
 pressed, so a fork or a copy is of the session the tab is in now, not the one it started in.
 
