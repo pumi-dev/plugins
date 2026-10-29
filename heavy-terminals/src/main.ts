@@ -11,8 +11,8 @@ import { Watches } from "./watches.ts";
 
 const terminals = new Watches();
 
-/** The pane a caller asked about, as its wire id: an id, a table naming one (`{ pane }`), a user
- * command's `"%3"`, or the current pane. */
+/** The tab a caller asked about, as its wire id: an id, a table naming one (`{ pane }`), a user
+ * command's `"%3"`, or the tab in front. */
 async function paneOf(asked: unknown): Promise<string | null> {
   const direct = idOf(asked);
   if (direct !== null) return direct;
@@ -21,10 +21,10 @@ async function paneOf(asked: unknown): Promise<string | null> {
     const named = idOf(table.pane) ?? (typeof table.args === "string" ? idOf(table.args) : null);
     if (named !== null) return named;
   }
-  return workspace.currentPane?.id ?? null;
+  return workspace.currentTab?.id ?? null;
 }
 
-/** A pane id written as a person or a user command writes one (`3`, `"%3"`), as the API's `%3`. */
+/** A tab id written as a person or a user command writes one (`3`, `"%3"`), as the API's `%3`. */
 function idOf(asked: unknown): string | null {
   const text = typeof asked === "number" ? String(asked) : typeof asked === "string" ? asked.trim() : null;
   const digits = text?.replace(/^%/, "") ?? "";
