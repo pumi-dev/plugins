@@ -126,8 +126,8 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
   const turns = useMemo(() => turnsOf(entries), [entries]);
   const last = entries[entries.length - 1];
   const lastTurn = [...entries].reverse().find((entry) => entry.kind === "turn")?.id;
-  // The rows before the entries: "Show earlier", or the empty state.
-  const head = (hidden > 0 || transcript.truncated ? 1 : 0) + (rows.length === 0 ? 1 : 0);
+  // The row before the entries: "Show earlier".
+  const head = hidden > 0 || transcript.truncated ? 1 : 0;
   const scrollTo = (entryId: string | null) => {
     const at = entryId === null ? 0 : rows.findIndex((entry) => entry.id === entryId);
     if (at >= 0) list.current?.scrollToItem?.(entryId === null ? 0 : head + at, 0);
@@ -172,7 +172,6 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
             )}
           </div>
         ) : null}
-        {rows.length === 0 ? <Empty key="empty" agent={transcript.session?.agent} /> : null}
         {rows.map((entry, at) => (
           // A row is laid out on its own (gpui's list), so without a width it grows to its widest
           // unwrapped line and spills past a narrow pane: pin it to the list's.
@@ -218,18 +217,6 @@ function gapBefore(entry: Entry, before: Entry | undefined): number {
 function turnStart(entries: Entry[]): number | undefined {
   for (let at = entries.length - 1; at >= 0; at--) if (entries[at]!.kind === "user") return entries[at]!.at;
   return undefined;
-}
-
-function Empty({ agent }: { agent?: string }) {
-  const t = useTheme();
-  const type = useType();
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, paddingTop: 48, paddingBottom: 24 }}>
-      <Icon name="sparkle" size={22} color={t.faint} />
-      <text style={{ fontSize: type.body, color: t.muted }}>{agent ? `Nothing said to ${agent} yet` : "Nothing said yet"}</text>
-      <text style={{ fontSize: type.small, color: t.faint, textAlign: "center" }}>Write below to start. / lists commands, @ names files.</text>
-    </div>
-  );
 }
 
 /** A spinning icon, for what is going on now. */
