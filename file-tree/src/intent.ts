@@ -1,6 +1,7 @@
 // What a gesture of the panel comes to, and what carrying it out does. The panel decides, this file acts — files on disk, the clipboard, and
 // opening a file: in a file tab (`tab.open("file", …)`, drawn by whichever plugin fits it), a
-// terminal tab running the user's editor, or whatever app owns it.
+// terminal tab running the user's editor (the Terminal plugin's `pumi_dev.terminal.shell`), or
+// whatever app owns it.
 import { dirname } from "node:path";
 import { self, workspace } from "pumi";
 import type { Transfer } from "./ops.ts";
@@ -94,7 +95,8 @@ function opensAfter(panel: Panel, intent: Intent): string | null {
 
 /**
  * Opens `rel` as the `open_with` option says: in a view of its own, a file tab split on the right
- * (drawn by the viewer that fits it), the user's editor in a terminal tab, or the system's app.
+ * (drawn by the viewer that fits it), the user's editor in a terminal tab (the Terminal plugin's
+ * block), or the system's app.
  */
 export async function openFile(panel: Panel, rel: string): Promise<void> {
   if (panel.settings.openWith === "system") {
@@ -116,7 +118,7 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
   const command = editor === "" ? `"\${EDITOR:-vi}" ${quote(path)}` : `${editor} ${quote(path)}`;
   try {
     if (panel.settings.openWith === "beside") await workspace.openTab("file", { path }, place);
-    else await workspace.openTab("terminal", { command, cwd: dirname(path) }, place);
+    else await workspace.openTab("pumi_dev.terminal.shell", { command, cwd: dirname(path) }, place);
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
     console.error(`${self.plugin.prefix}: cannot open ${path}: ${why}`);
