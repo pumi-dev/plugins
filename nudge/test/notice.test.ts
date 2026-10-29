@@ -1,5 +1,5 @@
 // The rule, on its own: which states are said, what the notice says, and when it is news. The
-// app's side of it — reading every pane's `@agent.status` and posting the notice — is main.ts.
+// app's side of it — reading every tab's `@status` and posting the notice — is main.ts.
 import { expect, test } from "bun:test";
 import { headline, isStatus, level, news, urgency, wanted, where, who } from "../src/notice.ts";
 
@@ -25,7 +25,7 @@ test("an agent is called by its name, and pi is pi", () => {
   expect(who("pi")).toBe("pi");
   expect(who("PI")).toBe("pi");
   expect(who(" Droid ")).toBe("Droid");
-  // A pane with no agent, or one whose name says nothing, is still someone.
+  // A tab with no agent, or one whose name says nothing, is still someone.
   expect(who(null)).toBe("An agent");
   expect(who("")).toBe("An agent");
   expect(who("  ")).toBe("An agent");
@@ -49,11 +49,11 @@ test("the level heads the notice: a failure an error, a wait a warning, a result
   expect(level("done")).toBe("info");
 });
 
-test("the body is the pane's title, else its folder, else the pane", () => {
+test("the body is the tab's title, else its folder, else the tab", () => {
   expect(where(3, "π - Fixing the keymap - pumi", "/Users/amr/Kitchen/pumi")).toBe("π - Fixing the keymap - pumi");
   expect(where(3, "", "/Users/amr/Kitchen/pumi/")).toBe("pumi");
-  expect(where(3, null, null)).toBe("Pane %3");
-  expect(where(3, "  \n ", "")).toBe("Pane %3");
+  expect(where(3, null, null)).toBe("Tab %3");
+  expect(where(3, "  \n ", "")).toBe("Tab %3");
 });
 
 test("a title from a terminal starts on its first line that says something", () => {

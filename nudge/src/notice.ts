@@ -1,8 +1,8 @@
 // What nudge says, apart from the app: which states are worth a notice, what one is called, and
-// whether a state is news. `main.ts` reads the panes and posts what this decides, so a test can
+// whether a state is news. `main.ts` reads the tabs and posts what this decides, so a test can
 // decide too.
 
-/** The states of `@agent.status` that are news. */
+/** The states of `@status` that are news. */
 export type Status = "blocked" | "done" | "error";
 
 /** The switches, by the state they are for. */
@@ -28,7 +28,7 @@ export function wanted(status: Status, on: Toggles): boolean {
  */
 const NAMED: Record<string, string> = { pi: "pi", opencode: "opencode", omp: "omp" };
 
-/** Who is speaking, for the title: the agent, or an agent when the pane does not say. */
+/** Who is speaking, for the title: the agent, or an agent when the tab does not say. */
 export function who(agent: string | null | undefined): string {
   const id = (agent ?? "").trim().toLowerCase();
   if (id === "") return "An agent";
@@ -68,16 +68,16 @@ export function level(status: Status): "info" | "warn" | "error" {
   }
 }
 
-/** The most of a pane's title one notice carries: a banner is one line, and titles run long. */
+/** The most of a tab's title one notice carries: a banner is one line, and titles run long. */
 const CLIP = 140;
 
-/** Where it happened: the pane's own title, else its folder, else the pane by its id. */
-export function where(pane: number, title: string | null | undefined, dir: string | null | undefined): string {
+/** Where it happened: the tab's own title, else its folder, else the tab by its id. */
+export function where(tab: number, title: string | null | undefined, dir: string | null | undefined): string {
   const line = firstLine(title ?? "");
   if (line !== "") return clip(line);
   const folder = lastPart((dir ?? "").replace(/\/+$/, ""));
   if (folder !== "") return folder;
-  return `Pane %${pane}`;
+  return `Tab %${tab}`;
 }
 
 /** The first line of `text` that says something, trimmed. */

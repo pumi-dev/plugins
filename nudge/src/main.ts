@@ -2,33 +2,33 @@
 // turn does not need the window watched. All of it is logic: the package contributes no slot and
 // opens no pane, so it has no `ui.tsx` for the window to draw.
 //
-// An agent's state is its pane's `@agent.status` (one word: `working`, `blocked`, `done`, `idle`,
-// `error`), which the agents' hooks report (`pumi skill add` installs them). A change to
-// `blocked` or `done` (and `error`, when asked for) is posted with `request.open` as a
-// notification: the pane goes with it, so a click can show it where the app supports one, and the
-// pane's id is the notice's group, so a second notice for a pane replaces the first instead of
-// piling up. When the state moves on — you answered it, or looked at the result — the request is
-// closed and its notice goes.
+// An agent's state is its tab's `@status` (one word: `working`, `blocked`, `error`, `done`,
+// `idle`, `unknown`), which pumi-host keeps from what the program reports, and agents' hooks report
+// (`pumi skill add` installs them). A change to `blocked` or `done` (and `error`, when asked for)
+// is posted with `request.open` as a notification: the tab goes with it, so a click can show it
+// where the app supports one, and the tab's id is the notice's group, so a second notice for a tab
+// replaces the first instead of piling up. When the state moves on — you answered it, or looked at
+// the result — the request is closed and its notice goes.
 import { emit, fn, on, option, request, self, type PumiEvent } from "pumi";
 import { headline, isStatus, level, news, urgency, wanted, where, type Status, type Toggles } from "./notice.ts";
 
 /** How long a state must hold before it is told: a result the app shows you at once is not news. */
 const SETTLE_MS = 300;
-/** At most one notice per pane in this long: agents go through states as they work. */
+/** At most one notice per tab in this long: agents go through states as they work. */
 const QUIET_MS = 2000;
 
-/** The number a pane's wire id names (`%3` is `3`). */
+/** The number a tab's wire id names (`%3` is `3`). */
 function numberOf(id: string | null | undefined): number | undefined {
   if (typeof id !== "string") return undefined;
   const found = /^(?:[A-Za-z0-9._-]+\/)?%(\d+)$/.exec(id);
   return found === null ? undefined : Number(found[1]);
 }
 
-/** pane -> the state last told, and when. */
+/** tab -> the state last told, and when. */
 const told = new Map<number, { status: string; at: number }>();
-/** pane -> the look planned at its state, once it has settled. */
+/** tab -> the look planned at its state, once it has settled. */
 const pending = new Map<number, ReturnType<typeof setTimeout>>();
-/** pane -> the notification request open for it, with what it says. */
+/** tab -> the notification request open for it, with what it says. */
 const posted = new Map<number, string>();
 /** Whether a notice the API refused was said already: it is said once, not once a turn. */
 let saidOff = false;
@@ -39,20 +39,20 @@ async function toggles(): Promise<Toggles> {
   return { blocked: blocked !== false, done: done === true, error: error === true };
 }
 
-/** One of the pane's own options, as a string when it says something. */
-async function saidBy(pane: number, name: string): Promise<string | null> {
+/** One of the tab's own options, as a string when it says something. */
+async function saidBy(tab: number, name: string): Promise<string | null> {
   try {
-    const value = await option.get(name, { scope: "pane", id: `%${pane}` });
+    const value = await option.get(name, { scope: "tab", id: `%${tab}` });
     return typeof value === "string" && value !== "" ? value : null;
   } catch {
-    // An option a pane does not have is one it says nothing with.
+    // An option a tab does not have is one it says nothing with.
     return null;
   }
 }
 
-/** What the pane says of itself now: its state, read again a moment after it changed. */
-async function current(pane: number): Promise<string> {
-  return (await saidBy(pane, "@agent.status")) ?? "";
+/** What the tab says of itself now: its state, read again a moment after it changed. */
+async function current(tab: number): Promise<string> {
+  return (await saidBy(tab, "@status")) ?? "";
 }
 
 /** What a notification carries of its own: the OS's notice, and what a click on it is. */
@@ -69,32 +69,32 @@ interface Notice {
 }
 
 /**
- * Opens `notice` as a notification for `pane` (`request.open`), and answers the request's id.
+ * Opens `notice` as a notification for `tab` (`request.open`), and answers the request's id.
  *
  * The request is asked as a variable, not written into the call: the generated `request.open`
  * type (`runtime/app/worker/sdk/api.types.gen.ts`) does not carry the export's `notification`
  * fields yet, and the server keeps them (`crates/pumid/src/api/requests.rs`).
  */
-function open(notice: Notice, pane?: number): Promise<string> {
+function open(notice: Notice, tab?: number): Promise<string> {
   const asked = { kind: "notification" as const, ...notice };
-  return request.open(asked, pane === undefined ? {} : { pane: `%${pane}` });
+  return request.open(asked, tab === undefined ? {} : { tab: `%${tab}` });
 }
 
-/** The group is the pane: one notice per pane, and what a newer one replaces. */
-function group(pane: number): string {
-  return self.plugin.prefixed(`pane.${pane}`);
+/** The group is the tab: one notice per tab, and what a newer one replaces. */
+function group(tab: number): string {
+  return self.plugin.prefixed(`tab.${tab}`);
 }
 
-/** Tells the user `status` happened in `pane`, as the pane describes itself. */
-async function post(pane: number, status: Status): Promise<void> {
+/** Tells the user `status` happened in `tab`, as the tab describes itself. */
+async function post(tab: number, status: Status): Promise<void> {
   const [agent, title, dir, sound] = await Promise.all([
-    saidBy(pane, "@agent"),
-    saidBy(pane, "title"),
-    saidBy(pane, "pane_current_path"),
+    saidBy(tab, "@pumi_dev.agents.agent"),
+    saidBy(tab, "title"),
+    saidBy(tab, "tab_current_path"),
     option.get("sound"),
   ]);
-  told.set(pane, { status, at: Date.now() });
-  const notice = { title: headline(status, agent), body: where(pane, title, dir) };
+  told.set(tab, { status, at: Date.now() });
+  const notice = { title: headline(status, agent), body: where(tab, title, dir) };
   try {
     const id = await open(
       {
@@ -102,15 +102,15 @@ async function post(pane: number, status: Status): Promise<void> {
         detail: notice.body,
         level: level(status),
         notification: {
-          group: group(pane),
+          group: group(tab),
           sound: typeof sound === "string" && sound !== "" ? sound : undefined,
           urgency: urgency(status),
-          data: { pane: `%${pane}`, status, agent },
+          data: { tab: `%${tab}`, status, agent },
         },
       },
-      pane,
+      tab,
     );
-    posted.set(pane, id);
+    posted.set(tab, id);
     saidOff = false;
   } catch (e: any) {
     // The API refused it: nothing was said, so an in-app notice says why, and the turns after it
@@ -121,22 +121,22 @@ async function post(pane: number, status: Status): Promise<void> {
     return;
   }
   // It is told: anything listening hears `amresyd.nudge.said` with what was said.
-  await emit("said", { pane: `%${pane}`, status, agent, ...notice });
+  await emit("said", { tab: `%${tab}`, status, agent, ...notice });
 }
 
-/** A state the pane may have left already: only one it still has is news. */
-async function look(pane: number, status: Status): Promise<void> {
-  if ((await current(pane)) !== status) return;
+/** A state the tab may have left already: only one it still has is news. */
+async function look(tab: number, status: Status): Promise<void> {
+  if ((await current(tab)) !== status) return;
   // A state the switches have off is one not to say, so an older notice for it goes.
-  if (!wanted(status, await toggles())) return void forget(pane);
-  await post(pane, status);
+  if (!wanted(status, await toggles())) return void forget(tab);
+  await post(tab, status);
 }
 
 /** The state is over: take its notice back. What was told of it is kept, so one that comes back
  * within the quiet is not said twice. */
-async function forget(pane: number): Promise<void> {
-  const id = posted.get(pane);
-  posted.delete(pane);
+async function forget(tab: number): Promise<void> {
+  const id = posted.get(tab);
+  posted.delete(tab);
   if (id === undefined) return;
   try {
     await request.close(id);
@@ -145,42 +145,42 @@ async function forget(pane: number): Promise<void> {
   }
 }
 
-/** The state a pane's changed patch says, when it carries one. */
+/** The state a tab's changed patch says, when it carries one. */
 function statusIn(event: PumiEvent): string | undefined {
   const patch = event.data?.patch as { options?: Record<string, unknown> } | undefined;
-  const said = patch?.options?.["@agent.status"];
+  const said = patch?.options?.["@status"];
   return typeof said === "string" ? said : undefined;
 }
 
-/** A pane's agent changed state. Ask again once it settles: the handler stays quick. */
+/** A tab's agent changed state. Ask again once it settles: the handler stays quick. */
 async function changed(event: PumiEvent): Promise<void> {
-  const pane = numberOf(event.pane);
+  const tab = numberOf(event.tab);
   const keys: string[] = event.data?.keys ?? [];
-  if (pane === undefined || !keys.includes("options.@agent.status")) return;
-  clearTimeout(pending.get(pane));
-  pending.delete(pane);
-  const status = statusIn(event) ?? (await current(pane));
+  if (tab === undefined || !keys.includes("options.@status")) return;
+  clearTimeout(pending.get(tab));
+  pending.delete(tab);
+  const status = statusIn(event) ?? (await current(tab));
   // `working`, `idle` or nothing: the wait or the result is over, and so is its notice.
-  if (!isStatus(status)) return void forget(pane);
-  if (!news(status, told.get(pane), Date.now(), QUIET_MS)) return;
+  if (!isStatus(status)) return void forget(tab);
+  if (!news(status, told.get(tab), Date.now(), QUIET_MS)) return;
   pending.set(
-    pane,
+    tab,
     setTimeout(() => {
-      pending.delete(pane);
-      void look(pane, status);
+      pending.delete(tab);
+      void look(tab, status);
     }, SETTLE_MS),
   );
 }
 
-/** The events nudge follows: what an agent is doing is its pane's own option, so `pane.changed`. */
-on("pane.changed", { desc: "say an agent is blocked or done" }, (event: PumiEvent) => void changed(event));
-on("pane.closed", { desc: "take back a closed pane's notice" }, (event: PumiEvent) => {
-  const pane = numberOf(event.pane);
-  if (pane === undefined) return;
-  clearTimeout(pending.get(pane));
-  pending.delete(pane);
-  told.delete(pane);
-  void forget(pane);
+/** The events nudge follows: what an agent is doing is its tab's own option, so `tab.changed`. */
+on("tab.changed", { desc: "say an agent is blocked or done" }, (event: PumiEvent) => void changed(event));
+on("tab.closed", { desc: "take back a closed tab's notice" }, (event: PumiEvent) => {
+  const tab = numberOf(event.tab);
+  if (tab === undefined) return;
+  clearTimeout(pending.get(tab));
+  pending.delete(tab);
+  told.delete(tab);
+  void forget(tab);
 });
 
 /** `Nudge: send a test notification`: whether the system will show one, before an agent needs it. */
