@@ -23,7 +23,7 @@ function exported(source: string): Set<string> {
 
 describe("the manifest", () => {
   test("contributes what pumi reads, and nothing it refuses", () => {
-    expect(Object.keys(manifest.contributes).sort()).toEqual(["blocks", "commands", "options", "settings", "slots", "traits"]);
+    expect(Object.keys(manifest.contributes).sort()).toEqual(["blocks", "commands", "keys", "options", "settings", "slots", "traits"]);
     expect(manifest.activation).toEqual(["onStartup"]);
   });
 
@@ -52,7 +52,7 @@ describe("the manifest", () => {
     expect(sections).toBeUndefined();
     expect(names.has("SettingsPage")).toBe(true);
     // A plugin with a page of its own gets no page made of its options: each is on it. The modes
-    // are the agents' dropdowns.
+    // are the agents' switches.
     for (const key of Object.keys(manifest.contributes.options)) {
       if (key === "modes") expect(settings).toContain("${PREFIX}modes");
       else expect(settings).toContain(`<OptionRow name={\`\${PREFIX}${key}\`} />`);
@@ -64,7 +64,7 @@ describe("the manifest", () => {
   });
 
   test("declares the options main.ts and tell.ts read", () => {
-    expect(Object.keys(manifest.contributes.options).sort()).toEqual(["bun", "context", "context_other_sessions", "context_updates", "history_mb", "key", "modes", "permissions", "restore"]);
+    expect(Object.keys(manifest.contributes.options).sort()).toEqual(["context", "hooks", "modes", "permissions"]);
   });
 
   test("is the plugin whose prefix the hooks call and its trait is named by", () => {

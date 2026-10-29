@@ -285,17 +285,14 @@ function connect(path: string): Promise<Socket | undefined> {
   });
 }
 
-/** The Bun the host runs on: the `bun` option, else the app's own (a compiled app acts as Bun with `BUN_BE_BUN`). */
-async function bun(): Promise<string> {
-  const given = await option.get("bun").catch(() => "");
-  return typeof given === "string" && given !== "" ? given : process.execPath;
-}
+/** The Bun the host runs on: the app's own (a compiled app acts as Bun with `BUN_BE_BUN`). */
+const bun = (): string => process.execPath;
 
 /** Starts tab `id`'s host, detached, its output in `hosts/<tab>.log`. */
 async function startHost(id: number, spec: HostSpec): Promise<void> {
   mkdirSync(hostsDir(), { recursive: true, mode: 0o700 });
   const log = openSync(join(hostsDir(), `${id}.log`), "a");
-  const child = spawn(await bun(), [join(self.plugin.dir, "src", "session", "host.ts"), JSON.stringify(spec)], {
+  const child = spawn(bun(), [join(self.plugin.dir, "src", "session", "host.ts"), JSON.stringify(spec)], {
     cwd: self.plugin.dir,
     detached: true,
     stdio: ["ignore", log, log],

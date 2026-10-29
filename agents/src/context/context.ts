@@ -19,13 +19,13 @@ export type Updates = "changes" | "start";
 /** When an agent is told something: its start, a prompt, or a forced full telling. */
 export type When = "start" | "prompt" | "full";
 
-/** The options that decide what agents are told. */
+/** What decides what agents are told: the `context` option, and the rest fixed (`tell.ts`). */
 export interface Settings {
   /** `context`: whether agents are told at all. */
   context: boolean;
-  /** `context_updates`: `changes` tells it again when the tabs move, `start` only at a start. */
+  /** `changes` tells it again when the tabs move, `start` only at a start. */
   updates: Updates;
-  /** `context_other_sessions`: whether other sessions' tabs are in the map. */
+  /** Whether other sessions' tabs are in the map. */
   otherSessions: boolean;
 }
 

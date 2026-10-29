@@ -31,10 +31,11 @@ const store: Store = {
 
 /** What the agent in `turn` is told now, framed, or `null` when it is told nothing. */
 export async function tell(turn: Turn): Promise<string | null> {
-  const [context, updates, otherSessions] = await Promise.all(["context", "context_updates", "context_other_sessions"].map((name) => option.get(name).catch(() => null)));
+  // Every change, and the other sessions too: only whether to tell at all is the user's.
+  const context = await option.get("context").catch(() => null);
   await workspace.ready;
   const own = workspace.currentSession;
-  return answer(turn, { source, store, settings: settingsOf(context, updates, otherSessions), here: own === null ? null : num(own.id) });
+  return answer(turn, { source, store, settings: settingsOf(context, "changes", true), here: own === null ? null : num(own.id) });
 }
 
 /** The agent's context was compacted: what it was told is gone, so its next turn hears it all. */

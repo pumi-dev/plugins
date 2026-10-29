@@ -38,12 +38,12 @@ import { Bridge, type TabOptions } from "./bridge.ts";
 import { mentions as findMentions } from "./mentions.ts";
 import { PICK_IN_TERMINAL } from "./models.ts";
 import { runHook, requestClosed, type HookApi } from "./hooks/run.ts";
-import { agentLaunch, findAgent, hookRows, install, uninstall, type HookRow } from "./hooks/integrations.ts";
+import { agentLaunch, findAgent, hookRows, install, uninstall } from "./hooks/integrations.ts";
 import { agentIcon, ICON } from "./icons.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
 import type { ConversationRead } from "./topics.ts";
-import { CATALOG, catalogAgent, MODE_LABELS, modeOf, modesOf, type CatalogAgent, type Mode } from "./catalog.ts";
+import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, modeOf, type CatalogAgent, type Choice, type Mode } from "./catalog.ts";
 import { findProgram, searchPath } from "./session/launch.ts";
 import {
   attach,
@@ -101,7 +101,8 @@ const setTabOption = (name: string, value: unknown, id: number): Promise<null> =
 const bridges = new Map<number, Promise<Bridge>>();
 /** The tabs this plugin draws as a chat now. */
 const drawing = new Set<number>();
-let history = 4 << 20;
+/** How much of the end of a session file the chat reads when it opens. */
+const history = 4 << 20;
 
 /** A flag option as the server answers it: set to anything but nothing, `false` or "". */
 const isSet = (value: unknown): boolean => value !== undefined && value !== null && value !== false && value !== "" && value !== "false";
@@ -411,64 +412,77 @@ async function contribute(): Promise<void> {
 
 // ── Settings ────────────────────────────────────────────────────────────────────────────────
 
-/** One agent as Settings lists it: how it opens, whether it is here, and its hook. */
+/** One agent as Settings lists it: how it opens, whether it is here, and whether its hook is in. */
 export interface AgentRow {
   id: string;
   title: string;
-  modes: { value: Mode; label: string }[];
-  mode: Mode;
+  choices: { value: Choice; label: string }[];
+  choice: Choice;
   /** Its program is on the PATH. */
   installed: boolean;
-  /** Said under its name: why to think before its mode (the SDK's billing). */
-  note?: string;
   /** Its mark, as an image's `src`. */
   icon?: string;
-  /** Its hook, when it has one. */
-  hook?: HookRow;
+  /** Its hook, when it has one: in (and up to date), and what went wrong putting it in. */
+  hook?: { connected: boolean; error?: string };
 }
 
-/** Every agent the plugin opens, those installed here first, each with its mode and its hook. */
+/** Every agent the plugin opens, those installed here first, each with its choice and its hook. */
 export async function agentRows(): Promise<AgentRow[]> {
+  await syncHooks();
   const path = searchPath(process.env.PATH);
   const hooks = new Map(hookRows().map((row) => [row.id, row]));
   const rows: AgentRow[] = CATALOG.map((agent) => {
     const hook = hooks.get(agent.id);
+    const error = hookErrors.get(agent.id);
     return {
       id: agent.id,
       title: agent.title,
-      modes: modesOf(agent).map((value) => ({ value, label: MODE_LABELS[value] })),
-      mode: modeOf(agent, modes),
+      choices: choicesOf(agent).map((value) => ({ value, label: CHOICE_LABELS[value] })),
+      choice: choiceOf(agent, modes),
       installed: findProgram(agent.program, path) !== undefined,
-      ...(agent.sdkNote ? { note: agent.sdkNote } : {}),
       ...(agentIcon(agent.id) ? { icon: agentIcon(agent.id) } : {}),
-      ...(hook && hook.hook !== "unsupported" ? { hook } : {}),
+      ...(hook && hook.hook !== "unsupported" ? { hook: { connected: hook.hook === "installed", ...(error ? { error } : {}) } } : {}),
     };
   });
   return rows.sort((a, b) => Number(b.installed) - Number(a.installed));
 }
 
-/** Sets `agent`'s mode (Settings' dropdown). */
-export async function setMode(agent: string, mode: Mode): Promise<void> {
+/** Sets how `agent` opens (Settings' switch). */
+export async function setMode(agent: string, choice: Choice): Promise<void> {
   const def = catalogAgent(agent);
-  if (!def || !modesOf(def).includes(mode)) throw new Error(`agents: ${agent} has no mode ${mode}`);
-  const now = { ...((modes && typeof modes === "object" ? modes : {}) as Record<string, unknown>), [agent]: mode };
+  if (!def || !choicesOf(def).includes(choice)) throw new Error(`agents: ${agent} has no choice ${choice}`);
+  const now = { ...((modes && typeof modes === "object" ? modes : {}) as Record<string, unknown>), [agent]: choice };
   await option.set("modes", now);
 }
 
-/** Installs (or brings up to date) the hooks of agents `ids`, or takes them out; throws what went wrong, one agent a line. */
-export async function changeHooks(ids: string[], add: boolean): Promise<void> {
-  const failed: string[] = [];
-  for (const id of ids) {
-    const agent = findAgent(id);
-    try {
-      if (!agent) throw new Error("no such agent");
-      if (add) install(agent);
-      else uninstall(agent);
-    } catch (err) {
-      failed.push(`${agent?.label ?? id}: ${message(err)}`);
+/** What went wrong putting each agent's hook in or taking it out, by id, for Settings. */
+const hookErrors = new Map<string, string>();
+let syncing: Promise<void> = Promise.resolve();
+
+/**
+ * Each agent's hook as the options say, with nothing to click: in, and up to date, for an agent
+ * installed here that is not `off`; out for one that is `off`, and for all while `hooks` is off.
+ * An agent reads its hook when it starts, so one running now picks a change up when it restarts.
+ * One at a time: the options and Settings both ask.
+ */
+function syncHooks(): Promise<void> {
+  syncing = syncing.then(async () => {
+    const on = (await option.get("hooks").catch(() => true)) !== false;
+    for (const row of hookRows()) {
+      const agent = findAgent(row.id);
+      if (!agent || row.hook === "unsupported") continue;
+      const off = !on || modeFor(row.id) === "off";
+      try {
+        if (!off && row.available && row.hook !== "installed") install(agent);
+        else if (off && row.hook !== "not_installed") uninstall(agent);
+        hookErrors.delete(row.id);
+      } catch (err) {
+        hookErrors.set(row.id, message(err));
+        console.error(`agents: ${row.label}'s hook: ${message(err)}`);
+      }
     }
-  }
-  if (failed.length > 0) throw new Error(failed.join("\n"));
+  });
+  return syncing;
 }
 
 // ── Following the tabs ──────────────────────────────────────────────────────────────────────
@@ -573,20 +587,8 @@ fn.set("toggle", { desc: "Flip the tab between its terminal and the chat.", para
   return toggle(Number.isFinite(tab) ? tab : undefined);
 });
 
-/** The chord bound to `toggle` in the root key table now. */
-let bound: string | null = null;
-
-/** The server's key tables, as the `keys` option holds them. */
-type Keys = Record<string, Record<string, unknown>>;
-
-/**
- * Reads the options: the history size, the modes, and the chord bound to `toggle` (unbinding the one before).
- * The keys are the server's `keys` option, which has no disposer: the app takes a plugin's own
- * away when it stops.
- */
+/** Reads the options: the modes (the `+` menu and the tabs follow them), and the hooks'. */
 async function configure(): Promise<void> {
-  const mb = Number(await option.get("history_mb").catch(() => 4));
-  history = Math.max(1, Number.isFinite(mb) ? mb : 4) << 20;
   const was = JSON.stringify(modes);
   modes = (await option.get("modes").catch(() => ({}))) ?? {};
   if (JSON.stringify(modes) !== was) {
@@ -594,19 +596,7 @@ async function configure(): Promise<void> {
     void contribute().catch((err) => console.error(`agents: ${message(err)}`));
     void takeOverAll().catch((err) => console.error(`agents: ${message(err)}`));
   }
-  const chosen = await option.get("key").catch(() => "");
-  const chord = typeof chosen === "string" ? chosen.trim() : "";
-  if (bound === chord) return;
-  const found = await option.get("keys", { scope: "global" });
-  const root: Keys = found && typeof found === "object" && !Array.isArray(found) ? { ...(found as Keys) } : {};
-  const table = { ...(root.root ?? {}) };
-  if (bound !== null) delete table[bound];
-  bound = null;
-  if (chord !== "") {
-    table[chord] = { call: self.plugin.prefixed("toggle"), args: [], desc: "Flip the tab between its terminal and the chat" };
-    bound = chord;
-  }
-  await option.set("keys", { ...root, root: table }, { scope: "global" }).catch((err: unknown) => console.error(`agents: ${message(err)}`));
+  await syncHooks();
 }
 
 on("option.changed", { match: `${self.plugin.prefix}*`, desc: "Agents follows its options" }, () => void configure());
@@ -671,8 +661,8 @@ const FORMER = { chatUi: "pumi_dev/chat-ui", chat: "amresyd/agent-chat", acp: "a
 const optionNamed = (name: string): Promise<unknown> => option.get(name).catch(() => null);
 
 /**
- * Once: the options the plugins this one replaces had, as this one's. Chat UI's modes and chat
- * options; the version before modes, whose `auto` off meant agents stayed in their terminals (the
+ * Once: the options the plugins this one replaces had, as this one's. Chat UI's modes; the version
+ * before modes, whose `auto` off meant agents stayed in their terminals (the
  * `terminal` mode now); and the workspace context's (`amresyd/agents`).
  */
 async function migrate(): Promise<void> {
@@ -689,12 +679,7 @@ async function migrate(): Promise<void> {
     }
   }
   for (const [from, to] of [
-    ["pumi_dev.chat_ui.key", "key"],
-    ["pumi_dev.chat_ui.history_mb", "history_mb"],
-    ["pumi_dev.chat_ui.bun", "bun"],
     ["amresyd.agents.context", "context"],
-    ["amresyd.agents.updates", "context_updates"],
-    ["amresyd.agents.other_sessions", "context_other_sessions"],
   ] as const) {
     const value = await optionNamed(from);
     if (value !== null && value !== undefined && value !== "") await option.set(to, value).catch(() => null);

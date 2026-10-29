@@ -3,7 +3,7 @@
   "displayName": "Agents",
   "version": "0.2.0",
   "license": "GPL-3.0-or-later",
-  "description": "Coding agents in pumi's tabs: Claude Code, Codex, pi and more open from the + menu in their own terminal, with a chat over it, or as a chat tab over ACP or their SDK. Their hooks report each one's state, and each one is told about the workspace around it.",
+  "description": "Coding agents in pumi's tabs: Claude Code, Codex, pi and more open from the + menu, in their own terminal or as a chat. pumi sees when each one works or waits on you, and each one is told about the workspace around it.",
   "keywords": [
     "agents",
     "chat",
@@ -55,78 +55,28 @@
           "control": "json",
           "label": "Modes",
           "group": "Agents",
-          "desc": "How each agent opens, by its id: `off`, `terminal`, `chat` (the terminal with the chat over it), `acp` or `sdk`. Settings → Agents sets it with a dropdown per agent; an agent left out has its default."
-        },
-        "key": {
-          "type": "string",
-          "default": "",
-          "label": "Key",
-          "placeholder": "<D-S-c>",
-          "group": "Chat",
-          "desc": "A chord that flips the focused agent tab between its terminal and the chat (the root key table). Empty for none; the title bar's button and the command work regardless."
-        },
-        "history_mb": {
-          "type": "number",
-          "default": 4,
-          "min": 1,
-          "max": 64,
-          "step": 1,
-          "unit": "MB",
-          "label": "History read",
-          "group": "Chat",
-          "desc": "How much of the end of a session file the chat reads when it opens. Older turns are left out of a bigger file."
-        },
-        "bun": {
-          "type": "string",
-          "default": "",
-          "label": "Bun",
-          "group": "Chat",
-          "desc": "The Bun that runs each ACP or SDK chat tab's host process. Empty: the app's own."
+          "desc": "How each agent opens from the + menu, by its id: `off` (left out, and its hook taken out), `terminal` (its own screen), or `chat`. Settings → Agents sets it; an agent left out has its default."
         },
         "permissions": {
           "type": "boolean",
           "default": false,
-          "label": "Answer permissions in pumi",
-          "group": "Hooks",
-          "desc": "Ask an agent's permission prompts in pumi (`request.open`), where the chat and any client can answer them; unanswered in two minutes, the agent asks in its own prompt. Claude Code's `PermissionRequest` hook."
-        },
-        "restore": {
-          "type": "table",
-          "default": {},
-          "label": "Restore recipes",
-          "group": "Hooks",
-          "control": "json",
-          "placeholder": "{\"claude\": [\"claude\", \"--resume\", \"{session}\"]}",
-          "desc": "How an agent resumes its session when its tab comes back, by agent id: the program and its arguments, with {session} for the session. Adds to or replaces the plugin's recipe for that agent; an empty list turns one off. The hook writes the line to the tab's `restore_command`."
+          "label": "Answer permission prompts in pumi",
+          "group": "Agents",
+          "desc": "An agent's permission prompts come to pumi, where the chat and any client can answer them; unanswered in two minutes, the agent asks in its own prompt. Claude Code only."
         },
         "context": {
           "type": "boolean",
           "default": true,
-          "label": "Tell agents about the workspace",
-          "group": "Workspace context",
-          "desc": "A short guide to pumi and a map of the sessions, views, panes and tabs around the agent, at its start and with the prompts after. Off: agents are told nothing."
+          "label": "Tell agents about my workspace",
+          "group": "Agents",
+          "desc": "Each agent learns which sessions, panes and tabs are open around it, so it can use them."
         },
-        "context_updates": {
-          "type": "string",
-          "default": "changes",
-          "choices": [
-            "changes",
-            "start"
-          ],
-          "labels": [
-            "At its start and when tabs change",
-            "At its start only"
-          ],
-          "label": "Updates",
-          "group": "Workspace context",
-          "desc": "Keep agents up to date as tabs open, close and move, or tell them only when their session starts."
-        },
-        "context_other_sessions": {
+        "hooks": {
           "type": "boolean",
           "default": true,
-          "label": "Other sessions",
-          "group": "Workspace context",
-          "desc": "The map has the tabs of your other sessions too, not only the agent's own."
+          "label": "Connect agents to pumi",
+          "group": "Agents",
+          "desc": "Put a hook in each agent's own config (e.g. ~/.claude/settings.json) so pumi sees its session and when it works, waits on you or is done, and can bring it back with its tab. Off: every hook is taken out."
         }
       },
       "commands": [
@@ -136,7 +86,7 @@
         },
         {
           "id": "handoff",
-          "title": "Agents: continue this terminal agent in a chat tab (ACP or SDK)"
+          "title": "Agents: continue this agent in a chat tab"
         },
         {
           "id": "back",
@@ -172,13 +122,8 @@
             "keywords": [
               "agents",
               "chat",
-              "modes",
-              "acp",
-              "sdk",
               "hook",
-              "install",
               "permissions",
-              "restore",
               "context",
               "workspace",
               "claude",
@@ -199,6 +144,12 @@
           "id": "session",
           "title": "Agent chat",
           "icon": "sparkle"
+        }
+      ],
+      "keys": [
+        {
+          "key": "<D-S-c>",
+          "command": "toggle"
         }
       ]
     },

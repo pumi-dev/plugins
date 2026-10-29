@@ -65,10 +65,10 @@ describe("the hook function", () => {
     expect(unknown.sets).toEqual([[AGENT, "aider", "%3"]]);
   });
 
-  test("takes the user's restore recipe", async () => {
+  test("writes the agent's own resume line, whatever the options say", async () => {
     const { api, sets } = fake({ options: { restore: { codex: [] } } });
     await runHook(api, "%3", "codex", "prompt", { session_id: "s" });
-    expect(sets.some(([name]) => name === "restore_command")).toBe(false);
+    expect(sets.find(([name]) => name === "restore_command")?.[1]).toBe("codex resume s");
   });
 
   test("leaves the state of an agent that reports its own", async () => {

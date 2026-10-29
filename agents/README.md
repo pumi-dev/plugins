@@ -2,27 +2,32 @@
 
 <p align="center"><img src="preview.svg" width="640" alt="A Claude Code session as a chat: messages, a tool call, a permission card and the prompt"></p>
 
-Coding agents in pumi's tabs, in one plugin. A pane's `+` menu opens each agent installed here as
-Settings → Agents says (its mode); its hook tells pumi its session and when it works, waits on
-you or is done; and it is told about the sessions, panes and tabs around it.
+Coding agents in pumi's tabs, in one plugin. A pane's `+` menu opens each agent installed here,
+in its own terminal or as a chat; pumi sees when it works, waits on you or is done; and it is
+told about the sessions, panes and tabs around it.
 
 ```sh
 pumi plugin add pumi-dev/plugins/agents
 ```
 
-| Mode | What runs | Agents |
+Settings → Agents has one switch per agent:
+
+| | What opens | Agents |
 | --- | --- | --- |
-| Terminal | the agent's own TUI, in a terminal its hook runs in | all |
-| Terminal + chat | the TUI, with the chat drawn over it; one click flips between them | Claude Code, Codex, pi, omp |
-| ACP | a chat tab that runs the agent's ACP server | Claude Code, Codex, pi, Gemini, OpenCode, Copilot, Kiro |
-| SDK | a chat tab that runs the agent over its own protocol | pi (`--mode rpc`), Codex (`app-server`), Claude Code (Agent SDK) |
-| Off | left out of the `+` menu, and its tabs left alone | all |
+| Terminal | the agent's own screen; the tab's button flips it to a chat and back | all |
+| Chat | the agent as a chat | Claude Code, Codex, pi, omp, Gemini, OpenCode, Copilot, Kiro |
+| Off | nothing: it is left out of the `+` menu, its tabs are left alone and its hook taken out | all |
+
+A chat is the agent's own terminal with the chat drawn over it where the plugin reads the agent's
+session file (Claude Code, Codex, pi, omp), else a chat tab that runs the agent's ACP server.
+*Agents: continue this agent in a chat tab* also hands pi, Codex or Claude Code to a tab that runs
+it over its own protocol (an SDK).
 
 It takes over from Chat UI (`pumi_dev/chat-ui`) and the workspace context plugin
 (`amresyd/agents`): their options carry over the first time it starts, and Chat UI's open chat
 tabs each time it starts while Chat UI is off.
 
-## Terminal + chat
+## A chat over the terminal
 
 Nothing restarts and nothing is screen-scraped. The chat reads the session file the agent writes
 and types what you send into its terminal, which keeps running underneath. **Terminal** gives it
@@ -48,7 +53,7 @@ back exactly as it was.
 The tab's toolbar has the button; *Agents: flip the focused tab between the terminal and the chat*
 is in the palette.
 
-## ACP and SDK tabs
+## Chat tabs (ACP and SDK)
 
 The plugin runs the agent itself, under a small host process per tab (`src/session/host.ts`), so
 the agent keeps running when the window closes and the tab finds it again. The host speaks ACP, or
@@ -56,26 +61,28 @@ the agent's own protocol, and the chat draws what it says as it is written: text
 calls with their output, permission requests and an agent's questions as cards, its models in the
 picker. A tab with a session continues it after a restart.
 
-- *Agents: continue this terminal agent in a chat tab* hands a terminal agent's session to a chat
-  tab, once its turn is over (its SDK mode when it has that mode chosen, else ACP).
+- *Agents: continue this agent in a chat tab* hands a terminal agent's session to a chat tab,
+  once its turn is over (over ACP when the agent has it, else its SDK).
 - The toolbar's terminal button, or *Agents: continue this chat tab's session in the agent's
   terminal*, goes back to the TUI on the same session.
 - ACP adapters that aren't installed are fetched with `npx` at a pinned version.
-- **Claude Code's SDK mode** runs your installed `claude` through Anthropic's Agent SDK, signed in
-  as it is. Anthropic asks apps built on the Agent SDK to sign in with an API key; on a Pro or Max
-  sign-in this use may be billed as extra usage. Terminal + chat runs the unmodified `claude` and
-  has no such question.
+- **Claude Code in a chat tab** runs your installed `claude` through Anthropic's Agent SDK, signed
+  in as it is. Anthropic asks apps built on the Agent SDK to sign in with an API key; on a Pro or
+  Max sign-in this use may be billed as extra usage. Chat in Settings is the chat over the
+  unmodified `claude`, which has no such question.
 
 ## Hooks
 
-Settings → Agents installs each agent's hook into the agent's own config (Claude Code's
+The plugin puts each agent's hook into the agent's own config by itself (Claude Code's
 `~/.claude/settings.json`, Codex's `~/.codex/hooks.json`, pi's extension
-`~/.pi/agent/extensions/pumi-context.ts`, …), brings it up to date or takes it out; the user's own
-hooks there are left as they are, and the first copy of a config is kept as `.pumi-bak`. A hook
-runs only in a terminal opened for its agent, which has `PUMI_AGENT` set:
+`~/.pi/agent/extensions/pumi-context.ts`, …) for every agent installed here that isn't Off, and
+keeps it up to date; it takes it out when the agent is set to Off, or all of them when *Connect
+agents to pumi* is off. An agent running then picks the change up when it starts again. The
+user's own hooks there are left as they are, and the first copy of a config is kept as
+`.pumi-bak`. A hook runs only in a terminal opened for its agent, which has `PUMI_AGENT` set:
 
 ```sh
-pumi call pumi_dev.agents.open claude [cwd]   # an agent tab, as its mode says
+pumi call pumi_dev.agents.open claude [cwd]   # an agent tab, as Settings says
 ```
 
 An agent's terminal is the plugin's own block, `pumi_dev.agents.term`, on pumi's terminal engine:
@@ -110,7 +117,7 @@ $7 pumi (current)
 
 The map's ids are pumi's: `$1` a session, `@2` a view, `:4` a pane, `%3` a tab. `(current)` marks
 where you are. A terminal agent hears it through its hook (Claude's `additionalContext`, pi's
-hidden message, OpenCode's system prompt); an ACP or SDK tab's host puts it ahead of the prompt.
+hidden message, OpenCode's system prompt); a chat tab's host puts it ahead of the prompt.
 After a compaction the agent is told everything again.
 
 ## For other plugins and agents
@@ -123,7 +130,8 @@ prompt for it after its turn, which is how one agent asks another.
 
 ## Keys
 
-They work wherever the keyboard is in the chat.
+⇧⌘C flips the focused agent tab between its terminal and the chat; change it on the Keybindings
+page. The rest work wherever the keyboard is in the chat.
 
 | | |
 | --- | --- |
@@ -139,21 +147,18 @@ Settings → Agents, one page.
 
 | | |
 | --- | --- |
-| Agents | one row per agent: its mode, and its hook (install, update, remove) |
-| Key | a chord that flips the focused agent tab (none) |
-| History read | how much of a session file's end is read when the chat opens (4 MB) |
-| Bun | the Bun that runs ACP and SDK tabs' hosts (the app's own) |
-| Answer permissions in pumi | ask Claude Code's permission prompts in pumi; unanswered in two minutes, Claude asks itself (off) |
-| Restore recipes | how each agent resumes its session when its tab comes back, by agent id |
-| Tell agents about the workspace | the guide and the map (on) |
-| Updates | at its start and when tabs change, or at its start only |
-| Other sessions | the map has your other sessions' tabs too (on) |
+| Agents | one row per agent installed here: Off, Terminal or Chat, and whether it is connected |
+| Connect agents to pumi | the agents' hooks, put in and kept up to date by the plugin (on) |
+| Answer permission prompts in pumi | Claude Code's permission prompts come to pumi; unanswered in two minutes, Claude asks itself (off) |
+| Tell agents about my workspace | the guide and the map (on) |
+
+A chat reads the last 4 MB of a session file, and the map has your other sessions' tabs too.
 
 ## Limits
 
-- In Terminal + chat, a reply shows as each message is written to the session file, not token by
+- In a chat over the terminal, a reply shows as each message is written to the session file, not token by
   token, and the mode can't be changed from the chat, nor Codex's model: those pickers are the TUI's.
-- In ACP and SDK tabs, going back to an earlier message is the agent's own, in its terminal; and
+- In chat tabs, going back to an earlier message is the agent's own, in its terminal; and
   the agent's own list of sessions to pick from is ACP's only.
 - An agent without its hook is taken to be ready 15 s after a prompt, so a queued prompt may
   arrive while it still works.
@@ -172,7 +177,7 @@ bun test                 # the parsers, the conversation model, mentions, comman
 The tests run on synthetic records shaped like each agent's files; no real session is in them.
 `src/conversation/` is the agent-agnostic conversation (the model, its changes, the chat's drawing),
 `src/parse/` turns each agent's session file into it, and `src/bridge.ts` follows one terminal tab.
-`src/catalog.ts` lists the agents and their modes; `src/sessions.ts` runs the ACP and SDK tabs, and
+`src/catalog.ts` lists the agents and how each opens; `src/sessions.ts` runs the ACP and SDK tabs, and
 `src/session/` is their host, one engine per protocol. `src/hooks/` is the agents' hooks (the
 table and their files, `integrations.ts`; what the hook function answers, `hook.ts` and `run.ts`),
 and `src/context/` with `src/tell.ts` is what an agent is told about the workspace.

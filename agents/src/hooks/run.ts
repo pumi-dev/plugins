@@ -15,7 +15,7 @@ import { findAgent, PERMISSION_WAIT, resumeLine } from "./integrations.ts";
 export interface HookApi {
   /** `tab.call(tab, "report", {body})`: an OSC 7501 report, as the agent would send it. */
   report(tab: string, body: string): Promise<unknown>;
-  /** One of the plugin's own options (`permissions`, `restore`), or with `tab` one of that tab's. */
+  /** One of the plugin's own options (`permissions`), or with `tab` one of that tab's. */
   get(name: string, tab?: string): Promise<unknown>;
   /** One of tab `tab`'s options, set. */
   set(name: string, value: unknown, tab: string): Promise<unknown>;
@@ -157,7 +157,7 @@ export async function runHook(api: HookApi, tabId: unknown, agentId: unknown, wo
   ];
   for (const [name, value] of fields) if (value !== undefined) await api.set(name, value, id).catch((err: unknown) => warn(name, err));
   if (said.session) {
-    const line = resumeLine(agentId, said.session, await api.get("restore").catch(() => null));
+    const line = resumeLine(agentId, said.session, null);
     if (line) await api.set("restore_command", line, id).catch((err: unknown) => warn("restore_command", err));
   }
   if (event !== "compact") dismiss(api, tab);
