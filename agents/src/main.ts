@@ -44,7 +44,7 @@ import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT
 import type { MentionHit } from "./conversation/view.ts";
 import type { ConversationRead } from "./topics.ts";
 import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, guiMode, modeOf, preferOf, preferred, type CatalogAgent, type Choice, type Mode, type Prefer } from "./catalog.ts";
-import { findProgram, searchPath } from "./session/launch.ts";
+import { agentPath, agentPathReady, findProgram, loginPath } from "./session/launch.ts";
 import {
   attach,
   authenticate,
@@ -411,7 +411,7 @@ function available(agent: CatalogAgent, mode: Mode, path: string): boolean {
  * agent installed here whose mode is not `off`, in the catalog's order (`plugin.contribute`).
  */
 async function contribute(): Promise<void> {
-  const path = searchPath(process.env.PATH);
+  const path = agentPath();
   const shown = CATALOG.filter((agent) => available(agent, modeOf(agent, modes, prefer), path));
   const own = (self.plugin.manifest.contributes?.commands ?? []) as { id: string; title: string }[];
   const commands = [...own, ...shown.map((agent) => ({ id: newCommand(agent), title: `New ${agent.title}` }))];
@@ -440,7 +440,7 @@ export interface AgentRow {
 /** Every agent the plugin opens, those installed here first, each with its choice and its hook. */
 export async function agentRows(): Promise<AgentRow[]> {
   await syncHooks();
-  const path = searchPath(process.env.PATH);
+  const path = await agentPathReady();
   const hooks = new Map(hookRows().map((row) => [row.id, row]));
   const rows: AgentRow[] = CATALOG.map((agent) => {
     const hook = hooks.get(agent.id);
@@ -628,6 +628,11 @@ async function startup(): Promise<void> {
   await migrate();
   await configure();
   await contribute().catch((err) => console.error(`agents: ${message(err)}`));
+  // An app opened from the Dock has a short PATH: once the login shell's is read, the agents
+  // found on it join the `+` menu.
+  void loginPath().then((found) => {
+    if (found) void contribute().catch((err) => console.error(`agents: ${message(err)}`));
+  });
   void reconcile().catch((err) => console.error(`agents: ${message(err)}`));
   for (const each of await workspace.tabs()) {
     const tab = numberOf(each.id);
