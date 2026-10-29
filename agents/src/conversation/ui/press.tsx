@@ -79,9 +79,9 @@ export function useTap(onTap: (event: PressEvent) => void): { onMouseDown(event:
 }
 
 /** Around a field of its own in the chat (an answer, an edit): a click in it stays its own, not a tap of the chat's. */
-export function OwnClicks({ style, children }: { style?: StyleDesc; children?: ReactNode }) {
+export function OwnClicks({ style, children, onLayout }: { style?: StyleDesc; children?: ReactNode; onLayout?(event: any): void }) {
   return (
-    <div onMouseUp={(event: PressEvent) => event.stopPropagation?.()} style={style}>
+    <div onMouseUp={(event: PressEvent) => event.stopPropagation?.()} onLayout={onLayout} style={style}>
       {children}
     </div>
   );
