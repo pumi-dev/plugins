@@ -23,12 +23,12 @@ const THEME: Tokens = {
   error: "#cc6666",
   success: "#a6e3a1",
   overlay: "#26282bf2",
-  "agent.working": "#89b4fa",
-  "agent.blocked": "#fab387",
-  "agent.error": "#f38ba8",
-  "agent.done": "#a6e3a1",
-  "agent.idle": "#9399b2",
-  "agent.unknown": "#6c7086",
+  "status.working": "#89b4fa",
+  "status.blocked": "#fab387",
+  "status.error": "#f38ba8",
+  "status.done": "#a6e3a1",
+  "status.idle": "#9399b2",
+  "status.unknown": "#6c7086",
 };
 
 test("every frame is the same size", () => {
