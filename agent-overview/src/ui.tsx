@@ -165,8 +165,8 @@ function Cards({ model }: { model: Model }) {
   const t = useTheme();
   const m = useMetrics();
   const cards: { title: string; count: number; caption: string; tone: string }[] = [
-    { title: "Working", count: model.count("working"), caption: "turning", tone: t["agent.working"] ?? t.accent },
-    { title: "Needs you", count: model.needsYou(), caption: "blocked or failed", tone: t["agent.blocked"] ?? t.warning },
+    { title: "Working", count: model.count("working"), caption: "turning", tone: t["status.working"] ?? t.accent },
+    { title: "Needs you", count: model.needsYou(), caption: "blocked or failed", tone: t["status.blocked"] ?? t.warning },
     { title: "Sessions", count: model.sessions(), caption: "with agents", tone: t.muted },
   ];
   return (
@@ -186,7 +186,7 @@ function Cards({ model }: { model: Model }) {
 function Brief({ agent }: { agent: Agent }) {
   const t = useTheme();
   const m = useMetrics();
-  const tone = t[`agent.${agent.status}`] ?? t["agent.unknown"];
+  const tone = t[`status.${agent.status}`] ?? t["status.unknown"];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: m.radius, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -249,7 +249,7 @@ function Table({ agents, onPress }: { agents: Agent[]; onPress(agent: Agent): vo
             <text style={{ fontSize: 12, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{agent.kind || agent.command || "terminal"}</text>
           </div>
           <div style={{ display: "flex", width: 90, flexShrink: 0 }}>
-            <text style={{ fontSize: 11, color: t[`agent.${agent.status}`] ?? t.muted }}>{statusLabel(agent.status)}</text>
+            <text style={{ fontSize: 11, color: t[`status.${agent.status}`] ?? t.muted }}>{statusLabel(agent.status)}</text>
           </div>
           <div style={{ display: "flex", width: 170, flexShrink: 0, minWidth: 0 }}>
             <text style={{ fontSize: 11, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{place(agent)}</text>
@@ -267,7 +267,7 @@ function Table({ agents, onPress }: { agents: Agent[]; onPress(agent: Agent): vo
 /** A state's mark: a dot in the theme's colour for it. */
 function Dot({ status, size = 8 }: { status: Status; size?: number }) {
   const t = useTheme();
-  return <div style={{ width: size, height: size, flexShrink: 0, borderRadius: size, backgroundColor: t[`agent.${status}`] ?? t["agent.unknown"] }} />;
+  return <div style={{ width: size, height: size, flexShrink: 0, borderRadius: size, backgroundColor: t[`status.${status}`] ?? t["status.unknown"] }} />;
 }
 
 /** Whether a status is one a filter shows. */

@@ -25,10 +25,9 @@ pane.
 It reads nothing on its own. An agent says what it is doing itself, over OSC 7501, and the host
 keeps that on the tab: `@program_status` for its records, `@status` for the most demanding of
 them, and the Agents plugin's trait (`@pumi_dev.agents.agent`, `.session`) for who it is and which
-conversation it is in — what
-`pumi skill add` writes. The dashboard is the window's own state: it draws the app's panes, tabs
-and sessions as they are (`usePanes`, `useTabs`, `useSessions`), so it moves when they do, without
-reading anything on a clock.
+conversation it is in — what the Agents plugin's hooks write (Settings → Agents). The dashboard
+is the window's own state: it draws the app's panes, tabs and sessions as they are (`usePanes`,
+`useTabs`, `useSessions`), so it moves when they do, without reading anything on a clock.
 
 Only panes placed in a tab are agents: a float, a slot and a detached pane are not, whichever block
 they hold. A shell nobody has reported on is not one either; a program that said what it is doing
