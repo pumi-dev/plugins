@@ -12,7 +12,7 @@
 // character to the caret, taken whole by any edit that reaches into it, a picture's showing itself
 // on hover. A picture's mention is attached to the prompt when it is sent, left out of its text.
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { call, Icon, useMetrics, useTheme, type ElementRef } from "pumi";
+import { call, Icon, motion, useMetrics, useTheme, type ElementRef } from "pumi";
 
 import type { ConfigOption, Image, Queued, SlashCommand, Status, Usage } from "../model.ts";
 import { recallTakes, stepRecall, type RecallAt } from "../keys.ts";
@@ -62,6 +62,11 @@ export interface ComposerProps {
   onFollow?(): void;
   /** The conversation has begun: the editor can be expanded. */
   expandable?: boolean;
+  /**
+   * Nothing is said yet: the composer takes the whole chat, its field as tall as there is room.
+   * When it turns false (a prompt sent) the composer shrinks back to its own height.
+   */
+  fill?: boolean;
   /** One of them changed; without it they are shown but not changed. */
   onOption?(option: ConfigOption, value: string | boolean): void;
   /** The prompts sent before, oldest first, which Up brings back (`keys.ts` `sentPrompts`). */
@@ -111,6 +116,12 @@ const kept = new Map<string, { draft: string; chips: Chip[] }>();
 const MAX_SLASH = 50;
 const MAX_MENTIONS = 30;
 const ROW = 26;
+/** The field's own rows, when it is not filling the chat. */
+const MIN_ROWS = 4;
+/** The space above the field, in its box. */
+const FIELD_TOP = 4;
+/** How long the composer takes to shrink from filling the chat, in seconds. */
+const SHRINK_SECONDS = 0.28;
 /** The keys the field hands to the list while it shows, rather than moving its caret or sending. */
 const LIST_KEYS = ["up", "down", "enter"];
 /** The keys it hands to bringing a prompt back. */
@@ -141,6 +152,7 @@ export function Composer({
   following = false,
   onFollow,
   expandable = false,
+  fill = false,
   history = [],
   handle,
   draftKey,
@@ -177,6 +189,18 @@ export function Composer({
   const [expanded, setExpanded] = useState(false);
   // How wide the editor is: the list over it is as wide.
   const [width, setWidth] = useState(0);
+  // How tall the field's box is while it fills the chat, and the rows that fit in it.
+  const [area, setArea] = useState(0);
+  const fillRows = Math.max(MIN_ROWS, Math.floor((area - FIELD_TOP) / type.codeLine));
+  // Filling the chat no more: the room it gave back, drawn as the composer's colour above it and
+  // shrunk to nothing, so the composer seems to shrink to its height.
+  const [shrink, setShrink] = useState<number | null>(null);
+  const [filled, setFilled] = useState(fill);
+  if (filled !== fill) {
+    setFilled(fill);
+    const room = area - (FIELD_TOP + MIN_ROWS * type.codeLine);
+    setShrink(!fill && room > 0 ? room : null);
+  }
   const markedRow = useRef<ElementRef | null>(null);
   // Whether the field has the keyboard focus, and the mount that takes it: the field's ref gives it
   // the focus (`focus()`); in an app without that, a focus asked for builds the field again, its
@@ -404,10 +428,22 @@ export function Composer({
     </div>
   );
   return (
+    <>
+    {shrink !== null ? (
+      <motion.div
+        key="shrink"
+        initial={{ height: shrink }}
+        animate={{ height: 0 }}
+        transition={{ duration: SHRINK_SECONDS, ease: "easeOut" }}
+        onMotionComplete={() => setShrink(null)}
+        style={{ flexShrink: 0, backgroundColor: t.editor, borderTopWidth: 1, borderColor: t.border }}
+      />
+    ) : null}
     <div
+      key="composer"
       // Dropped here unless the chat around takes drops for it (`dropped`): one drop, taken once.
       onFileDrop={dropped ? undefined : (e: any) => take(e?.paths ?? [])}
-      style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0, paddingLeft: 10, paddingRight: 8, paddingTop: 8, paddingBottom: 8, borderTopWidth: 1, borderColor: t.border, backgroundColor: t.editor }}
+      style={{ display: "flex", flexDirection: "column", gap: 8, flexGrow: fill ? 1 : 0, flexShrink: fill ? 1 : 0, minHeight: 0, paddingLeft: 10, paddingRight: 8, paddingTop: 8, paddingBottom: 8, borderTopWidth: fill || shrink !== null ? 0 : 1, borderColor: t.border, backgroundColor: t.editor }}
     >
       {queue.length > 0 ? (
         <div role="list" aria-label="Queued prompts" style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -427,7 +463,7 @@ export function Composer({
           ))}
         </div>
       ) : null}
-      <div onLayout={(e: any) => typeof e?.width === "number" && e.width !== width && setWidth(e.width)} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative" }}>
+      <div onLayout={(e: any) => typeof e?.width === "number" && e.width !== width && setWidth(e.width)} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative", flexGrow: fill ? 1 : 0, minHeight: 0 }}>
         {shown ? (
           // Over the chat, its bottom at the editor's top: it covers the transcript, not moves it.
           <anchored side="top" align="start" gap={6} fit="snap" snapMargin={8} deferred occlude priority={1} style={{ backgroundColor: "transparent" }}>
@@ -475,7 +511,10 @@ export function Composer({
           </anchored>
         ) : null}
         {/* A click in the field places its caret: not a tap of the chat's, which would build it again. */}
-        <OwnClicks style={{ display: "flex", flexDirection: "column", position: "relative", minWidth: 0, paddingTop: 4, paddingRight: expandable ? 22 : 0 }}>
+        <OwnClicks
+          onLayout={fill ? (e: any) => typeof e?.height === "number" && e.height !== area && setArea(e.height) : undefined}
+          style={{ display: "flex", flexDirection: "column", position: "relative", minWidth: 0, flexGrow: fill ? 1 : 0, minHeight: 0, overflow: fill ? "hidden" : undefined, paddingTop: FIELD_TOP, paddingRight: expandable ? 22 : 0 }}
+        >
           <textarea
             aria-label={`Message ${who}`}
             value={draft}
@@ -486,8 +525,8 @@ export function Composer({
             ref={field}
             key={mount}
             autoFocus={autoFocus || mount > 0}
-            minRows={expanded ? 24 : 4}
-            maxRows={expanded ? 48 : 8}
+            minRows={fill ? fillRows : expanded ? 24 : MIN_ROWS}
+            maxRows={fill ? fillRows : expanded ? 48 : 8}
             theme={text}
             interceptKeys={live ? LIST_KEYS : recallTakes("down", history, recall, draft) ? RECALL_BOTH : recallTakes("up", history, recall, draft) ? RECALL_UP : undefined}
             onChange={(e) => {
@@ -539,5 +578,6 @@ export function Composer({
         </div>
       </div>
     </div>
+    </>
   );
 }

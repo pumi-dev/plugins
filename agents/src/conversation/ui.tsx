@@ -98,7 +98,15 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
   // Each new number asks the composer to take the keyboard.
   const [focus, setFocus] = useState(0);
   const composer = useRef<ComposerHandle | null>(null);
+  const t = useTheme();
   const entries = transcript?.entries;
+  // A prompt sent from the empty chat, until it shows in the transcript: the composer stops
+  // filling the chat at once, not when the agent answers.
+  const [sent, setSent] = useState(false);
+  const said = (entries?.length ?? 0) > 0;
+  useEffect(() => {
+    if (said) setSent(false);
+  }, [said]);
   const history = useMemo(() => sentPrompts(entries ?? []), [entries]);
   const editingNow = useRef(false);
   const takeFocus = () => setTimeout(() => !editingNow.current && setFocus((n) => n + 1), 0);
@@ -135,6 +143,8 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
   }
   const setOption = (option: ConfigOption, value: string | boolean) => onCommand({ type: "setOption", id: newCommandId(), category: option.category, option: option.id, value });
   const idle = transcript.status !== "working" && transcript.status !== "blocked" && transcript.queue.length === 0;
+  // Nothing said yet: the composer is the whole chat.
+  const fresh = !said && idle && !sent;
   // A message still being edited that left the conversation (another session, a reload), or once
   // the agent works again, is no longer edited.
   const edited = editing && idle && transcript.entries.some((entry) => entry.id === editing.id) ? editing : null;
@@ -182,10 +192,11 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           const paths: string[] = Array.isArray(e?.paths) ? e.paths : [];
           if (paths.length > 0) setDropped((last) => ({ paths, n: last.n + 1 }));
         }}
-        style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}
+        // The chat in the side bar's colour, the composer in the editor's.
+        style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, backgroundColor: t.surface }}
       >
         {hideHeader ? null : <Header transcript={transcript} onOption={setOption} except={["model", "mode", "thought_level"]} />}
-        <Timeline transcript={transcript} pageSize={pageSize} onLink={onLink} onAnswerElsewhere={onAnswerElsewhere} elsewhereLabel={elsewhereLabel} messageActions={actionsOf}
+        {fresh ? null : <Timeline transcript={transcript} pageSize={pageSize} onLink={onLink} onAnswerElsewhere={onAnswerElsewhere} elsewhereLabel={elsewhereLabel} messageActions={actionsOf}
           editing={edited?.id}
           editable={editable}
           onEditStart={startEdit}
@@ -196,7 +207,7 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           }}
           onFork={forks && idle ? (entry) => onCommand({ type: "fork", id: newCommandId(), entry: entry.id }) : undefined}
           onRestore={idle ? (entry) => onCommand({ type: "restore", id: newCommandId(), entry: entry.id }) : undefined}
-        />
+        />}
         <PlanBar plan={transcript.plan} />
         {transcript.permissions.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, paddingLeft: 10, paddingRight: 10, paddingTop: 8 }}>
@@ -228,7 +239,11 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           following={following}
           onFollow={onFollowFile ? () => setFollowing(!following) : undefined}
           expandable={transcript.entries.length > 0}
-          onSend={(text, pictures) => onCommand({ type: "prompt", id: newCommandId(), text, ...(pictures.length > 0 ? { images: pictures } : {}) })}
+          fill={fresh}
+          onSend={(text, pictures) => {
+            setSent(true);
+            onCommand({ type: "prompt", id: newCommandId(), text, ...(pictures.length > 0 ? { images: pictures } : {}) });
+          }}
           onStop={() => onCommand({ type: "cancel", id: newCommandId() })}
           onUnqueue={(queued) => onCommand({ type: "unqueue", id: newCommandId(), queued })}
         />
