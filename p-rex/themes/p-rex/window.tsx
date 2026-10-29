@@ -19,7 +19,6 @@ import {
   run,
   serverOf,
   shortcut,
-  useAgentOf,
   useApp,
   useComponents,
   useFocusedPane,
@@ -33,6 +32,7 @@ import {
   useSessions,
   useSidebar,
   useSlot,
+  useTabStatus,
   useTabs,
   useWindow,
   via,
@@ -49,6 +49,15 @@ import {
 type Tokens = ReturnType<typeof useTheme>
 
 const swallow = (err: unknown) => console.error(String(err))
+
+/** The agent a tab runs, from the Agents plugin's trait: its id (`claude`), or nothing when none said. */
+const agentOf = (tab: { options?: Record<string, unknown> } | undefined): string | undefined => {
+  const id = tab?.options?.["@pumi_dev.agents.agent"]
+  return typeof id === "string" ? id : undefined
+}
+
+/** Whether a tab runs on the terminal engine: one whose `tab_pid` the engine keeps. */
+const isTerminal = (tab: { options?: Record<string, unknown> } | undefined): boolean => typeof tab?.options?.tab_pid === "number"
 const stop = (e: any) => e?.stopPropagation?.()
 
 // ── Icons ──────────────────────────────────────────────────────────────────────────────────────
@@ -128,16 +137,17 @@ function lead(statuses: string[]): string | undefined {
 }
 
 /** The tile a pane is shown on, and the glyph on it: an agent's mark, a terminal's prompt, a page's globe. */
-function tileOf(p: Pick<PaneInfo, "block" | "agent"> | undefined, t: Tokens): { color: string; glyph: string } {
+function tileOf(p: { block: string; options?: Record<string, unknown> } | undefined, t: Tokens): { color: string; glyph: string } {
   if (!p) return { color: t["rex.tile.terminal"], glyph: "terminal" }
-  if (p.agent) {
-    const name = p.agent.toLowerCase()
+  const agent = agentOf(p)
+  if (agent) {
+    const name = agent.toLowerCase()
     if (name.includes("claude")) return { color: t["rex.tile.claude"], glyph: "sparkle" }
     if (name.includes("codex")) return { color: t["rex.tile.codex"], glyph: "zap" }
     if (name === "pi" || name.startsWith("pi-") || name.includes("π")) return { color: t["rex.tile.pi"], glyph: "sparkle" }
     return { color: t["rex.tile.agent"], glyph: "sparkle" }
   }
-  if (p.block === "terminal") return { color: t["rex.tile.terminal"], glyph: "terminal" }
+  if (isTerminal(p)) return { color: t["rex.tile.terminal"], glyph: "terminal" }
   if (p.block === "file") return { color: t["rex.tile.file"], glyph: "code" }
   if (p.block === "image" || p.block.endsWith(".image")) return { color: t["rex.tile.image"], glyph: "image" }
   if (p.block === "browser" || p.block.endsWith(".page")) return { color: t["rex.tile.browser"], glyph: "globe" }
@@ -146,7 +156,7 @@ function tileOf(p: Pick<PaneInfo, "block" | "agent"> | undefined, t: Tokens): { 
 }
 
 /** A pane's glyph without its tile: the pane's title bar's. */
-function glyphOf(p: Pick<PaneInfo, "block" | "agent">): string {
+function glyphOf(p: { block: string; options?: Record<string, unknown> }): string {
   return tileOf(p, {} as Tokens).glyph
 }
 
@@ -157,7 +167,7 @@ function glyphOf(p: Pick<PaneInfo, "block" | "agent">): string {
  */
 const Tile = memo(function Tile({ color, glyph, status, size = 20 }: { color: string; glyph: string; status?: string; size?: number }) {
   const t = useTheme()
-  const dot = status && status !== "idle" && status !== "unknown" ? (t[`agent.${status}`] ?? t["agent.unknown"]) : undefined
+  const dot = status && status !== "idle" && status !== "unknown" ? (t[`status.${status}`] ?? t["status.unknown"]) : undefined
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <div
@@ -433,14 +443,14 @@ function TabPanes({ tab, session, label, close }: { tab: string; session: string
   const window = useWindow()
   const focused = useFocusedPane(tab)
   const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === tab) ?? NO_PANES)
+  const status = useTabStatus(tab)
   return (
     <Popover side="bottom" width={280} close={close}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", height: 26, flexShrink: 0, paddingLeft: 13, paddingRight: 13 }}>
         <text style={{ fontSize: 12, fontWeight: 600, color: t["rex.heading"], whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{label}</text>
       </div>
       {panes.map((p) => {
-        const status = p.agent ? p.agent_status : undefined
-        const said = status ? STATUS_LABEL[status] : undefined
+        const said = agentOf(p) && status ? STATUS_LABEL[status] : undefined
         const mine = p.pane_id === focused
         return (
           <div
@@ -453,10 +463,10 @@ function TabPanes({ tab, session, label, close }: { tab: string; session: string
             style={{ display: "flex", flexDirection: "column", gap: 1, flexShrink: 0, marginLeft: 5, marginRight: 5, paddingTop: 5, paddingBottom: 5, paddingLeft: 8, paddingRight: 8, borderRadius: 7, cursor: "pointer", backgroundColor: mine ? t.selected : undefined, hover: { backgroundColor: t.hover } }}
           >
             <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 7, minWidth: 0 }}>
-              <Glyph name={glyphOf(p)} size={13} color={status && status !== "idle" && status !== "unknown" ? (t[`agent.${status}`] ?? t.text) : t.text} />
+              <Glyph name={glyphOf(p)} size={13} color={status && status !== "idle" && status !== "unknown" ? (t[`status.${status}`] ?? t.text) : t.text} />
               <text style={{ fontSize: 13, fontWeight: 600, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{paneTitle(p)}</text>
               <div style={{ flexGrow: 1, minWidth: 8 }} />
-              {said ? <text style={{ fontSize: 12, color: status === "working" ? t["agent.working"] : t.faint, whiteSpace: "nowrap", flexShrink: 0 }}>{said}</text> : null}
+              {said ? <text style={{ fontSize: 12, color: status === "working" ? t["status.working"] : t.faint, whiteSpace: "nowrap", flexShrink: 0 }}>{said}</text> : null}
             </div>
             {p.cwd ? <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0, paddingLeft: 20 }}>{tilde(p.cwd)}</text> : null}
           </div>
@@ -761,7 +771,7 @@ const SessionHeading = memo(function SessionHeading({ session: id, label, folded
   const window = useWindow()
   const [hovered, setHovered] = useState(false)
   const current = id === window.session
-  const status = useApp((s) => (folded ? lead(s.snapshot?.panes.filter((p) => p.workspace_id === id && p.agent).map((p) => p.agent_status) ?? []) : undefined))
+  const status = useApp((s) => (folded ? lead(s.snapshot?.tabs.filter((x) => x.workspace_id === id).map((x) => x.status) ?? []) : undefined))
   const { renaming, start, input } = useRename({ session: id }, label)
   const { open, show, menu, shown } = useMenu("session.menu", { session: id })
   const newTab = () => {
@@ -793,7 +803,7 @@ const SessionHeading = memo(function SessionHeading({ session: id, label, folded
           </div>
         ) : folded && !renaming ? (
           <>
-            {status ? <div style={{ width: 7, height: 7, borderRadius: 7, flexShrink: 0, backgroundColor: t[`agent.${status}`] ?? t["agent.unknown"] }} /> : null}
+            {status ? <div style={{ width: 7, height: 7, borderRadius: 7, flexShrink: 0, backgroundColor: t[`status.${status}`] ?? t["status.unknown"] }} /> : null}
             <text style={{ fontSize: 11, color: t.faint }}>{String(tabs)}</text>
           </>
         ) : null}
@@ -813,7 +823,7 @@ function useTabItem(id: string, named: string | null) {
   const focused = useFocusedPane(id)
   const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === id && (p.place as { kind?: string } | undefined)?.kind !== "float") ?? NO_PANES)
   const p = panes.find((x) => x.pane_id === focused) ?? panes[0]
-  const status = lead(panes.filter((x) => x.agent).map((x) => x.agent_status))
+  const status = useApp((s) => s.snapshot?.tabs.find((x) => x.tab_id === id)?.status)
   const label = named && !/^\d+$/.test(named) ? named : p ? paneTitle(p) : "Tab"
   const tile = tileOf(p, t)
   const rename = useRename({ tab: id }, label)
@@ -841,9 +851,9 @@ const TabRow = memo(function TabRow({ tab: id, session, label: named, worktree, 
   const { p, status, label, tile, rename, menu: tabMenu, draggable, drop } = useTabItem(id, named)
   const { renaming, start, input } = rename
   const { open, show, menu, shown } = tabMenu
-  const agentArgs = useMemo(() => ({ pane: p?.pane_id }), [p?.pane_id])
-  const controls = useSlot("agent.controls")
-  const agent = !!p?.agent
+  const agentArgs = useMemo(() => ({ tab: id }), [id])
+  const controls = useSlot("tab.row.controls")
+  const agent = !!agentOf(p)
   const near = hovered || shown
   return (
     <>
@@ -888,12 +898,12 @@ const TabRow = memo(function TabRow({ tab: id, session, label: named, worktree, 
                 <text style={{ fontSize: 11, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{shortName(worktree)}</text>
               </div>
             ) : null}
-            {agent ? <SlotRow slot="agent.footer" args={agentArgs} /> : null}
+            {agent ? <SlotRow slot="tab.row.footer" args={agentArgs} /> : null}
           </div>
         )}
         {(near || front) && !renaming ? (
           <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1, flexShrink: 0 }}>
-            {near && agent && controls.actions.length + controls.views.length > 0 ? <C.AgentControls pane={p!.pane_id} /> : null}
+            {near && agent && controls.actions.length + controls.views.length > 0 ? <C.TabRowControls tab={id} /> : null}
             <RowButton icon="ellipsis" title="More" size={20} onClick={show} />
           </div>
         ) : null}
@@ -920,10 +930,10 @@ const SlotRow = memo(function SlotRow({ slot, args, gap = 2 }: { slot: string; a
   )
 })
 
-/** An agent's actions (`agent.controls`), given the agent: on its tab's row while hovered. */
-function AgentControls({ pane }: { pane: string }) {
-  const args = useMemo(() => ({ pane }), [pane])
-  return <SlotRow slot="agent.controls" args={args} />
+/** A tab row's actions (`tab.row.controls`), given the tab: on its row while hovered. */
+function TabRowControls({ tab }: { tab: string }) {
+  const args = useMemo(() => ({ tab }), [tab])
+  return <SlotRow slot="tab.row.controls" args={args} />
 }
 
 /** What a pane or tab drag carries, by the mouse: its tile and its name. */
@@ -1223,7 +1233,6 @@ function PaneTitle({ pane: id, focused, zoomed, over, menu }: { pane: string; fo
   const t = useTheme()
   const C = useComponents()
   const p = usePane(id)
-  const agent = useAgentOf(id)
   const tree = useLayout(p?.tab_id)
   const draggable = useDraggable({ kind: "pumi.pane", pane: id })
   const toolbar = useMemo(() => ({ pane: id }), [id])
@@ -1231,9 +1240,9 @@ function PaneTitle({ pane: id, focused, zoomed, over, menu }: { pane: string; fo
   const zoomable = zoomed || (!!tree && "axis" in tree)
   const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: id, split: side }).catch(swallow)
   const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
-  const status = agent?.agent_status || "unknown"
+  const status = useTabStatus(p?.tab_id) || "unknown"
   // An agent's glyph says what it is doing; anything else's is the title's colour.
-  const glyphColor = agent && status !== "idle" && status !== "unknown" ? (t[`agent.${status}`] ?? t["rex.title"]) : focused ? t["rex.title"] : t["rex.titleDim"]
+  const glyphColor = status !== "idle" && status !== "unknown" ? (t[`status.${status}`] ?? t["rex.title"]) : focused ? t["rex.title"] : t["rex.titleDim"]
   return (
     <div
       {...draggable.props}
@@ -1327,7 +1336,7 @@ function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boolean; z
   const floating = kind === "float"
   const titled = titles && !!live && !floating
   // A terminal gets a little more room from the card's edge; a plugin's block pads its own.
-  const terminal = pane?.block === "terminal"
+  const terminal = isTerminal(pane)
   return (
     <div
       onMouseDown={() => {
@@ -1403,7 +1412,7 @@ export const P_REX: Partial<Components> = {
   Window,
   Starting,
   Pane,
-  AgentControls,
+  TabRowControls,
   Action,
   Menu,
   Dialog,
