@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"],
+    "types": ["bun"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "pumi",
+    "strict": true,
+    // The SDK is the app's own sources, checked with this off (their napi callbacks are untyped);
+    // a package that reads them with it on reports the app's callbacks, not its own.
+    "noImplicitAny": false,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "paths": {
+      "pumi": ["./node_modules/@pumid/types/index.ts"],
+      "pumi/theme": ["./node_modules/@pumid/types/theme.ts"],
+      "pumi/jsx-runtime": ["./node_modules/@pumid/types/jsx-runtime.ts"],
+      "pumi/jsx-dev-runtime": ["./node_modules/@pumid/types/jsx-dev-runtime.ts"]
+    }
+  },
+  "exclude": ["node_modules"]
+}
