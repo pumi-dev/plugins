@@ -1,0 +1,61 @@
+{
+  "name": "pumi-music-studio",
+  "displayName": "Music Studio",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A song in a tab, the way GarageBand lays it out: the transport and the bar it is on, the song's parts on an arrangement track, a row a track with mute and solo, the spectrum, the waveform and the meters. Told about tempo, key and chords too, and notes on a part are the agent's to read.",
+  "keywords": [
+    "music",
+    "audio",
+    "player",
+    "spectrum",
+    "waveform",
+    "garageband",
+    "analysis"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "music-studio"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "essentia.js": "0.1.3"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "music-studio",
+    "owner": "pumi_dev",
+    "api": 1,
+    "uses": [
+      "processes",
+      "files"
+    ],
+    "contributes": {
+      "blocks": [
+        {
+          "id": "player",
+          "title": "Music Studio",
+          "icon": "plugin:icon.svg",
+          "methods": [
+            "play",
+            "pause",
+            "toggle",
+            "stop"
+          ]
+        }
+      ]
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}
