@@ -32,7 +32,7 @@ const store: Store = {
 /** What the agent in `turn` is told now, framed, or `null` when it is told nothing. */
 export async function tell(turn: Turn): Promise<string | null> {
   // Every change, and the other sessions too: only whether to tell at all is the user's.
-  const context = await option.get("context").catch(() => null);
+  const context = await option.get("context", { scope: "global" }).catch(() => null);
   await workspace.ready;
   const own = workspace.currentSession;
   return answer(turn, { source, store, settings: settingsOf(context, "changes", true), here: own === null ? null : num(own.id) });

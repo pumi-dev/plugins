@@ -64,7 +64,7 @@ describe("the manifest", () => {
   });
 
   test("declares the options main.ts and tell.ts read", () => {
-    expect(Object.keys(manifest.contributes.options).sort()).toEqual(["context", "hooks", "modes", "permissions"]);
+    expect(Object.keys(manifest.contributes.options).sort()).toEqual(["context", "hooks", "modes", "permissions", "prefer"]);
   });
 
   test("is the plugin whose prefix the hooks call and its trait is named by", () => {
