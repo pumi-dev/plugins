@@ -7,6 +7,7 @@ import { join } from "node:path";
 
 import type { Choice, ConfigOption } from "./conversation/model.ts";
 import type { AgentSpec } from "./agents.ts";
+import { agentPathReady, findProgram } from "./session/launch.ts";
 
 /** The choice that opens the agent's own picker in its terminal. */
 export const PICK_IN_TERMINAL = "pumi:terminal";
@@ -70,9 +71,9 @@ export function parsePiModels(table: string, enabled: string[] = []): Choice[] {
 }
 
 /** The agent's program: on the PATH, else where its installers put it (a worker's PATH can be short). */
-function programOf(spec: AgentSpec): string | undefined {
+function programOf(spec: AgentSpec, path: string): string | undefined {
   const home = homedir();
-  const found = Bun.which(spec.id);
+  const found = findProgram(spec.id, path);
   if (found) return found;
   for (const dir of [join(home, ".local", "bin"), join(home, spec.home, "bin"), join(home, ".bun", "bin"), "/opt/homebrew/bin", "/usr/local/bin"]) {
     const path = join(dir, spec.id);
@@ -89,9 +90,11 @@ async function piModels(spec: AgentSpec): Promise<Choice[]> {
   const settings = readJson(join(homedir(), spec.home, "settings.json"));
   const enabled = Array.isArray(settings?.enabledModels) ? (settings.enabledModels as unknown[]).filter((each): each is string => typeof each === "string" && each.trim() !== "") : [];
   if (enabled.length > 0) return enabled.map((id) => ({ id, name: id }));
-  const program = programOf(spec);
+  const path = await agentPathReady();
+  const program = programOf(spec, path);
   if (!program) return [];
-  const run = Bun.spawn([program, "--list-models"], { stdout: "pipe", stderr: "ignore", stdin: "ignore", cwd: homedir() });
+  // On the login shell's PATH: pi runs on a `node` an app opened from the Dock does not see.
+  const run = Bun.spawn([program, "--list-models"], { stdout: "pipe", stderr: "ignore", stdin: "ignore", cwd: homedir(), env: { ...process.env, PATH: path } });
   const timer = setTimeout(() => run.kill(), 15_000);
   try {
     const out = await new Response(run.stdout).text();
