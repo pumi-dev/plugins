@@ -17,6 +17,7 @@ pumi plugin add pumi-dev/plugins/file-tree
 | [Code Editor](code-editor) | a native code editor for file tabs, built on CodeMirror |
 | [VSCode Editor](vscode-editor) | VS Code's editor (Monaco) for file tabs |
 | [CSV Viewer](csv-viewer) | CSV and TSV files as a table you can sort, search and edit |
+| [Video Editor](video-editor) | a video in a tab: Clipkit's timeline over a project file an agent can write |
 | [Agents](agents) | coding agents from the + menu, in their terminal or a GUI, told about the workspace around them |
 | [Pixel Office](pixel-office) | a UI theme: pumi as a pixel-art office with a desk for every view |
 
