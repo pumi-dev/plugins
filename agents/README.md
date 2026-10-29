@@ -3,7 +3,7 @@
 <p align="center"><img src="preview.svg" width="640" alt="A Claude Code session as a chat: messages, a tool call, a permission card and the prompt"></p>
 
 Coding agents in pumi's tabs, in one plugin. A pane's `+` menu opens each agent installed here,
-in its own terminal or as a chat; pumi sees when it works, waits on you or is done; and it is
+in its own terminal or in a GUI; pumi sees when it works, waits on you or is done; and it is
 told about the sessions, panes and tabs around it.
 
 ```sh
@@ -14,14 +14,13 @@ Settings → Agents has one switch per agent:
 
 | | What opens | Agents |
 | --- | --- | --- |
-| Terminal | the agent's own screen; the tab's button flips it to a chat and back | all |
-| Chat | the agent as a chat | Claude Code, Codex, pi, omp, Gemini, OpenCode, Copilot, Kiro |
+| Terminal | the agent's own screen; the tab's button flips it to a chat over it and back | all |
+| GUI | a chat tab that runs the agent over its SDK, else ACP | pi, Codex, Claude Code (SDK); Gemini, OpenCode, Copilot, Kiro (ACP) |
 | Off | nothing: it is left out of the `+` menu, its tabs are left alone and its hook taken out | all |
 
-A chat is the agent's own terminal with the chat drawn over it where the plugin reads the agent's
-session file (Claude Code, Codex, pi, omp), else a chat tab that runs the agent's ACP server.
-*Agents: continue this agent in a chat tab* also hands pi, Codex or Claude Code to a tab that runs
-it over its own protocol (an SDK).
+*Open agents in* under them sets every agent at once (those Off stay off): Terminal, GUI (SDK) or
+GUI (ACP). It also picks which a GUI tries first for agents that have both (pi, Codex, Claude
+Code); an agent with only one uses that one.
 
 It takes over from Chat UI (`pumi_dev/chat-ui`) and the workspace context plugin
 (`amresyd/agents`): their options carry over the first time it starts, and Chat UI's open chat
@@ -53,7 +52,7 @@ back exactly as it was.
 The tab's toolbar has the button; *Agents: flip the focused tab between the terminal and the chat*
 is in the palette.
 
-## Chat tabs (ACP and SDK)
+## GUI tabs (SDK and ACP)
 
 The plugin runs the agent itself, under a small host process per tab (`src/session/host.ts`), so
 the agent keeps running when the window closes and the tab finds it again. The host speaks ACP, or
@@ -61,15 +60,15 @@ the agent's own protocol, and the chat draws what it says as it is written: text
 calls with their output, permission requests and an agent's questions as cards, its models in the
 picker. A tab with a session continues it after a restart.
 
-- *Agents: continue this agent in a chat tab* hands a terminal agent's session to a chat tab,
-  once its turn is over (over ACP when the agent has it, else its SDK).
+- *Agents: continue this agent in its GUI* hands a terminal agent's session to a GUI tab, once
+  its turn is over.
 - The toolbar's terminal button, or *Agents: continue this chat tab's session in the agent's
   terminal*, goes back to the TUI on the same session.
 - ACP adapters that aren't installed are fetched with `npx` at a pinned version.
-- **Claude Code in a chat tab** runs your installed `claude` through Anthropic's Agent SDK, signed
+- **Claude Code's GUI over the SDK** runs your installed `claude` through Anthropic's Agent SDK, signed
   in as it is. Anthropic asks apps built on the Agent SDK to sign in with an API key; on a Pro or
-  Max sign-in this use may be billed as extra usage. Chat in Settings is the chat over the
-  unmodified `claude`, which has no such question.
+  Max sign-in this use may be billed as extra usage. Its row says so while its GUI runs the SDK.
+  The chat over its terminal runs the unmodified `claude`, which has no such question.
 
 ## Hooks
 
@@ -117,7 +116,7 @@ $7 app (current)
 
 The map's ids are pumi's: `$1` a session, `@2` a view, `:4` a pane, `%3` a tab. `(current)` marks
 where you are. A terminal agent hears it through its hook (Claude's `additionalContext`, pi's
-hidden message, OpenCode's system prompt); a chat tab's host puts it ahead of the prompt.
+hidden message, OpenCode's system prompt); a GUI tab's host puts it ahead of the prompt.
 After a compaction the agent is told everything again.
 
 ## For other plugins and agents
@@ -147,7 +146,8 @@ Settings → Agents, one page.
 
 | | |
 | --- | --- |
-| Agents | one row per agent installed here: Off, Terminal or Chat, and whether it is connected |
+| Agents | one row per agent installed here: Off, Terminal or GUI, and whether it is connected |
+| Open agents in | sets every agent to Terminal, GUI (SDK) or GUI (ACP); a GUI tries this one first (Terminal) |
 | Connect agents to pumi | the agents' hooks, put in and kept up to date by the plugin (on) |
 | Answer permission prompts in pumi | Claude Code's permission prompts come to pumi; unanswered in two minutes, Claude asks itself (off) |
 | Tell agents about my workspace | the guide and the map (on) |
@@ -158,7 +158,7 @@ A chat reads the last 4 MB of a session file, and the map has your other session
 
 - In a chat over the terminal, a reply shows as each message is written to the session file, not token by
   token, and the mode can't be changed from the chat, nor Codex's model: those pickers are the TUI's.
-- In chat tabs, going back to an earlier message is the agent's own, in its terminal; and
+- In GUI tabs, going back to an earlier message is the agent's own, in its terminal; and
   the agent's own list of sessions to pick from is ACP's only.
 - An agent without its hook is taken to be ready 15 s after a prompt, so a queued prompt may
   arrive while it still works.

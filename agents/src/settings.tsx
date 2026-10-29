@@ -1,5 +1,6 @@
 // Settings → Agents, one page: each agent installed here with how it opens from the `+` menu (Off,
-// Terminal or Chat), the ones that are not named in one line, then three switches. Hooks go in and
+// Terminal or GUI), the ones that are not named in one line, then what sets them all at once and
+// three switches. Hooks go in and
 // out by themselves (`main.ts` `syncHooks`), so a row only says whether its agent is connected.
 // What it reads and writes is the worker's (`main.ts`).
 import { useCallback, useEffect, useState } from "react";
@@ -9,7 +10,7 @@ import type { Choice } from "./catalog.ts";
 import { agentRows, setMode, type AgentRow } from "./main.ts";
 import { PREFIX } from "./names.ts";
 
-const ABOUT = "Coding agents you open from the + menu. Terminal opens the agent's own screen, with a button to flip it to a chat. Chat opens it as a chat.";
+const ABOUT = "Coding agents you open from the + menu. Terminal opens the agent's own screen, with a button to flip it to a chat. GUI opens a chat tab that runs the agent itself.";
 
 /** A choice's cell: wide enough for "Terminal". */
 const CELL = { width: 72, height: 24 };
@@ -37,7 +38,7 @@ function AgentLine({ row, onChoose }: { row: AgentRow; onChoose(choice: Choice):
       icon={mark}
       title={row.title}
       aside={row.hook?.connected && row.choice !== "off" ? "Connected" : undefined}
-      description={error ? `Couldn't connect it to pumi: ${error}` : undefined}
+      description={error ? `Couldn't connect it to pumi: ${error}` : row.note}
       control={<ChoiceGrid choices={row.choices} value={row.choice} onChange={(value) => onChoose(value as Choice)} columns={row.choices.length} cell={CELL} testId={`agents-mode-${row.id}`} />}
     />
   );
@@ -48,7 +49,8 @@ export function SettingsPage() {
   // The list follows the options, set here or in settings.json.
   const [modes] = useOption<Record<string, string>>(`${PREFIX}modes`);
   const [hooks] = useOption<boolean>(`${PREFIX}hooks`);
-  useEffect(reload, [JSON.stringify(modes ?? {}), hooks]);
+  const [prefer] = useOption<string>(`${PREFIX}prefer`);
+  useEffect(reload, [JSON.stringify(modes ?? {}), hooks, prefer]);
   const [failed, setFailed] = useState<string>();
   const choose = (id: string, choice: Choice) => {
     setFailed(undefined);
@@ -70,6 +72,7 @@ export function SettingsPage() {
         {list && error ? <Note tone="error">{error}</Note> : null}
       </Section>
       <Section id={`${PREFIX}options`}>
+        <OptionRow name={`${PREFIX}prefer`} />
         <OptionRow name={`${PREFIX}hooks`} />
         <OptionRow name={`${PREFIX}permissions`} />
         <OptionRow name={`${PREFIX}context`} />

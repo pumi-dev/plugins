@@ -43,7 +43,7 @@ import { agentIcon, ICON } from "./icons.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
 import type { MentionHit } from "./conversation/view.ts";
 import type { ConversationRead } from "./topics.ts";
-import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, modeOf, type CatalogAgent, type Choice, type Mode } from "./catalog.ts";
+import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, guiMode, modeOf, preferOf, preferred, type CatalogAgent, type Choice, type Mode, type Prefer } from "./catalog.ts";
 import { findProgram, searchPath } from "./session/launch.ts";
 import {
   attach,
@@ -104,15 +104,24 @@ const drawing = new Set<number>();
 /** How much of the end of a session file the chat reads when it opens. */
 const history = 4 << 20;
 
+/**
+ * One of the options Settings shows, where Settings keeps it: the global scope (the SDK's
+ * `option.get` without a scope reads the plugin's own store, which Settings does not write).
+ */
+const setting = (name: string): Promise<unknown> => option.get(name, { scope: "global" });
+const setSetting = (name: string, value: unknown): Promise<null> => option.set(name, value, { scope: "global" });
+
 /** A flag option as the server answers it: set to anything but nothing, `false` or "". */
 const isSet = (value: unknown): boolean => value !== undefined && value !== null && value !== false && value !== "" && value !== "false";
 /** Each agent's mode, as the `modes` option says (`catalog.ts`). */
 let modes: unknown = {};
+/** What a GUI tries first, and what Settings last set every agent to (`prefer`); unread before `configure`. */
+let prefer: Prefer | undefined;
 
 /** The mode of the agent a tab's trait names: `terminal` for one the catalog does not know. */
 function modeFor(agent: unknown): Mode {
   const def = typeof agent === "string" ? catalogAgent(agent) : undefined;
-  return def ? modeOf(def, modes) : "terminal";
+  return def ? modeOf(def, modes, prefer) : "terminal";
 }
 
 function message(err: unknown): string {
@@ -298,7 +307,7 @@ async function takeQueued(tab: number): Promise<string | undefined> {
 /** What the hook function calls of pumi, and the chat's queue. */
 const hookApi: HookApi = {
   report: (tab, body) => call("tab.call", tab, "report", { body }),
-  get: (name, tab) => (tab === undefined ? option.get(name) : option.get(name, { scope: "tab", id: tab })),
+  get: (name, tab) => (tab === undefined ? setting(name) : option.get(name, { scope: "tab", id: tab })),
   set: (name, value, tab) => option.set(name, value, { scope: "tab", id: tab }),
   open: (ask, opts) => request.open(ask as Parameters<typeof request.open>[0], opts),
   close: (id) => request.close(id),
@@ -359,7 +368,7 @@ export async function openAgent(id: string, args: NewArgs = {}): Promise<string>
   const beside = typeof args.tab === "string" && /^%\d+$/.test(args.tab) ? numberOf(args.tab) : undefined;
   const place = args.place && typeof args.place === "object" ? args.place : beside !== undefined ? { kind: "tiled", beside: tabRef(beside) } : undefined;
   const given = typeof args.cwd === "string" && args.cwd !== "" ? args.cwd : undefined;
-  const mode = agent ? modeOf(agent, modes) : "terminal";
+  const mode = agent ? modeOf(agent, modes, prefer) : "terminal";
   if (agent && (mode === "acp" || mode === "sdk")) {
     const engine = mode === "acp" ? "acp" : agent.sdk!;
     return tabRef(await openSession({ agent: agent.id, engine, cwd: given, beside, ...(place ? { place } : {}) }));
@@ -403,7 +412,7 @@ function available(agent: CatalogAgent, mode: Mode, path: string): boolean {
  */
 async function contribute(): Promise<void> {
   const path = searchPath(process.env.PATH);
-  const shown = CATALOG.filter((agent) => available(agent, modeOf(agent, modes), path));
+  const shown = CATALOG.filter((agent) => available(agent, modeOf(agent, modes, prefer), path));
   const own = (self.plugin.manifest.contributes?.commands ?? []) as { id: string; title: string }[];
   const commands = [...own, ...shown.map((agent) => ({ id: newCommand(agent), title: `New ${agent.title}` }))];
   const actions = shown.map((agent) => ({ id: agent.id, title: agent.title, icon: "sparkle", command: newCommand(agent) }));
@@ -420,6 +429,8 @@ export interface AgentRow {
   choice: Choice;
   /** Its program is on the PATH. */
   installed: boolean;
+  /** Said under its name: why to think before its GUI (the SDK's billing). */
+  note?: string;
   /** Its mark, as an image's `src`. */
   icon?: string;
   /** Its hook, when it has one: in (and up to date), and what went wrong putting it in. */
@@ -440,6 +451,7 @@ export async function agentRows(): Promise<AgentRow[]> {
       choices: choicesOf(agent).map((value) => ({ value, label: CHOICE_LABELS[value] })),
       choice: choiceOf(agent, modes),
       installed: findProgram(agent.program, path) !== undefined,
+      ...(agent.sdkNote && modeOf(agent, modes, prefer) === "sdk" ? { note: agent.sdkNote } : {}),
       ...(agentIcon(agent.id) ? { icon: agentIcon(agent.id) } : {}),
       ...(hook && hook.hook !== "unsupported" ? { hook: { connected: hook.hook === "installed", ...(error ? { error } : {}) } } : {}),
     };
@@ -452,7 +464,7 @@ export async function setMode(agent: string, choice: Choice): Promise<void> {
   const def = catalogAgent(agent);
   if (!def || !choicesOf(def).includes(choice)) throw new Error(`agents: ${agent} has no choice ${choice}`);
   const now = { ...((modes && typeof modes === "object" ? modes : {}) as Record<string, unknown>), [agent]: choice };
-  await option.set("modes", now);
+  await setSetting("modes", now);
 }
 
 /** What went wrong putting each agent's hook in or taking it out, by id, for Settings. */
@@ -467,7 +479,7 @@ let syncing: Promise<void> = Promise.resolve();
  */
 function syncHooks(): Promise<void> {
   syncing = syncing.then(async () => {
-    const on = (await option.get("hooks").catch(() => true)) !== false;
+    const on = (await setting("hooks").catch(() => true)) !== false;
     for (const row of hookRows()) {
       const agent = findAgent(row.id);
       if (!agent || row.hook === "unsupported") continue;
@@ -587,10 +599,16 @@ fn.set("toggle", { desc: "Flip the tab between its terminal and the chat.", para
   return toggle(Number.isFinite(tab) ? tab : undefined);
 });
 
-/** Reads the options: the modes (the `+` menu and the tabs follow them), and the hooks'. */
+/** Reads the options: `prefer` (every agent set as it says when it changes), the modes (the `+` menu follows them), and the hooks'. */
 async function configure(): Promise<void> {
+  const before = prefer;
+  prefer = preferOf(await setting("prefer").catch(() => null));
+  if (before !== undefined && before !== prefer) {
+    // Settings' "Open agents in" changed: every agent is set so (the `modes` change comes back here).
+    await setSetting("modes", preferred(await setting("modes").catch(() => ({})), prefer)).catch((err) => console.error(`agents: ${message(err)}`));
+  }
   const was = JSON.stringify(modes);
-  modes = (await option.get("modes").catch(() => ({}))) ?? {};
+  modes = (await setting("modes").catch(() => ({}))) ?? {};
   if (JSON.stringify(modes) !== was) {
     // A mode changed: the `+` menu says so, and agent tabs now of the `chat` mode are taken.
     void contribute().catch((err) => console.error(`agents: ${message(err)}`));
@@ -634,13 +652,13 @@ const tabArg = async (arg?: unknown): Promise<number> => {
   return at;
 };
 
-fn.set("handoff", { desc: "Continue this terminal agent's session in a chat tab of the plugin's own (its ACP or SDK mode).", parameters: [["table", "arg"]] }, async (arg?: unknown) => {
+fn.set("handoff", { desc: "Continue this terminal agent's session in its GUI: a chat tab of the plugin's own, over its SDK or ACP.", parameters: [["table", "arg"]] }, async (arg?: unknown) => {
   const tab = await tabArg(arg);
   const agent = catalogAgent(String((await tabOption(AGENT, tab)) ?? ""));
   if (!agent) throw new Error("agents: this tab runs no agent the plugin knows");
-  const mode = modeOf(agent, modes);
-  const engine = mode === "sdk" && agent.sdk ? agent.sdk : agent.acp ? "acp" : agent.sdk;
-  if (!engine) throw new Error(`agents: ${agent.title} has no ACP or SDK mode`);
+  const gui = guiMode(agent, prefer);
+  const engine = gui === "sdk" ? agent.sdk : gui;
+  if (!engine) throw new Error(`agents: ${agent.title} has no GUI`);
   return tabRef(await handoff(tab, engine));
 });
 
@@ -657,32 +675,37 @@ export async function toolbarPress(tab: number): Promise<void> {
 /** The plugins this one took over from: Chat UI (the chat, ACP and SDK tabs), and before it agent-chat and acp. */
 const FORMER = { chatUi: "pumi_dev/chat-ui", chat: "amresyd/agent-chat", acp: "amresyd/acp" } as const;
 
-/** Read by its full name: another plugin's option, or one of this plugin's no longer declared. */
-const optionNamed = (name: string): Promise<unknown> => option.get(name).catch(() => null);
+/** Another plugin's option by its full name: in that plugin's own store (`owner/name`), else global. */
+async function optionNamed(name: string, plugin?: string): Promise<unknown> {
+  const own = plugin ? await option.get(name, { scope: "plugin", plugin }).catch(() => null) : null;
+  return own ?? (await setting(name).catch(() => null));
+}
 
 /**
- * Once: the options the plugins this one replaces had, as this one's. Chat UI's modes; the version
- * before modes, whose `auto` off meant agents stayed in their terminals (the
- * `terminal` mode now); and the workspace context's (`amresyd/agents`).
+ * Once: the options the plugins this one replaces had, as this one's: Chat UI's modes (`choiceOf`
+ * reads its `acp`, `sdk` and `chat`), and the workspace context's (`amresyd/agents`). Before modes,
+ * agents opened in their terminals, as every one does by default now.
  */
 async function migrate(): Promise<void> {
   await adopt().catch((err) => console.error(`agents: ${message(err)}`));
+  // Modes an earlier version kept in the plugin's own store go where Settings keeps them.
+  const stored = await option.get("modes").catch(() => null);
+  const shown = await setting("modes").catch(() => null);
+  if (stored && typeof stored === "object" && Object.keys(stored).length > 0) {
+    if (!shown || typeof shown !== "object" || Object.keys(shown).length === 0) await setSetting("modes", stored).catch(() => null);
+    await option.set("modes", null).catch(() => null);
+  }
   if (await option.get("migrated").catch(() => null)) return;
-  const given = await option.get("modes").catch(() => null);
+  const given = await setting("modes").catch(() => null);
   if (!given || typeof given !== "object" || Object.keys(given).length === 0) {
-    const former = await optionNamed("pumi_dev.chat_ui.modes");
-    if (former && typeof former === "object" && Object.keys(former).length > 0) await option.set("modes", former).catch(() => null);
-    else if ((await optionNamed(self.plugin.prefixed("auto"))) === false) {
-      const now: Record<string, Mode> = {};
-      for (const agent of CATALOG) if (agent.default === "chat") now[agent.id] = "terminal";
-      await option.set("modes", now).catch(() => null);
-    }
+    const former = await optionNamed("pumi_dev.chat_ui.modes", FORMER.chatUi);
+    if (former && typeof former === "object" && Object.keys(former).length > 0) await setSetting("modes", former).catch(() => null);
   }
   for (const [from, to] of [
     ["amresyd.agents.context", "context"],
   ] as const) {
     const value = await optionNamed(from);
-    if (value !== null && value !== undefined && value !== "") await option.set(to, value).catch(() => null);
+    if (value !== null && value !== undefined && value !== "") await setSetting(to, value).catch(() => null);
   }
   await option.set("migrated", true).catch(() => null);
 }

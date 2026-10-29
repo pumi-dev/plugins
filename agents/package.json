@@ -3,7 +3,7 @@
   "displayName": "Agents",
   "version": "0.2.0",
   "license": "GPL-3.0-or-later",
-  "description": "Coding agents in pumi's tabs: Claude Code, Codex, pi and more open from the + menu, in their own terminal or as a chat. pumi sees when each one works or waits on you, and each one is told about the workspace around it.",
+  "description": "Coding agents in pumi's tabs: Claude Code, Codex, pi and more open from the + menu, in their own terminal or in a GUI. pumi sees when each one works or waits on you, and each one is told about the workspace around it.",
   "keywords": [
     "agents",
     "chat",
@@ -56,7 +56,24 @@
           "control": "json",
           "label": "Modes",
           "group": "Agents",
-          "desc": "How each agent opens from the + menu, by its id: `off` (left out, and its hook taken out), `terminal` (its own screen), or `chat`. Settings → Agents sets it; an agent left out has its default."
+          "desc": "How each agent opens from the + menu, by its id: `off` (left out, and its hook taken out), `terminal` (its own screen), or `gui` (a chat tab that runs it over its SDK or ACP). Settings → Agents sets it; an agent left out has its default."
+        },
+        "prefer": {
+          "type": "string",
+          "default": "terminal",
+          "choices": [
+            "terminal",
+            "sdk",
+            "acp"
+          ],
+          "labels": [
+            "Terminal",
+            "GUI (SDK)",
+            "GUI (ACP)"
+          ],
+          "label": "Open agents in",
+          "group": "Agents",
+          "desc": "Sets every agent at once (those Off stay off): its terminal, or its GUI where it has one. A GUI runs the agent over its SDK or over ACP, this one first when it has both."
         },
         "permissions": {
           "type": "boolean",
@@ -87,7 +104,7 @@
         },
         {
           "id": "handoff",
-          "title": "Agents: continue this agent in a chat tab"
+          "title": "Agents: continue this agent in its GUI"
         },
         {
           "id": "back",
