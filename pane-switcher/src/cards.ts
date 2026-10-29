@@ -18,7 +18,7 @@ export interface Card {
   title: string;
   /** Its `tab.pane` number and its directory, or its page. */
   detail: string;
-  /** An agent's state, when one reported its pane (`@agent.status`). */
+  /** An agent's state, when one reported its tab (`@status`). */
   status: string;
   /** Whether the card draws its pane's screen. */
   preview: boolean;
@@ -32,7 +32,8 @@ export function tilde(path: string): string {
 
 /** The icon a pane's block is drawn with. */
 export function kindIcon(kind: string): string {
-  if (kind === "terminal") return "terminal";
+  // The Terminal plugin's shell is the block a terminal runs in.
+  if (kind === "terminal" || kind === "pumi_dev.terminal.shell") return "terminal";
   if (kind === "browser") return "tool_web";
   if (kind === "editor" || kind === "files") return "code";
   if (kind === "agents" || kind.endsWith(".agents")) return "sparkle";

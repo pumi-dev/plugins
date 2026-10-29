@@ -13,6 +13,7 @@ test("a directory under the home is shown with a tilde", () => {
 
 test("a pane type's icon is the one that says what it is", () => {
   expect(kindIcon("terminal")).toBe("terminal");
+  expect(kindIcon("pumi_dev.terminal.shell")).toBe("terminal");
   expect(kindIcon("browser")).toBe("tool_web");
   expect(kindIcon("editor")).toBe("code");
   expect(kindIcon("files")).toBe("code");

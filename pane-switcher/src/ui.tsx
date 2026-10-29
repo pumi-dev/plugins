@@ -233,7 +233,7 @@ export function Switcher({ pane }: { pane: PaneId }) {
                           height: 7,
                           flexShrink: 0,
                           borderRadius: 4,
-                          backgroundColor: t[`agent.${card.status}`] ?? t["agent.unknown"],
+                          backgroundColor: t[`status.${card.status}`] ?? t["status.unknown"],
                         }}
                       />
                     ) : null}

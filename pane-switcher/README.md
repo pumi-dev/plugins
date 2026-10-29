@@ -17,8 +17,8 @@ over the window, dimming what is under them, one per pane, as a task switcher sh
 Each card is drawn from what the pane itself says: the app's own screen of the pane above
 (`<preview>`, the grid the app parsed from the pane's bytes, scaled to the card — nothing is
 attached and nothing is resized to take it), then the pane's title or the program in it, its
-`tab.pane` number and directory, and the agent's state when one reported it (`@agent.status`).
-A card's icon is its pane's block (`terminal`, or a plugin's).
+`tab.pane` number and directory, and the agent's state when one reported it (`@status`).
+A card's icon is its pane's block (`pumi_dev.terminal.shell`, the Terminal plugin's, or a plugin's).
 The highlight starts on the pane you are in; the cards are in most-recently-used order, so the
 next one is where you were before. The trigger pressed again moves the highlight on instead of
 replacing the switcher, as a held Alt-Tab does. The cards are centred in the float while they fit
