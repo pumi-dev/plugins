@@ -293,7 +293,7 @@ export function merge(config: Json, agent: HookAgent): void {
 
 /** The whole file the plugin installs for `agent` (pi's extension, OpenCode's plugin), or none for a hook merged into a config. */
 export function ownedFile(agent: HookAgent): string | undefined {
-  const header = `// installed by pumi's Chat UI plugin (Settings → Chat UI → Hooks); reinstalling overwrites this file.\n// ${MARKER} v${VERSION}\n`;
+  const header = `// installed by pumi's Agents plugin (Settings → Agents → Hooks); reinstalling overwrites this file.\n// ${MARKER} v${VERSION}\n`;
   const fill = (text: string) => text.replaceAll("{fn}", HOOK_FN).replaceAll("{agent}", agent.id);
   switch (agent.shape.kind) {
     case "pi": {

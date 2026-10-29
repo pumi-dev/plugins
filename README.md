@@ -15,7 +15,7 @@ pumi plugin add pumi-dev/plugins/file-tree
 | [Code Editor](code-editor) | a native code editor for file tabs, built on CodeMirror |
 | [VSCode Editor](vscode-editor) | VS Code's editor (Monaco) for file tabs |
 | [CSV Viewer](csv-viewer) | CSV and TSV files as a table you can sort, search and edit |
-| [Chat UI](chat-ui) | Claude Code, Codex and pi sessions as a chat, with the terminal one click away |
+| [Agents](agents) | Claude Code, Codex and pi sessions as a chat, with the terminal one click away |
 | [Pixel Office](pixel-office) | a UI theme: pumi as a pixel-art office with a desk for every view |
 
 Each folder is a whole plugin with nothing shared between them, so you can copy one and make it

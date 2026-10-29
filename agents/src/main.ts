@@ -1,10 +1,10 @@
-// chat-ui: a chat button in the title bar of every Claude Code, Codex and pi tab, flipping the tab
+// agents: a chat button in the title bar of every Claude Code, Codex and pi tab, flipping the tab
 // between the agent's own terminal and a rendered chat of the same live session.
 //
 //   the title bar's button, or the `key` option      the focused tab: the chat, or back to the TUI
-//   pumi call pumi_dev.chat_ui.toggle                the same
-//   pumi call pumi_dev.chat_ui.conversation.read %3  the conversation of tab %3
-//   pumi call pumi_dev.chat_ui.hook %3 claude stop …  what an agent's hook runs (`hooks/`)
+//   pumi call pumi_dev.agents.toggle                the same
+//   pumi call pumi_dev.agents.conversation.read %3  the conversation of tab %3
+//   pumi call pumi_dev.agents.hook %3 claude stop …  what an agent's hook runs (`hooks/`)
 //
 // The chat is how the plugin draws the tab's `terminal` block (the manifest's `renderers`, the
 // `Chat` export in `ui.tsx`), picked for one tab by its `@tab_renderer` option naming this
@@ -46,7 +46,7 @@ const TAB_RENDERER = "@tab_renderer";
  * runs: a tab the user then flips back to the terminal stays there, through a restart too (tab
  * options are kept with the tab). It goes when the agent does, so the next agent there is taken.
  */
-const TAKEN = "@chat_ui.taken";
+const TAKEN = "@agents.taken";
 /** The options a bridge follows: the agent's hook sets the trait's, pumi-host `@status`. */
 const FOLLOWED = [STATUS, AGENT_SESSION, AGENT_TRANSCRIPT, AGENT_MODEL, "tab_current_path"];
 
@@ -132,7 +132,7 @@ export async function setChat(tab: number, on: boolean): Promise<boolean> {
 /** Flips `tab` (the focused one without) between its terminal and the chat. */
 export async function toggle(tab?: number): Promise<boolean> {
   const at = typeof tab === "number" ? tab : await here();
-  if (at === undefined) throw new Error("chat-ui: no tab in front to flip");
+  if (at === undefined) throw new Error("agents: no tab in front to flip");
   if (!agentSpec(await tabOption(AGENT, at))) throw new Error(`tab %${at} runs no agent the chat reads`);
   return setChat(at, (await tabOption(TAB_RENDERER, at)) !== self.plugin.id);
 }
@@ -204,7 +204,7 @@ let requests: Disposer | null = null;
 
 function listen(): void {
   if (drawing.size > 0 && !requests) {
-    requests = on("request.opened", { desc: "Chat UI shows an agent's requests in its chat" }, (e) => {
+    requests = on("request.opened", { desc: "Agents shows an agent's requests in its chat" }, (e) => {
       const asked = e.data;
       if (typeof asked?.tab !== "string" || (asked.kind !== "permission" && asked.kind !== "question")) return;
       const tab = numberOf(asked.tab);
@@ -216,7 +216,7 @@ function listen(): void {
   }
 }
 
-on("request.closed", { desc: "Chat UI takes an ended request out of its chat" }, (e) => {
+on("request.closed", { desc: "Agents takes an ended request out of its chat" }, (e) => {
   const asked = e.data;
   if (typeof asked?.request !== "string") return;
   requestClosed(asked.request, asked.answer);
@@ -263,11 +263,11 @@ fn.set(
  */
 export async function openAgent(id: string, cwd?: string): Promise<string> {
   const agent = findAgent(id);
-  if (!agent) throw new Error(`chat-ui: no agent \`${id}\``);
+  if (!agent) throw new Error(`agents: no agent \`${id}\``);
   const launch = agentLaunch(agent);
   const tab = await call("tab.open", "terminal", { env: launch.env, ...(typeof cwd === "string" && cwd !== "" ? { cwd } : {}) });
   const icon = agentIcon(agent.id);
-  if (icon) await option.set(ICON, icon, { scope: "tab", id: tab }).catch((err: unknown) => console.error(`chat-ui: ${message(err)}`));
+  if (icon) await option.set(ICON, icon, { scope: "tab", id: tab }).catch((err: unknown) => console.error(`agents: ${message(err)}`));
   await call("tab.call", tab, "run", { command: launch.command });
   return tab;
 }
@@ -328,7 +328,7 @@ async function takeOver(tab: number): Promise<boolean> {
 
 /** Every agent tab open now, taken (the option turned on, or the plugin started). */
 async function takeOverAll(): Promise<void> {
-  for (const each of await workspace.tabs()) await takeOver(numberOf(each.id)).catch((err) => console.error(`chat-ui: ${message(err)}`));
+  for (const each of await workspace.tabs()) await takeOver(numberOf(each.id)).catch((err) => console.error(`agents: ${message(err)}`));
 }
 
 /** A tab's `@tab_renderer` now names `owner`: this plugin draws it as a chat, or stops. */
@@ -345,7 +345,7 @@ function rendererChanged(tab: number, owner: unknown): void {
           bridge.requested({ request: each.id, tab: tabRef(tab), kind: kind === "question" ? "question" : "permission", title: each.title, detail: each.detail, options: each.options as unknown[] });
         }
       })
-      .catch((err) => console.error(`chat-ui: ${message(err)}`));
+      .catch((err) => console.error(`agents: ${message(err)}`));
     return;
   }
   drawing.delete(tab);
@@ -371,7 +371,7 @@ function optionChanged(event: PumiEvent): void {
         stop(tab);
         void claim(tab)
           .then(() => takeOver(tab))
-          .catch((err) => console.error(`chat-ui: ${message(err)}`));
+          .catch((err) => console.error(`agents: ${message(err)}`));
       } else {
         stop(tab);
         if (drawing.has(tab)) void setChat(tab, false).catch(() => {});
@@ -386,9 +386,9 @@ function optionChanged(event: PumiEvent): void {
   }
 }
 
-on("tab.changed", { desc: "Chat UI follows what agent tabs say" }, (event: PumiEvent) => optionChanged(event));
+on("tab.changed", { desc: "Agents follows what agent tabs say" }, (event: PumiEvent) => optionChanged(event));
 
-on("tab.closed", { desc: "Chat UI lets a closed tab's chat go" }, (e: PumiEvent) => {
+on("tab.closed", { desc: "Agents lets a closed tab's chat go" }, (e: PumiEvent) => {
   if (typeof e.tab !== "string") return;
   const tab = numberOf(e.tab);
   stop(tab);
@@ -422,7 +422,7 @@ async function configure(): Promise<void> {
   const was = auto;
   auto = (await option.get("auto").catch(() => true)) !== false;
   // Turned on: the agent tabs open now are taken too.
-  if (auto && !was) void takeOverAll().catch((err) => console.error(`chat-ui: ${message(err)}`));
+  if (auto && !was) void takeOverAll().catch((err) => console.error(`agents: ${message(err)}`));
   const chosen = await option.get("key").catch(() => "");
   const chord = typeof chosen === "string" ? chosen.trim() : "";
   if (bound === chord) return;
@@ -435,10 +435,10 @@ async function configure(): Promise<void> {
     table[chord] = { call: self.plugin.prefixed("toggle"), args: [], desc: "Flip the tab between its terminal and the chat" };
     bound = chord;
   }
-  await option.set("keys", { ...root, root: table }, { scope: "global" }).catch((err: unknown) => console.error(`chat-ui: ${message(err)}`));
+  await option.set("keys", { ...root, root: table }, { scope: "global" }).catch((err: unknown) => console.error(`agents: ${message(err)}`));
 }
 
-on("option.changed", { match: `${self.plugin.prefix}*`, desc: "Chat UI follows its options" }, () => void configure());
+on("option.changed", { match: `${self.plugin.prefix}*`, desc: "Agents follows its options" }, () => void configure());
 
 /**
  * At start: every agent tab claimed, the chats that were showing (`@tab_renderer` is kept with the
@@ -451,8 +451,8 @@ async function startup(): Promise<void> {
     if (!agentSpec(await tabOption(AGENT, tab))) continue;
     await claim(tab);
     if ((await tabOption(TAB_RENDERER, tab)) === self.plugin.id) rendererChanged(tab, self.plugin.id);
-    await takeOver(tab).catch((err) => console.error(`chat-ui: ${message(err)}`));
+    await takeOver(tab).catch((err) => console.error(`agents: ${message(err)}`));
   }
 }
 
-void startup().catch((err) => console.error(`chat-ui: ${message(err)}`));
+void startup().catch((err) => console.error(`agents: ${message(err)}`));

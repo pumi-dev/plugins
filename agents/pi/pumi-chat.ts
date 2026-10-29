@@ -1,4 +1,4 @@
-// installed by pumi's Chat UI plugin; reinstalling overwrites this file.
+// installed by pumi's Agents plugin; reinstalling overwrites this file.
 // pumi-chat v1
 //
 // What pumi's chat over a pi session asks of pi that pi's TUI has no key for: going back to

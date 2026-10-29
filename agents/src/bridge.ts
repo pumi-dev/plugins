@@ -173,7 +173,7 @@ export class Bridge {
     try {
       this.#commands = commandsFor(this.spec, this.#options.cwd);
     } catch (err) {
-      console.warn(`chat-ui: the commands: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn(`agents: the commands: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -199,7 +199,7 @@ export class Bridge {
         this.#models = models;
         this.#syncModels();
       },
-      (err) => console.warn(`chat-ui: the models: ${err instanceof Error ? err.message : String(err)}`),
+      (err) => console.warn(`agents: the models: ${err instanceof Error ? err.message : String(err)}`),
     );
   }
 
@@ -292,7 +292,7 @@ export class Bridge {
     const file = locate(this.spec.format, this.spec.id, this.#where());
     if (!file) {
       if (this.#waiting === undefined) {
-        const said = this.#options.session ? `Waiting for ${this.spec.label} to write its session file…` : `Waiting for ${this.spec.label} to say which session it is in (its hook: Settings → Chat UI → Hooks)…`;
+        const said = this.#options.session ? `Waiting for ${this.spec.label} to write its session file…` : `Waiting for ${this.spec.label} to say which session it is in (its hook: Settings → Agents → Hooks)…`;
         const notice = noticeChange(said, "info", this.producer);
         this.#waiting = notice.type === "push" ? notice.entry.id : undefined;
         this.#push(notice);
@@ -316,7 +316,7 @@ export class Bridge {
       this.#tail = tail;
       if (this.#live) this.#followLive(file);
     } catch (err) {
-      console.error(`chat-ui: ${file}: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(`agents: ${file}: ${err instanceof Error ? err.message : String(err)}`);
       this.#file = undefined;
       this.#retry = setTimeout(() => this.#open(), RETRY_MAX);
     }
@@ -341,7 +341,7 @@ export class Bridge {
   #first(lines: string[], skipped: boolean): void {
     const keep = this.transcript;
     const loading = new Producer({ transcript: { ...emptyTranscript(randomId(), keep.session ?? this.#session()) }, publish: () => {} });
-    if (skipped) loading.push(noticeChange("Older turns are left out: the session file is longer than the chat reads (Chat UI → History read).", "info", loading));
+    if (skipped) loading.push(noticeChange("Older turns are left out: the session file is longer than the chat reads (Agents → History read).", "info", loading));
     let all = records(lines);
     if (this.#parser.select) all = this.#parser.select(all);
     let n = 0;
@@ -437,7 +437,7 @@ export class Bridge {
       this.producer.push(change);
     } catch (err) {
       if (!(err instanceof ChangeError)) throw err;
-      console.warn(`chat-ui: tab ${this.tab}: ${err.message}`);
+      console.warn(`agents: tab ${this.tab}: ${err.message}`);
     }
   }
 
@@ -450,7 +450,7 @@ export class Bridge {
       update.type === "changes"
         ? { tab: this.tab, changes: update.changes, cursor: update.to, from: update.from }
         : { tab: this.tab, changes: [], cursor: cursorOf(update.transcript), from: null };
-    emit("conversation.changed", changed, { tab: `%${this.tab}` }).catch((err) => console.warn(`chat-ui: conversation.changed: ${err?.message ?? err}`));
+    emit("conversation.changed", changed, { tab: `%${this.tab}` }).catch((err) => console.warn(`agents: conversation.changed: ${err?.message ?? err}`));
   }
 
   // ── Status ──────────────────────────────────────────────────────────────────────────────────

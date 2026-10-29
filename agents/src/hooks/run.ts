@@ -1,5 +1,5 @@
 // The hook function: what an agent's hook calls from its terminal (`pumi call
-// pumi_dev.chat_ui.hook %3 claude stop '<its input>'`). It puts what the hook says on the tab (the
+// pumi_dev.agents.hook %3 claude stop '<its input>'`). It puts what the hook says on the tab (the
 // plugin's trait, its `restore_command`), reports the agent's state as the agent would (OSC 7501,
 // `tab.call`'s `report`, which pumi-host makes the tab's `@status`), asks a permission in pumi and
 // waits for its answer, and at a turn's end hands the agent the prompt the chat queued. What it
@@ -36,7 +36,7 @@ function tabNumber(value: unknown): number | undefined {
 }
 
 function warn(what: string, err: unknown): void {
-  console.warn(`chat-ui: the hook: ${what}: ${err instanceof Error ? err.message : String(err)}`);
+  console.warn(`agents: the hook: ${what}: ${err instanceof Error ? err.message : String(err)}`);
 }
 
 // ── Permissions ──────────────────────────────────────────────────────────────────────────────

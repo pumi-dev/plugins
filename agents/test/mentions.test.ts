@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { mentions, searchPaths } from "../src/mentions.ts";
 
-const root = mkdtempSync(join(tmpdir(), "chat-ui-mentions-"));
+const root = mkdtempSync(join(tmpdir(), "agents-mentions-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 function file(path: string, text = ""): void {

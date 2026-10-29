@@ -20,7 +20,7 @@ export { HooksSection, SettingsPage } from "./settings.tsx";
 
 /** A throw the chat cannot answer: said in the log, not drawn over the window. */
 function swallow(err: unknown): void {
-  console.error(`chat-ui: ${err instanceof Error ? err.message : String(err)}`);
+  console.error(`agents: ${err instanceof Error ? err.message : String(err)}`);
 }
 
 /** A tab's number: the worker names tabs by it (`%3` is `3`). */
@@ -176,7 +176,7 @@ function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
           rewindsIn={label}
           onCommand={(cmd) =>
             void send(tab, cmd)
-              .then((ack) => ack.rejected && console.warn(`chat-ui: ${ack.rejected}`))
+              .then((ack) => ack.rejected && console.warn(`agents: ${ack.rejected}`))
               .catch(swallow)
           }
         />

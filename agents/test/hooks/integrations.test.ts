@@ -154,7 +154,7 @@ describe("the agents", () => {
 });
 
 describe("installing", () => {
-  const home = () => mkdtempSync(join(tmpdir(), "chat-ui-hooks-"));
+  const home = () => mkdtempSync(join(tmpdir(), "agents-hooks-"));
 
   test("into a config the user has, kept once as a backup, and out again", () => {
     const dir = home();
@@ -229,7 +229,7 @@ describe("installing", () => {
 
 describe("the hook's line", () => {
   // A POSIX shell runs it; a stand-in for `pumi` says what it was called with.
-  const dir = mkdtempSync(join(tmpdir(), "chat-ui-line-"));
+  const dir = mkdtempSync(join(tmpdir(), "agents-line-"));
   const bin = join(dir, "pumi");
   writeFileSync(bin, `#!/bin/sh\nfor arg in "$@"; do printf '%s\\n' "$arg"; done\n`);
   chmodSync(bin, 0o755);

@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { AGENTS, promptParts, promptWrites, type AgentSpec } from "../src/agents.ts";
 import { bareCommand, builtinCommands, commandsFor, fileCommands, frontMatter, projectDirs } from "../src/commands.ts";
 
-const root = mkdtempSync(join(tmpdir(), "chat-ui-commands-"));
+const root = mkdtempSync(join(tmpdir(), "agents-commands-"));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 const home = join(root, "home");

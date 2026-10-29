@@ -3,7 +3,7 @@
 // change; the manifest test checks it against `package.json`. No `import … from "pumi"` here.
 
 /** The plugin's prefix (`owner.name.`), which its functions, events, options and trait go under. */
-export const PREFIX = "pumi_dev.chat_ui.";
+export const PREFIX = "pumi_dev.agents.";
 
 /** The function an agent's hook calls (`pumi call`), from the agent's terminal. */
 export const HOOK_FN = `${PREFIX}hook`;

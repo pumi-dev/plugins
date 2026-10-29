@@ -1,4 +1,4 @@
-// Settings → Chat UI: the plugin's options, and the Hooks section, where each agent's hook (how it
+// Settings → Agents: the plugin's options, and the Hooks section, where each agent's hook (how it
 // tells the plugin its session and its state, and hears queued prompts) is installed, brought up
 // to date or removed with a click. What it reads and writes is the worker's (`main.ts`).
 import { useCallback, useEffect, useState } from "react";
@@ -13,7 +13,7 @@ const OPTIONS = ["auto", "key", "history_mb"];
 
 export function SettingsPage() {
   return (
-    <Page title="Chat UI">
+    <Page title="Agents">
       <Section>
         {OPTIONS.map((key) => (
           <OptionRow key={key} name={`${PREFIX}${key}`} />
@@ -43,7 +43,7 @@ function HookLine({ row, busy, run }: { row: HookRow; busy: string | undefined; 
   return (
     <Row
       link={`${PREFIX}hook-${row.id}`}
-      testId={`chat-ui-hook-${row.id}`}
+      testId={`agents-hook-${row.id}`}
       icon={<StatusDot color={color} />}
       title={row.label}
       description={row.file}

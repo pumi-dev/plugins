@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
-  <!-- Chat UI: an agent's live session as a chat, with tool calls, a permission card and a queued prompt. -->
+  <!-- Agents: an agent's live session as a chat, with tool calls, a permission card and a queued prompt. -->
   <clipPath id="w"><rect width="320" height="200" rx="10"/></clipPath>
   <g clip-path="url(#w)">
   <rect x="0" y="0" width="320" height="200" fill="#1e1f22"/>

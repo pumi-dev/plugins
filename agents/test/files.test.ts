@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { claudeProjectName, locate, piProjectName } from "../src/locate.ts";
 import { Tail } from "../src/tail.ts";
 
-const home = mkdtempSync(join(tmpdir(), "chat-ui-"));
+const home = mkdtempSync(join(tmpdir(), "agents-"));
 afterAll(() => rmSync(home, { recursive: true, force: true }));
 
 describe("locate", () => {

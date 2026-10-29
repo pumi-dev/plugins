@@ -37,7 +37,7 @@ export class Tail {
       this.#watcher.on("error", () => this.#watcher?.close());
     } catch (err) {
       // No watch on this file system: the interval below still reads it.
-      console.warn(`chat-ui: not watching ${this.path}: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn(`agents: not watching ${this.path}: ${err instanceof Error ? err.message : String(err)}`);
     }
     this.#timer = setInterval(() => this.poll(), this.options.interval ?? 1000);
   }
