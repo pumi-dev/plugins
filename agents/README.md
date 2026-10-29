@@ -107,9 +107,9 @@ You are in a tab of pumi, a terminal workspace. …
 $7 pumi (current)
   @3 main (current)
     :11 (focused)
-      %129 π - Move plans out — /Users/amr/Kitchen/pumi — done (current)
+      %129 π - Fix the build — /Users/me/code/app — done (current)
     :12
-      %130 zsh — /Users/amr/Kitchen/pumi/src
+      %130 zsh — /Users/me/code/app/src
 </pumi-panes>
 </pumi-context>
 ```
