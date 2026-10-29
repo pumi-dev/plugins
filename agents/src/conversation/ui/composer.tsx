@@ -119,6 +119,32 @@ const ROW = 26;
 const MIN_ROWS = 4;
 /** The space above the field, in its box. */
 const FIELD_TOP = 4;
+/** The list's width, as Zed's completion menu's. */
+const LIST_WIDTH = 520;
+/** A character's width in the code font, in ems (a monospace face's advance). */
+const CHAR_EM = 0.6;
+
+/**
+ * Where the caret is in the field as it wraps at `columns`: its row and column, and how many rows
+ * the draft takes. A chip counts as wide as its label and icon, not its text.
+ */
+function caretSpot(draft: string, caret: number, chips: Chip[], columns: number): { row: number; column: number; lines: number } {
+  const narrow = (text: string) => {
+    let out = text;
+    for (const span of tokenSpans(text, chips.map((chip) => chip.token)).reverse()) {
+      const chip = chips.find((each) => each.token === span.token);
+      out = out.slice(0, span.start) + "x".repeat((chip?.label.length ?? 1) + 3) + out.slice(span.end);
+    }
+    return out;
+  };
+  const rowsOf = (line: string) => Math.max(1, Math.ceil(line.length / columns));
+  const before = narrow(draft.slice(0, caret)).split("\n");
+  const last = before.pop()!;
+  const row = before.reduce((sum, line) => sum + rowsOf(line), 0) + Math.floor(last.length / columns);
+  const lines = narrow(draft).split("\n").reduce((sum, line) => sum + rowsOf(line), 0);
+  return { row, column: last.length % columns, lines };
+}
+
 /** How long the composer takes to shrink from filling the chat, in seconds. */
 const SHRINK_SECONDS = 0.28;
 /** The keys the field hands to the list while it shows, rather than moving its caret or sending. */
@@ -439,6 +465,17 @@ export function Composer({
     ...(takesImages ? [{ id: "image", label: "Image", icon: "image" as const, run: pick }] : []),
     ...(!takesImages ? [{ id: "attach", label: "Attach Files…", icon: "paperclip" as const, run: pick }] : []),
   ];
+  // Where the list opens: under the caret's line, from its column (`caretSpot`), as wide as Zed's.
+  const fieldWidth = Math.max(0, width - (expandable ? 22 : 0));
+  const listWidth = Math.max(240, Math.min(fieldWidth || LIST_WIDTH, LIST_WIDTH));
+  const rows = fill ? fillRows : expanded ? [24, 48] : [MIN_ROWS, 8];
+  const caretAt = caretSpot(draft, Math.min(at, draft.length), chips, Math.max(1, Math.floor(fieldWidth / (type.code * CHAR_EM))));
+  const shownRows = typeof rows === "number" ? rows : Math.min(rows[1]!, Math.max(rows[0]!, caretAt.lines));
+  const spot = {
+    top: FIELD_TOP + Math.min(caretAt.row, shownRows - 1) * type.codeLine,
+    left: Math.max(0, Math.min(caretAt.column * type.code * CHAR_EM, fieldWidth - listWidth)),
+    listWidth,
+  };
   // The field's inline nodes, each drawn by the child of its index.
   const inlines = chips.map((chip) => ({ text: chip.token, label: chip.label }));
   const note = (words: string) => (
@@ -483,52 +520,6 @@ export function Composer({
         </div>
       ) : null}
       <div onLayout={(e: any) => typeof e?.width === "number" && e.width !== width && setWidth(e.width)} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative", flexGrow: fill ? 1 : 0, minHeight: 0 }}>
-        {shown ? (
-          // Over the chat, its bottom at the editor's top: it covers the transcript, not moves it.
-          <anchored side="top" align="start" gap={6} fit="snap" snapMargin={8} deferred occlude priority={1} style={{ backgroundColor: "transparent" }}>
-            <div
-              role="listbox"
-              aria-label={mention ? "Files" : slashing ? "Skills" : "Slash commands"}
-              style={{ display: "flex", flexDirection: "column", width: width > 0 ? width : undefined, minWidth: 240, maxHeight: ROW * 8 + 8, overflowY: "scroll", paddingTop: 4, paddingBottom: 4, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.overlay, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}
-            >
-              {picks.length === 0 ? note(searching ? "Searching…" : "No matching files or folders") : null}
-              {picks.map((pick, index) => (
-                <div key={pick.key} ref={index === current ? markedRow : undefined} style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
-                  <Press
-                    role="option"
-                    aria-selected={index === current}
-                    aria-label={`${pick.label}${pick.detail ? `: ${pick.detail}` : ""}`}
-                    onClick={() => pick.fill()}
-                    onMouseEnter={() => setMarked(index)}
-                    style={{
-                      display: "flex",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                      height: ROW,
-                      flexShrink: 0,
-                      marginLeft: 4,
-                      marginRight: 4,
-                      paddingLeft: 7,
-                      paddingRight: 8,
-                      borderRadius: m.radiusSmall,
-                      cursor: "pointer",
-                      backgroundColor: index === current ? t.selected : undefined,
-                      focusVisible: { backgroundColor: t.selected },
-                    }}
-                  >
-                    <Icon name={pick.icon} size={12} color={index === current ? t.text : t.faint} />
-                    <text style={{ fontSize: type.small, fontWeight: 600, fontFamily: mention ? undefined : type.mono, color: t.text, whiteSpace: "nowrap", flexShrink: 0 }}>{pick.label}</text>
-                    {pick.hint ? <text style={{ fontSize: type.small, color: t.faint, whiteSpace: "nowrap", flexShrink: 0 }}>{pick.hint}</text> : null}
-                    <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
-                      <text style={{ fontSize: type.small, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{pick.detail ?? ""}</text>
-                    </div>
-                  </Press>
-                </div>
-              ))}
-            </div>
-          </anchored>
-        ) : null}
         {/* A click in the field places its caret: not a tap of the chat's, which would build it again. */}
         <OwnClicks
           onLayout={fill ? (e: any) => typeof e?.height === "number" && e.height !== area && setArea(e.height) : undefined}
@@ -574,6 +565,55 @@ export function Composer({
               <Mention key={chip.token} label={chip.label} kind={chip.kind} preview={chip.preview} line={type.codeLine} />
             ))}
           </textarea>
+          {shown ? (
+            // Under the line the caret is on, as Zed's completions are (above it when there is no
+            // room below): over the chat, not pushing it.
+            <div style={{ position: "absolute", top: spot.top, left: spot.left, width: 1, height: type.codeLine }}>
+              <anchored side="bottom" align="start" gap={4} fit="switch" deferred occlude priority={1} style={{ backgroundColor: "transparent" }}>
+                <div
+                  role="listbox"
+                  aria-label={mention ? "Files" : slashing ? "Skills" : "Slash commands"}
+                  style={{ display: "flex", flexDirection: "column", width: spot.listWidth, minWidth: 240, maxHeight: ROW * 8 + 8, overflowY: "scroll", paddingTop: 4, paddingBottom: 4, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.overlay, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}
+                >
+                  {picks.length === 0 ? note(searching ? "Searching…" : "No matching files or folders") : null}
+                  {picks.map((pick, index) => (
+                    <div key={pick.key} ref={index === current ? markedRow : undefined} style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                      <Press
+                        role="option"
+                        aria-selected={index === current}
+                        aria-label={`${pick.label}${pick.detail ? `: ${pick.detail}` : ""}`}
+                        onClick={() => pick.fill()}
+                        onMouseEnter={() => setMarked(index)}
+                        style={{
+                          display: "flex",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                          height: ROW,
+                          flexShrink: 0,
+                          marginLeft: 4,
+                          marginRight: 4,
+                          paddingLeft: 7,
+                          paddingRight: 8,
+                          borderRadius: m.radiusSmall,
+                          cursor: "pointer",
+                          backgroundColor: index === current ? t.selected : undefined,
+                          focusVisible: { backgroundColor: t.selected },
+                        }}
+                      >
+                        <Icon name={pick.icon} size={12} color={index === current ? t.text : t.faint} />
+                        <text style={{ fontSize: type.small, fontWeight: 600, fontFamily: mention ? undefined : type.mono, color: t.text, whiteSpace: "nowrap", flexShrink: 0 }}>{pick.label}</text>
+                        {pick.hint ? <text style={{ fontSize: type.small, color: t.faint, whiteSpace: "nowrap", flexShrink: 0 }}>{pick.hint}</text> : null}
+                        <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
+                          <text style={{ fontSize: type.small, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{pick.detail ?? ""}</text>
+                        </div>
+                      </Press>
+                    </div>
+                  ))}
+                </div>
+              </anchored>
+            </div>
+          ) : null}
           {expandable ? (
             <div style={{ position: "absolute", top: 0, right: 0, opacity: 0.5, hover: { opacity: 1 } }}>
               <BarButton icon={expanded ? "minimize" : "maximize"} title={expanded ? "Minimize Message Editor" : "Expand Message Editor"} onPress={() => setExpanded(!expanded)} />
