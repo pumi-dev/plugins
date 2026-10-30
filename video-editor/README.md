@@ -1,5 +1,7 @@
 # video-editor
 
+<p align="center"><img src="preview.svg" width="640" alt="A video in a tab: the frame, the transport, and Clipkit's timeline with titles, clips and audio"></p>
+
 A video in a tab: Clipkit's timeline editor, over a project file that is the edit. The project is
 JSON (CKP/1.0), and the media it names sits beside it, so an agent can read the cut, write a new
 one, and see it on the timeline the moment it is saved.

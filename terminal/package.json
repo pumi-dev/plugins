@@ -28,6 +28,13 @@
     "owner": "pumi_dev",
     "api": 1,
     "minPumi": "0.44.0",
+    "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A shell in a tab: a test run, its results and the prompt after it"
+      }
+    ],
     "contributes": {
       "commands": [
         {

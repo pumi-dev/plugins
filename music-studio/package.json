@@ -35,6 +35,13 @@
     "name": "music-studio",
     "owner": "pumi_dev",
     "api": 1,
+    "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A song in a tab: the transport, the song's parts, a row a track with mute and solo, the spectrum and the meters"
+      }
+    ],
     "uses": [
       "processes",
       "files"

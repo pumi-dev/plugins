@@ -1,5 +1,7 @@
 # terminal
 
+<p align="center"><img src="preview.svg" width="640" alt="A shell in a tab: a test run, its results and the prompt after it"></p>
+
 A shell in a tab. pumi itself runs terminals (the PTY, the program, its screen and scrollback,
 and keeping them alive across a restart) for any block that asks for them; the terminal is this
 plugin: the block a tab runs a shell in, and what draws it.

@@ -36,6 +36,13 @@
     "name": "video-editor",
     "owner": "pumi_dev",
     "api": 1,
+    "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A video in a tab: the frame, the transport, and Clipkit's timeline with titles, clips and audio"
+      }
+    ],
     "uses": [
       "files",
       "network"

@@ -27,6 +27,13 @@
     "owner": "pumi_dev",
     "api": 1,
     "minPumi": "0.44.0",
+    "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A new tab as the list of what it can open: a file, a terminal, a page, an agent, each with its key"
+      }
+    ],
     "contributes": {
       "blocks": [
         {
