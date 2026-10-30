@@ -1,0 +1,132 @@
+{
+  "name": "pumi-awake",
+  "displayName": "Keep Mac Awake",
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "description": "Keeps this Mac awake while agents work \u2014 with the lid shut if you want that \u2014 and lets it sleep again when they stop.",
+  "keywords": [
+    "sleep",
+    "caffeine",
+    "lid",
+    "battery",
+    "agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "awake"
+  },
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "awake",
+    "owner": "pumi_dev",
+    "api": 1,
+    "minPumi": "0.44.0",
+    "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "A cup in the menu bar saying Keeping mac awake, and awake's page in Settings: what counts as work, the lid, the battery"
+      }
+    ],
+    "uses": [
+      "processes"
+    ],
+    "contributes": {
+      "options": {
+        "working": {
+          "type": "boolean",
+          "default": true,
+          "label": "Keep awake while an agent works",
+          "desc": ""
+        },
+        "lid": {
+          "type": "boolean",
+          "default": false,
+          "label": "Keep awake with the lid closed",
+          "desc": ""
+        },
+        "linger": {
+          "type": "number",
+          "default": 60,
+          "min": 0,
+          "max": 3600,
+          "step": 5,
+          "unit": "s",
+          "label": "Keep awake after the last agent stops",
+          "desc": "0: let go at once."
+        },
+        "battery_floor": {
+          "type": "number",
+          "default": 20,
+          "min": 0,
+          "max": 100,
+          "step": 5,
+          "unit": "%",
+          "label": "Sleep when the battery is under",
+          "desc": "0: only when it is empty."
+        },
+        "max_hours": {
+          "type": "number",
+          "default": 3,
+          "min": 0,
+          "max": 48,
+          "step": 1,
+          "unit": "h",
+          "label": "Give up on an agent after",
+          "desc": "0: never."
+        },
+        "menubar": {
+          "type": "boolean",
+          "default": true,
+          "label": "Show the cup in the menu bar",
+          "desc": ""
+        }
+      },
+      "commands": [
+        {
+          "id": "install",
+          "title": "Awake: install the closed-lid admin rule"
+        },
+        {
+          "id": "settings",
+          "title": "Awake: open its settings"
+        }
+      ],
+      "settings": {
+        "pages": [
+          {
+            "id": "awake",
+            "title": "Awake",
+            "icon": "zap",
+            "component": "AwakePage",
+            "keywords": [
+              "sleep",
+              "awake",
+              "lid",
+              "closed lid",
+              "clamshell",
+              "caffeinate",
+              "pmset",
+              "idle",
+              "battery",
+              "keep awake"
+            ]
+          }
+        ]
+      }
+    },
+    "activation": [
+      "onStartup"
+    ]
+  }
+}

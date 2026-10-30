@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+  <!-- awake: the cup in the menu bar while the Mac is held up, and the switches it holds for. -->
+  <clipPath id="w"><rect width="320" height="200" rx="10"/></clipPath>
+  <g clip-path="url(#w)">
+  <rect x="0" y="0" width="320" height="200" fill="#1e1f22"/>
+
+  <!-- The menu bar, the cup on it lit, and its menu. -->
+  <rect x="0" y="0" width="320" height="22" fill="#26282b"/>
+  <rect x="0" y="21" width="320" height="1" fill="#393b41"/>
+  <rect x="14" y="9" width="12" height="4" rx="2" fill="#7c7f86"/>
+  <rect x="32" y="9" width="16" height="4" rx="2" fill="#7c7f86"/>
+  <rect x="54" y="9" width="12" height="4" rx="2" fill="#7c7f86"/>
+  <rect x="72" y="9" width="20" height="4" rx="2" fill="#7c7f86"/>
+  <rect x="212" y="6" width="10" height="10" rx="3" fill="#6f727a"/>
+  <rect x="228" y="6" width="10" height="10" rx="3" fill="#6f727a"/>
+  <rect x="244" y="6" width="10" height="10" rx="3" fill="#6f727a"/>
+  <rect x="260" y="6" width="10" height="10" rx="3" fill="#6f727a"/>
+  <rect x="276" y="6" width="10" height="10" rx="3" fill="#6f727a"/>
+  <rect x="290" y="4" width="22" height="15" rx="4" fill="#3a3c42"/>
+  <g transform="translate(294.5 6.5) scale(0.028)" fill="none" stroke="#f0b27a" stroke-width="60" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M172 222h170l-8 56a80 80 0 0 1-154 0z" transform="translate(0 -20)"/>
+    <path d="M342 240h22a36 36 0 0 1 0 72h-10" transform="translate(0 -20)"/>
+    <path d="M150 400h208" transform="translate(0 -20)"/>
+  </g>
+
+  <rect x="204" y="26" width="112" height="54" rx="7" fill="#2b2d31" stroke="#3d4046"/>
+  <g transform="translate(212 34) scale(0.024)" fill="none" stroke="#f0b27a" stroke-width="62" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M172 222h170l-8 56a80 80 0 0 1-154 0z" transform="translate(0 -20)"/>
+    <path d="M342 240h22a36 36 0 0 1 0 72h-10" transform="translate(0 -20)"/>
+    <path d="M150 400h208" transform="translate(0 -20)"/>
+  </g>
+  <rect x="232" y="37" width="64" height="5" rx="2.5" fill="#e3e5e8"/>
+  <rect x="210" y="52" width="100" height="1" fill="#3d4046"/>
+  <g transform="translate(212 59)" fill="none" stroke="#9da0a7" stroke-width="2" stroke-linecap="round">
+    <circle cx="7" cy="7" r="4.5"/>
+    <path d="M7 1v1.6M7 11.4V13M1 7h1.6M11.4 7H13M2.7 2.7l1.1 1.1M10.2 10.2l1.1 1.1M11.3 2.7l-1.1 1.1M3.8 10.2l-1.1 1.1"/>
+  </g>
+  <rect x="232" y="61" width="48" height="5" rx="2.5" fill="#9da0a7"/>
+
+  <!-- Its page in Settings: what counts as work, the lid, the linger, the battery. -->
+  <rect x="22" y="40" width="166" height="146" rx="8" fill="#232528" stroke="#34363c"/>
+  <rect x="34" y="54" width="34" height="5" rx="2.5" fill="#e3e5e8"/>
+  <rect x="34" y="78" width="80" height="4.5" rx="2.25" fill="#b9bcc2"/>
+  <rect x="158" y="74" width="20" height="11" rx="5.5" fill="#89b4fa"/>
+  <circle cx="172.5" cy="79.5" r="4" fill="#1e1f22"/>
+  <rect x="34" y="100" width="66" height="4.5" rx="2.25" fill="#b9bcc2"/>
+  <rect x="158" y="96" width="20" height="11" rx="5.5" fill="#89b4fa"/>
+  <circle cx="172.5" cy="101.5" r="4" fill="#1e1f22"/>
+  <rect x="34" y="122" width="92" height="4.5" rx="2.25" fill="#b9bcc2"/>
+  <rect x="158" y="118" width="20" height="11" rx="5.5" fill="#4a4c52"/>
+  <circle cx="163.5" cy="123.5" r="4" fill="#1e1f22"/>
+  <rect x="34" y="144" width="58" height="4.5" rx="2.25" fill="#b9bcc2"/>
+  <rect x="146" y="141" width="32" height="9" rx="4.5" fill="#2c2e33"/>
+  <rect x="159" y="144" width="16" height="3.5" rx="1.75" fill="#b9bcc2"/>
+  <rect x="34" y="164" width="72" height="4.5" rx="2.25" fill="#b9bcc2"/>
+  <rect x="146" y="161" width="32" height="9" rx="4.5" fill="#2c2e33"/>
+  <rect x="159" y="164" width="16" height="3.5" rx="1.75" fill="#b9bcc2"/>
+
+  </g>
+</svg>
