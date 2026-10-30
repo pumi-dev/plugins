@@ -1,5 +1,7 @@
 # music-studio
 
+<p align="center"><img src="preview.svg" width="640" alt="A song in a tab: the transport, the song's parts, a row a track with mute and solo, the spectrum and the meters"></p>
+
 A song in a tab, laid out the way GarageBand lays it out: the transport and the bar it is on, the
 song's parts across an arrangement track, a row a track with mute and solo, a spectrum that moves to
 the music, the meters, and notes you leave on a part for an agent to read.

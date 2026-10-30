@@ -1,5 +1,7 @@
 # launcher
 
+<p align="center"><img src="preview.svg" width="640" alt="A new tab as the list of what it can open: a file, a terminal, a page, an agent, each with its key"></p>
+
 A tab that lists what you can open in it: a file, and whatever your plugins add to the `+` menu
 (Terminal's shell, Browser's page, …), each with a key to press. What you pick takes the tab's
 place, in the same pane.
