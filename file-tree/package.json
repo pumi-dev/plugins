@@ -1,7 +1,7 @@
 {
   "name": "pumi-file-tree",
   "displayName": "File Tree",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "GPL-3.0-or-later",
   "description": "The project tree in the sidebar: folders and files with their icons and git's marks, to open, rename, move, trash and search.",
   "keywords": [
