@@ -1,6 +1,7 @@
 // What the agent asks the user. A call that asks questions (`question.ts`) is drawn as them: each
 // question, its tag, its choices with what they mean, and — once answered — the choice taken. While
-// it waits, the card says so and offers the place to answer (the agent's own screen). A request pumi
+// it waits, the card says so and offers the place to answer: its choices, when the request waiting
+// asks it (`askedInCards`), else the agent's own screen. Any other request pumi
 // holds (`Permission`, a permission or a question) is drawn with a button per answer, and a field
 // when a question takes words.
 import { useState } from "react";
@@ -8,7 +9,7 @@ import { Icon, useMetrics, useTheme } from "pumi";
 
 import { answerHint } from "../keys.ts";
 import { allows, type Permission, type PermissionOption, type Tool } from "../model.ts";
-import { answersOf, picked, questionOutcome, questionsOf, type Question } from "../question.ts";
+import { answersOf, picked, questionOutcome, questionsOf, type Asking, type Question } from "../question.ts";
 import { Inline, Mono } from "./markdown.tsx";
 import { keepTyping, OwnClicks, Press } from "./press.tsx";
 import { tint, useBlockColor, useTextTheme, useType } from "./style.ts";
@@ -22,21 +23,34 @@ export interface QuestionCardProps {
   /** What `onAnswerElsewhere`'s button says. */
   elsewhereLabel?: string;
   onLink?(url: string): void;
+  /** The request waiting that asks one of its questions (`askedInCards`): its choices answer it. */
+  asking?: Asking;
+  /** An answer was picked (`PermissionCardProps.onAnswer`). */
+  onAnswer?(permissionId: string, optionId: string, text?: string): void;
+  /** The request's answers take ⌃1 … ⌃9: each choice says its key. */
+  keys?: boolean;
 }
 
-/** A call that asks questions, drawn as the questions. */
-export function QuestionCard({ tool, waiting = false, onAnswerElsewhere, elsewhereLabel = "Answer in the terminal", onLink }: QuestionCardProps) {
+/** A call that asks questions, drawn as the questions; the one a request waiting asks is answered here. */
+export function QuestionCard({ tool, waiting = false, onAnswerElsewhere, elsewhereLabel = "Answer in the terminal", onLink, asking, onAnswer, keys = false }: QuestionCardProps) {
   const t = useTheme();
   const m = useMetrics();
   const bg = useBlockColor();
   const type = useType();
+  // What was picked here, by question, until the call's result says it.
+  const [sent, setSent] = useState<ReadonlyMap<number, string>>(new Map());
   const questions = questionsOf(tool) ?? [];
   const answers = answersOf(tool);
   const outcome = questionOutcome(tool, answers);
   const open = tool.status === "running" || tool.status === "pending";
-  const live = open && waiting;
+  const answerable = open && asking !== undefined && onAnswer !== undefined;
+  const live = open && (waiting || answerable);
   const tone = live ? t["agent.blocked"] : answers.size > 0 ? t.success : t.faint;
   const state = live ? "Waiting for your answer" : open ? "Asked" : answers.size > 0 ? "Answered" : (outcome ?? "Closed");
+  const answer = (at: number, shown: string, optionId: string, text?: string) => {
+    setSent((last) => new Map(last).set(at, shown));
+    onAnswer?.(asking!.permission.id, optionId, text);
+  };
   return (
     <div
       role="group"
@@ -52,10 +66,18 @@ export function QuestionCard({ tool, waiting = false, onAnswerElsewhere, elsewhe
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 10 }}>
         {questions.map((question, at) => (
-          <QuestionView key={at} question={question} answer={answers.get(question.question)} onLink={onLink} />
+          <QuestionView
+            key={at}
+            question={question}
+            answer={answers.get(question.question) ?? (open ? sent.get(at) : undefined)}
+            onLink={onLink}
+            asking={answerable && asking!.question === at ? asking : undefined}
+            keys={keys}
+            onAnswer={(shown, optionId, text) => answer(at, shown, optionId, text)}
+          />
         ))}
       </div>
-      {live && onAnswerElsewhere ? (
+      {live && !answerable && onAnswerElsewhere ? (
         <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-end", paddingLeft: 10, paddingRight: 10, paddingBottom: 10 }}>
           <Button label={elsewhereLabel} icon="terminal" primary onPress={onAnswerElsewhere} />
         </div>
@@ -64,11 +86,42 @@ export function QuestionCard({ tool, waiting = false, onAnswerElsewhere, elsewhe
   );
 }
 
-function QuestionView({ question, answer, onLink }: { question: Question; answer: string | undefined; onLink?(url: string): void }) {
+interface QuestionViewProps {
+  question: Question;
+  answer: string | undefined;
+  onLink?(url: string): void;
+  /** The request asking it now: its choices are pressed to answer. */
+  asking?: Asking;
+  keys: boolean;
+  /** `shown`: the answer as the card draws it until the result comes. */
+  onAnswer(shown: string, optionId: string, text?: string): void;
+}
+
+function QuestionView({ question, answer, onLink, asking, keys, onAnswer }: QuestionViewProps) {
   const t = useTheme();
   const m = useMetrics();
   const type = useType();
+  const text = useTextTheme();
+  const [words, setWords] = useState("");
+  // The choices ticked, of a question that takes many, before they are sent.
+  const [ticked, setTicked] = useState<ReadonlySet<number>>(new Set());
   const custom = answer !== undefined && !question.options.some((option) => picked(answer, option.label)) ? answer : undefined;
+  // A question that takes many is sent as words: the choices ticked and what was typed.
+  const many = asking !== undefined && question.multiSelect && asking.words && asking.choices.every((id) => id === undefined);
+  const choose = (at: number) => {
+    if (!asking) return;
+    if (many) return setTicked((last) => (last.has(at) ? new Set([...last].filter((each) => each !== at)) : new Set([...last, at])));
+    const label = question.options[at]!.label;
+    const id = asking.choices[at];
+    if (id !== undefined) onAnswer(label, id);
+    else onAnswer(label, "", label);
+  };
+  const send = () => {
+    const typed = words.trim();
+    const reply = many ? [...question.options.filter((_, at) => ticked.has(at)).map((option) => option.label), ...(typed ? [typed] : [])].join(", ") : typed;
+    if (reply !== "") onAnswer(reply, "", reply);
+  };
+  const sendable = words.trim() !== "" || (many && ticked.size > 0);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
       <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
@@ -82,16 +135,11 @@ function QuestionView({ question, answer, onLink }: { question: Question; answer
       <Inline text={question.question} size={type.body} line={type.bodyLine} color={t.text} weight={600} onLink={onLink} />
       <div role={question.multiSelect ? "group" : "radiogroup"} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {question.options.map((option, at) => {
-          const on = picked(answer, option.label);
+          const on = asking && many ? ticked.has(at) : picked(answer, option.label);
           const dim = answer !== undefined && !on;
-          return (
-            <div
-              key={at}
-              role={question.multiSelect ? "checkbox" : "radio"}
-              aria-checked={on}
-              aria-label={`${option.label}${option.description ? `: ${option.description}` : ""}`}
-              style={{ display: "flex", flexDirection: "column", gap: 4, paddingLeft: 8, paddingRight: 8, paddingTop: 6, paddingBottom: 6, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: on ? tint(t.accent, 0.8) : t.border, backgroundColor: on ? tint(t.accent, 0.12) : t.editor, opacity: dim ? 0.6 : 1 }}
-            >
+          const hint = keys && asking && !many ? answerHint(asking.permission.options.findIndex((each) => each.id === asking.choices[at])) : undefined;
+          const row = (
+            <>
               <div style={{ display: "flex", flexDirection: "row", gap: 8, minWidth: 0 }}>
                 <div style={{ display: "flex", height: type.smallLine, alignItems: "center", flexShrink: 0 }}>
                   {on ? <Icon name="status_check" size={12} color={t.accent} /> : <text style={{ fontSize: type.tiny, fontFamily: type.mono, color: t.faint, lineHeight: type.smallLine }}>{`${at + 1}`}</text>}
@@ -100,16 +148,53 @@ function QuestionView({ question, answer, onLink }: { question: Question; answer
                   <Inline text={option.label} size={type.small} line={type.smallLine} color={t.text} weight={on ? 650 : 550} onLink={onLink} />
                   {option.description ? <Inline text={option.description} size={type.small} line={type.smallLine} color={t.muted} onLink={onLink} /> : null}
                 </div>
+                {hint ? <text style={{ fontSize: type.tiny, fontFamily: type.mono, color: t.faint, lineHeight: type.smallLine, whiteSpace: "nowrap", flexShrink: 0 }}>{hint}</text> : null}
               </div>
               {option.preview ? (
                 <div style={{ display: "flex", borderRadius: m.radiusSmall, backgroundColor: t.surface, marginLeft: 20 }}>
                   <Mono text={option.preview} padding={8} />
                 </div>
               ) : null}
+            </>
+          );
+          const look = { display: "flex", flexDirection: "column", gap: 4, paddingLeft: 8, paddingRight: 8, paddingTop: 6, paddingBottom: 6, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: on ? tint(t.accent, 0.8) : t.border, backgroundColor: on ? tint(t.accent, 0.12) : t.editor, opacity: dim ? 0.6 : 1 } as const;
+          const label = `${option.label}${option.description ? `: ${option.description}` : ""}`;
+          return asking ? (
+            <Press
+              key={at}
+              role={question.multiSelect ? "checkbox" : "radio"}
+              aria-label={label}
+              aria-selected={on}
+              title={hint ? `${option.label} (${hint})` : undefined}
+              onClick={() => choose(at)}
+              style={{ ...look, cursor: "pointer", hover: { borderColor: tint(t.accent, 0.6), backgroundColor: on ? tint(t.accent, 0.16) : t.hover }, focusVisible: { outlineWidth: 2, outlineColor: t.accent, outlineOffset: 1 } }}
+            >
+              {row}
+            </Press>
+          ) : (
+            <div key={at} role={question.multiSelect ? "checkbox" : "radio"} aria-checked={on} aria-label={label} style={look}>
+              {row}
             </div>
           );
         })}
       </div>
+      {asking?.words ? (
+        <OwnClicks style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", gap: 6, padding: 4, paddingLeft: 8, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, backgroundColor: t.editor }}>
+          <textarea
+            aria-label="Your answer"
+            value={words}
+            placeholder={many ? "Something else (optional)…" : "Something else…"}
+            minRows={1}
+            maxRows={6}
+            theme={text}
+            onChange={(e) => setWords(e.value ?? "")}
+            onKeyDown={keepTyping}
+            onSubmit={() => send()}
+            style={{ flexGrow: 1, minWidth: 0, fontSize: type.small, color: t.text, backgroundColor: "transparent" }}
+          />
+          <Button label="Answer" primary disabled={!sendable} onPress={send} />
+        </OwnClicks>
+      ) : null}
       {custom !== undefined ? (
         <div style={{ display: "flex", flexDirection: "row", gap: 6, paddingLeft: 8, paddingRight: 8, paddingTop: 6, paddingBottom: 6, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: tint(t.accent, 0.8), backgroundColor: tint(t.accent, 0.12) }}>
           <Icon name="person" size={12} color={t.accent} />

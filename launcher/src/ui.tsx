@@ -1,10 +1,12 @@
 // The launcher's block (`pumi_dev.launcher.new`): a list of what to open in this tab, the same as
-// the `+` menu's, each with its key. A press on a row, its key, or Enter on the one the arrows
-// chose opens it in the list's place (`replace`, the same tab); Escape closes the tab.
+// the `+` menu's (the most used first), each with its key, the same letter as there. A press on a
+// row, its key, or Enter on the one the arrows chose opens it in the list's place (`replace`, the
+// same tab); Escape closes the tab.
 import { Fragment, useMemo, useRef, useState } from "react";
 import { Icon, useMetrics, useTextSize, useTheme, type RendererProps } from "pumi";
+import * as kit from "pumi/theme";
 import { call, useSlot, via } from "pumi/theme";
-import { byLetter, kinds, type Kind, type Place, type SlotAction } from "./kinds.ts";
+import { byLetter, fromSlot, kinds, type Kind, type NewTab, type Place, type SlotAction } from "./kinds.ts";
 
 const swallow = (err: unknown) => console.error(`launcher: ${String((err as Error)?.message ?? err)}`);
 
@@ -15,13 +17,24 @@ async function openFile(at: string, place: Place) {
   if (typeof path === "string" && path) await call(via(at, "tab.open"), "file", { path }, place);
 }
 
+/** The `+` menu's list; a pumi before `useNewTabs` has the `tab.new` slot's actions instead. */
+const useNewTabs = (kit as { useNewTabs?: () => NewTab[] }).useNewTabs;
+const useList: () => Kind[] = useNewTabs
+  ? () => {
+      const list = useNewTabs();
+      return useMemo(() => kinds(list, openFile), [list]);
+    }
+  : () => {
+      const { actions } = useSlot("tab.new");
+      return useMemo(() => fromSlot(actions as SlotAction[], openFile), [actions]);
+    };
+
 export function New({ tab, focused }: RendererProps) {
   const id = tab.id;
   const ts = useTextSize();
   const t = useTheme();
   const m = useMetrics();
-  const { actions } = useSlot("tab.new");
-  const list = useMemo(() => kinds(actions as SlotAction[], openFile), [actions]);
+  const list = useList();
   const [chosen, setChosen] = useState(0);
   const opening = useRef(false);
   const pick = (k: Kind | undefined) => {

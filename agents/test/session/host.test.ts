@@ -177,13 +177,21 @@ test("pi: a turn streamed with a call, a question an extension asks, a model, an
   await until(() => host.transcript?.entries.filter((e) => e.kind === "turn").length === 2);
   expect(host.transcript?.entries.filter((e) => e.kind === "agent").at(-1)?.text).toBe("Went on.");
 
+  // A select answered in words (the question card's own field) sends the words, not an option.
+  await host.command({ type: "prompt", id: newCommandId(), text: "pick" });
+  const pick = await until(() => host.transcript?.permissions[0]);
+  expect(pick.options.map((o) => o.label)).toEqual(["1. A — the first", "2. B — the second", "3. Type something."]);
+  await host.command({ type: "answer", id: newCommandId(), permissionId: pick.id, optionId: "", text: "Neither" });
+  await until(() => host.transcript?.entries.filter((e) => e.kind === "turn").length === 3);
+  expect(host.transcript?.entries.filter((e) => e.kind === "agent").at(-1)?.text).toBe("Picked Neither.");
+
   expect((await host.command({ type: "setOption", id: newCommandId(), category: "model", value: "fake/big" })).rejected).toBeUndefined();
   expect(host.transcript?.options.find((o) => o.category === "model")?.current).toBe("fake/big");
 
   await host.command({ type: "prompt", id: newCommandId(), text: "wait" });
   await until(() => host.transcript?.status === "working");
   expect((await host.command({ type: "cancel", id: newCommandId() })).rejected).toBeUndefined();
-  await until(() => host.transcript?.entries.filter((e) => e.kind === "turn").length === 3);
+  await until(() => host.transcript?.entries.filter((e) => e.kind === "turn").length === 4);
   t = host.transcript!;
   expect(t.entries.at(-1)?.turn?.stop).toBe("cancelled");
 

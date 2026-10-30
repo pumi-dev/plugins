@@ -424,9 +424,11 @@ export class PiSession implements Driver {
         const dialog = this.#dialogs.get(command.permissionId);
         if (!dialog) throw new Error("that question is no longer waiting");
         this.#dialogs.delete(command.permissionId);
+        // A select answered in words (the chat's card has a field for one's own) sends the words:
+        // the ask-user tool takes a reply that is no option as the user's own answer.
         const reply =
           dialog.method === "select"
-            ? { value: dialog.choices[Number(command.optionId)] }
+            ? { value: command.text !== undefined && command.text.trim() !== "" ? command.text : dialog.choices[Number(command.optionId)] }
             : dialog.method === "confirm"
               ? { confirmed: command.optionId === "yes" }
               : { value: command.text ?? "" };

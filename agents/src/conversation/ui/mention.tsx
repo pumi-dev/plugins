@@ -1,7 +1,8 @@
 // What a prompt names, drawn as a chip in its line: a file, a folder, a picture or a skill, its
 // icon and name on inline code's wash. In the composer the textarea's inline node draws one
 // (`inlines`, one character to the caret); in a message `MentionText` draws the text around them.
-// A picture's chip shows the picture on hover, above it, and opens it when pressed.
+// A picture's chip shows the picture on hover, below it (above where there is no room), and
+// opens it when pressed.
 import type { ReactNode } from "react";
 import { call, Icon, useHover, useMetrics, useTheme } from "pumi";
 
@@ -65,7 +66,7 @@ export function Mention({ label, kind, preview, title, line, size: given, onPres
       {kind === "folder" ? <Icon name="folder" size={size} color={t.muted} /> : kind === "skill" ? <Icon name="sparkle" size={size} color={t.accent} /> : <ZIcon name={kind === "image" ? "image" : "file"} size={size} color={t.muted} />}
       <text style={{ fontSize: size, fontFamily: type.mono, color: t.text, whiteSpace: "nowrap" }}>{label}</text>
       {hovered && preview ? (
-        <anchored side="top" align="start" gap={6} fit="snap" snapMargin={8} deferred occlude priority={2} style={{ backgroundColor: "transparent" }}>
+        <anchored side="bottom" align="start" gap={6} fit="switch" snapMargin={8} deferred occlude priority={2} style={{ backgroundColor: "transparent" }}>
           <div style={{ display: "flex", padding: 4, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.overlay, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}>
             <img src={preview} alt={label} objectFit="contain" style={{ maxWidth: 320, maxHeight: 220, minWidth: 48, minHeight: 32, borderRadius: m.radiusSmall }} />
           </div>

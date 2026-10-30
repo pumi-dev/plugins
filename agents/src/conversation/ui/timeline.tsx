@@ -4,16 +4,16 @@
 // agent says is markdown; each thought is a "Thinking" block, open while it is written; each call
 // is a line of its own, or a card for an edit, a command ("Run Command") or a subagent. After each
 // turn, a row of its controls: its stats, Fork, Copy and the way back up. A call that asks the
-// user is drawn as its questions.
+// user is drawn as its questions, answered in place while the agent waits on them.
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { Icon, motion, useHover, useMetrics, useNow, useTheme, type ElementRef } from "pumi";
+import { Icon, iconSource, motion, useHover, useMetrics, useNow, useTheme, type ElementRef } from "pumi";
 
 import type { Entry, PlanItem, Status, Tool, ToolContent, Transcript } from "../model.ts";
-import { questionsOf } from "../question.ts";
+import { questionsOf, type Asking } from "../question.ts";
 import { baseName, clipLines, formatDuration, imageSource, messageParts, outputShown, patchOf, restorable, statusLabel, toolDiffStats, toolHeadline, visibleEntries } from "../view.ts";
 import { ZIcon } from "./bar.tsx";
 import { DiffView, Stats } from "./diff.tsx";
-import type { ZedIcon } from "./icons.ts";
+import { ZED_ICONS, type ZedIcon } from "./icons.ts";
 import { Thumb, useViewer } from "./image.tsx";
 import { Mention, MentionText } from "./mention.tsx";
 import { copyText, CopyButton, Inline, Markdown, Mono, MoreLines } from "./markdown.tsx";
@@ -57,6 +57,12 @@ export interface TimelineProps {
   onAnswerElsewhere?(): void;
   /** What that button says. */
   elsewhereLabel?: string;
+  /** The requests waiting that a question call's card answers, by the call's id (`askedInCards`). */
+  asking?: Map<string, Asking>;
+  /** One of those answered (`PermissionCardProps.onAnswer`). */
+  onAnswer?(permissionId: string, optionId: string, text?: string): void;
+  /** The request ⌃1 … ⌃9 answer: its card says the keys. */
+  answerKeys?: string;
   /** What a message offers beside Copy. */
   messageActions?(entry: Entry): MessageAction[];
   /** The user's message being edited now: drawn as a field in its place, and what follows it faded. */
@@ -88,6 +94,9 @@ interface TimelineContext {
   status: Status;
   onAnswerElsewhere?(): void;
   elsewhereLabel?: string;
+  asking?: Map<string, Asking>;
+  onAnswer?(permissionId: string, optionId: string, text?: string): void;
+  answerKeys?: string;
   messageActions?(entry: Entry): MessageAction[];
   editing?: string;
   editable?(entry: Entry): boolean;
@@ -115,7 +124,7 @@ const Context = createContext<TimelineContext>({ status: "idle" });
 const isQuestion = (tool: Tool) => questionsOf(tool) !== undefined;
 
 /** Every entry, the newest at the foot; it follows the foot while you are there. */
-export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere, elsewhereLabel, messageActions, editing, editable, onEditStart, onEditSubmit, onEditCancel, onFork, onRestore }: TimelineProps) {
+export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere, elsewhereLabel, asking, onAnswer, answerKeys, messageActions, editing, editable, onEditStart, onEditSubmit, onEditCancel, onFork, onRestore }: TimelineProps) {
   const t = useTheme();
   const type = useType();
   const [count, setCount] = useState(pageSize);
@@ -143,6 +152,9 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
     status: transcript.status,
     onAnswerElsewhere,
     elsewhereLabel,
+    asking,
+    onAnswer,
+    answerKeys,
     messageActions,
     editing,
     editable,
@@ -240,13 +252,16 @@ function turnStart(entries: Entry[]): number | undefined {
   return undefined;
 }
 
-/** A spinning icon, for what is going on now. */
+/** The app's spinner icon, found once. */
+const SPINNER = iconSource("status_spinner")?.src;
+
+/**
+ * A spinning icon, for what is going on now. The renderer turns an `svg` itself (`rotate`), not a
+ * box around one, so the motion is on the icon.
+ */
 export function Spinner({ size = 12, color }: { size?: number; color?: string }) {
-  return (
-    <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 1, repeat: Infinity, ease: "linear", fps: 24 }} style={{ display: "flex", width: size, height: size, flexShrink: 0 }}>
-      <Icon name="status_spinner" size={size} color={color} />
-    </motion.div>
-  );
+  if (!SPINNER) return null;
+  return <motion.svg src={SPINNER} animate={{ rotate: [0, 360] }} transition={{ duration: 1, repeat: Infinity, ease: "linear", fps: 24 }} style={{ width: size, height: size, flexShrink: 0, ...(color ? { color } : {}) }} />;
 }
 
 /** Zed's generating row: a spinner, "Awaiting Confirmation" while a request waits, the time from 30 s. */
@@ -285,9 +300,19 @@ export function EntryView({ entry, onLink }: EntryViewProps) {
     case "tool":
       if (!entry.tool) return null;
       if (isQuestion(entry.tool)) {
+        const asking = context.asking?.get(entry.tool.id);
         return (
           <Indented>
-            <QuestionCard tool={entry.tool} waiting={context.status === "blocked" || context.status === "working"} onAnswerElsewhere={context.onAnswerElsewhere} elsewhereLabel={context.elsewhereLabel} onLink={context.onLink} />
+            <QuestionCard
+              tool={entry.tool}
+              waiting={context.status === "blocked" || context.status === "working"}
+              onAnswerElsewhere={context.onAnswerElsewhere}
+              elsewhereLabel={context.elsewhereLabel}
+              onLink={context.onLink}
+              asking={asking}
+              onAnswer={context.onAnswer}
+              keys={asking !== undefined && asking.permission.id === context.answerKeys}
+            />
           </Indented>
         );
       }
@@ -883,9 +908,7 @@ export function PlanList({ plan }: { plan: PlanItem[] }) {
         >
           <div style={{ display: "flex", height: type.smallLine, alignItems: "center" }}>
             {item.status === "in_progress" ? (
-              <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 2, repeat: Infinity, ease: "linear", fps: 24 }} style={{ display: "flex", width: 14, height: 14 }}>
-                <ZIcon name="todo_progress" size={14} color={t.accent} />
-              </motion.div>
+              <motion.svg source={ZED_ICONS.todo_progress} animate={{ rotate: [0, 360] }} transition={{ duration: 2, repeat: Infinity, ease: "linear", fps: 24 }} style={{ width: 14, height: 14, flexShrink: 0, color: t.accent }} />
             ) : (
               <ZIcon name={item.status === "completed" ? "todo_complete" : "todo_pending"} size={14} color={item.status === "completed" ? t.success : t.muted} />
             )}
