@@ -1,6 +1,7 @@
 // A small `pi --mode rpc` for the host's test: it answers the commands the pi engine sends, and a
 // prompt streams a reply with thinking, runs a `bash` call and settles; a prompt of "ask" opens an
-// extension's `confirm` dialog first and says what was answered; "wait" runs until `abort`.
+// extension's `confirm` dialog first and says what was answered, "pick" a `select` the same way;
+// "wait" runs until `abort`.
 // Everything here is made up.
 export {};
 
@@ -47,6 +48,13 @@ async function run(id: unknown, text: string): Promise<void> {
       send({ type: "extension_ui_request", id: "d1", method: "confirm", title: "Go on?", message: "It is safe." });
     });
     said = answer.confirmed ? "Went on" : "Stopped";
+  }
+  if (text === "pick") {
+    const answer = await new Promise<any>((resolve) => {
+      dialogs.set("d2", resolve);
+      send({ type: "extension_ui_request", id: "d2", method: "select", title: "[Task] Which?", options: ["1. A — the first", "2. B — the second", "3. Type something."] });
+    });
+    said = `Picked ${answer.value}`;
   }
   if (text === "wait") {
     await new Promise<void>((resolve) => (aborted = resolve));

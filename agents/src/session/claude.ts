@@ -187,10 +187,14 @@ export class ClaudeSession implements Driver {
       this.#set({ error: `Claude did not start: ${message(err)}` });
       return;
     }
-    await this.#controls();
+    // Ready now: the prompt waits in the query's inbox while Claude starts. The models and commands
+    // it offers come when it can say them (a second or so: it starts its MCP servers first).
     this.producer.push({ type: "status", status: "idle" });
     this.producer.flush();
     this.#set({ phase: "ready", ...(session ? { session } : {}), error: undefined });
+    void this.#controls()
+      .then(() => this.producer.flush())
+      .catch((err) => process.stderr.write(`claude: its models and commands: ${message(err)}\n`));
   }
 
   async start(): Promise<void> {}

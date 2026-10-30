@@ -1,15 +1,17 @@
-// What a session tab draws, as the `Session` renderer of the plugin's own `session` block: while the
-// agent starts, signs in or offers its sessions, those steps; then the chat of the host's
-// conversation, which the worker relays (`session.update.<tab>`, folded with `follow`) beside the
-// host's own state (`session.state.<tab>`).
+// What a session tab draws, as the `Session` renderer of the plugin's own `session` block: the chat
+// of the host's conversation, which the worker relays (`session.update.<tab>`, folded with
+// `follow`) beside the host's own state (`session.state.<tab>`), or the step the agent needs first
+// (signing in, picking a session). The chat shows while the agent starts: a prompt sent then waits
+// in its queue and goes once the agent is ready.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useChannel, useChannelListener, useMetrics, useTab, useTheme, type RendererProps, type TabId } from "pumi";
 
 import { follow, type Update } from "../conversation/change.ts";
-import type { Command, Transcript } from "../conversation/model.ts";
+import type { Command, Queued, Transcript } from "../conversation/model.ts";
 import { Conversation, Press } from "../conversation/ui.tsx";
 import type { HostState } from "../session/wire.ts";
-import { AGENT } from "../names.ts";
+import { AGENT, SESSION_START } from "../names.ts";
+import { useKept } from "./kept.ts";
 import { attach, authenticate, login, restart, retry, sessionMentions, sessionSend, startSession } from "../main.ts";
 
 /** A throw the tab cannot answer: said in the log. */
@@ -36,10 +38,12 @@ export function Session({ tab, focused }: RendererProps) {
       </Centered>
     );
   }
-  return <Live id={id} focused={focused} />;
+  return <Live id={id} focused={focused} picks={options[SESSION_START] === "pick"} tab={tab.id} options={options} />;
 }
 
-function Live({ id, focused }: { id: number; focused: boolean }) {
+/** `picks`: the tab starts on the agent's list of sessions, so no chat shows before it. */
+function Live({ id, focused, picks, tab, options }: { id: number; focused: boolean; picks: boolean; tab: TabId; options: Record<string, unknown> }) {
+  const kept = useKept(tab, options);
   const live = useChannel<HostState | undefined>(`session.state.${id}`, undefined);
   const [first, setFirst] = useState<HostState>();
   const [transcript, setTranscript] = useState<Transcript>();
@@ -67,7 +71,7 @@ function Live({ id, focused }: { id: number; focused: boolean }) {
     if (!next) reread();
     else if (next !== held.current) keep(next);
   });
-  const onCommand = (command: Command) => {
+  const send = (command: Command) => {
     setRejected(undefined);
     sessionSend(id, command)
       .then((ack) => ack.rejected && setRejected(ack.rejected))
@@ -75,18 +79,38 @@ function Live({ id, focused }: { id: number; focused: boolean }) {
   };
   const state = live ?? first;
   const phase = state?.phase ?? "starting";
-  const chat = transcript && (phase === "ready" || phase === "loading" || (phase === "exited" && transcript.entries.length > 0));
+  const starting = phase === "starting" && !state?.error && !picks;
+  // The prompts sent while the agent starts, in order: they go once it is ready.
+  const [waiting, setWaiting] = useState<Queued[]>([]);
+  useEffect(() => {
+    if (phase !== "ready" || waiting.length === 0) return;
+    for (const each of waiting) send({ type: "prompt", id: each.id, text: each.text, ...(each.images ? { images: each.images } : {}) });
+    setWaiting([]);
+  }, [phase, waiting.length]);
+  const onCommand = (command: Command) => {
+    if (command.type === "prompt") kept.remember(command.text);
+    if (phase === "ready") return send(command);
+    if (command.type === "prompt" && !command.replaces) return setWaiting((was) => [...was, { id: command.id, text: command.text, ...(command.images ? { images: command.images } : {}) }]);
+    if (command.type === "unqueue" && waiting.some((each) => each.id === command.queued)) return setWaiting((was) => was.filter((each) => each.id !== command.queued));
+    send(command);
+  };
+  const shown = transcript && waiting.length > 0 ? { ...transcript, queue: [...transcript.queue, ...waiting] } : transcript;
+  const chat = shown && (phase === "ready" || phase === "loading" || starting || (phase === "exited" && shown.entries.length > 0));
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}>
       {phase === "loading" ? <Banner text="Loading the session…" /> : null}
+      {starting && chat ? <Banner text={`Starting ${state?.name ?? "the agent"}…`} /> : null}
       {phase === "exited" && chat ? <Banner text={state?.error ?? "The agent exited."} tone="error" action={{ label: "Start again", onPress: () => void restart(id).catch(swallow) }} /> : null}
       {rejected ? <Banner text={rejected} tone="error" /> : null}
       {chat ? (
         <Conversation
-          transcript={transcript}
+          transcript={shown!}
           onCommand={onCommand}
           autoFocus={focused}
           draftKey={`session:${id}`}
+          savedDraft={kept.savedDraft}
+          onDraft={kept.onDraft}
+          pastPrompts={kept.pastPrompts}
           onMentions={(query) => sessionMentions(id, query)}
           rewinds={state?.canEdit ? "exact" : undefined}
           forks={state?.canFork === true}
@@ -147,7 +171,10 @@ function Setup({ id, state }: { id: number; state: HostState | undefined }) {
         <Centered>
           <text style={{ fontSize: m.fontSize, color: t.text }}>{`${name} stopped.`}</text>
           {error}
-          <Action label="Start again" primary onPress={() => void restart(id).catch(swallow)} />
+          <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
+            <Action label="Start again" primary onPress={() => void restart(id).catch(swallow)} />
+            <Action label="New session" onPress={() => void restart(id, true).catch(swallow)} />
+          </div>
         </Centered>
       );
     default:
@@ -159,6 +186,8 @@ function Setup({ id, state }: { id: number; state: HostState | undefined }) {
             <div style={{ display: "flex", flexDirection: "row", gap: 8 }}>
               <Action label="Try again" primary onPress={() => void retry(id).catch(swallow)} />
               <Action label="Start again" onPress={() => void restart(id).catch(swallow)} />
+              {/* A session that can't be loaded (the app quit before it was saved): a new one, the draft and the prompts kept. */}
+              <Action label="New session" onPress={() => void restart(id, true).catch(swallow)} />
             </div>
           ) : null}
         </Centered>

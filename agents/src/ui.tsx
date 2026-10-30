@@ -16,6 +16,7 @@ import { mentions, read, send, setChat, toggle, toolbarPress } from "./main.ts";
 import { catalogAgent, modeOf } from "./catalog.ts";
 import { AGENT, CONVERSATION_CHANGED, PREFIX, SESSION_ENGINE, STATUS } from "./names.ts";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
+import { useKept } from "./ui/kept.ts";
 
 export { Session } from "./ui/session.tsx";
 // Settings' page (the manifest's `settings`).
@@ -157,6 +158,7 @@ function useTranscript(tab: number): Transcript | undefined {
 /** One agent tab's chat. */
 function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
   const options = useTabOptions(`%${tab}`);
+  const kept = useKept(`%${tab}`, options);
   const spec = agentSpec(options[AGENT]);
   const label = spec?.label ?? "the agent";
   const transcript = useTranscript(tab);
@@ -182,16 +184,20 @@ function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
           autoFocus={focused}
           // The draft outlives a flip to the terminal and back.
           draftKey={`tab:${tab}`}
+          savedDraft={kept.savedDraft}
+          onDraft={kept.onDraft}
+          pastPrompts={kept.pastPrompts}
           onMentions={findFiles}
           onAnswerElsewhere={showTerminal}
           elsewhereLabel={`Answer in ${label}`}
           rewinds={spec ? (spec.rewind === "command" ? "exact" : "terminal") : undefined}
           rewindsIn={label}
-          onCommand={(cmd) =>
+          onCommand={(cmd) => {
+            if (cmd.type === "prompt") kept.remember(cmd.text);
             void send(tab, cmd)
               .then((ack) => ack.rejected && console.warn(`agents: ${ack.rejected}`))
-              .catch(swallow)
-          }
+              .catch(swallow);
+          }}
         />
       </div>
     </div>

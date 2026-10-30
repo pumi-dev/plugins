@@ -35,14 +35,21 @@ back exactly as it was.
 - **Send while it works**: prompts queue in the chat and go in order when the agent is ready.
   Stop sends Escape. Queued prompts reach Claude Code and pi at their turn's end through the stop
   hook, rather than typed once the agent is idle.
-- **`@` for files**: lists the agent's directory (`.gitignore`d files left out); pick one to add
-  it to the prompt. A file in the prompt shows as its icon and name, and Backspace takes it whole.
+- **`@` for files and tabs**: lists the other tabs by title, then the agent's project
+  (`.gitignore`d files left out): its directory, or its session's when the agent runs in the
+  home folder. Pick one to add it to the prompt. A file or a tab in the prompt shows as a chip,
+  and Backspace takes it whole; the agent reads a tab named `@tab:%3` with `pumi tab read`.
 - **`/` for commands**: the agent's own, plus Claude's `.claude/commands` and skills, Codex's
   prompts, and pi's prompt templates and skills. A command that opens a screen of the agent's own
   (`/model`, `/resume`) shows the terminal.
 - **Pictures**: drop one on the chat or the prompt to attach it to the next prompt. It stays in
   the line as a chip, in the prompt and in the sent message; hover it to see the picture.
-- **The draft stays** when the tab flips to the terminal and back.
+- **Nothing typed is lost**: the draft stays when the tab flips to the terminal and back, and is
+  kept in the tab across a restart of the app. The prompts sent are kept too: ↑ brings them back,
+  even after a session that never started.
+- **Continue** after a turn that was stopped, failed or cut off goes on without a message to type.
+- **Scrolling**: the chat follows the answer while you are at its foot and stays where you read
+  when you scroll up; a button takes you back down.
 - **Model picker** beside Send, for Claude Code and pi.
 - **Permission prompts** as cards you answer in the chat (Claude's, with "Answer permissions in
   pumi" on).
@@ -59,13 +66,16 @@ The plugin runs the agent itself, under a small host process per tab (`src/sessi
 the agent keeps running when the window closes and the tab finds it again. The host speaks ACP, or
 the agent's own protocol, and the chat draws what it says as it is written: text token by token,
 calls with their output, permission requests and an agent's questions as cards, its models in the
-picker. A tab with a session continues it after a restart.
+picker. A tab with a session continues it after a restart. The chat shows at once, while the agent
+starts: a prompt sent then goes as soon as it is ready.
 
 - *Agents: continue this agent in its GUI* hands a terminal agent's session to a GUI tab, once
   its turn is over.
 - The toolbar's terminal button, or *Agents: continue this chat tab's session in the agent's
   terminal*, goes back to the TUI on the same session.
 - ACP adapters that aren't installed are fetched with `npx` at a pinned version.
+- **Questions** pi (`ask_user_question`) and Codex ask are answered in their card: a choice,
+  several, or words of your own.
 - **Skills anywhere in the prompt**: `/` after a space lists the agent's skills (pi's own list,
   Codex's `skills/list`, Claude's `.claude/skills` from the project up and in the home folder).
   A picked skill is a chip; on send the host puts its `SKILL.md` before the prompt, as pi does

@@ -2,7 +2,7 @@
 // any whose input is `{questions: [{question, options}]}`), read for the chat to draw as questions
 // rather than a call: what is asked, the choices, and what the user answered once the result says.
 // No `import … from "pumi"` here.
-import type { Tool } from "./model.ts";
+import type { Entry, Permission, Tool } from "./model.ts";
 
 export interface QuestionOption {
   label: string;
@@ -75,6 +75,70 @@ export function picked(answer: string | undefined, label: string): boolean {
   if (answer === undefined) return false;
   if (answer === label) return true;
   return answer.split(/,\s*/).includes(label);
+}
+
+// ── Answered in the card ─────────────────────────────────────────────────────────────────────
+//
+// A producer that asks the call's questions itself puts each up as a request (`Permission`, kind
+// `question`): pi's ask-user tool, in RPC mode, as a `select` of `N. label — description` lines and a
+// last `Type something.`, or an `input` for a multi-select; Codex as a request of the labels. Such a
+// request is the card's to answer, so the chat does not draw it again under the timeline.
+
+/** A request waiting that asks one of a call's questions: the card answers it. */
+export interface Asking {
+  permission: Permission;
+  /** Which of the call's questions it asks. */
+  question: number;
+  /** The request's option each of that question's choices is; none: the choice goes as words. */
+  choices: (string | undefined)[];
+  /** It takes the user's own words (`""` and the text): a field. */
+  words: boolean;
+}
+
+/** The request `permission` as one of `tool`'s questions, when it asks one of them and each choice can be sent. */
+export function askingOf(tool: Tool, permission: Permission): Asking | undefined {
+  if (permission.kind !== "question" || (tool.status !== "running" && tool.status !== "pending")) return undefined;
+  const questions = questionsOf(tool);
+  if (!questions) return undefined;
+  let question = questions.findIndex((q) => permission.title.includes(q.question));
+  if (question < 0 && permission.toolId === tool.id && questions.length === 1) question = 0;
+  if (question < 0) return undefined;
+  const used = new Set<string>();
+  const choices = questions[question]!.options.map((option) => {
+    const hit = permission.options.find((each) => !used.has(each.id) && sameChoice(each.label, option.label));
+    if (hit) used.add(hit.id);
+    return hit?.id;
+  });
+  // An option left over beside the choices is the way to one's own words (pi's `Type something.`).
+  const words = permission.text === true || (choices.some((id) => id !== undefined) && permission.options.some((each) => !used.has(each.id)));
+  if (!words && choices.some((id) => id === undefined)) return undefined;
+  return { permission, question, choices, words };
+}
+
+/** Whether a request's option is the choice `label`: the same, or as pi writes it, `2. label — what it means`. */
+function sameChoice(option: string, label: string): boolean {
+  const bare = option.replace(/^\s*\d+[.)]\s+/, "").trim();
+  return bare === label || bare.startsWith(`${label} — `);
+}
+
+/** The requests waiting that the open question calls answer, by the call's id (the latest call that asks it). */
+export function askedInCards(entries: Entry[], permissions: Permission[]): Map<string, Asking> {
+  const out = new Map<string, Asking>();
+  const asks = permissions.filter((each) => each.kind === "question");
+  if (asks.length === 0) return out;
+  for (let at = entries.length - 1; at >= 0 && out.size < asks.length; at--) {
+    const tool = entries[at]!.kind === "tool" ? entries[at]!.tool : undefined;
+    if (!tool || (tool.status !== "running" && tool.status !== "pending") || out.has(tool.id)) continue;
+    for (const permission of asks) {
+      if ([...out.values()].some((each) => each.permission.id === permission.id)) continue;
+      const asking = askingOf(tool, permission);
+      if (asking) {
+        out.set(tool.id, asking);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 /** How a question call ended, in words, when the user did not answer it. */

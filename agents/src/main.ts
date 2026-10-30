@@ -40,8 +40,9 @@ import { PICK_IN_TERMINAL } from "./models.ts";
 import { runHook, requestClosed, type HookApi } from "./hooks/run.ts";
 import { agentLaunch, findAgent, hookRows, install, uninstall } from "./hooks/integrations.ts";
 import { agentIcon, ICON } from "./icons.ts";
-import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
-import type { MentionHit } from "./conversation/view.ts";
+import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, SESSION_CWD, STATUS } from "./names.ts";
+import { tabToken, type MentionHit } from "./conversation/view.ts";
+import { score } from "./files/score.ts";
 import type { ConversationRead } from "./topics.ts";
 import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, followsPrefer, guiMode, modeOf, preferOf, preferred, type CatalogAgent, type Choice, type Mode, type Prefer } from "./catalog.ts";
 import { agentPath, agentPathReady, findProgram, loginPath } from "./session/launch.ts";
@@ -52,6 +53,7 @@ import {
   cwdFrom,
   engineInstalled,
   handoff,
+  isProject,
   isSessionTab,
   login,
   openSession,
@@ -59,6 +61,7 @@ import {
   restart,
   retry,
   sessionRead,
+  sessionCwd,
   sessionSend,
   setOpenTerminal,
   startSession,
@@ -205,15 +208,50 @@ export async function send(tab: number, cmd: Command): Promise<Ack> {
   return ack;
 }
 
-/** The files and directories an `@query` in `tab`'s chat finds, as paths from the agent's directory. */
+/** What an `@query` in `tab`'s chat finds: the other tabs, then the files and directories of the agent's project. */
 export async function mentions(tab: number, query: string): Promise<MentionHit[]> {
   const bridge = await bridgeOf(tab);
-  return findMentions(bridge.cwd, typeof query === "string" ? query : "");
+  return mentionsFrom(tab, bridge.cwd, typeof query === "string" ? query : "");
 }
 
-/** The same, for a session tab: from its agent's directory. */
+/** The same, for a session tab. */
 export async function sessionMentions(tab: number, query: string): Promise<MentionHit[]> {
-  return findMentions(await cwdFrom(undefined, tab), typeof query === "string" ? query : "");
+  const cwd = (await option.get(SESSION_CWD, { scope: "tab", id: tabRef(tab) }).catch(() => null)) as string | null;
+  return mentionsFrom(tab, cwd ?? undefined, typeof query === "string" ? query : "");
+}
+
+/**
+ * The tabs and the files `query` finds for tab `tab`'s agent, which runs in `cwd`. Its files are
+ * its project's: `cwd`, or its session's directory while `cwd` is the home folder (then each path
+ * is whole, since the agent's directory is not where it is from).
+ */
+async function mentionsFrom(tab: number, cwd: string | undefined, query: string): Promise<MentionHit[]> {
+  const project = isProject(cwd) ? cwd : await sessionCwd(tab);
+  const [tabs, files] = await Promise.all([tabMentions(tab, query), findMentions(project, query)]);
+  const whole = project !== undefined && project !== cwd;
+  return [...tabs, ...(whole ? files.map((hit) => ({ ...hit, path: `${project.replace(/\/+$/, "")}/${hit.path}` })) : files)];
+}
+
+/** How many tabs an `@` lists: a few while nothing (or one letter) is typed, more for a word. */
+const TABS_SHOWN = { short: 4, long: 8 };
+
+/** The tabs an `@query` finds for `tab`'s chat, by their titles (or ids), best first; `tab` itself left out. */
+async function tabMentions(tab: number, query: string): Promise<MentionHit[]> {
+  const text = query.trim().replace(/^tab:/, "");
+  const all = await workspace.tabs().catch(() => []);
+  const found: { hit: MentionHit; score: number }[] = [];
+  for (const each of all) {
+    const n = numberOf(each.id);
+    if (n === tab) continue;
+    const id = tabRef(n);
+    const title = each.title?.trim() || each.block;
+    const agent = each.block === self.plugin.prefixed("session") || self.plugin.prefixed("agent") in (each.traits ?? {});
+    const by = text === "" ? 0 : (score(title, text) ?? (id.startsWith(text) || `${n}`.startsWith(text) ? 0 : null));
+    if (by === null) continue;
+    found.push({ hit: { path: tabToken(id), tab: { id, title, ...(agent ? { agent } : {}) } }, score: by });
+  }
+  found.sort((a, b) => b.score - a.score);
+  return found.slice(0, text.length < 2 ? TABS_SHOWN.short : TABS_SHOWN.long).map((each) => each.hit);
 }
 
 // ── The conversation, for everyone else ──────────────────────────────────────────────────────
@@ -440,6 +478,9 @@ export interface AgentRow {
 export async function agentRows(): Promise<AgentRow[]> {
   await syncHooks();
   const path = await agentPathReady();
+  // As the options are now: Settings reads its rows again as soon as it set one, before
+  // `option.changed` has brought the change to `modes` here.
+  const { modes, prefer } = await options();
   const hooks = new Map(hookRows().map((row) => [row.id, row]));
   const rows: AgentRow[] = CATALOG.map((agent) => {
     const hook = hooks.get(agent.id);
@@ -458,10 +499,18 @@ export async function agentRows(): Promise<AgentRow[]> {
   return rows.sort((a, b) => Number(b.installed) - Number(a.installed));
 }
 
+/** The modes and `prefer` as Settings has them now. */
+async function options(): Promise<{ modes: unknown; prefer: Prefer }> {
+  const [given, preferred] = await Promise.all([setting("modes").catch(() => null), setting("prefer").catch(() => null)]);
+  return { modes: given ?? {}, prefer: preferOf(preferred) };
+}
+
 /** Sets how `agent` opens (Settings' switch). */
 export async function setMode(agent: string, choice: Choice): Promise<void> {
   const def = catalogAgent(agent);
   if (!def || !choicesOf(def).includes(choice)) throw new Error(`agents: ${agent} has no choice ${choice}`);
+  // On the modes as they are now, not as they were when `option.changed` last came.
+  const { modes } = await options();
   const now = { ...((modes && typeof modes === "object" ? modes : {}) as Record<string, unknown>), [agent]: choice };
   await setSetting("modes", now);
 }
@@ -598,8 +647,18 @@ fn.set("toggle", { desc: "Flip the tab between its terminal and the chat.", para
   return toggle(Number.isFinite(tab) ? tab : undefined);
 });
 
-/** Reads the options: `prefer` (every agent set as it says when it changes, or at the first start), the modes (the `+` menu follows them), and the hooks'. */
-async function configure(): Promise<void> {
+/**
+ * Reads the options: `prefer` (every agent set as it says when it changes, or at the first start),
+ * the modes (the `+` menu follows them), and the hooks'. One read at a time: two at once (a
+ * change, and the `modes` it writes) would each compare with what the other half-read.
+ */
+let configuring: Promise<void> = Promise.resolve();
+function configure(): Promise<void> {
+  configuring = configuring.then(readOptions, readOptions);
+  return configuring;
+}
+
+async function readOptions(): Promise<void> {
   const before = prefer;
   prefer = preferOf(await setting("prefer").catch(() => null));
   const given = await setting("modes").catch(() => ({}));

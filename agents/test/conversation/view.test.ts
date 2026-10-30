@@ -29,6 +29,7 @@ import {
   turnLine,
   usageLine,
   visibleEntries,
+  entriesFrom,
   activitySummary,
   clipLines,
   diffRows,
@@ -36,6 +37,7 @@ import {
   imagePathsIn,
   applySlash,
   messageParts,
+  tabToken,
   skillHints,
   skillToken,
   slashAt,
@@ -314,4 +316,21 @@ test("a checkpoint is offered once something after its message changed a file", 
   expect(restorable([user, tool("read")], 0)).toBe(false);
   expect(restorable([user, tool("read"), tool("edit")], 0)).toBe(true);
   expect(restorable([{ ...user, checkpoint: undefined }, tool("edit")], 0)).toBe(false);
+});
+
+test("a tab named in a message is a chip of it", () => {
+  expect(messageParts("look at @tab:%12, then fix it")).toEqual([
+    { type: "text", text: "look at " },
+    { type: "chip", kind: "tab", text: "@tab:%12", label: "%12", tab: "%12" },
+    { type: "text", text: ", then fix it" },
+  ]);
+  expect(applyMention("see @bu", { start: 4, end: 7, query: "bu" }, { path: tabToken("%3"), tab: { id: "%3", title: "Build" } })).toEqual({ draft: "see @tab:%3 ", caret: 12 });
+});
+
+test("a timeline keeps its first row as entries come at its foot", () => {
+  const entries = ["a", "b", "c", "d", "e"].map((id) => ({ id, kind: "agent" as const, at: 0, text: id }));
+  expect(entriesFrom(entries, undefined, 2)).toEqual({ shown: entries.slice(3), hidden: 3 });
+  expect(entriesFrom(entries, "b", 2)).toEqual({ shown: entries.slice(1), hidden: 1 });
+  // Gone (a rewind): the last page again.
+  expect(entriesFrom(entries, "x", 2)).toEqual({ shown: entries.slice(3), hidden: 3 });
 });

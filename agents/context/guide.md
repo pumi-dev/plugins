@@ -12,6 +12,7 @@ Look at other tabs (safe; do it whenever the user asks about one):
   pumi session get --deep              every session, view, pane and tab again (the map may be old)
   pumi tab read %3                     what a tab shows: a terminal's recent lines, a page's text
   pumi tab read %3 --source visible    only its screen (`--lines 200` for more)
+A prompt that names `@tab:%3` means that tab: read it before you answer.
 
 Open a tab next to you (none of these takes the user's focus):
   pumi tab open pumi_dev.terminal.shell --split right --no-focus -- make test
