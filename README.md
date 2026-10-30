@@ -20,6 +20,7 @@ pumi plugin add pumi-dev/plugins/file-tree
 | [Video Editor](video-editor) | a video in a tab: Clipkit's timeline over a project file an agent can write |
 | [Agents](agents) | coding agents from the + menu, in their terminal or a GUI, told about the workspace around them |
 | [Pixel Office](pixel-office) | a UI theme: pumi as a pixel-art office with a desk for every view |
+| [Halloween](halloween) | a UI theme: night purple and pumpkin orange, ghosts and jack-o'-lanterns for agents, bats and fog |
 | [Music Studio](music-studio) | a song in a tab, laid out as GarageBand does, measured bar by bar for agents |
 | [Awake](awake) | keeps the Mac awake while agents work, with the lid shut too |
 
