@@ -173,7 +173,8 @@ const TreeAt = memo(function TreeAt({ cwd }: { cwd: string }) {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
+    // The tree is chrome: a drag across it moves nothing and selects no names.
+    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, userSelect: "none" }}>
       <div
         autoFocus
         tabIndex={0}
@@ -423,7 +424,7 @@ function RowMenu({ view, menu, close, run }: { view: View; menu: { at: { x: numb
     <anchored position={menu.at} fit="snap" snapMargin={8} deferred occlude style={{ backgroundColor: "transparent" }}>
       <div
         onMouseDownOutside={close}
-        style={{ display: "flex", flexDirection: "column", minWidth: 220, paddingTop: 4, paddingBottom: 4, borderRadius: m.radius + 2, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}
+        style={{ display: "flex", flexDirection: "column", minWidth: 220, userSelect: "none", paddingTop: 4, paddingBottom: 4, borderRadius: m.radius + 2, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}
       >
         {actions.map((name, i) => (
           <Fragment key={name}>
