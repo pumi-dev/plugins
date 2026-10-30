@@ -14,6 +14,11 @@ test("the Dock's PATH is short; a shell's, with the user's own directories, is n
   expect(isShortPath("/Users/meme/bin:/usr/bin", home)).toBe(true);
 });
 
+test("a PATH with only the directories pumi adds for an app opened from the Dock is still short", () => {
+  expect(isShortPath("/Users/me/.local/bin:/Users/me/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", home)).toBe(true);
+  expect(isShortPath("/Users/me/.local/bin:/Users/me/.nvm/versions/node/v24/bin:/usr/bin", home)).toBe(false);
+});
+
 test("the PATH is what the shell says after the mark, past what its startup files print", () => {
   expect(pathAfterMark("Welcome!\n\x1b[1mmotd\x1b[0m\n__pumi_agents_path__\n/a/bin:/usr/bin\n")).toBe("/a/bin:/usr/bin");
   expect(pathAfterMark("__pumi_agents_path__\r\n/a/bin\r\n")).toBe("/a/bin");

@@ -22,11 +22,13 @@ export function searchPath(path: string | undefined, home: string = homedir()): 
 
 /**
  * Whether `path` is the short one an app started from the Dock or Finder gets
- * (`/usr/bin:/bin:/usr/sbin:/sbin`): none of its directories is in the user's home. An app
- * started from a shell has the shell's, with the user's own directories in it.
+ * (`/usr/bin:/bin:/usr/sbin:/sbin`): none of its directories is in the user's home, but for those
+ * agents install to (`USER_DIRS`), which pumi puts on such a PATH itself. An app started from a
+ * shell has the shell's, with the user's other directories in it (the `node` nvm put there).
  */
 export function isShortPath(path: string | undefined, home: string = homedir()): boolean {
-  return !(path ?? "").split(delimiter).some((dir) => dir === home || dir.startsWith(`${home}/`));
+  const added = USER_DIRS.map((dir) => join(home, dir));
+  return !(path ?? "").split(delimiter).some((dir) => (dir === home || dir.startsWith(`${home}/`)) && !added.includes(dir));
 }
 
 /** What the login shell is asked to say before its `PATH`, so what its startup files print is skipped. */

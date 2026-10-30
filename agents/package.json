@@ -1,7 +1,7 @@
 {
   "name": "pumi-agents",
   "displayName": "Agents",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "GPL-3.0-or-later",
   "description": "Coding agents in pumi's tabs: Claude Code, Codex, pi and more open from the + menu, in their own terminal or in a GUI. pumi sees when each one works or waits on you, and each one is told about the workspace around it.",
   "keywords": [
