@@ -7,7 +7,7 @@ import { useTheme } from "pumi";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Header } from "./ui/header.tsx";
-import { Composer, type ComposerHandle } from "./ui/composer.tsx";
+import { Composer, type ComposerHandle, type SavedDraft } from "./ui/composer.tsx";
 import { chatKey, keystrokeOf, sentPrompts } from "./keys.ts";
 import { ImageViewerHost } from "./ui/image.tsx";
 import { PermissionCard } from "./ui/question.tsx";
@@ -16,10 +16,11 @@ import { useTap } from "./ui/press.tsx";
 import { useType } from "./ui/style.ts";
 import { newCommandId, type Command, type ConfigOption, type Entry, type Transcript } from "./model.ts";
 import { modelMaker, type MentionHit } from "./view.ts";
+import { askedInCards } from "./question.ts";
 import type { ZedIcon } from "./ui/icons.ts";
 
 export { Header, OptionPicker, type HeaderProps } from "./ui/header.tsx";
-export { Composer, type ComposerHandle, type ComposerProps } from "./ui/composer.tsx";
+export { Composer, type ComposerHandle, type ComposerProps, type SavedDraft } from "./ui/composer.tsx";
 export { chatKey, keystrokeOf, sentPrompts, stepRecall, type ChatKey, type Keystroke } from "./keys.ts";
 export { Button, PermissionCard, QuestionCard, type ButtonProps, type PermissionCardProps, type QuestionCardProps } from "./ui/question.tsx";
 export { keepTyping, OwnClicks, Press, useTap, type PressProps } from "./ui/press.tsx";
@@ -85,10 +86,18 @@ export interface ConversationProps {
   forks?: boolean;
   /** Where the composer keeps its draft while the chat is not drawn (`ComposerProps.draftKey`). */
   draftKey?: string;
+  /** The draft kept outside the window, and where it goes as it changes (`ComposerProps.savedDraft`, `onDraft`). */
+  savedDraft?: SavedDraft;
+  onDraft?(saved: SavedDraft | null): void;
+  /**
+   * Prompts sent before that the transcript may not hold (a session that never started, one
+   * replaced): Up brings them back before the transcript's own, oldest first.
+   */
+  pastPrompts?: string[];
 }
 
 /** The whole chat: the header, the timeline, the requests waiting, and the composer. */
-export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, draftKey }: ConversationProps) {
+export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, draftKey, savedDraft, onDraft, pastPrompts }: ConversationProps) {
   // Files dropped anywhere on the chat go to the composer, as if dropped on it.
   const [dropped, setDropped] = useState<{ paths: string[]; n: number }>({ paths: [], n: 0 });
   // The message being edited in place.
@@ -105,7 +114,14 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
   useEffect(() => {
     if (said) setSent(false);
   }, [said]);
-  const history = useMemo(() => sentPrompts(entries ?? []), [entries]);
+  const history = useMemo(() => {
+    const said = sentPrompts(entries ?? []);
+    const before = (pastPrompts ?? []).filter((text) => !said.includes(text.trim()));
+    return [...before, ...said];
+  }, [entries, pastPrompts]);
+  // The requests a question's card in the timeline answers: not drawn again above the composer.
+  const permissions = transcript?.permissions;
+  const asking = useMemo(() => askedInCards(entries ?? [], permissions ?? []), [entries, permissions]);
   const editingNow = useRef(false);
   const takeFocus = () => setTimeout(() => !editingNow.current && setFocus((n) => n + 1), 0);
   const tap = useTap(() => takeFocus());
@@ -147,6 +163,8 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
   };
   // The chat's keys, from wherever in it the keyboard is: what a field or a list took is not here.
   const first = transcript.permissions[0];
+  const inCards = new Set([...asking.values()].map((each) => each.permission.id));
+  const unasked = transcript.permissions.filter((permission) => !inCards.has(permission.id));
   const onKey = (e: any) => {
     if (e?.defaultPrevented) return;
     const key = chatKey(keystrokeOf(e), { working: transcript.status === "working" || transcript.status === "blocked", answers: first?.options.length ?? 0 });
@@ -178,6 +196,9 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
       >
         {hideHeader ? null : <Header transcript={transcript} onOption={setOption} except={["model", "mode", "thought_level"]} />}
         {fresh ? null : <Timeline transcript={transcript} pageSize={pageSize} onLink={onLink} onAnswerElsewhere={onAnswerElsewhere} elsewhereLabel={elsewhereLabel} messageActions={actionsOf}
+          asking={asking}
+          onAnswer={answer}
+          answerKeys={first?.id}
           editing={edited?.id}
           editable={editable}
           onEditStart={startEdit}
@@ -188,13 +209,14 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           }}
           onFork={forks && idle ? (entry) => onCommand({ type: "fork", id: newCommandId(), entry: entry.id }) : undefined}
           onRestore={idle ? (entry) => onCommand({ type: "restore", id: newCommandId(), entry: entry.id }) : undefined}
+          onContinue={idle ? () => onCommand({ type: "prompt", id: newCommandId(), text: CONTINUE }) : undefined}
         />}
         <PlanBar plan={transcript.plan} />
-        {transcript.permissions.length > 0 ? (
+        {unasked.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, paddingLeft: 10, paddingRight: 10, paddingTop: 8 }}>
             {/* Not focused when they appear: an Enter meant for the composer must not answer one. */}
-            {transcript.permissions.map((permission, at) => (
-              <PermissionCard key={permission.id} permission={permission} keys={at === 0} onAnswer={answer} />
+            {unasked.map((permission) => (
+              <PermissionCard key={permission.id} permission={permission} keys={permission.id === first?.id} onAnswer={answer} />
             ))}
           </div>
         ) : null}
@@ -212,6 +234,8 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           focus={focus}
           handle={composer}
           draftKey={draftKey}
+          savedDraft={savedDraft}
+          onDraft={onDraft}
           history={history}
           options={transcript.options}
           onOption={setOption}
@@ -230,6 +254,9 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
     </ImageViewerHost>
   );
 }
+
+/** What Continue sends: the word an agent's own TUI takes to pick a turn up where it stopped. */
+const CONTINUE = "Continue";
 
 /** The model's maker's mark, by the model running (or picked) and the agent. */
 function iconOf(t: Transcript): ZedIcon | undefined {

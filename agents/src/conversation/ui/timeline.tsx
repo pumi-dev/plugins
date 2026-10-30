@@ -4,21 +4,21 @@
 // agent says is markdown; each thought is a "Thinking" block, open while it is written; each call
 // is a line of its own, or a card for an edit, a command ("Run Command") or a subagent. After each
 // turn, a row of its controls: its stats, Fork, Copy and the way back up. A call that asks the
-// user is drawn as its questions.
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { Icon, motion, useHover, useMetrics, useNow, useTheme, type ElementRef } from "pumi";
+// user is drawn as its questions, answered in place while the agent waits on them.
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Icon, iconSource, motion, useHover, useMetrics, useNow, useTheme, type ElementRef } from "pumi";
 
 import type { Entry, PlanItem, Status, Tool, ToolContent, Transcript } from "../model.ts";
-import { questionsOf } from "../question.ts";
-import { baseName, clipLines, formatDuration, imageSource, messageParts, outputShown, patchOf, restorable, statusLabel, toolDiffStats, toolHeadline, visibleEntries } from "../view.ts";
+import { questionsOf, type Asking } from "../question.ts";
+import { baseName, clipLines, formatDuration, imageSource, messageParts, outputShown, patchOf, restorable, statusLabel, toolDiffStats, toolHeadline, entriesFrom } from "../view.ts";
 import { ZIcon } from "./bar.tsx";
 import { DiffView, Stats } from "./diff.tsx";
-import type { ZedIcon } from "./icons.ts";
+import { ZED_ICONS, type ZedIcon } from "./icons.ts";
 import { Thumb, useViewer } from "./image.tsx";
 import { Mention, MentionText } from "./mention.tsx";
 import { copyText, CopyButton, Inline, Markdown, Mono, MoreLines } from "./markdown.tsx";
 import { keepTyping, OwnClicks, Press, useTap } from "./press.tsx";
-import { QuestionCard } from "./question.tsx";
+import { Button, QuestionCard } from "./question.tsx";
 import { tint, useBlockColor, useTextTheme, useType } from "./style.ts";
 
 /** Something a message offers on hover, beside Copy (edit it, go back to it). */
@@ -57,6 +57,12 @@ export interface TimelineProps {
   onAnswerElsewhere?(): void;
   /** What that button says. */
   elsewhereLabel?: string;
+  /** The requests waiting that a question call's card answers, by the call's id (`askedInCards`). */
+  asking?: Map<string, Asking>;
+  /** One of those answered (`PermissionCardProps.onAnswer`). */
+  onAnswer?(permissionId: string, optionId: string, text?: string): void;
+  /** The request ⌃1 … ⌃9 answer: its card says the keys. */
+  answerKeys?: string;
   /** What a message offers beside Copy. */
   messageActions?(entry: Entry): MessageAction[];
   /** The user's message being edited now: drawn as a field in its place, and what follows it faded. */
@@ -73,6 +79,8 @@ export interface TimelineProps {
   onFork?(entry: Entry): void;
   /** The files put back as they were before the user's message `entry`; no Restore Checkpoint without. */
   onRestore?(entry: Entry): void;
+  /** The agent goes on with a turn it left unfinished (stopped, failed, cut off); no Continue without. */
+  onContinue?(): void;
 }
 
 /** A turn's end, as its controls need it: the message it began with, and what the agent said in it. */
@@ -88,6 +96,9 @@ interface TimelineContext {
   status: Status;
   onAnswerElsewhere?(): void;
   elsewhereLabel?: string;
+  asking?: Map<string, Asking>;
+  onAnswer?(permissionId: string, optionId: string, text?: string): void;
+  answerKeys?: string;
   messageActions?(entry: Entry): MessageAction[];
   editing?: string;
   editable?(entry: Entry): boolean;
@@ -96,6 +107,9 @@ interface TimelineContext {
   onEditCancel?(): void;
   onFork?(entry: Entry): void;
   onRestore?(entry: Entry): void;
+  onContinue?(): void;
+  /** The newest entry: a Continue shows only on a turn nothing came after. */
+  tail?: string;
   /** The user's messages a checkpoint can put the files back to. */
   restorable?: Set<string>;
   /** Each turn's end, by its entry's id. */
@@ -115,12 +129,20 @@ const Context = createContext<TimelineContext>({ status: "idle" });
 const isQuestion = (tool: Tool) => questionsOf(tool) !== undefined;
 
 /** Every entry, the newest at the foot; it follows the foot while you are there. */
-export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere, elsewhereLabel, messageActions, editing, editable, onEditStart, onEditSubmit, onEditCancel, onFork, onRestore }: TimelineProps) {
+export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere, elsewhereLabel, asking, onAnswer, answerKeys, messageActions, editing, editable, onEditStart, onEditSubmit, onEditCancel, onFork, onRestore, onContinue }: TimelineProps) {
   const t = useTheme();
   const type = useType();
-  const [count, setCount] = useState(pageSize);
   const list = useRef<ElementRef | null>(null);
-  const { shown, hidden } = visibleEntries(transcript.entries, count);
+  // The first entry shown: the timeline keeps it while entries come at the foot ("Show earlier"
+  // moves it back), so what is on screen stays where it is (`entriesFrom`).
+  const [from, setFrom] = useState<string>();
+  const { shown, hidden } = entriesFrom(transcript.entries, from, pageSize);
+  const head0 = shown[0]?.id;
+  useEffect(() => {
+    if (head0 !== undefined && head0 !== from) setFrom(head0);
+  }, [head0]);
+  // Whether the foot is in view, as the last scroll left it: off it, a button goes back down.
+  const [atFoot, setAtFoot] = useState(true);
   const working = transcript.status === "working" || transcript.status === "blocked";
   // Plans show above the composer (`PlanBar`), as Zed's do: not in the timeline.
   // A picture the user sent shows as its chip in the message; the copy the agent was given after
@@ -143,6 +165,9 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
     status: transcript.status,
     onAnswerElsewhere,
     elsewhereLabel,
+    asking,
+    onAnswer,
+    answerKeys,
     messageActions,
     editing,
     editable,
@@ -151,6 +176,8 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
     onEditCancel,
     onFork,
     onRestore,
+    onContinue,
+    tail: last?.id,
     restorable: restorableIds,
     turns,
     streaming: working && last ? last.id : undefined,
@@ -160,15 +187,38 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
   };
   // What an edit would leave behind: the message edited and everything after it.
   const editedAt = editing === undefined ? -1 : rows.findIndex((entry) => entry.id === editing);
+  const total = head + rows.length + (working ? 1 : 0) + 1;
+  // To the foot, following it again (an index past the last row is the list's end).
+  const toFoot = () => {
+    list.current?.scrollToItem?.(total + 1, 0);
+    setAtFoot(true);
+  };
+  // A prompt the user sends takes the timeline back down, to follow its answer.
+  const lastUser = useMemo(() => [...entries].reverse().find((entry) => entry.kind === "user")?.id, [entries]);
+  const seenUser = useRef(lastUser);
+  useEffect(() => {
+    if (lastUser === seenUser.current) return;
+    seenUser.current = lastUser;
+    toFoot();
+  }, [lastUser]);
   return (
     <Context.Provider value={context}>
-      <virtual-list ref={list} followTail alignment="top" aria-label="Conversation" role="log" style={{ flexGrow: 1, minHeight: 0, paddingLeft: 8, paddingRight: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, minWidth: 0, position: "relative" }}>
+      <virtual-list
+        ref={list}
+        followTail
+        alignment="top"
+        aria-label="Conversation"
+        role="log"
+        onVisibleRange={(e: any) => typeof e?.endIndex === "number" && setAtFoot(e.endIndex >= total)}
+        style={{ flexGrow: 1, minHeight: 0, paddingLeft: 8, paddingRight: 8 }}
+      >
         {hidden > 0 || transcript.truncated ? (
           <div key="earlier" style={{ display: "flex", flexDirection: "row", justifyContent: "center", paddingTop: 10, paddingBottom: 4 }}>
             {hidden > 0 ? (
               <Press
                 aria-label={`Show ${Math.min(hidden, pageSize)} earlier entries`}
-                onClick={() => setCount((n) => n + pageSize)}
+                onClick={() => setFrom(entries[Math.max(0, hidden - pageSize)]?.id)}
                 style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 10, paddingRight: 10, height: 22, borderRadius: 11, borderWidth: 1, borderColor: t.border, cursor: "pointer", hover: { backgroundColor: t.hover } }}
               >
                 <Icon name="chevron_up_down" size={10} color={t.faint} />
@@ -189,7 +239,26 @@ export function Timeline({ transcript, pageSize = 60, onLink, onAnswerElsewhere,
         {working ? <Working key="working" status={transcript.status} since={turnStart(entries)} /> : null}
         <div key="foot" style={{ height: 12 }} />
       </virtual-list>
+      {atFoot ? null : <ToFoot onPress={toFoot} />}
+      </div>
     </Context.Provider>
+  );
+}
+
+/** Over the timeline's foot while the reader is up the page: back down, following again. */
+function ToFoot({ onPress }: { onPress(): void }) {
+  const t = useTheme();
+  return (
+    <div style={{ position: "absolute", left: 0, right: 0, bottom: 8, display: "flex", flexDirection: "row", justifyContent: "center", pointerEvents: "none" }}>
+      <Press
+        aria-label="Scroll to the latest"
+        title="Scroll to the latest"
+        onClick={onPress}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.overlay, cursor: "pointer", pointerEvents: "auto", hover: { backgroundColor: t.hover }, boxShadow: { offsetX: 0, offsetY: 2, blurRadius: 8, spreadRadius: 0, color: "#00000040" } }}
+      >
+        <ZIcon name="arrow_down" size={14} color={t.muted} />
+      </Press>
+    </div>
   );
 }
 
@@ -240,13 +309,16 @@ function turnStart(entries: Entry[]): number | undefined {
   return undefined;
 }
 
-/** A spinning icon, for what is going on now. */
+/** The app's spinner icon, found once. */
+const SPINNER = iconSource("status_spinner")?.src;
+
+/**
+ * A spinning icon, for what is going on now. The renderer turns an `svg` itself (`rotate`), not a
+ * box around one, so the motion is on the icon.
+ */
 export function Spinner({ size = 12, color }: { size?: number; color?: string }) {
-  return (
-    <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 1, repeat: Infinity, ease: "linear", fps: 24 }} style={{ display: "flex", width: size, height: size, flexShrink: 0 }}>
-      <Icon name="status_spinner" size={size} color={color} />
-    </motion.div>
-  );
+  if (!SPINNER) return null;
+  return <motion.svg src={SPINNER} animate={{ rotate: [0, 360] }} transition={{ duration: 1, repeat: Infinity, ease: "linear", fps: 24 }} style={{ width: size, height: size, flexShrink: 0, ...(color ? { color } : {}) }} />;
 }
 
 /** Zed's generating row: a spinner, "Awaiting Confirmation" while a request waits, the time from 30 s. */
@@ -285,9 +357,19 @@ export function EntryView({ entry, onLink }: EntryViewProps) {
     case "tool":
       if (!entry.tool) return null;
       if (isQuestion(entry.tool)) {
+        const asking = context.asking?.get(entry.tool.id);
         return (
           <Indented>
-            <QuestionCard tool={entry.tool} waiting={context.status === "blocked" || context.status === "working"} onAnswerElsewhere={context.onAnswerElsewhere} elsewhereLabel={context.elsewhereLabel} onLink={context.onLink} />
+            <QuestionCard
+              tool={entry.tool}
+              waiting={context.status === "blocked" || context.status === "working"}
+              onAnswerElsewhere={context.onAnswerElsewhere}
+              elsewhereLabel={context.elsewhereLabel}
+              onLink={context.onLink}
+              asking={asking}
+              onAnswer={context.onAnswer}
+              keys={asking !== undefined && asking.permission.id === context.answerKeys}
+            />
           </Indented>
         );
       }
@@ -355,8 +437,10 @@ function TurnControls({ entry }: { entry: Entry }) {
   const working = context.status === "working" || context.status === "blocked";
   const fork = context.onFork && info?.user?.source ? () => context.onFork!(info.user!) : undefined;
   const last = context.lastTurn === entry.id;
-  return (
-    <div {...hover} style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2, paddingTop: 2, paddingBottom: 2, paddingLeft: INDENT, paddingRight: 4, opacity: hovered ? 1 : 0.4 }}>
+  // A turn that did not finish, with nothing after it: the agent can go on from where it was.
+  const goOn = !working && context.onContinue && context.tail === entry.id && UNFINISHED.has(turn.stop) ? context.onContinue : undefined;
+  const row = (
+    <div {...hover} style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2, paddingTop: 2, paddingBottom: 2, paddingLeft: INDENT, paddingRight: 4, opacity: hovered ? 1 : 0.4, flexGrow: 1, minWidth: 0 }}>
       {stopped ? <text style={{ fontSize: type.small, color: turn.stop === "error" ? t.error : t.muted, flexGrow: 1 }}>{stopped}</text> : null}
       {stats.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 4, paddingRight: 4 }}>
@@ -375,7 +459,17 @@ function TurnControls({ entry }: { entry: Entry }) {
       {last ? <RowButton icon="arrow_up" title="Scroll to Top" onPress={() => context.scrollTo?.(null)} /> : null}
     </div>
   );
+  if (!goOn) return row;
+  return (
+    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: INDENT }}>
+      <Button label="Continue" icon="arrow_right" primary onPress={goOn} />
+      {row}
+    </div>
+  );
 }
+
+/** How a turn stops before its work is done: Continue picks it up. */
+const UNFINISHED = new Set(["cancelled", "error", "max_tokens", "max_turn_requests"]);
 
 /** One of a turn row's buttons: Zed's 14 icon, muted. */
 function RowButton({ icon, title, label, onPress }: { icon: ZedIcon; title: string; label?: string; onPress(): void }) {
@@ -883,9 +977,7 @@ export function PlanList({ plan }: { plan: PlanItem[] }) {
         >
           <div style={{ display: "flex", height: type.smallLine, alignItems: "center" }}>
             {item.status === "in_progress" ? (
-              <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 2, repeat: Infinity, ease: "linear", fps: 24 }} style={{ display: "flex", width: 14, height: 14 }}>
-                <ZIcon name="todo_progress" size={14} color={t.accent} />
-              </motion.div>
+              <motion.svg source={ZED_ICONS.todo_progress} animate={{ rotate: [0, 360] }} transition={{ duration: 2, repeat: Infinity, ease: "linear", fps: 24 }} style={{ width: 14, height: 14, flexShrink: 0, color: t.accent }} />
             ) : (
               <ZIcon name={item.status === "completed" ? "todo_complete" : "todo_pending"} size={14} color={item.status === "completed" ? t.success : t.muted} />
             )}

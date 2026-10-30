@@ -31,5 +31,9 @@ export const SESSION_CWD = "@agents.cwd";
 export const SESSION_START = "@agents.start";
 export const SESSION_ENGINE = "@agents.engine";
 
+/** What an agent tab's chat keeps across the app starting again: the draft not sent yet, and the prompts sent (Up brings them back). */
+export const KEPT_DRAFT = "@agents.draft";
+export const KEPT_PROMPTS = "@agents.prompts";
+
 /** A tab's status, any block's (`working`, `blocked`, `error`, `done`, `idle`, `unknown`): pumi-host's, from what its program reports. */
 export const STATUS = "@status";

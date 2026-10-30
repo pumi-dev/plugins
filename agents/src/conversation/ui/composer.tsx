@@ -77,6 +77,16 @@ export interface ComposerProps {
    * composer built again with the same key starts from it. Without one it starts empty.
    */
   draftKey?: string;
+  /** The draft kept from before the app started again (`onDraft`'s): it starts from it when the window has none of its own. */
+  savedDraft?: SavedDraft;
+  /** The draft changed (`null`: emptied, or sent), for a store that outlives the window. */
+  onDraft?(saved: SavedDraft | null): void;
+}
+
+/** A draft as a store keeps it: its text and the chips in it. */
+export interface SavedDraft {
+  draft: string;
+  chips: Chip[];
 }
 
 /** What the chat around a composer asks of it. */
@@ -101,7 +111,7 @@ interface Pick {
 }
 
 /** A file or a skill in the draft, drawn by `Mention`: the text it is written as, the picture it attaches, and the one it shows on hover. */
-interface Chip {
+export interface Chip {
   token: string;
   label: string;
   kind: MentionKind;
@@ -113,6 +123,8 @@ interface Chip {
 const kept = new Map<string, { draft: string; chips: Chip[] }>();
 
 const MAX_SLASH = 50;
+/** How long the typing rests before the draft is saved outside the window. */
+const DRAFT_SAVE_MS = 400;
 const MAX_MENTIONS = 30;
 const ROW = 26;
 /** The field's own rows, when it is not filling the chat. */
@@ -179,13 +191,15 @@ export function Composer({
   history = [],
   handle,
   draftKey,
+  savedDraft,
+  onDraft,
 }: ComposerProps) {
   const t = useTheme();
   const m = useMetrics();
   const type = useType();
   const text = useTextTheme();
   // The draft left by the last composer of this key, if any (`kept`).
-  const [start] = useState(() => (draftKey ? kept.get(draftKey) : undefined));
+  const [start] = useState(() => (draftKey ? kept.get(draftKey) : undefined) ?? (savedDraft?.draft ? savedDraft : undefined));
   const [draft, setDraftState] = useState(start?.draft ?? "");
   // The draft as of the last render, for the handle (called from outside, between renders).
   const draftRef = useRef(draft);
@@ -196,6 +210,28 @@ export function Composer({
     if (draft === "") kept.delete(draftKey);
     else kept.set(draftKey, { draft, chips });
   }, [draftKey, draft, chips]);
+  // The store outside the window hears the draft a moment after the typing stops, and at once when it empties.
+  const saved = useRef(start?.draft ?? "");
+  useEffect(() => {
+    if (!onDraft || draft === saved.current) return;
+    const tell = () => {
+      saved.current = draft;
+      onDraft(draft === "" ? null : { draft, chips });
+    };
+    if (draft === "") return tell();
+    const timer = setTimeout(tell, DRAFT_SAVE_MS);
+    return () => clearTimeout(timer);
+  }, [draft, chips]);
+  // A composer that goes (its tab flipped, the window closing) saves what is still unsaved.
+  const latest = useRef<SavedDraft>({ draft, chips });
+  latest.current = { draft, chips };
+  useEffect(
+    () => () => {
+      const { draft: now, chips: with_ } = latest.current;
+      if (onDraft && now !== saved.current) onDraft(now === "" ? null : { draft: now, chips: with_ });
+    },
+    [],
+  );
   // Where the caret is: as the field says (`selectionEnd` on its change and select events), or, in
   // an app whose field does not say, as the last edit showed it. `place` is where the field puts
   // its caret when the draft is set from here (`caret`).
@@ -312,6 +348,11 @@ export function Composer({
   const takeHit = (hit: MentionHit) => {
     if (!mention) return;
     const next = applyMention(draft, mention, hit);
+    if (hit.tab) {
+      addChips([{ token: mentionText(hit.path), label: hit.tab.title, kind: "tab" }]);
+      setDraft(next.draft, next.caret);
+      return;
+    }
     const path = hit.dir && !hit.path.endsWith("/") ? `${hit.path}/` : hit.path;
     const picture = !hit.dir && imageTypeOf(path) !== undefined;
     const absolute = path.startsWith("/") || !cwd ? path : `${cwd.replace(/\/+$/, "")}/${path}`;
@@ -340,9 +381,9 @@ export function Composer({
   const picks: Pick[] = mention
     ? hits.map((hit) => ({
         key: `@${hit.path}`,
-        label: hit.dir ? `${baseName(hit.path)}/` : baseName(hit.path),
-        detail: hit.path,
-        icon: hit.dir ? "folder" : imageTypeOf(hit.path) ? "image" : "code",
+        label: hit.tab ? hit.tab.title : hit.dir ? `${baseName(hit.path)}/` : baseName(hit.path),
+        detail: hit.tab ? `${hit.tab.agent ? "Agent" : "Tab"} ${hit.tab.id}` : hit.path,
+        icon: hit.tab ? (hit.tab.agent ? "sparkle" : "terminal") : hit.dir ? "folder" : imageTypeOf(hit.path) ? "image" : "code",
         fill: () => takeHit(hit),
         enter: () => takeHit(hit),
       }))
@@ -575,7 +616,7 @@ export function Composer({
                   aria-label={mention ? "Files" : slashing ? "Skills" : "Slash commands"}
                   style={{ display: "flex", flexDirection: "column", width: spot.listWidth, minWidth: 240, maxHeight: ROW * 8 + 8, overflowY: "scroll", paddingTop: 4, paddingBottom: 4, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.overlay, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}
                 >
-                  {picks.length === 0 ? note(searching ? "Searching…" : "No matching files or folders") : null}
+                  {picks.length === 0 ? note(searching ? "Searching…" : "No matching files, folders or tabs") : null}
                   {picks.map((pick, index) => (
                     <div key={pick.key} ref={index === current ? markedRow : undefined} style={{ display: "flex", flexDirection: "column", flexShrink: 0 }}>
                       <Press

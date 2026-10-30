@@ -172,7 +172,10 @@ class Link {
       await call("tab.call", tabRef(id), "report", { body: `state=${status}:app=agents` }).catch(() => {});
     }
     const session = this.state?.session ?? t?.session?.id;
-    if (session && session !== was.session) {
+    // Kept once something was said in it: before that the agent may not have saved it, and a tab
+    // that loads it after the app starts again would find no such session.
+    const said = t?.entries.some((entry) => entry.kind === "user") ?? false;
+    if (session && session !== was.session && said) {
       was.session = session;
       await setOn(SESSION, session, id).catch(() => {});
     }
@@ -324,15 +327,15 @@ async function link(id: number): Promise<Link | undefined> {
   if (!socket) {
     const def = catalogAgent(name);
     if (!def) throw new ApiError("not_found", `agents: no agent \`${name}\``);
-    const engine = ((await optionOn<string>(ENGINE, id)) ?? "acp") as Engine;
-    const cwd = (await optionOn<string>(CWD, id)) ?? homedir();
-    const session = await optionOn<string>(SESSION, id);
-    const mode = session ? "load" : (await optionOn<string>(START, id)) === "pick" ? "pick" : "new";
-    const run = await agentPathReady();
+    const [given, where, session, start, run] = await Promise.all([optionOn<string>(ENGINE, id), optionOn<string>(CWD, id), optionOn<string>(SESSION, id), optionOn<string>(START, id), agentPathReady()]);
+    const engine = (given ?? "acp") as Engine;
+    const cwd = where ?? homedir();
+    const mode = session ? "load" : start === "pick" ? "pick" : "new";
     const launch = serverCommand(def, engine, run, session);
     await startHost(id, { socket: path, agent: name, name: def.title, engine, command: launch.command, env: launch.env, cwd, mode, ...(session ? { session } : {}) }, run);
-    for (let i = 0; i < 100 && !socket; i++) {
-      await Bun.sleep(100);
+    // The host listens within some tens of milliseconds: look often, for ten seconds.
+    for (let i = 0; i < 400 && !socket; i++) {
+      await Bun.sleep(25);
       socket = await connect(path);
     }
     if (!socket) throw new ApiError("internal", `agents: the host for tab ${id} did not start (see ${join(hostsDir(), `${id}.log`)})`);
@@ -412,14 +415,29 @@ on("request.closed", { desc: "Agents answers a session's permission answered els
   each?.answered(String(e.data?.request), e.data?.answer);
 });
 
-/** Where a new tab starts: the given directory, else the tab's beside it. */
+/** Whether `dir` is a project an agent works in: not the home folder or the root, which hold everything. */
+export const isProject = (dir: string | undefined): dir is string => !!dir && dir !== "/" && dir !== homedir();
+
+/** The directory of tab `id`'s session (`session.cwd`), when it has one. */
+export async function sessionCwd(id: number): Promise<string | undefined> {
+  const tab = (await call("tab.get", tabRef(id)).catch(() => null)) as { session?: string } | null;
+  if (!tab?.session) return undefined;
+  const session = (await call("session.get", tab.session).catch(() => null)) as { cwd?: string | null } | null;
+  return session?.cwd ?? undefined;
+}
+
+/**
+ * Where a new tab starts: the given directory, else the tab's beside it (its shell's, its agent's),
+ * else its session's. A home folder there gives way to a project after it.
+ */
 export async function cwdFrom(given: unknown, beside: number | undefined): Promise<string> {
   if (typeof given === "string" && given !== "") return resolve(given.replace(/^~(?=\/|$)/, homedir()));
-  if (beside !== undefined) {
-    const there = (await optionOn<string>("tab_current_path", beside)) ?? (await optionOn<string>(CWD, beside));
-    if (there) return there;
-  }
-  return homedir();
+  if (beside === undefined) return homedir();
+  const [shell, agent] = await Promise.all([optionOn<string>("tab_current_path", beside), optionOn<string>(CWD, beside)]);
+  const near = shell ?? agent;
+  if (isProject(near)) return near;
+  const session = await sessionCwd(beside);
+  return isProject(session) ? session : (near ?? session ?? homedir());
 }
 
 export interface OpenSession {
@@ -443,13 +461,16 @@ export async function openSession(given: OpenSession): Promise<number> {
   const place = given.place ?? (given.beside !== undefined ? { kind: "tiled", beside: tabRef(given.beside) } : { kind: "tiled" });
   const opened = await workspace.openTab(sessionBlock(), {}, place);
   const id = numberOf(opened.id);
-  await setOn(CONVERSATION, self.plugin.id, id);
-  await setOn(ENGINE, given.engine, id);
-  await setOn(CWD, cwd, id);
-  await setOn(START, given.start ?? "new", id);
-  if (given.session) await setOn(SESSION, given.session, id);
+  // Its name and what its host needs at once; the agent last, which the tab draws its chat on.
+  await Promise.all([
+    named(id, given.agent),
+    setOn(CONVERSATION, self.plugin.id, id),
+    setOn(ENGINE, given.engine, id),
+    setOn(CWD, cwd, id),
+    setOn(START, given.start ?? "new", id),
+    ...(given.session ? [setOn(SESSION, given.session, id)] : []),
+  ]);
   await setOn(AGENT, given.agent, id);
-  await named(id, given.agent);
   await ensure(id);
   return id;
 }
@@ -564,8 +585,13 @@ export async function retry(id: number): Promise<void> {
 }
 
 /** A host that stopped, or an agent that exited, started again: on its session when it has one. */
-export async function restart(id: number): Promise<void> {
+/** Tab `id`'s agent started again; `fresh`: on a new session, the one it had left (it could not be loaded). */
+export async function restart(id: number, fresh = false): Promise<void> {
   await stopHost(id);
+  if (fresh) {
+    await setOn(SESSION, null, id).catch(() => {});
+    await setOn(START, "new", id).catch(() => {});
+  }
   await ensure(id);
 }
 

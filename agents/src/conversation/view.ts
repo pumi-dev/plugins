@@ -12,6 +12,17 @@ export function visibleEntries(entries: Entry[], count: number): { shown: Entry[
 }
 
 /**
+ * The entries a timeline shows from the one with id `from` on, and how many are before it. A
+ * timeline holds its first row while new ones come at its foot: dropping one off its head each
+ * time would move every row under a reader who scrolled up. Without `from`, or when it is gone (a
+ * rewind, a snapshot of another session), the last `pageSize`.
+ */
+export function entriesFrom(entries: Entry[], from: string | undefined, pageSize: number): { shown: Entry[]; hidden: number } {
+  const at = from === undefined ? -1 : entries.findIndex((entry) => entry.id === from);
+  return visibleEntries(entries, at >= 0 ? entries.length - at : pageSize);
+}
+
+/**
  * The commands a draft is asking for: while it is `/` and a name with no space after it, those
  * whose name starts with what is typed (the name without its own `/`), best first.
  */
@@ -46,10 +57,19 @@ export function caretAfterEdit(before: string, after: string): number {
   return after.length - end;
 }
 
-/** A file the user may mention: its path as the draft writes it, and whether it is a directory. */
+/**
+ * What the user may mention: a file, its path as the draft writes it and whether it is a
+ * directory; or another tab, written `tab:%3` (`tabToken`), with its title.
+ */
 export interface MentionHit {
   path: string;
   dir?: boolean;
+  tab?: { id: string; title: string; agent?: boolean };
+}
+
+/** A tab as a mention's path: `tab:%3`, which the draft writes `@tab:%3`. */
+export function tabToken(id: string): string {
+  return `tab:${id}`;
 }
 
 /** An `@` the user is typing: what follows it up to the caret, and where it starts. */
@@ -274,10 +294,11 @@ export function imagePathsIn(text: string): string[] {
 /** A piece of a message as it is drawn: its text, or a chip for what it names (a file, a folder, a picture, a skill). */
 export type MessagePart =
   | { type: "text"; text: string }
-  | { type: "chip"; kind: "file" | "folder" | "image" | "skill"; text: string; label: string; path?: string };
+  | { type: "chip"; kind: "file" | "folder" | "image" | "skill"; text: string; label: string; path?: string }
+  | { type: "chip"; kind: "tab"; text: string; label: string; tab: string };
 
 /**
- * Where the chips are in a message: `@path` and `@"a path"` mentions, pictures named by their
+ * Where the chips are in a message: `@path` and `@"a path"` mentions, tabs (`@tab:%3`), pictures named by their
  * absolute path (quoted or not, as pi is told of one), and skills (`/skill:name`). Each starts the
  * text or follows a space.
  */
@@ -303,6 +324,14 @@ export function messageParts(text: string, cwd?: string): MessagePart[] {
       if (bare !== undefined) token = `@${bare}`;
       const named = m[2] ?? bare ?? m[4] ?? m[5]!.replace(/\\ /g, " ").replace(/^file:\/\//, "");
       if (named === "" || named === "/") continue;
+      const tab = /^tab:(%\d+)$/.exec(named)?.[1];
+      if (tab) {
+        plain(start);
+        parts.push({ type: "chip", kind: "tab", text: token, label: tab, tab });
+        last = start + token.length;
+        CHIP_AT.lastIndex = last;
+        continue;
+      }
       const dir = named.endsWith("/");
       const path = named.startsWith("/") || named.startsWith("~") || !cwd ? named : `${cwd.replace(/\/+$/, "")}/${named}`;
       chip = { type: "chip", kind: dir ? "folder" : imageTypeOf(named) ? "image" : "file", text: token, label: dir ? `${baseName(named)}/` : baseName(named), path };
