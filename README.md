@@ -21,6 +21,7 @@ pumi plugin add pumi-dev/plugins/file-tree
 | [Agents](agents) | coding agents from the + menu, in their terminal or a GUI, told about the workspace around them |
 | [Pixel Office](pixel-office) | a UI theme: pumi as a pixel-art office with a desk for every view |
 | [Music Studio](music-studio) | a song in a tab, laid out as GarageBand does, measured bar by bar for agents |
+| [Awake](awake) | keeps the Mac awake while agents work, with the lid shut too |
 
 Each folder is a whole plugin with nothing shared between them, so you can copy one and make it
 your own. `pumi plugin dev <folder>` links it into pumi and reloads it on save; its README says how
