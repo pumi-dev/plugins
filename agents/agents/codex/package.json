@@ -1,0 +1,57 @@
+{
+  "name": "pumi-agents-codex",
+  "displayName": "Codex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codex: its terminal and its hooks, its chat over the terminal (its session files), and its GUI over its app server or ACP.",
+  "type": "module",
+  "main": "src/index.ts",
+  "pumi": {
+    "name": "agent-codex",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "codex",
+        "title": "Codex",
+        "program": "codex",
+        "rank": 30,
+        "resume": ["codex", "resume", "{session}"],
+        "acp": {
+          "run": [
+            ["codex-acp"],
+            ["npx", "-y", "@agentclientprotocol/codex-acp@2.2.2"]
+          ],
+          "login": ["codex", "login"]
+        },
+        "sdk": "codex",
+        "hook": {
+          "shape": {
+            "kind": "hooks",
+            "file": ".codex/hooks.json",
+            "start": "SessionStart",
+            "prompt": "UserPromptSubmit",
+            "stop": "Stop",
+            "ms": false
+          },
+          "restore": ["codex", "resume", "{session}"]
+        },
+        "chat": {
+          "format": "codex",
+          "cancel": "\u001b",
+          "images": "paste",
+          "home": ".codex",
+          "rewind": "backtrack"
+        }
+      }
+    ],
+    "formats": ["codex"],
+    "engines": {
+      "codex": {
+        "module": "src/engine.ts",
+        "run": ["{program}", "app-server"]
+      }
+    }
+  }
+}

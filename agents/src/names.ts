@@ -5,6 +5,9 @@
 /** The plugin's prefix (`owner.name.`), which its functions, events, options and trait go under. */
 export const PREFIX = "pumi_dev.agents.";
 
+/** The plugin's id (`owner/name`): its sub-plugins name it as their `parent`. */
+export const PLUGIN_ID = "pumi_dev/agents";
+
 /** The function an agent's hook calls (`pumi call`), from the agent's terminal. */
 export const HOOK_FN = `${PREFIX}hook`;
 

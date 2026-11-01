@@ -68,10 +68,11 @@ export type ToHost =
 export type FromHost = { t: "state"; state: HostState } | { t: "update"; update: Update } | { t: "ack"; ack: Ack };
 
 /**
- * How the host speaks to the agent: `acp` (any ACP server), or an agent's own protocol: `pi`
- * (`pi --mode rpc`), `codex` (`codex app-server`), `claude` (the Claude Agent SDK, in the host).
+ * How the host speaks to the agent: `acp` (any ACP server), or an agent's own protocol, a
+ * sub-plugin's engine (`registry.ts` `EngineDef`): `pi` (`pi --mode rpc`), `codex` (`codex
+ * app-server`), `claude` (the Claude Agent SDK, in the host).
  */
-export type Engine = "acp" | "pi" | "codex" | "claude";
+export type Engine = string;
 
 /** What the host is started with: one JSON argument. */
 export interface HostSpec {
@@ -81,6 +82,10 @@ export interface HostSpec {
   name: string;
   /** How it speaks to the agent; `acp` when not said. */
   engine?: Engine;
+  /** The module of an engine other than `acp`, which makes its driver (`createDriver`). */
+  engineModule?: string;
+  /** `false`: the engine runs the agent in the host itself, with no process (`command` is empty). */
+  process?: boolean;
   /** The agent's server (an ACP one, or its own) and what its environment adds; `claude` runs none. */
   command: string[];
   env?: Record<string, string>;

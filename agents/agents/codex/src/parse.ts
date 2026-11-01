@@ -4,9 +4,7 @@
 // session did (a turn starting, ending or aborted, the tokens used), `turn_context` the model.
 // The `event_msg` copies of messages (`user_message`, `agent_message`) are left out: the
 // `response_item`s say them. No `import … from "pumi"` here.
-import { noticeChange, type Change, type Stamp } from "../conversation/change.ts";
-import type { ToolContent, Transcript, Usage } from "../conversation/model.ts";
-import { imageOf, num, obj, objs, resultContent, str, timeOf, toolPush, toolResult, type Parser, type Rec } from "./common.ts";
+import { noticeChange, imageOf, num, obj, objs, resultContent, str, timeOf, toolPush, toolResult, type Change, type Stamp, type ToolContent, type Transcript, type Usage, type Parser, type Rec } from "../../../src/api.ts";
 
 /** Text Codex puts in a user message for the model, not typed by the user. */
 const CONTEXT = /^\s*(<(environment_context|user_instructions|recommended_plugins|permissions|skill|turn_aborted|user_shell_command|image|\/image)\b|# AGENTS\.md)/;

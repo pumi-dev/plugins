@@ -1,7 +1,7 @@
 // Codex's rollout file, on synthetic records shaped like the real ones.
 import { describe, expect, test } from "bun:test";
 
-import { CodexParser } from "../src/parse/codex.ts";
+import { CodexParser } from "../agents/codex/src/parse.ts";
 import { rows, run } from "./harness.ts";
 
 const at = "2026-01-02T10:00:00.000Z";

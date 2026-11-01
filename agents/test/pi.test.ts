@@ -2,7 +2,7 @@
 // branch its last entry is on.
 import { describe, expect, test } from "bun:test";
 
-import { PiParser } from "../src/parse/pi.ts";
+import { PiParser } from "../agents/pi/src/parse.ts";
 import { rows, run } from "./harness.ts";
 
 const header = { type: "session", version: 3, id: "s-1", timestamp: "2026-01-02T10:00:00.000Z", cwd: "/work/demo" };

@@ -14,16 +14,11 @@
 // options. No `import … from "pumi"` here.
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
 
-import { CommandLedger, endTurnChanges, noticeChange, Producer, promptChanges, textChange, type Change } from "../conversation/change.ts";
-import { entryIndex, findEntry, randomId, type Ack, type Choice, type Command, type ConfigOption, type Image, type Permission, type StopReason } from "../conversation/model.ts";
-import { locate } from "../locate.ts";
-import { ClaudeParser } from "../parse/claude.ts";
-import { num, obj, objs, records, str, type Rec } from "../parse/common.ts";
-import type { Driver, SessionEvents } from "./engines.ts";
-import { expandSkills, findSkills, skillFolders, withBytes, withSkills } from "./prompt.ts";
-import { findProgram, searchPath } from "./launch.ts";
-import type { HostSpec, HostState } from "./wire.ts";
+import { CommandLedger, Producer, endTurnChanges, entryIndex, expandSkills, findEntry, findProgram, findSkills, noticeChange, num, obj, objs, promptChanges, randomId, records, searchPath, skillFolders, str, textChange, withBytes, withSkills, type Ack, type Change, type Choice, type Command, type ConfigOption, type Driver, type HostSpec, type HostState, type Image, type Permission, type Rec, type SessionEvents, type StopReason } from "../../../src/api.ts";
+import { locateClaude } from "./locate.ts";
+import { ClaudeParser } from "./parse.ts";
 
 /** The pickers' option ids. */
 export const CLAUDE_MODEL = "claude.model";
@@ -257,7 +252,7 @@ export class ClaudeSession implements Driver {
    * way to the newest one are the conversation's.
    */
   #history(session: string): void {
-    const file = locate("claude", "claude", { session, cwd: this.spec.cwd });
+    const file = locateClaude(session, { cwd: this.spec.cwd, home: homedir(), env: process.env });
     if (!file) return;
     let lines: string[];
     try {
@@ -719,4 +714,9 @@ function userEffort(): string | undefined {
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** The engine's driver, as the host makes it (`registry.ts` `EngineDef`): the SDK runs in the host, so nothing is written to a process. */
+export function createDriver(spec: HostSpec, _write: (line: string) => void, events: SessionEvents): Driver {
+  return new ClaudeSession(spec, events);
 }

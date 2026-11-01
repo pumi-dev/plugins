@@ -1,0 +1,36 @@
+import { execFile } from "node:child_process";
+
+function hook(event, input) {
+  return new Promise((resolve) => {
+    const args = ["call", "{fn}", String(process.env.PUMI_TAB ?? ""), "{agent}", event, JSON.stringify(input)];
+    const child = execFile(process.env.PUMI_BIN || "pumi", args, { timeout: 4000, maxBuffer: 1 << 20 }, (err, stdout) => resolve(err ? "" : String(stdout)));
+    child.stdin?.end();
+  });
+}
+
+// What the plugin tells each session about the workspace: in its system prompt from each prompt on.
+const known = new Map();
+
+export const PumiAgentsPlugin = async () => {
+  if (!process.env.PUMI_AGENT) return {};
+  return {
+    "chat.message": async ({ sessionID }) => {
+      if (!sessionID) return;
+      const text = (await hook("prompt", { session_id: sessionID, full: true })).trim();
+      if (text) known.set(sessionID, text);
+      else known.delete(sessionID);
+    },
+    "experimental.chat.system.transform": async ({ sessionID }, output) => {
+      const text = sessionID && known.get(sessionID);
+      if (text && Array.isArray(output?.system)) output.system.push(text);
+    },
+    // The turn is over: the agent is done (OSC 7501, which opencode does not say itself).
+    event: async ({ event }) => {
+      const session_id = event?.properties?.sessionID ?? "";
+      if (event?.type === "session.idle") await hook("stop", { session_id });
+      else if (event?.type === "session.compacted") await hook("compact", { session_id });
+    },
+  };
+};
+
+export default { id: "pumi.agents", server: PumiAgentsPlugin, setup() {} };

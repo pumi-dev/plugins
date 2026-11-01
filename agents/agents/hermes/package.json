@@ -1,0 +1,22 @@
+{
+  "name": "pumi-agents-hermes",
+  "displayName": "Hermes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hermes in pumi's tabs: its terminal.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-hermes",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "hermes",
+        "title": "Hermes",
+        "program": "hermes",
+        "rank": 140
+      }
+    ]
+  }
+}

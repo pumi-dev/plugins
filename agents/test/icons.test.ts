@@ -1,24 +1,23 @@
-// The agents' marks (`src/icons.ts`): each one an `@icon` the app takes, a `data:` image of at most
-// 16 KB (`pumi_api::icon::MAX_ICON`).
+// The agents' marks (`src/icons.ts`): each one, a file of its sub-plugin, an `@icon` the app takes, a
+// `data:` image of at most 16 KB (`pumi_api::icon::MAX_ICON`).
 import { describe, expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
 
 import { agentIcon } from "../src/icons.ts";
+import { catalog } from "../src/catalog.ts";
 
 describe("an agent's mark", () => {
-  test("is a data URI the app draws, for each file in icons/", () => {
-    const names = readdirSync(join(import.meta.dir, "..", "icons")).filter((file) => file.endsWith(".svg")).map((file) => file.slice(0, -4));
-    expect(names.sort()).toEqual(["claude", "copilot", "cursor", "gemini", "opencode", "pi", "qwen"]);
-    for (const name of names) {
-      const icon = agentIcon(name)!;
+  test("is a data URI the app draws, for each agent whose sub-plugin has one", () => {
+    const marked = catalog().filter((agent) => agent.icon).map((agent) => agent.id);
+    expect(marked.sort()).toEqual(["claude", "copilot", "cursor", "gemini", "omp", "opencode", "pi", "qwen"]);
+    for (const id of marked) {
+      const icon = agentIcon(id)!;
       expect(icon).toMatch(/^data:image\/svg\+xml;base64,/);
       expect(icon.length).toBeLessThanOrEqual(16 * 1024);
       expect(Buffer.from(icon.split(",")[1]!, "base64").toString("utf8")).toStartWith("<svg");
     }
   });
 
-  test("is another's for an agent that shares it, and none for one without", () => {
+  test("is pi's for omp, which shares it, and none for an agent without one", () => {
     expect(agentIcon("omp")).toBe(agentIcon("pi")!);
     expect(agentIcon("codex")).toBeUndefined();
     expect(agentIcon("../package")).toBeUndefined();

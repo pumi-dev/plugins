@@ -5,9 +5,7 @@
 // place) moves to another branch. `message`s are the user's, the assistant's (text, thinking,
 // tool calls), tool results and `!` commands; `model_change`, `session_info`, `compaction` and
 // displayed `custom_message`s say the rest. No `import … from "pumi"` here.
-import { noticeChange, type Change, type Stamp } from "../conversation/change.ts";
-import type { StopReason, ToolContent, Transcript, Usage } from "../conversation/model.ts";
-import { collapseSkills, imageOf, num, obj, objs, resultContent, str, timeOf, toolPush, toolResult, type Parser, type Rec } from "./common.ts";
+import { noticeChange, collapseSkills, imageOf, num, obj, objs, resultContent, str, timeOf, toolPush, toolResult, type Change, type Stamp, type StopReason, type ToolContent, type Transcript, type Usage, type Parser, type Rec } from "../../../src/api.ts";
 
 export class PiParser implements Parser {
   #last: string | undefined;

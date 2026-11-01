@@ -10,4 +10,4 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH RE
 
 Agent marks
 
-claude.svg, gemini.svg, qwen.svg, cursor.svg, opencode.svg and copilot.svg are from Simple Icons (https://simpleicons.org), released under CC0 1.0. Each mark is a trademark of its owner and is used only to show which agent a tab runs; this does not imply endorsement. pi.svg is Lucide's "pi" icon, under the Lucide License above.
+The icon.svg of claude/, gemini/, qwen/, cursor/, opencode/ and copilot/ are from Simple Icons (https://simpleicons.org), released under CC0 1.0. Each mark is a trademark of its owner and is used only to show which agent a tab runs; this does not imply endorsement. The icon.svg of pi/ and omp/ is Lucide's "pi" icon, under the Lucide License above.

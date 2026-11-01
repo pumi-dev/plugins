@@ -1,0 +1,38 @@
+{
+  "name": "pumi-agents-opencode",
+  "displayName": "OpenCode",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenCode in pumi's tabs: its terminal and its hook, and its GUI over ACP.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-opencode",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "opencode",
+        "title": "OpenCode",
+        "program": "opencode",
+        "rank": 60,
+        "icon": "icon.svg",
+        "resume": ["opencode", "--session", "{session}"],
+        "acp": {
+          "run": [
+            ["opencode", "acp"]
+          ],
+          "login": ["opencode", "auth", "login"]
+        },
+        "hook": {
+          "shape": {
+            "kind": "file",
+            "file": ".config/opencode/plugins/pumi-context.js",
+            "template": "hook.js.tmpl"
+          },
+          "restore": ["opencode", "--session", "{session}"]
+        }
+      }
+    ]
+  }
+}

@@ -21,6 +21,7 @@ import { follow, type Update } from "./conversation/change.ts";
 import { optionOf, type Ack, type Command, type Cursor, type Transcript } from "./conversation/model.ts";
 import { currentName } from "./conversation/view.ts";
 import { catalogAgent, type CatalogAgent } from "./catalog.ts";
+import { engineOf } from "./registry.ts";
 import { agentPath, agentPathReady, installed, launchOf, resumeLine } from "./session/launch.ts";
 import { lineReader } from "./session/rpc.ts";
 import { fallbackDir, socketPath, type Engine, type FromHost, type HostSpec, type HostState, type ToHost } from "./session/wire.ts";
@@ -63,26 +64,34 @@ function message(err: unknown): string {
 
 // ── How a host starts ─────────────────────────────────────────────────────────────────────────
 
-/** The command line the host runs `agent`'s server with, for `engine`; `claude` runs none (the SDK is in the host). */
+/**
+ * The command line the host runs `agent`'s server with, for `engine`: its ACP server, or what the
+ * engine's sub-plugin says (`run`, then `session` to continue one); none for an engine that runs
+ * the agent in the host (`claude`, the SDK).
+ */
 export function serverCommand(agent: CatalogAgent, engine: Engine, path: string, session?: string): { command: string[]; env: Record<string, string> } {
-  switch (engine) {
-    case "acp":
-      if (!agent.acp) throw new ApiError("invalid_params", `agents: ${agent.title} has no ACP server`);
-      return launchOf(agent.acp.run, agent.acp.env, path);
-    case "pi":
-      // On the tab's session when it has one: pi loads it as it starts.
-      return launchOf([[agent.program, "--mode", "rpc", ...(session ? ["--session", session] : [])]], {}, path);
-    case "codex":
-      return launchOf([[agent.program, "app-server"]], {}, path);
-    case "claude":
-      return { command: [], env: {} };
+  if (engine === "acp") {
+    if (!agent.acp) throw new ApiError("invalid_params", `agents: ${agent.title} has no ACP server`);
+    return launchOf(agent.acp.run, agent.acp.env, path);
   }
+  const def = engineOf(engine);
+  if (!def) throw new ApiError("not_found", `agents: no sub-plugin that is on gives the engine \`${engine}\``);
+  if (def.process === false || !def.run?.length) return { command: [], env: {} };
+  const fill = (words: string[]) => words.map((word) => word.replaceAll("{program}", agent.program).replaceAll("{session}", session ?? ""));
+  // On the tab's session when it has one: the agent loads it as it starts.
+  return launchOf([[...fill(def.run), ...(session && def.session ? fill(def.session) : [])]], {}, path);
+}
+
+/** What the host needs of `engine` beside its command: the module of a sub-plugin's, and whether it runs a process. */
+export function engineSpec(engine: Engine): Pick<HostSpec, "engineModule" | "process"> {
+  const def = engine === "acp" ? undefined : engineOf(engine);
+  return def ? { engineModule: def.module, ...(def.process === false ? { process: false } : {}) } : {};
 }
 
 /** Whether `agent` can start with `engine` without fetching anything. */
 export function engineInstalled(agent: CatalogAgent, engine: Engine, path = agentPath()): boolean {
   if (engine === "acp") return !!agent.acp && installed(agent.acp.run, path);
-  return installed([[agent.program]], path);
+  return !!engineOf(engine) && installed([[agent.program]], path);
 }
 
 // ── One tab's link to its host ───────────────────────────────────────────────────────────────
@@ -332,7 +341,7 @@ async function link(id: number): Promise<Link | undefined> {
     const cwd = where ?? homedir();
     const mode = session ? "load" : start === "pick" ? "pick" : "new";
     const launch = serverCommand(def, engine, run, session);
-    await startHost(id, { socket: path, agent: name, name: def.title, engine, command: launch.command, env: launch.env, cwd, mode, ...(session ? { session } : {}) }, run);
+    await startHost(id, { socket: path, agent: name, name: def.title, engine, ...engineSpec(engine), command: launch.command, env: launch.env, cwd, mode, ...(session ? { session } : {}) }, run);
     // The host listens within some tens of milliseconds: look often, for ten seconds.
     for (let i = 0; i < 400 && !socket; i++) {
       await Bun.sleep(25);

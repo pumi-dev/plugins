@@ -8,13 +8,7 @@
 // reverts the thread to before that turn (`thread/revert`), and a fork copies the thread through
 // it (`thread/fork`). The reasoning effort and the approval preset go with each turn (`turn/start`).
 // No `import … from "pumi"` here.
-import { CommandLedger, endTurnChanges, noticeChange, Producer, promptChanges, textChange, type Change } from "../conversation/change.ts";
-import { entryIndex, findEntry, findTool, randomId, type Ack, type Choice, type Command, type ConfigOption, type Image, type Permission, type PlanItem, type StopReason, type ToolContent, type Transcript } from "../conversation/model.ts";
-import { collapseSkills, num, obj, objs, str, toolPush, type Rec } from "../parse/common.ts";
-import type { Driver, SessionEvents } from "./engines.ts";
-import { findSkills, skillBlock, skillFolders, skillsNamed, withSkills, type Skill } from "./prompt.ts";
-import { METHOD_NOT_FOUND, Peer, RpcError } from "./rpc.ts";
-import type { HostSpec, HostState } from "./wire.ts";
+import { CommandLedger, METHOD_NOT_FOUND, Peer, Producer, RpcError, collapseSkills, endTurnChanges, entryIndex, findEntry, findSkills, findTool, noticeChange, num, obj, objs, promptChanges, randomId, skillBlock, skillFolders, skillsNamed, str, textChange, toolPush, withSkills, type Ack, type Change, type Choice, type Command, type ConfigOption, type Driver, type HostSpec, type HostState, type Image, type Permission, type PlanItem, type Rec, type SessionEvents, type Skill, type StopReason, type ToolContent, type Transcript } from "../../../src/api.ts";
 
 /** The pickers' option ids. */
 export const CODEX_MODEL = "codex.model";
@@ -642,4 +636,9 @@ function diffsOf(item: Rec): ToolContent[] {
 
 function message(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** The engine's driver, as the host makes it (`registry.ts` `EngineDef`). */
+export function createDriver(spec: HostSpec, write: (line: string) => void, events: SessionEvents): Driver {
+  return new CodexSession(spec, write, events);
 }

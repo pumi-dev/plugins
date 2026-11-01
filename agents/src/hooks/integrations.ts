@@ -1,7 +1,7 @@
-// Agents' hooks, installed into each agent's own config: the agents the plugin knows (how its hook
-// goes in, how its session resumes, what it takes), the hook's line, the merge of it beside the
-// user's own hooks and the strip of it again, and the files installed whole (pi's extension,
-// OpenCode's plugin). Each hook calls the plugin's `hook` function (`pumi call`) and only in a tab
+// Agents' hooks, installed into each agent's own config: the agents the sub-plugins give (how its
+// hook goes in, how its session resumes, what it takes; `registry.ts`), the hook's line, the merge
+// of it beside the user's own hooks and the strip of it again, and the files installed whole (pi's
+// extension, OpenCode's plugin, each a template of its sub-plugin's). Each hook calls the plugin's `hook` function (`pumi call`) and only in a tab
 // the plugin opened for an agent (`$PUMI_AGENT`); `hook.ts` is what it answers. No
 // `import … from "pumi"` here.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -9,7 +9,9 @@ import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 
 import { HOOK_FN } from "../names.ts";
-import { OPENCODE_PLUGIN, PI_EXTENSION, PI_LIVE, PI_STOP, PI_STOP_QUEUE } from "./templates.ts";
+import { agentList, type AgentDef, type Shape } from "../registry.ts";
+
+export type { Shape } from "../registry.ts";
 
 /** What marks a hook, or a file, as the plugin's. */
 export const MARKER = "pumi-agents";
@@ -24,26 +26,6 @@ export const PERMISSION_WAIT = 120;
 export const SESSION = "{session}";
 /** What a terminal opened for an agent has (`agentLaunch`): the agent's id. Its hook runs only where it is set. */
 export const AGENT_ENV = "PUMI_AGENT";
-
-/** How an agent's hook goes in. */
-export type Shape =
-  | {
-      kind: "hooks";
-      file: string;
-      start: string;
-      prompt?: string;
-      stop?: string;
-      /** The event that runs when the agent would ask the user's permission: with `permissions` on, it is asked in pumi instead. */
-      permission?: string;
-      /** The tools that wait on the user (a `PreToolUse` matcher): `blocked` before them, and `working` again after any tool. */
-      asks?: string;
-      /** Its timeouts are in milliseconds. */
-      ms: boolean;
-    }
-  | { kind: "cursor"; file: string }
-  | { kind: "pi"; file: string }
-  | { kind: "opencode"; file: string }
-  | { kind: "none" };
 
 /** What a hook says the agent is at, as the hook function hears it. */
 export type HookEvent = "start" | "prompt" | "stop" | "compact" | "permission" | "question" | "resume";
@@ -64,65 +46,26 @@ export interface HookAgent {
   accepts: string[];
 }
 
-export const HOOK_AGENTS: HookAgent[] = [
-  { id: "pi", label: "pi", command: "pi", shape: { kind: "pi", file: ".pi/agent/extensions/pumi-context.ts" }, reports: true, resume: ["pi", "--session", SESSION], accepts: ["queue"] },
-  { id: "omp", label: "omp", command: "omp", shape: { kind: "pi", file: ".omp/agent/extensions/pumi-context.ts" }, reports: false, resume: [], accepts: [] },
-  {
-    id: "claude",
-    label: "Claude Code",
-    command: "claude",
-    shape: { kind: "hooks", file: ".claude/settings.json", start: "SessionStart", prompt: "UserPromptSubmit", stop: "Stop", permission: "PermissionRequest", asks: "AskUserQuestion|ExitPlanMode", ms: false },
-    reports: false,
-    resume: ["claude", "--resume", SESSION],
-    accepts: ["queue"],
-  },
-  {
-    id: "codex",
-    label: "Codex",
-    command: "codex",
-    shape: { kind: "hooks", file: ".codex/hooks.json", start: "SessionStart", prompt: "UserPromptSubmit", stop: "Stop", ms: false },
-    reports: false,
-    resume: ["codex", "resume", SESSION],
-    accepts: [],
-  },
-  {
-    id: "gemini",
-    label: "Gemini CLI",
-    command: "gemini",
-    shape: { kind: "hooks", file: ".gemini/settings.json", start: "SessionStart", prompt: "BeforeAgent", stop: "AfterAgent", ms: true },
-    reports: false,
-    resume: [],
-    accepts: [],
-  },
-  {
-    id: "qwen",
-    label: "Qwen Code",
-    command: "qwen",
-    shape: { kind: "hooks", file: ".qwen/settings.json", start: "SessionStart", prompt: "UserPromptSubmit", stop: "Stop", ms: true },
-    reports: false,
-    resume: [],
-    accepts: [],
-  },
-  {
-    id: "droid",
-    label: "Droid",
-    command: "droid",
-    shape: { kind: "hooks", file: ".factory/settings.json", start: "SessionStart", prompt: "UserPromptSubmit", stop: "Stop", ms: false },
-    reports: false,
-    resume: [],
-    accepts: [],
-  },
-  { id: "cursor", label: "Cursor", command: "cursor-agent", shape: { kind: "cursor", file: ".cursor/hooks.json" }, reports: false, resume: ["cursor-agent", "--resume", SESSION], accepts: [] },
-  { id: "opencode", label: "OpenCode", command: "opencode", shape: { kind: "opencode", file: ".config/opencode/plugins/pumi-context.js" }, reports: false, resume: ["opencode", "--session", SESSION], accepts: [] },
-  { id: "kilo", label: "Kilo", command: "kilo", shape: { kind: "opencode", file: ".config/kilo/plugins/pumi-context.js" }, reports: false, resume: [], accepts: [] },
-  { id: "copilot", label: "GitHub Copilot", command: "copilot", shape: { kind: "none" }, reports: false, resume: [], accepts: [] },
-  { id: "kiro", label: "Kiro CLI", command: "kiro-cli", shape: { kind: "none" }, reports: false, resume: [], accepts: [] },
-  { id: "hermes", label: "Hermes", command: "hermes", shape: { kind: "none" }, reports: false, resume: [], accepts: [] },
-  { id: "amp", label: "Amp", command: "amp", shape: { kind: "none" }, reports: false, resume: [], accepts: [] },
-];
+/** An agent of the registry as its hook has it: one with none has the shape `none`. */
+export function hookAgentOf(def: AgentDef): HookAgent {
+  return {
+    id: def.id,
+    label: def.label ?? def.title,
+    command: def.program,
+    shape: def.hook?.shape ?? { kind: "none" },
+    reports: def.hook?.reports === true,
+    resume: def.hook?.restore ?? [],
+    accepts: def.hook?.accepts ?? [],
+  };
+}
+
+/** Every agent the sub-plugins that are on give, as its hook has it. */
+export function hookAgents(): HookAgent[] {
+  return agentList().map(hookAgentOf);
+}
 
 export function findAgent(id: unknown): HookAgent | undefined {
-  return typeof id === "string" ? HOOK_AGENTS.find((agent) => agent.id === id) : undefined;
+  return typeof id === "string" ? hookAgents().find((agent) => agent.id === id) : undefined;
 }
 
 /**
@@ -291,20 +234,20 @@ export function merge(config: Json, agent: HookAgent): void {
   }
 }
 
+/** The templates read, by path: a sub-plugin's file, read once. */
+const templates = new Map<string, string>();
+
+function template(path: string): string {
+  let text = templates.get(path);
+  if (text === undefined) templates.set(path, (text = readFileSync(path, "utf8")));
+  return text;
+}
+
 /** The whole file the plugin installs for `agent` (pi's extension, OpenCode's plugin), or none for a hook merged into a config. */
 export function ownedFile(agent: HookAgent): string | undefined {
+  if (agent.shape.kind !== "file") return undefined;
   const header = `// installed by pumi's Agents plugin (Settings → Agents → Hooks); reinstalling overwrites this file.\n// ${MARKER} v${VERSION}\n`;
-  const fill = (text: string) => text.replaceAll("{fn}", HOOK_FN).replaceAll("{agent}", agent.id);
-  switch (agent.shape.kind) {
-    case "pi": {
-      const stop = agent.accepts.includes("queue") ? PI_STOP_QUEUE : PI_STOP;
-      return header + fill(PI_EXTENSION.replace("{stop}", stop).replace("{live}", PI_LIVE));
-    }
-    case "opencode":
-      return header + fill(OPENCODE_PLUGIN);
-    default:
-      return undefined;
-  }
+  return header + template(agent.shape.template).replaceAll("{fn}", HOOK_FN).replaceAll("{agent}", agent.id);
 }
 
 /** Whether `value` holds the string `wanted` anywhere. */
@@ -352,7 +295,8 @@ export function install(agent: HookAgent, home = homedir()): string {
 export function uninstall(agent: HookAgent, home = homedir()): void {
   const path = hookFile(agent, home);
   if (!path || !existsSync(path)) return;
-  if (ownedFile(agent) !== undefined) {
+  // A whole file of the plugin's goes without its template: the sub-plugin may be gone already.
+  if (agent.shape.kind === "file") {
     if (readFileSync(path, "utf8").includes(MARKER)) rmSync(path);
     return;
   }
@@ -391,7 +335,7 @@ export function hookStatus(row: Pick<HookRow, "hook" | "available">): { text: st
 
 /** Every agent, whether it is here, and whether its hook is in. */
 export function hookRows(home = homedir(), path = agentPath(process.env.PATH ?? "", home)): HookRow[] {
-  return HOOK_AGENTS.map((agent) => ({
+  return hookAgents().map((agent) => ({
     id: agent.id,
     label: agent.label,
     available: onPath(agent.command, path),

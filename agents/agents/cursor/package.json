@@ -1,0 +1,31 @@
+{
+  "name": "pumi-agents-cursor",
+  "displayName": "Cursor Agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cursor Agent in pumi's tabs: its terminal and its hook.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-cursor",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "cursor",
+        "title": "Cursor Agent",
+        "label": "Cursor",
+        "program": "cursor-agent",
+        "rank": 70,
+        "icon": "icon.svg",
+        "hook": {
+          "shape": {
+            "kind": "cursor",
+            "file": ".cursor/hooks.json"
+          },
+          "restore": ["cursor-agent", "--resume", "{session}"]
+        }
+      }
+    ]
+  }
+}

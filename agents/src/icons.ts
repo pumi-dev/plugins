@@ -1,31 +1,41 @@
-// The agents' marks (`icons/`, see `icons/LICENSES`), as a tab's `@icon` takes them: a `data:` URI,
-// since a `plugin:` path names a file of the plugin whose block the tab holds, and the chat draws
-// the `terminal` block, which it does not define. No `import … from "pumi"` here.
+// The agents' marks, as a tab's `@icon` takes them: each a file of its sub-plugin (`icon` in its
+// manifest), read as a `data:` URI, since a `plugin:` path names a file of the plugin whose block
+// the tab holds, and the chat draws the `terminal` block, which it does not define. No `import …
+// from "pumi"` here.
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { extname } from "node:path";
+
+import { agentDef } from "./registry.ts";
 
 /** A tab's own icon. */
 export const ICON = "@icon";
 
-/** The marks one agent shares with another. */
-const ALIASES: Record<string, string> = { omp: "pi" };
+/** The kinds of picture a mark may be, by extension. */
+const TYPES: Record<string, string> = { ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif" };
 
-const DIR = join(import.meta.dir, "..", "icons");
+/** The most an `@icon` holds (`pumi_api::icon::MAX_ICON`). */
+const MAX_ICON = 16 * 1024;
 
 const read = new Map<string, string | undefined>();
 
-/** Agent `agent`'s mark as an `@icon` value, if the plugin has one. */
-export function agentIcon(agent: string): string | undefined {
-  const name = ALIASES[agent] ?? agent;
-  if (!/^[a-z0-9_-]+$/.test(name)) return undefined;
-  if (!read.has(name)) {
+/** The mark in `file` as an `@icon` value, if it is a picture small enough. */
+export function iconOf(file: string): string | undefined {
+  if (!read.has(file)) {
     let icon: string | undefined;
     try {
-      icon = `data:image/svg+xml;base64,${readFileSync(join(DIR, `${name}.svg`)).toString("base64")}`;
+      const type = TYPES[extname(file).toLowerCase()];
+      const uri = type ? `data:${type};base64,${readFileSync(file).toString("base64")}` : undefined;
+      icon = uri && uri.length <= MAX_ICON ? uri : undefined;
     } catch {
       icon = undefined;
     }
-    read.set(name, icon);
+    read.set(file, icon);
   }
-  return read.get(name);
+  return read.get(file);
+}
+
+/** Agent `agent`'s mark as an `@icon` value, if its sub-plugin has one. */
+export function agentIcon(agent: string): string | undefined {
+  const file = agentDef(agent)?.icon;
+  return file ? iconOf(file) : undefined;
 }

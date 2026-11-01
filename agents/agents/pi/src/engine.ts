@@ -9,13 +9,8 @@
 // what came before), and a fork for a tab of its own does the same and moves pi back
 // (`switch_session`). The thinking level is pi's own (`set_thinking_level`). No `import … from
 // "pumi"` here.
-import { CommandLedger, endTurnChanges, noticeChange, Producer, promptChanges, textChange, type Change } from "../conversation/change.ts";
-import { entryIndex, findEntry, findTool, randomId, type Ack, type Command, type ConfigOption, type Image, type Permission, type StopReason, type Transcript } from "../conversation/model.ts";
-import { num, obj, objs, resultContent, str, toolPush, toolResult, type Rec } from "../parse/common.ts";
-import { callContent, PiParser, stopOf } from "../parse/pi.ts";
-import type { Driver, SessionEvents } from "./engines.ts";
-import { expandSkills, withBytes } from "./prompt.ts";
-import type { HostSpec, HostState } from "./wire.ts";
+import { CommandLedger, Producer, endTurnChanges, entryIndex, expandSkills, findEntry, findTool, noticeChange, num, obj, objs, promptChanges, randomId, resultContent, str, textChange, toolPush, toolResult, withBytes, type Ack, type Change, type Command, type ConfigOption, type Driver, type HostSpec, type HostState, type Image, type Permission, type Rec, type SessionEvents, type StopReason, type Transcript } from "../../../src/api.ts";
+import { callContent, PiParser, stopOf } from "./parse.ts";
 
 /** The pickers' option ids. */
 export const PI_MODEL = "pi.model";
@@ -585,3 +580,8 @@ function message(err: unknown): string {
 }
 
 const errorText = message;
+
+/** The engine's driver, as the host makes it (`registry.ts` `EngineDef`). */
+export function createDriver(spec: HostSpec, write: (line: string) => void, events: SessionEvents): Driver {
+  return new PiSession(spec, write, events);
+}

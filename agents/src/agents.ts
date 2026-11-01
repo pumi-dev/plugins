@@ -1,43 +1,25 @@
-// The agents the chat knows: which agent ids (the trait's, `names.ts` `AGENT`) it bridges, what each is called, which parser reads
-// its session file, and the keys its TUI takes. No `import … from "pumi"` here.
+// The agents the chat over a terminal reads: which agent ids (the trait's, `names.ts` `AGENT`) it
+// bridges, as their sub-plugins say (`registry.ts`), and how a prompt is typed into a TUI. No
+// `import … from "pumi"` here.
 import type { Status } from "./conversation/model.ts";
+import { agentDef, hasFormat, type ChatDef } from "./registry.ts";
 
-export type Format = "claude" | "codex" | "pi";
+/** The format an agent's session files are in: one a sub-plugin's code reads (`registry.ts`). */
+export type Format = string;
 
-export interface AgentSpec {
+/** An agent the chat over its terminal reads: its `chat` (`registry.ts` `ChatDef`), its id and its label. */
+export interface AgentSpec extends ChatDef {
   /** The agent's id, as its hook sets the trait. */
   id: string;
   /** What the chat calls it. */
   label: string;
-  /** How its session file is written. */
-  format: Format;
-  /** What ends its running turn when typed into its terminal. */
-  cancel: string;
-  /**
-   * How a picture goes in: `paste`, its path pasted alone (the TUI attaches a pasted image path,
-   * as it does a dragged one), or `text`, its path in the prompt for the agent to read.
-   */
-  images: "paste" | "text";
-  /** Where its own settings, commands and skills are, from the home directory. */
-  home: string;
-  /**
-   * How it goes back to before a message: `command`, this plugin's own pi extension's
-   * `/pumi-rewind <entry>` (to that very message); `picker`, its own `/rewind` list, shown in its
-   * terminal; `backtrack`, Escape twice, its own way back, in its terminal.
-   */
-  rewind: "command" | "picker" | "backtrack";
 }
 
-export const AGENTS: Record<string, AgentSpec> = {
-  claude: { id: "claude", label: "Claude Code", format: "claude", cancel: "\x1b", images: "paste", home: ".claude", rewind: "picker" },
-  codex: { id: "codex", label: "Codex", format: "codex", cancel: "\x1b", images: "paste", home: ".codex", rewind: "backtrack" },
-  pi: { id: "pi", label: "pi", format: "pi", cancel: "\x1b", images: "text", home: ".pi/agent", rewind: "command" },
-  omp: { id: "omp", label: "omp", format: "pi", cancel: "\x1b", images: "text", home: ".omp/agent", rewind: "command" },
-};
-
-/** The agent a tab's trait names, when the chat can bridge it. */
+/** The agent a tab's trait names, when the chat can bridge it: its sub-plugin says how, and one that is on reads its format. */
 export function agentSpec(agent: unknown): AgentSpec | undefined {
-  return typeof agent === "string" ? AGENTS[agent] : undefined;
+  const def = agentDef(agent);
+  if (!def?.chat || !hasFormat(def.chat.format)) return undefined;
+  return { ...def.chat, id: def.id, label: def.label ?? def.title };
 }
 
 /** `@status` as the conversation has it: the hooks say `idle`, `working`, `blocked`, `done`; `unknown` is `idle`. */

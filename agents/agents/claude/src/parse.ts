@@ -4,9 +4,7 @@
 // a local command's output), `summary` (the title), `cost-state`, and bookkeeping left out. A
 // subagent's records (`isSidechain`) and injected ones (`isMeta`) are not the conversation's.
 // No `import … from "pumi"` here.
-import { noticeChange, type Change, type Stamp } from "../conversation/change.ts";
-import type { ToolContent, Transcript, Usage } from "../conversation/model.ts";
-import { collapseSkills, imageOf, num, obj, objs, plain, resultContent, str, timeOf, toolPush, toolResult, type Parser, type Rec } from "./common.ts";
+import { noticeChange, collapseSkills, imageOf, num, obj, objs, plain, resultContent, str, timeOf, toolPush, toolResult, type Change, type Stamp, type ToolContent, type Transcript, type Usage, type Parser, type Rec } from "../../../src/api.ts";
 
 export class ClaudeParser implements Parser {
   #usage: Usage = {};

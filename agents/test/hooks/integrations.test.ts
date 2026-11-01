@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { HOOK_FN } from "../../src/names.ts";
-import { AGENT_ENV, agentLaunch, findAgent, HOOK_AGENTS, hookCommand, hookRows, hookState, hookStatus, install, MARKER, merge, ownedFile, PERMISSION_WAIT, resumeCommand, resumeLine, strip, uninstall, VERSION, type HookAgent } from "../../src/hooks/integrations.ts";
+import { AGENT_ENV, agentLaunch, findAgent, hookAgents, hookCommand, hookRows, hookState, hookStatus, install, MARKER, merge, ownedFile, PERMISSION_WAIT, resumeCommand, resumeLine, strip, uninstall, VERSION, type HookAgent } from "../../src/hooks/integrations.ts";
 
 const agent = (id: string): HookAgent => findAgent(id)!;
 type Json = Record<string, any>;
@@ -133,7 +133,7 @@ describe("the files installed whole", () => {
 
 describe("a session resumed", () => {
   test("by its recipe or the user's", () => {
-    for (const each of HOOK_AGENTS.filter((a) => a.resume.length > 0)) expect(resumeLine(each.id, "abc", null)).toBeDefined();
+    for (const each of hookAgents().filter((a) => a.resume.length > 0)) expect(resumeLine(each.id, "abc", null)).toBeDefined();
     expect(resumeLine("claude", "abc-123", null)).toBe("claude --resume abc-123");
     expect(resumeLine("claude", "a b; rm -rf ~", null)).toBe("claude --resume 'a b; rm -rf ~'");
     expect(resumeLine("claude", "--dangerously-skip-permissions", null)).toBeUndefined();
@@ -149,12 +149,12 @@ describe("a session resumed", () => {
 
 describe("the agents", () => {
   test("only checked ones accept a queue", () => {
-    expect(HOOK_AGENTS.filter((a) => a.accepts.includes("queue")).map((a) => a.id)).toEqual(["pi", "claude"]);
-    for (const each of HOOK_AGENTS) for (const word of each.accepts) expect(word).toBe("queue");
+    expect(hookAgents().filter((a) => a.accepts.includes("queue")).map((a) => a.id)).toEqual(["pi", "claude"]);
+    for (const each of hookAgents()) for (const word of each.accepts) expect(word).toBe("queue");
   });
 
   test("each id once", () => {
-    const ids = HOOK_AGENTS.map((a) => a.id);
+    const ids = hookAgents().map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });

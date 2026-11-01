@@ -4,7 +4,10 @@ import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { claudeProjectName, locate, piProjectName } from "../src/locate.ts";
+import { agentSpec } from "../src/agents.ts";
+import { locate } from "../src/locate.ts";
+import { claudeProjectName } from "../agents/claude/src/locate.ts";
+import { piProjectName } from "../agents/pi/src/locate.ts";
 import { Tail } from "../src/tail.ts";
 
 const home = mkdtempSync(join(tmpdir(), "agents-"));
@@ -23,11 +26,11 @@ describe("locate", () => {
     }
     const where = { cwd: "/work", home, env: {} };
     // A resumed Claude session stays in the folder it began in.
-    expect(locate("claude", "claude", { ...where, session: "abc" })).toBe(claude);
-    expect(locate("codex", "codex", { ...where, session: "def" })).toBe(codex);
-    expect(locate("pi", "pi", { ...where, session: "ghi" })).toBe(pi);
-    expect(locate("pi", "pi", { ...where, session: "none" })).toBeUndefined();
-    expect(locate("claude", "claude", { ...where, transcript: codex })).toBe(codex);
+    expect(locate(agentSpec("claude")!, { ...where, session: "abc" })).toBe(claude);
+    expect(locate(agentSpec("codex")!, { ...where, session: "def" })).toBe(codex);
+    expect(locate(agentSpec("pi")!, { ...where, session: "ghi" })).toBe(pi);
+    expect(locate(agentSpec("pi")!, { ...where, session: "none" })).toBeUndefined();
+    expect(locate(agentSpec("claude")!, { ...where, transcript: codex })).toBe(codex);
   });
 });
 

@@ -8,11 +8,12 @@
 //   bun src/session/host.ts '<HostSpec as JSON>'
 //
 // No `import … from "pumi"` here: the host is not a plugin's worker.
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { createConnection, createServer, type Socket } from "node:net";
 import { dirname } from "node:path";
 
+import { provideApi } from "../provide.ts";
 import { driverFor } from "./engines.ts";
 import { searchPath } from "./launch.ts";
 import { lineReader } from "./rpc.ts";
@@ -24,7 +25,7 @@ const STDERR_LINES = 20;
 const GRACE_MS = 2000;
 
 const spec: HostSpec = JSON.parse(process.argv[2] ?? "null");
-if (!spec?.socket || !Array.isArray(spec.command) || (spec.command.length === 0 && spec.engine !== "claude")) {
+if (!spec?.socket || !Array.isArray(spec.command) || (spec.command.length === 0 && spec.process !== false)) {
   console.error("chat host: give the spec as one JSON argument");
   process.exit(2);
 }
@@ -61,10 +62,20 @@ const broadcast = (message: FromHost) => {
   for (const socket of clients) send(socket, message);
 };
 
+// The engine first: a sub-plugin's is a module to import, which may import `@pumi-dev/agents`.
+provideApi();
+let agent: ChildProcessWithoutNullStreams | undefined;
+const session = await driverFor(spec, (line) => !!agent?.stdin.writable && agent.stdin.write(line), {
+  update: (update) => broadcast({ t: "update", update }),
+  state: (state) => broadcast({ t: "state", state }),
+}).catch((err: unknown) => {
+  console.error(`chat host: ${err instanceof Error ? err.message : String(err)}`);
+  process.exit(2);
+});
 // The agent's server, in a process group of its own so stopping it stops what it started (npx's
 // node, its tools); an engine that runs the agent itself (`claude`, the SDK) has none here.
 const [program, ...args] = spec.command;
-const agent = program
+agent = program
   ? spawn(program, args, {
       cwd: spec.cwd,
       env: { ...process.env, ...spec.env, PATH: searchPath(process.env.PATH) },
@@ -73,10 +84,6 @@ const agent = program
     })
   : undefined;
 const stderr: string[] = [];
-const session = driverFor(spec, (line) => !!agent?.stdin.writable && agent.stdin.write(line), {
-  update: (update) => broadcast({ t: "update", update }),
-  state: (state) => broadcast({ t: "state", state }),
-});
 if (agent) {
   agent.stderr.on(
     "data",

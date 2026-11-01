@@ -1,0 +1,62 @@
+{
+  "name": "pumi-agents-claude",
+  "displayName": "Claude Code",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code: its terminal and its hooks, its chat over the terminal (its session files), and its GUI over the Claude Agent SDK or ACP.",
+  "type": "module",
+  "main": "src/index.ts",
+  "pumi": {
+    "name": "agent-claude",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "claude",
+        "title": "Claude Code",
+        "program": "claude",
+        "rank": 20,
+        "icon": "icon.svg",
+        "resume": ["claude", "--resume", "{session}"],
+        "acp": {
+          "run": [
+            ["claude-agent-acp"],
+            ["npx", "-y", "@agentclientprotocol/claude-agent-acp@0.94.0"]
+          ],
+          "login": ["claude", "/login"]
+        },
+        "sdk": "claude",
+        "sdkNote": "GUI runs it through Anthropic's Agent SDK: on a Pro or Max plan that may be billed as extra usage.",
+        "hook": {
+          "shape": {
+            "kind": "hooks",
+            "file": ".claude/settings.json",
+            "start": "SessionStart",
+            "prompt": "UserPromptSubmit",
+            "stop": "Stop",
+            "permission": "PermissionRequest",
+            "asks": "AskUserQuestion|ExitPlanMode",
+            "ms": false
+          },
+          "restore": ["claude", "--resume", "{session}"],
+          "accepts": ["queue"]
+        },
+        "chat": {
+          "format": "claude",
+          "cancel": "\u001b",
+          "images": "paste",
+          "home": ".claude",
+          "rewind": "picker"
+        }
+      }
+    ],
+    "formats": ["claude"],
+    "engines": {
+      "claude": {
+        "module": "src/engine.ts",
+        "process": false
+      }
+    }
+  }
+}

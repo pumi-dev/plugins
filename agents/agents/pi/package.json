@@ -1,0 +1,59 @@
+{
+  "name": "pumi-agents-pi",
+  "displayName": "Pi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "pi, the coding agent: its terminal, its chat over the terminal (its session files), and its GUI over its RPC mode or ACP.",
+  "type": "module",
+  "main": "src/index.ts",
+  "pumi": {
+    "name": "agent-pi",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "pi",
+        "title": "Pi",
+        "label": "pi",
+        "program": "pi",
+        "rank": 10,
+        "icon": "icon.svg",
+        "resume": ["pi", "--session", "{session}"],
+        "acp": {
+          "run": [
+            ["pi-acp"],
+            ["npx", "-y", "pi-acp@0.0.34"]
+          ],
+          "login": ["pi"]
+        },
+        "sdk": "pi",
+        "hook": {
+          "shape": {
+            "kind": "file",
+            "file": ".pi/agent/extensions/pumi-context.ts",
+            "template": "hook.ts.tmpl"
+          },
+          "reports": true,
+          "restore": ["pi", "--session", "{session}"],
+          "accepts": ["queue"]
+        },
+        "chat": {
+          "format": "pi",
+          "cancel": "\u001b",
+          "images": "text",
+          "home": ".pi/agent",
+          "rewind": "command"
+        }
+      }
+    ],
+    "formats": ["pi"],
+    "engines": {
+      "pi": {
+        "module": "src/engine.ts",
+        "run": ["{program}", "--mode", "rpc"],
+        "session": ["--session", "{session}"]
+      }
+    }
+  }
+}

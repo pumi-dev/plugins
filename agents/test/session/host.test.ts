@@ -29,9 +29,11 @@ async function startHost(mode: HostSpec["mode"], engine: "acp" | "pi" | "codex" 
     agent: "fake",
     name: "Fake",
     engine,
+    // An engine other than ACP is its sub-plugin's module, as the worker gives it (`sessions.ts` `engineSpec`).
+    ...(engine === "acp" ? {} : { engineModule: join(import.meta.dir, "../../agents", engine, "src/engine.ts") }),
     // The `claude` engine runs the SDK in the host: no process of its own, a stand-in SDK.
     command: engine === "claude" ? [] : [process.execPath, ...agent],
-    ...(engine === "claude" ? { claudeSdk: join(import.meta.dir, "fake-claude-sdk.ts") } : {}),
+    ...(engine === "claude" ? { process: false, claudeSdk: join(import.meta.dir, "fake-claude-sdk.ts") } : {}),
     cwd: dir,
     mode,
     ...(session ? { session } : {}),

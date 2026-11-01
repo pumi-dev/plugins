@@ -2,7 +2,7 @@
 // "Open agents in" (`prefer`) sets them all to.
 import { expect, test } from "bun:test";
 
-import { CATALOG, catalogAgent, choiceOf, choicesOf, followsPrefer, guiMode, modeOf, preferOf, preferred } from "../src/catalog.ts";
+import { catalog, catalogAgent, choiceOf, choicesOf, followsPrefer, guiMode, modeOf, preferOf, preferred } from "../src/catalog.ts";
 
 const agent = (id: string) => catalogAgent(id)!;
 
@@ -11,7 +11,7 @@ test("an agent with an SDK or ACP has a GUI; one with neither has Off and Termin
   expect(choicesOf(agent("kiro"))).toEqual(["off", "terminal", "gui"]);
   expect(choicesOf(agent("omp"))).toEqual(["off", "terminal"]);
   expect(choicesOf(agent("amp"))).toEqual(["off", "terminal"]);
-  for (const each of CATALOG) expect(choicesOf(each)).toContain(each.default);
+  for (const each of catalog()) expect(choicesOf(each)).toContain(each.default ?? "terminal");
 });
 
 test("a choice is what `modes` says, else the default; ACP and SDK are GUI, Chat over the terminal is Terminal", () => {

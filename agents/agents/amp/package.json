@@ -1,0 +1,22 @@
+{
+  "name": "pumi-agents-amp",
+  "displayName": "Amp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Amp in pumi's tabs: its terminal.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-amp",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "amp",
+        "title": "Amp",
+        "program": "amp",
+        "rank": 80
+      }
+    ]
+  }
+}

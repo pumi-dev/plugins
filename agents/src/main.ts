@@ -10,6 +10,10 @@
 //   pumi call pumi_dev.agents.queue %3 "next"                a prompt for tab %3's agent, after its turn
 //   pumi call pumi_dev.agents.hook %3 claude stop …          what an agent's hook runs (`hooks/`)
 //
+// The agents are its sub-plugins' (`subplugins.ts`): the ones it ships in `agents/`, one per agent,
+// and any installed for it. Each says its agents in its manifest, and its code reads their session
+// files and runs their GUIs; they load at the start and again when pumi says one changed.
+//
 // An agent's terminal is the plugin's own block, `term`, on pumi's terminal engine (`openTerminal`). The
 // chat is how `ui.tsx`'s `Term` draws it while the tab's `@tab_renderer` option names this
 // plugin: the terminal keeps running under it, untouched, and shows again as it was when the
@@ -31,6 +35,8 @@ import {
   type PumiEvent,
 } from "pumi";
 
+import { join } from "node:path";
+
 import type { Update } from "./conversation/change.ts";
 import type { Ack, Command, Cursor } from "./conversation/model.ts";
 import { agentSpec } from "./agents.ts";
@@ -38,13 +44,13 @@ import { Bridge, type TabOptions } from "./bridge.ts";
 import { mentions as findMentions } from "./mentions.ts";
 import { PICK_IN_TERMINAL } from "./models.ts";
 import { runHook, requestClosed, type HookApi } from "./hooks/run.ts";
-import { agentLaunch, findAgent, hookRows, install, uninstall } from "./hooks/integrations.ts";
+import { agentLaunch, findAgent, hookAgentOf, hookRows, install, uninstall } from "./hooks/integrations.ts";
 import { agentIcon, ICON } from "./icons.ts";
 import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, SESSION_CWD, STATUS } from "./names.ts";
 import { tabToken, type MentionHit } from "./conversation/view.ts";
 import { score } from "./files/score.ts";
 import type { ConversationRead } from "./topics.ts";
-import { CATALOG, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, followsPrefer, guiMode, modeOf, preferOf, preferred, type CatalogAgent, type Choice, type Mode, type Prefer } from "./catalog.ts";
+import { catalog, catalogAgent, CHOICE_LABELS, choiceOf, choicesOf, followsPrefer, guiMode, modeOf, preferOf, preferred, type CatalogAgent, type Choice, type Mode, type Prefer } from "./catalog.ts";
 import { agentPath, agentPathReady, findProgram, loginPath } from "./session/launch.ts";
 import {
   attach,
@@ -67,6 +73,9 @@ import {
   startSession,
 } from "./sessions.ts";
 import { forget, tell } from "./tell.ts";
+import { provideApi } from "./provide.ts";
+import { onRegistry } from "./registry.ts";
+import { loadSubPlugins } from "./subplugins.ts";
 
 export { attach, authenticate, login, restart, retry, sessionSend, startSession };
 
@@ -120,6 +129,73 @@ let modes: unknown = {};
 /** What a GUI tries first, and what Settings last set every agent to (`prefer`); unread before `configure`. */
 let prefer: Prefer | undefined;
 
+// ── The sub-plugins ─────────────────────────────────────────────────────────────────────────
+
+/** The plugin's folder: `agents/` in it holds the sub-plugins it ships. */
+const DIR = join(import.meta.dir, "..");
+
+/** The command that opens a new `agent` tab (`tab.new`'s action runs it). */
+const newCommand = (agent: CatalogAgent) => `new_${agent.id}`;
+
+/** The agents whose `new_<id>` command is set. */
+const commanded = new Set<string>();
+
+/**
+ * Loads the sub-plugins (their agents, formats and engines) as pumi lists them now. An agent that
+ * went with one has its hook taken out and its command withdrawn; one that came has its command.
+ */
+async function loadAgents(): Promise<void> {
+  const before = new Map(catalog().map((agent) => [agent.id, agent]));
+  provideApi();
+  const errors = await loadSubPlugins(() => call("registry.list", "plugin", { parent: self.plugin.id }), DIR, true);
+  for (const error of errors) console.error(`agents: ${error}`);
+  const now = new Set(catalog().map((agent) => agent.id));
+  for (const [id, gone] of before) {
+    if (now.has(id)) continue;
+    try {
+      uninstall(hookAgentOf(gone));
+    } catch (err) {
+      console.error(`agents: ${gone.title}'s hook: ${message(err)}`);
+    }
+  }
+  for (const id of [...commanded]) {
+    if (now.has(id)) continue;
+    fn.set(`new_${id}`, null);
+    commanded.delete(id);
+  }
+  for (const agent of catalog()) {
+    if (commanded.has(agent.id)) continue;
+    fn.set(newCommand(agent), { desc: `Open ${agent.title} in a new tab, as Settings → Agents says.`, parameters: [["table", "args"]] }, (args?: NewArgs) => openAgent(agent.id, args ?? {}));
+    commanded.add(agent.id);
+  }
+}
+
+/** The sub-plugins, loaded once at the start: what reads the agents waits for it. */
+let agentsReady: Promise<void> = loadAgents().catch((err) => console.error(`agents: ${message(err)}`));
+
+/** Loads them again, one load at a time: the `+` menu, the hooks and the chats follow. */
+function reloadAgents(): Promise<void> {
+  agentsReady = agentsReady.then(loadAgents).then(async () => {
+    await contribute();
+    await syncHooks();
+  });
+  return agentsReady.catch((err) => console.error(`agents: ${message(err)}`));
+}
+
+on("registry.changed", { match: "plugin", desc: "Agents loads its sub-plugins again when one changes" }, (e: PumiEvent) => {
+  if ((e.data as { parent?: unknown } | undefined)?.parent === self.plugin.id) void reloadAgents();
+});
+
+// A chat whose agent's format went with its sub-plugin stops; it is read again when asked for.
+onRegistry(() => {
+  for (const tab of [...bridges.keys()]) {
+    bridges.get(tab)?.then(
+      (bridge) => !agentSpec(bridge.spec.id) && stop(tab),
+      () => {},
+    );
+  }
+});
+
 /** The mode of the agent a tab's trait names: `terminal` for one the catalog does not know. */
 function modeFor(agent: unknown): Mode {
   const def = typeof agent === "string" ? catalogAgent(agent) : undefined;
@@ -145,8 +221,9 @@ function bridgeOf(tab: number): Promise<Bridge> {
   const running = bridges.get(tab);
   if (running) return running;
   const started = (async () => {
+    await agentsReady;
     const spec = agentSpec(await tabOption(AGENT, tab));
-    if (!spec) throw new Error(`tab %${tab} runs no agent the chat reads (Claude Code, Codex, pi)`);
+    if (!spec) throw new Error(`tab %${tab} runs no agent the chat reads (its sub-plugin is off, or reads no session files)`);
     return new Bridge(tab, spec, await tabOptions(tab), () => history);
   })();
   bridges.set(tab, started);
@@ -364,7 +441,11 @@ fn.set(
       ["table", "input"],
     ],
   },
-  (tab: unknown, agent: unknown, event: unknown, input: unknown) => runHook(hookApi, tab, agent, event, input),
+  // After the sub-plugins are read: the hook asks what its agent is (whether it reports its own state).
+  async (tab: unknown, agent: unknown, event: unknown, input: unknown) => {
+    await agentsReady;
+    return runHook(hookApi, tab, agent, event, input);
+  },
 );
 
 /** The block an agent's terminal is (`pumi_dev.agents.term`): on pumi's terminal engine, drawn by `Term`. */
@@ -400,6 +481,7 @@ interface NewArgs {
 
 /** A new tab of agent `id`, as its mode says: its TUI in a terminal (the chat over it, for `chat`), or a session tab. */
 export async function openAgent(id: string, args: NewArgs = {}): Promise<string> {
+  await agentsReady;
   const agent = catalogAgent(id);
   if (!agent && !findAgent(id)) throw new Error(`agents: no agent \`${id}\``);
   const beside = typeof args.tab === "string" && /^%\d+$/.test(args.tab) ? numberOf(args.tab) : undefined;
@@ -429,12 +511,6 @@ fn.set(
 
 // ── Opening agents: the `+` menu ─────────────────────────────────────────────────────────────
 
-/** The command that opens a new `agent` tab (`tab.new`'s action runs it). */
-const newCommand = (agent: CatalogAgent) => `new_${agent.id}`;
-
-for (const agent of CATALOG) {
-  fn.set(newCommand(agent), { desc: `Open ${agent.title} in a new tab, as Settings → Agents says.`, parameters: [["table", "args"]] }, (args?: NewArgs) => openAgent(agent.id, args ?? {}));
-}
 
 /** Whether `agent` can open here now, in the mode it has. */
 function available(agent: CatalogAgent, mode: Mode, path: string): boolean {
@@ -449,7 +525,7 @@ function available(agent: CatalogAgent, mode: Mode, path: string): boolean {
  */
 async function contribute(): Promise<void> {
   const path = agentPath();
-  const shown = CATALOG.filter((agent) => available(agent, modeOf(agent, modes, prefer), path));
+  const shown = catalog().filter((agent) => available(agent, modeOf(agent, modes, prefer), path));
   const own = (self.plugin.manifest.contributes?.commands ?? []) as { id: string; title: string }[];
   const commands = [...own, ...shown.map((agent) => ({ id: newCommand(agent), title: `New ${agent.title}` }))];
   const actions = shown.map((agent) => ({ id: agent.id, title: agent.title, icon: "sparkle", command: newCommand(agent) }));
@@ -472,17 +548,20 @@ export interface AgentRow {
   icon?: string;
   /** Its hook, when it has one: in (and up to date), and what went wrong putting it in. */
   hook?: { connected: boolean; error?: string };
+  /** The sub-plugin it is from. */
+  from: string;
 }
 
 /** Every agent the plugin opens, those installed here first, each with its choice and its hook. */
 export async function agentRows(): Promise<AgentRow[]> {
+  await agentsReady;
   await syncHooks();
   const path = await agentPathReady();
   // As the options are now: Settings reads its rows again as soon as it set one, before
   // `option.changed` has brought the change to `modes` here.
   const { modes, prefer } = await options();
   const hooks = new Map(hookRows().map((row) => [row.id, row]));
-  const rows: AgentRow[] = CATALOG.map((agent) => {
+  const rows: AgentRow[] = catalog().map((agent) => {
     const hook = hooks.get(agent.id);
     const error = hookErrors.get(agent.id);
     return {
@@ -493,6 +572,7 @@ export async function agentRows(): Promise<AgentRow[]> {
       installed: findProgram(agent.program, path) !== undefined,
       ...(agent.sdkNote && modeOf(agent, modes, prefer) === "sdk" ? { note: agent.sdkNote } : {}),
       ...(agentIcon(agent.id) ? { icon: agentIcon(agent.id) } : {}),
+      from: agent.from,
       ...(hook && hook.hook !== "unsupported" ? { hook: { connected: hook.hook === "installed", ...(error ? { error } : {}) } } : {}),
     };
   });
@@ -684,6 +764,7 @@ on("option.changed", { match: `${self.plugin.prefix}*`, desc: "Agents follows it
  * mode not taken yet drawn as chats, and each session tab's host found again.
  */
 async function startup(): Promise<void> {
+  await agentsReady;
   await migrate();
   await configure();
   await contribute().catch((err) => console.error(`agents: ${message(err)}`));
@@ -794,7 +875,7 @@ async function adopt(): Promise<void> {
     const agent = text(await tabOption("@agent", tab));
     const def = agent ? catalogAgent(agent) : undefined;
     if (!agent || !def) continue;
-    const engine = owner === FORMER.acp ? "acp" : ((text(await tabOption("@chat_ui.engine", tab)) ?? "acp") as "acp" | "pi" | "claude" | "codex");
+    const engine = owner === FORMER.acp ? "acp" : (text(await tabOption("@chat_ui.engine", tab)) ?? "acp");
     if (engine === "acp" ? !def.acp : def.sdk !== engine) continue;
     const session = text(await tabOption("@agent.session", tab));
     const cwd = text(await tabOption("@chat_ui.cwd", tab)) ?? text(await tabOption("@acp.cwd", tab));

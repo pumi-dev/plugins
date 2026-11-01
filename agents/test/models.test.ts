@@ -1,7 +1,8 @@
 // The model picker's list: pi's `--list-models` table read, and the option built from it.
 import { describe, expect, test } from "bun:test";
 
-import { modelCommand, modelOption, parsePiModels, PICK_IN_TERMINAL } from "../src/models.ts";
+import { modelCommand, modelOption, PICK_IN_TERMINAL } from "../src/models.ts";
+import { parsePiModels } from "../agents/pi/src/models.ts";
 
 const TABLE = `provider    model                              context  max-out  thinking  images
 anthropic   claude-sonnet-9                    1M       128K     yes       yes

@@ -18,10 +18,8 @@ import { matchesEcho } from "./echo.ts";
 import { modelCommand, modelOption, modelsFor, PICK_IN_TERMINAL } from "./models.ts";
 import { locate, type Where } from "./locate.ts";
 import { AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, STATUS } from "./names.ts";
-import { ClaudeParser } from "./parse/claude.ts";
-import { CodexParser } from "./parse/codex.ts";
 import { records, type Parser } from "./parse/common.ts";
-import { PiParser } from "./parse/pi.ts";
+import { formatOf } from "./registry.ts";
 import { assistantTimestamp, EMPTY, Live, liveFileOf, parseLive } from "./live.ts";
 import { Tail } from "./tail.ts";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
@@ -69,21 +67,14 @@ const REWIND_WAIT = 8_000;
 /** How long pi takes to load its extensions again after `/reload`, in ms. */
 const RELOAD_WAIT = 1_500;
 
-/** The pi extension this plugin ships (`pi/pumi-chat.ts`): `/pumi-rewind`. */
-const EXTENSION = join(import.meta.dir, "..", "pi", "pumi-chat.ts");
-
 /** How the chat goes back to before a message: to that very one (`exact`), or in the agent's own terminal. */
 export type Rewinds = "exact" | "terminal";
 
+/** A parser of `spec`'s session files: its format's, from the sub-plugin that reads it. */
 function parserFor(spec: AgentSpec): Parser {
-  switch (spec.format) {
-    case "claude":
-      return new ClaudeParser();
-    case "codex":
-      return new CodexParser();
-    case "pi":
-      return new PiParser();
-  }
+  const format = formatOf(spec.format);
+  if (!format) throw new Error(`no sub-plugin that is on reads ${spec.label}'s session files (format \`${spec.format}\`)`);
+  return format.parser();
 }
 
 export class Bridge {
@@ -249,7 +240,7 @@ export class Bridge {
         else this.#options.transcript = text;
         if (before.session === this.#options.session && before.transcript === this.#options.transcript) return;
         // A new session (`/clear`, a resume): another file. A path given for the session it was in already is the same one.
-        const next = locate(this.spec.format, this.spec.id, this.#where());
+        const next = locate(this.spec, this.#where());
         if (next !== undefined && next === this.#file) return;
         this.#restart();
         return;
@@ -290,7 +281,7 @@ export class Bridge {
   /** Finds the session file and reads it; while it is not there, says so and looks again. */
   #open(): void {
     if (this.#disposed) return;
-    const file = locate(this.spec.format, this.spec.id, this.#where());
+    const file = locate(this.spec, this.#where());
     if (!file) {
       if (this.#waiting === undefined) {
         const said = this.#options.session ? `Waiting for ${this.spec.label} to write its session file…` : `Waiting for ${this.spec.label} to say which session it is in (its hook: Settings → Agents → Hooks)…`;
@@ -311,7 +302,7 @@ export class Bridge {
       onReset: () => this.#reread(),
     });
     // Before the first read, which marks the messages the file has as done.
-    if (this.spec.format === "pi") this.#live = new Live();
+    if (formatOf(this.spec.format)?.live) this.#live = new Live();
     try {
       tail.start();
       this.#tail = tail;
@@ -518,7 +509,7 @@ export class Bridge {
         if (command.category !== "model" || typeof command.value !== "string" || command.value === "") return { id: command.id, rejected: `${this.spec.label}'s settings are changed in its terminal.` };
         if (!this.#ready() || this.transcript.queue.length > 0) return { id: command.id, rejected: `${this.spec.label} is busy: change the model once its turn is over.` };
         // Codex's `/model` is a picker of its own; so is the choice that asks for the agent's.
-        const own = command.value === PICK_IN_TERMINAL || this.spec.format === "codex";
+        const own = command.value === PICK_IN_TERMINAL || formatOf(this.spec.format)?.modelsInTerminal === true;
         const typed = await this.#type(own ? "/model" : modelCommand(command.value));
         if (typed) return { id: command.id, rejected: typed };
         // Its hook says the model at the next turn: shown now, as picked.
@@ -559,6 +550,7 @@ export class Bridge {
       switch (this.spec.rewind) {
         case "command": {
           if (!entry.source) return { id, rejected: `That message is not in ${this.spec.label}'s session file yet.` };
+          if (!formatOf(this.spec.format)?.extension) return { id, rejected: `${this.spec.label}'s format ships no extension to go back with.` };
           if (this.#installExtension()) {
             this.#push(noticeChange(`Added the chat's extension to ${this.spec.label} (~/${extensionFile(this.spec)}) and reloaded it.`, "info", this.producer));
             await type("/reload");
@@ -594,10 +586,12 @@ export class Bridge {
     }
   }
 
-  /** Puts this plugin's pi extension where pi loads it, unless the copy there is current; answers whether it wrote it. */
+  /** Puts the extension its format ships (pi's `/pumi-rewind`) where the agent loads it, unless the copy there is current; answers whether it wrote it. */
   #installExtension(): boolean {
+    const extension = formatOf(this.spec.format)?.extension;
+    if (!extension) throw new Error(`${this.spec.label}'s format ships no extension to go back with`);
     const to = join(homedir(), extensionFile(this.spec));
-    const shipped = readFileSync(EXTENSION, "utf8");
+    const shipped = readFileSync(extension, "utf8");
     let installed: string | undefined;
     try {
       installed = readFileSync(to, "utf8");

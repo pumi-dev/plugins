@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { Producer } from "../src/conversation/change.ts";
 import { emptyTranscript } from "../src/conversation/model.ts";
 import { records } from "../src/parse/common.ts";
-import { PiParser } from "../src/parse/pi.ts";
+import { PiParser } from "../agents/pi/src/parse.ts";
 import { assistantTimestamp, Live, parseLive, type LiveSnapshot } from "../src/live.ts";
 import { rows } from "./harness.ts";
 

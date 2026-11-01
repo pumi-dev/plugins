@@ -1,14 +1,4 @@
-// The files the hooks install whole, as text: pi's (and omp's) extension and OpenCode's (and
-// Kilo's) plugin. `{fn}` is the hook function, `{agent}` the agent's id, `{stop}` what pi does at a
-// turn's end, `{live}` pi's live file. No `import … from "pumi"` here.
-
-/**
- * pi's extension: at each point of a session's life it calls the hook function (`pumi call`), with
- * the session's id, its file and the model as an agent's hook names them (`session_id`,
- * `transcript_path`, `model`). What the hook answers at a start and a prompt (the workspace) goes
- * to pi as a message it reads and the user does not see.
- */
-export const PI_EXTENSION = `import { execFile } from "node:child_process";
+import { execFile } from "node:child_process";
 import { renameSync, unlinkSync, writeFileSync } from "node:fs";
 
 const bin = process.env.PUMI_BIN || "pumi";
@@ -61,32 +51,15 @@ export default function (pi: any) {
   });
   pi.on("agent_end", async (_event: any, ctx: any) => {
     if (ctx?.mode !== "tui") return;
-{stop}
-  });
-  pi.on("session_shutdown", async () => live.clear());
-{live}
-}
-`;
-
-/** The turn is over: what the chat queued is pi's next message, sent as the user's. */
-export const PI_STOP_QUEUE = `    const next = (await hook("stop", about(ctx))).trim();
+    const next = (await hook("stop", about(ctx))).trim();
     if (next) {
       try {
         pi.sendUserMessage(next, { deliverAs: "followUp" });
       } catch {}
-    }`;
-
-/** The turn is over, for an agent not checked to take a queued message. */
-export const PI_STOP = `    await hook("stop", about(ctx));`;
-
-/**
- * What pi says and runs before its session file has it, for the chat to show as it comes: the
- * assistant message being streamed (its text and thinking) and each running tool's output so far.
- * It is the whole of it each time, at most every 100 ms, in `<session file>.live` (JSON, `v: 1`),
- * which goes when the turn ends. pi lists only `.jsonl` files, so it never takes it for a session.
- * `live.ts` reads it.
- */
-export const PI_LIVE = `  const live = (() => {
+    }
+  });
+  pi.on("session_shutdown", async () => live.clear());
+  const live = (() => {
     const most = 64 * 1024;
     let file = "";
     let message: any = null;
@@ -168,47 +141,5 @@ export const PI_LIVE = `  const live = (() => {
     if (event?.parentToolCallId || !event?.toolCallId) return;
     live.tool(event.toolCallId, "", undefined);
   });
-  pi.on("agent_end", async () => live.clear());`;
-
-/**
- * OpenCode's plugin: a prompt says the agent works, an idle session that its turn is over. The
- * workspace goes in the system prompt, the whole of it each time (`full`), since the system prompt
- * is built again for each turn.
- */
-export const OPENCODE_PLUGIN = `import { execFile } from "node:child_process";
-
-function hook(event, input) {
-  return new Promise((resolve) => {
-    const args = ["call", "{fn}", String(process.env.PUMI_TAB ?? ""), "{agent}", event, JSON.stringify(input)];
-    const child = execFile(process.env.PUMI_BIN || "pumi", args, { timeout: 4000, maxBuffer: 1 << 20 }, (err, stdout) => resolve(err ? "" : String(stdout)));
-    child.stdin?.end();
-  });
+  pi.on("agent_end", async () => live.clear());
 }
-
-// What the plugin tells each session about the workspace: in its system prompt from each prompt on.
-const known = new Map();
-
-export const PumiAgentsPlugin = async () => {
-  if (!process.env.PUMI_AGENT) return {};
-  return {
-    "chat.message": async ({ sessionID }) => {
-      if (!sessionID) return;
-      const text = (await hook("prompt", { session_id: sessionID, full: true })).trim();
-      if (text) known.set(sessionID, text);
-      else known.delete(sessionID);
-    },
-    "experimental.chat.system.transform": async ({ sessionID }, output) => {
-      const text = sessionID && known.get(sessionID);
-      if (text && Array.isArray(output?.system)) output.system.push(text);
-    },
-    // The turn is over: the agent is done (OSC 7501, which opencode does not say itself).
-    event: async ({ event }) => {
-      const session_id = event?.properties?.sessionID ?? "";
-      if (event?.type === "session.idle") await hook("stop", { session_id });
-      else if (event?.type === "session.compacted") await hook("compact", { session_id });
-    },
-  };
-};
-
-export default { id: "pumi.agents", server: PumiAgentsPlugin, setup() {} };
-`;

@@ -1,14 +1,12 @@
 // The engines a session tab's host runs its agent with: one `Driver` each, behind the same face, so
-// the host, the wire and the worker never know which. `acp` is any ACP server (`acp.ts`); `pi`,
-// `codex` and `claude` are those agents' own protocols (`pi.ts`, `codex.ts`, `claude.ts`). Each
-// turns what its agent says into the conversation's changes on its `producer`, and a view's
-// commands into what its agent takes. No `import … from "pumi"` here.
+// the host, the wire and the worker never know which. `acp` is any ACP server (`acp.ts`), the
+// plugin's own; any other is a sub-plugin's (`registry.ts` `EngineDef`): its module, which the
+// host imports, makes the driver (`createDriver`), as pi's, Codex's and Claude Code's do over their
+// own protocols. Each turns what its agent says into the conversation's changes on its `producer`,
+// and a view's commands into what its agent takes. No `import … from "pumi"` here.
 import type { Producer, Update } from "../conversation/change.ts";
 import type { Ack, Command } from "../conversation/model.ts";
 import { AcpSession } from "./acp.ts";
-import { ClaudeSession } from "./claude.ts";
-import { CodexSession } from "./codex.ts";
-import { PiSession } from "./pi.ts";
 import type { HostSpec, HostState } from "./wire.ts";
 
 /** Where a session's news goes: the conversation's updates, and the host's state. */
@@ -39,18 +37,17 @@ export interface Driver {
   stop?(): Promise<void>;
 }
 
-/** The driver for `spec`'s engine; `write` sends a line to the agent's stdin. */
-export function driverFor(spec: HostSpec, write: (line: string) => void, events: SessionEvents): Driver {
-  switch (spec.engine ?? "acp") {
-    case "acp":
-      return new AcpSession(spec, write, events);
-    case "pi":
-      return new PiSession(spec, write, events);
-    case "codex":
-      return new CodexSession(spec, write, events);
-    case "claude":
-      return new ClaudeSession(spec, events);
-    default:
-      throw new Error(`no engine \`${spec.engine}\``);
-  }
+/** What a sub-plugin's engine module gives. */
+export interface EngineModule {
+  createDriver(spec: HostSpec, write: (line: string) => void, events: SessionEvents): Driver;
+}
+
+/** The driver for `spec`'s engine: ACP's, or the one its module makes; `write` sends a line to the agent's stdin. */
+export async function driverFor(spec: HostSpec, write: (line: string) => void, events: SessionEvents): Promise<Driver> {
+  const engine = spec.engine ?? "acp";
+  if (engine === "acp") return new AcpSession(spec, write, events);
+  if (!spec.engineModule) throw new Error(`no engine \`${engine}\`: no sub-plugin gives its module`);
+  const module = (await import(spec.engineModule)) as Partial<EngineModule>;
+  if (typeof module.createDriver !== "function") throw new Error(`${spec.engineModule} has no \`createDriver\``);
+  return module.createDriver(spec, write, events);
 }

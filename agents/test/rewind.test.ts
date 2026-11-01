@@ -3,13 +3,13 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { AGENTS, EXTENSION_MARK, extensionCurrent, extensionFile, rewindCommand } from "../src/agents.ts";
+import { agentSpec, EXTENSION_MARK, extensionCurrent, extensionFile, rewindCommand } from "../src/agents.ts";
 
-const shipped = readFileSync(join(import.meta.dir, "..", "pi", "pumi-chat.ts"), "utf8");
+const shipped = readFileSync(join(import.meta.dir, "..", "agents", "pi", "pumi-chat.ts"), "utf8");
 
 test("pi and omp go to the very message, through the plugin's own extension; the others in their terminal", () => {
-  expect([AGENTS.pi!.rewind, AGENTS.omp!.rewind, AGENTS.claude!.rewind, AGENTS.codex!.rewind]).toEqual(["command", "command", "picker", "backtrack"]);
-  expect(extensionFile(AGENTS.pi!)).toBe(".pi/agent/extensions/pumi-chat.ts");
+  expect([agentSpec("pi")!.rewind, agentSpec("omp")!.rewind, agentSpec("claude")!.rewind, agentSpec("codex")!.rewind]).toEqual(["command", "command", "picker", "backtrack"]);
+  expect(extensionFile(agentSpec("pi")!)).toBe(".pi/agent/extensions/pumi-chat.ts");
   expect(rewindCommand("e1")).toBe("/pumi-rewind e1");
 });
 

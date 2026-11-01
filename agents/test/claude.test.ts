@@ -1,7 +1,7 @@
 // Claude Code's session file, on synthetic records shaped like the real ones.
 import { describe, expect, test } from "bun:test";
 
-import { ClaudeParser } from "../src/parse/claude.ts";
+import { ClaudeParser } from "../agents/claude/src/parse.ts";
 import { rows, run } from "./harness.ts";
 
 const base = { sessionId: "s-1", cwd: "/work/demo", isSidechain: false, timestamp: "2026-01-02T10:00:00.000Z" };

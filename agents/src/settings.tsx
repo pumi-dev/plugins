@@ -2,13 +2,21 @@
 // Terminal or GUI), the ones that are not named in one line, then what sets them all at once and
 // three switches. Hooks go in and
 // out by themselves (`main.ts` `syncHooks`), so a row only says whether its agent is connected.
-// What it reads and writes is the worker's (`main.ts`).
-import { useCallback, useEffect, useState } from "react";
-import { ChoiceGrid, Icon, Note, OptionRow, Page, Row, Section, useOption, useTheme } from "pumi";
+// Under them, the sub-plugins the agents come from (pumi's `SubPlugins`): the ones the plugin ships
+// and any installed, each with its switch, and the store's to install. What it reads and writes is
+// the worker's (`main.ts`).
+import { useCallback, useEffect, useState, type ComponentType } from "react";
+import * as sdk from "pumi";
+import { ChoiceGrid, Icon, Note, OptionRow, Page, Row, Section, useEvent, useOption, useTheme } from "pumi";
 
 import type { Choice } from "./catalog.ts";
 import { agentRows, setMode, type AgentRow } from "./main.ts";
-import { PREFIX } from "./names.ts";
+import { PLUGIN_ID, PREFIX } from "./names.ts";
+
+/** pumi's list of a plugin's sub-plugins, on a pumi that has it (0.48 and after). */
+const SubPlugins = (sdk as unknown as { SubPlugins?: ComponentType<{ parent: string; title?: string; description?: string }> }).SubPlugins;
+
+const SUBS = "Each agent comes from a sub-plugin: Agents ships one per agent, and you can install more. Turn one off and its agents leave the + menu and this page.";
 
 const ABOUT = "Coding agents you open from the + menu. Terminal opens the agent's own screen, with a button to flip it to a chat. GUI opens a chat tab that runs the agent itself.";
 
@@ -24,6 +32,8 @@ function useAgents(): { list?: AgentRow[]; error?: string; reload(): void } {
     );
   }, []);
   useEffect(reload, [reload]);
+  // A sub-plugin turned on or off, installed or removed: its agents come or go.
+  useEvent("registry.changed", (e) => (e.data as { parent?: unknown } | undefined)?.parent === PLUGIN_ID && setTimeout(reload, 300), { match: "plugin" });
   return { ...got, reload };
 }
 
@@ -77,6 +87,7 @@ export function SettingsPage() {
         <OptionRow name={`${PREFIX}permissions`} />
         <OptionRow name={`${PREFIX}context`} />
       </Section>
+      {SubPlugins ? <SubPlugins parent={PLUGIN_ID} title="Sub-plugins" description={SUBS} /> : null}
     </Page>
   );
 }

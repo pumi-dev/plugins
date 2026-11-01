@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { AGENTS, promptParts, promptWrites, type AgentSpec } from "../src/agents.ts";
+import { agentSpec, promptParts, promptWrites, type AgentSpec } from "../src/agents.ts";
 import { bareCommand, builtinCommands, commandsFor, fileCommands, frontMatter, projectDirs } from "../src/commands.ts";
 
 const root = mkdtempSync(join(tmpdir(), "agents-commands-"));
@@ -29,9 +29,9 @@ file(join(home, ".pi/agent/prompts/review.md"), "---\ndescription: Review the ch
 file(join(home, ".agents/skills/pdf-tools/SKILL.md"), "---\nname: pdf-tools\ndescription: Read PDFs\n---\nRead.\n");
 file(join(home, ".codex/prompts/scan.md"), "---\ndescription: Scan the tree\n---\nScan.\n");
 
-const claude = AGENTS.claude!;
-const codex = AGENTS.codex!;
-const pi = AGENTS.pi!;
+const claude = agentSpec("claude")!;
+const codex = agentSpec("codex")!;
+const pi = agentSpec("pi")!;
 
 describe("commands", () => {
   test("front matter: its fields, and the body after it", () => {

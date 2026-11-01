@@ -17,6 +17,7 @@ import { catalogAgent, modeOf } from "./catalog.ts";
 import { AGENT, CONVERSATION_CHANGED, PREFIX, SESSION_ENGINE, STATUS } from "./names.ts";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 import { useKept } from "./ui/kept.ts";
+import { useAgents } from "./ui/agents.ts";
 
 export { Session } from "./ui/session.tsx";
 // Settings' page (the manifest's `settings`).
@@ -43,11 +44,13 @@ function useTabOptions(tab: TabId): Record<string, unknown> {
   return last.current;
 }
 
-/** The agent a tab's trait (`AGENT`) names, as last read, or `undefined` before its options were ever read. */
+/** The agent a tab's trait (`AGENT`) names, as last read, or `undefined` before its options (or the agents) were ever read. */
 function useAgentSpec(tab: TabId): AgentSpec | null | undefined {
+  // Before the sub-plugins are read, no agent is known yet: that is not "no agent" either.
+  const loaded = useAgents() > 0;
   const options = useTab(tab)?.options as Record<string, unknown> | undefined;
   const last = useRef<AgentSpec | null | undefined>(undefined);
-  if (options) last.current = agentSpec(options[AGENT]) ?? null;
+  if (options && loaded) last.current = agentSpec(options[AGENT]) ?? null;
   return last.current;
 }
 
@@ -58,6 +61,7 @@ function useAgentSpec(tab: TabId): AgentSpec | null | undefined {
 export function Toolbar({ tab }: { tab: TabId }) {
   const t = useTheme();
   const plugin = usePlugin() ?? "";
+  useAgents();
   const options = useTabOptions(tab);
   const [modes] = useOption<Record<string, string>>(`${PREFIX}modes`);
   const def = typeof options[AGENT] === "string" ? catalogAgent(options[AGENT]) : undefined;
@@ -157,6 +161,7 @@ function useTranscript(tab: number): Transcript | undefined {
 
 /** One agent tab's chat. */
 function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
+  useAgents();
   const options = useTabOptions(`%${tab}`);
   const kept = useKept(`%${tab}`, options);
   const spec = agentSpec(options[AGENT]);

@@ -1,0 +1,29 @@
+{
+  "name": "pumi-agents-kiro",
+  "displayName": "Kiro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kiro in pumi's tabs: its terminal, and its GUI over ACP.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-kiro",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "kiro",
+        "title": "Kiro",
+        "label": "Kiro CLI",
+        "program": "kiro-cli",
+        "rank": 110,
+        "acp": {
+          "run": [
+            ["kiro-cli", "acp"]
+          ],
+          "login": ["kiro-cli", "login"]
+        }
+      }
+    ]
+  }
+}

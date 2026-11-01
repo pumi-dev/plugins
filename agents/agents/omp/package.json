@@ -1,0 +1,38 @@
+{
+  "name": "pumi-agents-omp",
+  "displayName": "omp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "omp: its terminal and its extension, and its chat over the terminal (pi's session files: needs the pi sub-plugin).",
+  "type": "module",
+  "pumi": {
+    "name": "agent-omp",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "omp",
+        "title": "omp",
+        "program": "omp",
+        "rank": 40,
+        "icon": "icon.svg",
+        "resume": ["omp", "--session", "{session}"],
+        "hook": {
+          "shape": {
+            "kind": "file",
+            "file": ".omp/agent/extensions/pumi-context.ts",
+            "template": "hook.ts.tmpl"
+          }
+        },
+        "chat": {
+          "format": "pi",
+          "cancel": "\u001b",
+          "images": "text",
+          "home": ".omp/agent",
+          "rewind": "command"
+        }
+      }
+    ]
+  }
+}

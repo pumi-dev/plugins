@@ -1,0 +1,32 @@
+{
+  "name": "pumi-agents-droid",
+  "displayName": "Droid",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Droid in pumi's tabs: its terminal and its hook.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-droid",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "droid",
+        "title": "Droid",
+        "program": "droid",
+        "rank": 90,
+        "hook": {
+          "shape": {
+            "kind": "hooks",
+            "file": ".factory/settings.json",
+            "start": "SessionStart",
+            "prompt": "UserPromptSubmit",
+            "stop": "Stop",
+            "ms": false
+          }
+        }
+      }
+    ]
+  }
+}

@@ -4,7 +4,8 @@
 
 Coding agents in pumi's tabs, in one plugin. A pane's `+` menu opens each agent installed here,
 in its own terminal or in a GUI; pumi sees when it works, waits on you or is done; and it is
-told about the sessions, panes and tabs around it.
+told about the sessions, panes and tabs around it. Each agent is a [sub-plugin](#sub-plugins): it
+ships one per agent, and you can install more or write your own.
 
 ```sh
 pumi plugin add pumi-dev/plugins/agents
@@ -182,17 +183,71 @@ A chat reads the last 4 MB of a session file, and the map has your other session
 - What an agent was told is kept in memory: after the plugin starts again, an agent's next prompt
   hears the whole map again.
 
+## Sub-plugins
+
+Every agent comes from a sub-plugin: pumi installs, lists and turns them on and off, and the plugin
+loads them. It ships one per agent in `agents/` (`agents/claude/`, `agents/pi/`, …), and any other
+installed for it adds its own. Settings → Agents lists them under *Sub-plugins*, each with its
+switch, and *Browse* finds more in the store. Turn one off and its agents leave the `+` menu,
+Settings and their hooks; turn it on and they are back.
+
+```sh
+pumi plugin add someone/agents-zed      # a sub-plugin from GitHub: its parent is pumi_dev/agents
+pumi plugin dev ./agents-zed            # yours, read again on save
+```
+
+A sub-plugin is a folder with a `package.json` whose `pumi` names this plugin as its `parent`, at
+`parentApi` 1, and says what it gives:
+
+```json
+{
+  "name": "agents-zed",
+  "displayName": "Zed Agent",
+  "main": "src/index.ts",
+  "pumi": {
+    "name": "agent-zed",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [{
+      "id": "zed", "title": "Zed Agent", "program": "zed-agent", "icon": "icon.svg",
+      "resume": ["zed-agent", "--resume", "{session}"],
+      "acp": { "run": [["zed-agent", "--acp"]], "login": ["zed-agent", "login"] },
+      "sdk": "zed",
+      "hook": { "shape": { "kind": "hooks", "file": ".zed/settings.json", "start": "SessionStart", "stop": "Stop", "ms": false } },
+      "chat": { "format": "zed", "cancel": "\u001b", "images": "text", "home": ".zed", "rewind": "backtrack" }
+    }],
+    "formats": ["zed"],
+    "engines": { "zed": { "module": "src/engine.ts", "run": ["{program}", "--rpc"], "session": ["--session", "{session}"] } }
+  }
+}
+```
+
+| Key | |
+| --- | --- |
+| `agents` | Each agent: its `id` (the trait's, `modes`'s key), `title`, `program`, and what it has. `label` is what its chat and prompts call it; `rank` its place in the `+` menu (the shipped ones are 10 to 140); `default` its choice (`terminal`). `resume` is its TUI on a session, for *back*; `acp` how its ACP server starts; `sdk` the engine its GUI runs it with. `hook` is how its hook goes in (`shape`: `hooks`, merged into a JSON config as Claude Code's; `cursor`; or `file`, a `template` of the sub-plugin with `{fn}` and `{agent}` filled in), with `reports`, `restore` (the tab's `restore_command`) and `accepts`. `chat` is how the chat over its terminal reads it: the `format` of its session files, the key that cancels, how pictures go in, its `home` and how it goes back to a message. |
+| `formats` | The session-file formats its `main` module reads. The module exports `formats`, a `FormatDef` each: its `parser()`, where a session's file is (`locate`), and the `models`, `builtins` and `fileCommands` the chat offers. |
+| `engines` | The engines a GUI tab's host runs an agent with beside ACP: a `module` exporting `createDriver(spec, write, events)`, the server it runs (`run`, `{program}` filled in, and `session` to continue one), or `process: false` for one that runs the agent in the host. |
+
+Its code imports what it builds with from `@pumi-dev/agents`: the conversation (`Producer`,
+changes, the model), the parsers' helpers, the slash commands' and the types (`src/api.ts`, which
+the ones in `agents/` import by path). The plugin's worker resolves it, and so does each GUI tab's
+host. An agent's chat needs a sub-plugin that is on to read its format: omp's is pi's, so omp's
+chat is there while pi's sub-plugin is on.
+
 ## Development
 
 ```sh
 pumi plugin dev agents   # link it, reload on save
-bun test                 # the parsers, the conversation model, mentions, commands, keys, the hosts, the hooks, the context
+bun test                 # the sub-plugins, the parsers, the conversation model, mentions, commands, keys, the hosts, the hooks, the context
 ```
 
-The tests run on synthetic records shaped like each agent's files; no real session is in them.
-`src/conversation/` is the agent-agnostic conversation (the model, its changes, the chat's drawing),
-`src/parse/` turns each agent's session file into it, and `src/bridge.ts` follows one terminal tab.
-`src/catalog.ts` lists the agents and how each opens; `src/sessions.ts` runs the ACP and SDK tabs, and
-`src/session/` is their host, one engine per protocol. `src/hooks/` is the agents' hooks (the
-table and their files, `integrations.ts`; what the hook function answers, `hook.ts` and `run.ts`),
-and `src/context/` with `src/tell.ts` is what an agent is told about the workspace.
+The tests run on synthetic records shaped like each agent's files; no real session is in them, and
+each starts with the sub-plugins in `agents/` loaded (`test/setup.ts`). `src/conversation/` is the
+agent-agnostic conversation (the model, its changes, the chat's drawing), `src/bridge.ts` follows
+one terminal tab, and each format's parser turns an agent's session file into it
+(`agents/claude/src/parse.ts`, …). `src/subplugins.ts` loads the sub-plugins into `src/registry.ts`,
+and `src/catalog.ts` says how each agent opens; `src/sessions.ts` runs the ACP and SDK tabs, and
+`src/session/` is their host, with ACP's engine and the sub-plugins' (`agents/pi/src/engine.ts`, …).
+`src/hooks/` is the agents' hooks (the merge and the files, `integrations.ts`; what the hook
+function answers, `hook.ts` and `run.ts`), and `src/context/` with `src/tell.ts` is what an agent is
+told about the workspace.

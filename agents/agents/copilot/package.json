@@ -1,0 +1,30 @@
+{
+  "name": "pumi-agents-copilot",
+  "displayName": "Copilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Copilot in pumi's tabs: its terminal, and its GUI over ACP.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-copilot",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "copilot",
+        "title": "Copilot",
+        "label": "GitHub Copilot",
+        "program": "copilot",
+        "rank": 100,
+        "icon": "icon.svg",
+        "acp": {
+          "run": [
+            ["copilot", "--acp"]
+          ],
+          "login": ["copilot"]
+        }
+      }
+    ]
+  }
+}

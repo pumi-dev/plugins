@@ -1,0 +1,33 @@
+{
+  "name": "pumi-agents-qwen",
+  "displayName": "Qwen Code",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Qwen Code in pumi's tabs: its terminal and its hook.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-qwen",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "qwen",
+        "title": "Qwen Code",
+        "program": "qwen",
+        "rank": 120,
+        "icon": "icon.svg",
+        "hook": {
+          "shape": {
+            "kind": "hooks",
+            "file": ".qwen/settings.json",
+            "start": "SessionStart",
+            "prompt": "UserPromptSubmit",
+            "stop": "Stop",
+            "ms": true
+          }
+        }
+      }
+    ]
+  }
+}

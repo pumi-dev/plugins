@@ -1,0 +1,40 @@
+{
+  "name": "pumi-agents-gemini",
+  "displayName": "Gemini",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gemini in pumi's tabs: its terminal and its hook, and its GUI over ACP.",
+  "type": "module",
+  "pumi": {
+    "name": "agent-gemini",
+    "owner": "pumi_dev",
+    "parent": "pumi_dev/agents",
+    "parentApi": 1,
+    "agents": [
+      {
+        "id": "gemini",
+        "title": "Gemini",
+        "label": "Gemini CLI",
+        "program": "gemini",
+        "rank": 50,
+        "icon": "icon.svg",
+        "acp": {
+          "run": [
+            ["gemini", "--acp"]
+          ],
+          "login": ["gemini"]
+        },
+        "hook": {
+          "shape": {
+            "kind": "hooks",
+            "file": ".gemini/settings.json",
+            "start": "SessionStart",
+            "prompt": "BeforeAgent",
+            "stop": "AfterAgent",
+            "ms": true
+          }
+        }
+      }
+    ]
+  }
+}
