@@ -17,12 +17,13 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { call, Icon, motion, useMetrics, useTheme, type ElementRef } from "pumi";
 
 import type { ConfigOption, Image, Queued, SlashCommand, Status, Usage } from "../model.ts";
-import { recallTakes, stepRecall, type RecallAt } from "../keys.ts";
+import { recallTakes, stepRecall, keystrokeOf, queueKey, type RecallAt } from "../keys.ts";
 import { applyHint, applyMention, applySlash, baseName, caretAfterEdit, imageTypeOf, insertMentions, mentionAt, mentionText, relativeTo, skillHints, skillToken, slashAt, slashHints, spaceTokens, tokenSpans, type MentionHit, type MentionQuery } from "../view.ts";
 import { AddContext, BarButton, ContextRing, ModelPicker, Picker, SendButton, ThinkingControl, type ContextAction } from "./bar.tsx";
 import type { ZedIcon } from "./icons.ts";
 import { Mention, type MentionKind } from "./mention.tsx";
 import { keepTyping, OwnClicks, Press } from "./press.tsx";
+import { QueueCard } from "./queue.tsx";
 import { swallow, useTextTheme, useType } from "./style.ts";
 
 export interface ComposerProps {
@@ -35,6 +36,10 @@ export interface ComposerProps {
   onStop?(): void;
   /** Take back a queued prompt. */
   onUnqueue?(id: string): void;
+  /** Give a queued prompt to the agent now, in its running turn. Without: no Steer. */
+  onSteer?(id: string): void;
+  /** Stop the running turn and send a queued prompt next. Without: no Send Now. */
+  onSendNow?(id: string): void;
   /** The files an `@` query finds, best first, as the draft names them. Without it `@` is plain text. */
   onMentions?(query: string): Promise<MentionHit[]>;
   /** The directory a dropped file's mention is written from (the agent's). Absolute paths without it. */
@@ -172,6 +177,8 @@ export function Composer({
   onSend,
   onStop,
   onUnqueue,
+  onSteer,
+  onSendNow,
   onMentions,
   cwd,
   images: takesImages = true,
@@ -449,6 +456,30 @@ export function Composer({
     take(dropped.paths);
   });
 
+  /** A queued prompt taken back into the field, ahead of what is written there, to change it. */
+  const editQueued = (queued: Queued) => {
+    onUnqueue?.(queued.id);
+    setDraft(draft.trim() === "" ? queued.text : `${queued.text}\n\n${draft}`);
+    const pictures = (queued.images ?? []).flatMap((image) => {
+      const path = image.uri;
+      if (!path || /^[a-z]+:/i.test(path)) return [];
+      const name = cwd ? relativeTo(cwd, path) : path;
+      return [{ token: mentionText(name), label: baseName(path), kind: "image" as const, image, preview: path }];
+    });
+    if (pictures.length > 0) addChips(pictures);
+    takeFocus();
+  };
+  const clearQueue = () => queue.forEach((each) => onUnqueue?.(each.id));
+  /** The queue's keys, from anywhere in the composer. */
+  const onQueueKey = (e: any) => {
+    const asked = queue.length > 0 && !disabled ? queueKey(keystrokeOf(e)) : undefined;
+    if (asked === "clear" && onUnqueue) clearQueue();
+    else if (asked === "steer" && onSteer) onSteer(queue[0]!.id);
+    else return;
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+  };
+
   const onKey = (e: any) => {
     keepTyping(e);
     const key = e?.key ?? "";
@@ -489,7 +520,7 @@ export function Composer({
 
   const canSend = !disabled && draft.trim() !== "";
   const who = agent ?? "the agent";
-  const hint = `Message ${who} — ${[onMentions ? "@ to include context" : undefined, commands.length > 0 ? (commands.some((each) => each.skill) ? "/ for commands and skills" : "/ for commands") : undefined].filter(Boolean).join(", ") || "Enter to send"}`;
+  const hint = `Ask anything${[commands.length > 0 ? "/ for commands" : undefined, onMentions ? "@ for context" : undefined].filter(Boolean).map((each) => `, ${each}`).join("")}…`;
   const option = (category: ConfigOption["category"]) => options.find((each) => each.category === category && ((each.choices?.length ?? 0) > 0 || typeof each.current === "boolean"));
   const thought = option("thought_level");
   const mode = option("mode");
@@ -540,25 +571,18 @@ export function Composer({
       key="composer"
       // Dropped here unless the chat around takes drops for it (`dropped`): one drop, taken once.
       onFileDrop={dropped ? undefined : (e: any) => take(e?.paths ?? [])}
+      onKeyDown={onQueueKey}
       style={{ display: "flex", flexDirection: "column", gap: 8, flexGrow: fill ? 1 : 0, flexShrink: fill ? 1 : 0, minHeight: 0, paddingLeft: 10, paddingRight: 8, paddingTop: 8, paddingBottom: 8, borderTopWidth: fill || shrink !== null ? 0 : 1, borderColor: t.border, backgroundColor: t.editor }}
     >
       {queue.length > 0 ? (
-        <div role="list" aria-label="Queued prompts" style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {queue.map((each) => (
-            <div key={each.id} role="listitem" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: 8, paddingRight: 4, height: 24, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
-              <Icon name="status_ring" size={11} color={t.faint} />
-              <text style={{ fontSize: type.tiny, color: t.faint, flexShrink: 0 }}>Queued</text>
-              <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
-                <text style={{ fontSize: type.small, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{each.text || `${each.images?.length ?? 0} picture(s)`}</text>
-              </div>
-              {onUnqueue ? (
-                <Press aria-label={`Take back the queued prompt: ${each.text}`} title="Take it back" onClick={() => onUnqueue(each.id)} style={{ display: "flex", padding: 3, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } }}>
-                  <Icon name="close" size={11} color={t.faint} />
-                </Press>
-              ) : null}
-            </div>
-          ))}
-        </div>
+        <QueueCard
+          queue={queue}
+          onDelete={onUnqueue}
+          onEdit={onUnqueue && !disabled ? editQueued : undefined}
+          onSteer={onSteer && !disabled ? onSteer : undefined}
+          onSendNow={onSendNow && !disabled ? onSendNow : undefined}
+          onClear={onUnqueue ? clearQueue : undefined}
+        />
       ) : null}
       <div onLayout={(e: any) => typeof e?.width === "number" && e.width !== width && setWidth(e.width)} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative", flexGrow: fill ? 1 : 0, minHeight: 0 }}>
         {/* A click in the field places its caret: not a tap of the chat's, which would build it again. */}

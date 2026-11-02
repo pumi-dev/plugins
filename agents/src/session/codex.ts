@@ -468,8 +468,7 @@ export class CodexSession implements Driver {
       case "cancel": {
         if (!this.#turn) throw new Error("no turn is running");
         if (t.queue.length > 0) this.producer.push({ type: "queue", queue: [] });
-        this.#dropAsked();
-        if (this.#turn.id) await this.peer.request("turn/interrupt", { threadId: this.#thread, turnId: this.#turn.id });
+        await this.#interrupt();
         return;
       }
       case "answer": {
@@ -482,6 +481,16 @@ export class CodexSession implements Driver {
       case "unqueue": {
         if (!t.queue.some((q) => q.id === command.queued)) throw new Error("that prompt is not queued");
         this.producer.push({ type: "queue", queue: t.queue.filter((q) => q.id !== command.queued) });
+        return;
+      }
+      case "steer":
+        throw new Error("Codex takes no message in a running turn here");
+      case "sendNow": {
+        const queued = t.queue.find((q) => q.id === command.queued);
+        if (!queued) throw new Error("that prompt is not queued");
+        this.producer.push({ type: "queue", queue: [queued, ...t.queue.filter((q) => q.id !== queued.id)] });
+        if (this.#turn) await this.#interrupt();
+        else this.#nextPrompt();
         return;
       }
       case "context":
@@ -588,6 +597,12 @@ export class CodexSession implements Driver {
     if (!first || this.#exited || this.#state.phase !== "ready") return;
     this.producer.push({ type: "queue", queue: rest });
     void this.#run(first.text, first.images ?? []);
+  }
+
+  /** Stops the running turn, keeping the queue: `sendNow` has just put its prompt first. */
+  async #interrupt(): Promise<void> {
+    this.#dropAsked();
+    if (this.#turn?.id) await this.peer.request("turn/interrupt", { threadId: this.#thread, turnId: this.#turn.id });
   }
 
   exited(code: number | null, signal: string | null, stderr: string[]): void {

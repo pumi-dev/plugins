@@ -47,6 +47,8 @@ export interface HostState {
   /** What the engine does with the conversation: a message edited in place (`prompt` with `replaces`), a fork from a turn. */
   canEdit?: boolean;
   canFork?: boolean;
+  /** It takes a queued prompt mid-turn, as a `steer`. */
+  canSteer?: boolean;
   /** Why it is not ready: the agent failed to start, refused, or exited. */
   error?: string;
 }

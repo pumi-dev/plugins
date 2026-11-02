@@ -56,7 +56,7 @@ export class PiSession implements Driver {
     private readonly events: SessionEvents,
   ) {
     this.producer = new Producer({ publish: (update) => events.update(update) });
-    this.#state = { phase: "starting", agent: spec.agent, name: spec.name, cwd: spec.cwd, pid: process.pid, canLoad: true, canList: false, canResume: true, canEdit: true, canFork: true };
+    this.#state = { phase: "starting", agent: spec.agent, name: spec.name, cwd: spec.cwd, pid: process.pid, canLoad: true, canList: false, canResume: true, canEdit: true, canFork: true, canSteer: true };
   }
 
   get state(): HostState {
@@ -416,8 +416,7 @@ export class PiSession implements Driver {
       case "cancel": {
         if (!this.#turn) throw new Error("no turn is running");
         if (t.queue.length > 0) this.producer.push({ type: "queue", queue: [] });
-        this.#dropDialogs();
-        await this.#call("abort");
+        await this.#abort();
         return;
       }
       case "answer": {
@@ -439,6 +438,23 @@ export class PiSession implements Driver {
       case "unqueue": {
         if (!t.queue.some((q) => q.id === command.queued)) throw new Error("that prompt is not queued");
         this.producer.push({ type: "queue", queue: t.queue.filter((q) => q.id !== command.queued) });
+        return;
+      }
+      case "steer": {
+        const queued = t.queue.find((q) => q.id === command.queued);
+        if (!queued) throw new Error("that prompt is not queued");
+        if (!this.#turn) throw new Error("no turn is running");
+        this.producer.push({ type: "queue", queue: t.queue.filter((q) => q.id !== queued.id) });
+        this.producer.push(...promptChanges(queued.text, queued.images ?? [], this.producer));
+        await this.#call("steer", this.#given(queued.text, queued.images ?? []));
+        return;
+      }
+      case "sendNow": {
+        const queued = t.queue.find((q) => q.id === command.queued);
+        if (!queued) throw new Error("that prompt is not queued");
+        this.producer.push({ type: "queue", queue: [queued, ...t.queue.filter((q) => q.id !== queued.id)] });
+        if (this.#turn) await this.#abort();
+        else this.#nextPrompt();
         return;
       }
       case "context":
@@ -523,13 +539,8 @@ export class PiSession implements Driver {
   async #run(text: string, images: Image[]): Promise<void> {
     this.producer.push(...promptChanges(text, images, this.producer));
     this.#turn = { startedAt: this.producer.now() };
-    const told = this.#context;
-    this.#context = undefined;
-    const expanded = expandSkills(text, this.producer.transcript.commands);
-    const message = told ? `${told}\n\n${expanded}` : expanded;
-    const inline = withBytes(images).filter((image) => image.data).map((image) => ({ type: "image", data: image.data, mimeType: image.mimeType }));
     try {
-      const got = await this.#call<{ disposition?: string }>("prompt", { message, ...(inline.length ? { images: inline } : {}) });
+      const got = await this.#call<{ disposition?: string }>("prompt", this.#given(text, images));
       // A command an extension handled starts no run: nothing will settle it.
       if (got?.disposition === "handled") this.#settled(false);
     } catch (err) {
@@ -546,6 +557,22 @@ export class PiSession implements Driver {
     if (!first || this.#exited || this.#state.phase !== "ready") return;
     this.producer.push({ type: "queue", queue: rest });
     void this.#run(first.text, first.images ?? []);
+  }
+
+  /** What pi is given for a prompt or a steer: what pumi told it, its skills expanded, the images. */
+  #given(text: string, images: Image[]): { message: string; images?: Rec[] } {
+    const told = this.#context;
+    this.#context = undefined;
+    const expanded = expandSkills(text, this.producer.transcript.commands);
+    const message = told ? `${told}\n\n${expanded}` : expanded;
+    const inline = withBytes(images).filter((image) => image.data).map((image) => ({ type: "image", data: image.data, mimeType: image.mimeType }));
+    return { message, ...(inline.length ? { images: inline } : {}) };
+  }
+
+  /** Stops the running turn, and keeps the queue: `sendNow` has just put its prompt first. */
+  async #abort(): Promise<void> {
+    this.#dropDialogs();
+    await this.#call("abort");
   }
 
   exited(code: number | null, signal: string | null, stderr: string[]): void {

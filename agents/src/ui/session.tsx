@@ -99,12 +99,12 @@ function Live({ id, focused, picks, tab, options }: { id: number; focused: boole
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}>
       {phase === "loading" ? <Banner text="Loading the session…" /> : null}
-      {starting && chat ? <Banner text={`Starting ${state?.name ?? "the agent"}…`} /> : null}
       {phase === "exited" && chat ? <Banner text={state?.error ?? "The agent exited."} tone="error" action={{ label: "Start again", onPress: () => void restart(id).catch(swallow) }} /> : null}
       {rejected ? <Banner text={rejected} tone="error" /> : null}
       {chat ? (
         <Conversation
           transcript={shown!}
+          hideHeader
           onCommand={onCommand}
           autoFocus={focused}
           draftKey={`session:${id}`}
@@ -114,6 +114,7 @@ function Live({ id, focused, picks, tab, options }: { id: number; focused: boole
           onMentions={(query) => sessionMentions(id, query)}
           rewinds={state?.canEdit ? "exact" : undefined}
           forks={state?.canFork === true}
+          steers={state?.canSteer === true}
         />
       ) : (
         <Setup id={id} state={state} />

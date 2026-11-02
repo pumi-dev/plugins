@@ -28,6 +28,8 @@ if (session.id === "earlier") {
 }
 const dialogs = new Map<string, (answer: any) => void>();
 let aborted: (() => void) | undefined;
+/** What a `steer` gave the agent mid-turn. */
+export const steered: string[] = [];
 
 async function run(id: unknown, text: string): Promise<void> {
   respond(id, "prompt", { disposition: "started" });
@@ -149,6 +151,10 @@ process.stdin.on("data", (chunk) => {
         break;
       case "prompt":
         void run(command.id, command.message);
+        break;
+      case "steer":
+        steered.push(command.message);
+        respond(command.id, "steer", { disposition: "queued" });
         break;
       case "abort":
         aborted?.();

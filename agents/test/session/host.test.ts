@@ -398,3 +398,27 @@ test("codex: the reasoning effort and approvals go with each turn; an edit rever
   host.send({ t: "stop" });
   expect(await host.proc.exited).toBe(0);
 }, 20_000);
+
+test("a queued prompt steered mid-turn goes to the agent, and one sent now goes first", async () => {
+  const host = await startHost("new", "pi");
+  await until(() => host.state?.phase === "ready");
+  await host.command({ type: "prompt", id: newCommandId(), text: "wait" });
+  await until(() => host.transcript?.status === "working");
+  await host.command({ type: "prompt", id: newCommandId(), text: "steered" });
+  await host.command({ type: "prompt", id: newCommandId(), text: "second in line" });
+  expect(host.transcript?.queue.map((q) => q.text)).toEqual(["steered", "second in line"]);
+
+  const queued = host.transcript!.queue[0]!;
+  expect((await host.command({ type: "steer", id: newCommandId(), queued: queued.id })).rejected).toBeUndefined();
+  await until(() => host.transcript?.queue.length === 1);
+  expect(host.transcript?.entries.some((e) => e.kind === "user" && e.text === "steered")).toBe(true);
+
+  const left = host.transcript!.queue[0]!;
+  expect((await host.command({ type: "sendNow", id: newCommandId(), queued: left.id })).rejected).toBeUndefined();
+  await until(() => host.transcript?.entries.filter((e) => e.kind === "turn").length === 2);
+  expect(host.transcript?.entries.filter((e) => e.kind === "turn").map((e) => e.turn?.stop)).toEqual(["cancelled", "end_turn"]);
+  expect(host.transcript?.queue).toEqual([]);
+
+  host.send({ t: "stop" });
+  expect(await host.proc.exited).toBe(0);
+}, 20_000);

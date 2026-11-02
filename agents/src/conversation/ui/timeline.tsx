@@ -18,7 +18,7 @@ import { Thumb, useViewer } from "./image.tsx";
 import { Mention, MentionText } from "./mention.tsx";
 import { copyText, CopyButton, Inline, Markdown, Mono, MoreLines } from "./markdown.tsx";
 import { keepTyping, OwnClicks, Press, useTap } from "./press.tsx";
-import { Button, QuestionCard } from "./question.tsx";
+import { QuestionCard } from "./question.tsx";
 import { tint, useBlockColor, useTextTheme, useType } from "./style.ts";
 
 /** Something a message offers on hover, beside Copy (edit it, go back to it). */
@@ -452,6 +452,7 @@ function TurnControls({ entry }: { entry: Entry }) {
           ))}
         </div>
       ) : null}
+      {goOn ? <RowButton icon="arrow_right" title="Continue: the agent picks the turn up where it stopped" label="Continue" onPress={goOn} /> : null}
       {fork && !working ? <RowButton icon="git_branch_plus" title="Fork From Here: this conversation, to the end of this turn, in a new tab" label="Fork From Here" onPress={fork} /> : null}
       {info?.text ? <RowButton icon="copy" title="Copy This Agent Response" onPress={() => copyText(info.text)} /> : null}
       {info?.user && !last ? <RowButton icon="user_arrow_up" title="Scroll to User Message" onPress={() => context.scrollTo?.(info.user!.id)} /> : null}
@@ -459,17 +460,11 @@ function TurnControls({ entry }: { entry: Entry }) {
       {last ? <RowButton icon="arrow_up" title="Scroll to Top" onPress={() => context.scrollTo?.(null)} /> : null}
     </div>
   );
-  if (!goOn) return row;
-  return (
-    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: INDENT }}>
-      <Button label="Continue" icon="arrow_right" primary onPress={goOn} />
-      {row}
-    </div>
-  );
+  return row;
 }
 
-/** How a turn stops before its work is done: Continue picks it up. */
-const UNFINISHED = new Set(["cancelled", "error", "max_tokens", "max_turn_requests"]);
+/** How a turn stops with work left that the agent can pick up: the user stopped it, or it failed. */
+const UNFINISHED = new Set(["cancelled", "error"]);
 
 /** One of a turn row's buttons: Zed's 14 icon, muted. */
 function RowButton({ icon, title, label, onPress }: { icon: ZedIcon; title: string; label?: string; onPress(): void }) {
