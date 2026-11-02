@@ -67,6 +67,8 @@ import {
   startSession,
 } from "./sessions.ts";
 import { forget, tell } from "./tell.ts";
+import { history as pastSessions, type Past } from "./history.ts";
+import type { Engine } from "./session/wire.ts";
 
 export { attach, authenticate, login, restart, retry, sessionSend, startSession };
 
@@ -288,6 +290,46 @@ fn.set(
 async function sendTo(tab: number, cmd: Command): Promise<Ack> {
   return (await isSessionTab(tab)) ? sessionSend(tab, cmd) : send(tab, cmd);
 }
+
+/** The agents enabled here: not `off` in Settings, whatever their mode. */
+function enabledAgents(): string[] {
+  return CATALOG.filter((agent) => modeOf(agent, modes, prefer) !== "off").map((agent) => agent.id);
+}
+
+/** Every session the enabled agents kept on this Mac, newest first (`history.ts`). */
+export async function historyShow(): Promise<Past> {
+  return pastSessions(enabledAgents());
+}
+
+/** Opens a past session in a chat tab of its agent, where it left off: the tab's id. */
+export async function openPast(args: { agent?: unknown; session?: unknown; cwd?: unknown } = {}): Promise<string> {
+  const agent = catalogAgent(typeof args.agent === "string" ? args.agent : "");
+  if (!agent) throw new Error(`agents: no agent \`${String(args.agent)}\``);
+  const session = typeof args.session === "string" && args.session !== "" ? args.session : undefined;
+  if (!session) throw new Error("agents: nothing to resume: no session");
+  const cwd = typeof args.cwd === "string" && args.cwd !== "" ? args.cwd : undefined;
+  const engine = (agent.sdk ?? "acp") as Engine;
+  if (engine === "acp" && !agent.acp) throw new Error(`agents: ${agent.title} has no chat to resume in`);
+  return tabRef(await openSession({ agent: agent.id, engine, cwd, session }));
+}
+
+fn.set(
+  "history",
+  {
+    desc: "Every session the enabled agents kept on this Mac, newest first: `{sessions: [{agent, name, session, title, cwd, updatedAt, engine}], marks}`, which the History panel lists and `history.open` resumes. pi's, Claude Code's and Codex's own stores are read.",
+    parameters: [],
+  },
+  () => historyShow(),
+);
+
+fn.set(
+  "history.open",
+  {
+    desc: "Opens a past session in a chat tab of its agent, where it left off: `{agent, session, cwd}` (`history` says them). Answers the tab's id.",
+    parameters: [["table", "args"]],
+  },
+  (args?: { agent?: unknown; session?: unknown; cwd?: unknown }) => openPast(args ?? {}),
+);
 
 fn.set(
   "queue",
