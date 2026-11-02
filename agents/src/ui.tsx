@@ -11,6 +11,7 @@ import { follow, type Update } from "./conversation/change.ts";
 import type { Transcript } from "./conversation/model.ts";
 import { questionsOf } from "./conversation/question.ts";
 import { Button, Conversation, Header, Press, tint } from "./conversation/ui.tsx";
+export { History } from "./ui/history.tsx";
 import { agentSpec, type AgentSpec } from "./agents.ts";
 import { mentions, read, send, setChat, toggle, toolbarPress } from "./main.ts";
 import { catalogAgent, modeOf } from "./catalog.ts";
