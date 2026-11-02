@@ -7,25 +7,21 @@ import { join } from "node:path";
 /** A tab's own icon. */
 export const ICON = "@icon";
 
-/** The marks one agent shares with another. */
-const ALIASES: Record<string, string> = { omp: "pi" };
-
 const DIR = join(import.meta.dir, "..", "icons");
 
 const read = new Map<string, string | undefined>();
 
 /** Agent `agent`'s mark as an `@icon` value, if the plugin has one. */
 export function agentIcon(agent: string): string | undefined {
-  const name = ALIASES[agent] ?? agent;
-  if (!/^[a-z0-9_-]+$/.test(name)) return undefined;
-  if (!read.has(name)) {
+  if (!/^[a-z0-9_-]+$/.test(agent)) return undefined;
+  if (!read.has(agent)) {
     let icon: string | undefined;
     try {
-      icon = `data:image/svg+xml;base64,${readFileSync(join(DIR, `${name}.svg`)).toString("base64")}`;
+      icon = `data:image/svg+xml;base64,${readFileSync(join(DIR, `${agent}.svg`)).toString("base64")}`;
     } catch {
       icon = undefined;
     }
-    read.set(name, icon);
+    read.set(agent, icon);
   }
-  return read.get(name);
+  return read.get(agent);
 }
