@@ -192,6 +192,7 @@ function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
           elsewhereLabel={`Answer in ${label}`}
           rewinds={spec ? (spec.rewind === "command" ? "exact" : "terminal") : undefined}
           rewindsIn={label}
+          steers
           onCommand={(cmd) => {
             if (cmd.type === "prompt") kept.remember(cmd.text);
             void send(tab, cmd)

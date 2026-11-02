@@ -502,6 +502,27 @@ export class Bridge {
       case "unqueue":
         this.#push({ type: "queue", queue: this.transcript.queue.filter((each) => each.id !== command.queued) });
         return { id: command.id };
+      case "steer": {
+        // Typed into the terminal now: each of these agents takes a prompt submitted mid-turn into
+        // that turn (Claude Code at its next step, pi and Codex as a steer).
+        const queued = this.transcript.queue.find((each) => each.id === command.queued);
+        if (!queued) return { id: command.id, rejected: "That message is no longer queued." };
+        if (this.#delivering) return { id: command.id, rejected: `${this.spec.label} is taking another message: try again in a moment.` };
+        if (this.transcript.permissions.length > 0) return { id: command.id, rejected: `${this.spec.label} is waiting for an answer: answer it first.` };
+        this.#push({ type: "queue", queue: this.transcript.queue.filter((each) => each.id !== queued.id) });
+        const ack = await this.#deliver(command.id, queued.text, queued.images ?? []);
+        this.#drain();
+        return ack;
+      }
+      case "sendNow": {
+        // First in the queue, and the turn stopped: the queue goes on once the agent is ready.
+        const queued = this.transcript.queue.find((each) => each.id === command.queued);
+        if (!queued) return { id: command.id, rejected: "That message is no longer queued." };
+        this.#push({ type: "queue", queue: [queued, ...this.transcript.queue.filter((each) => each !== queued)] });
+        if (!takesPrompt(this.#status) || this.#awaiting !== undefined) await call("tab.call", `%${this.tab}`, "input", { text: this.spec.cancel });
+        this.#drain();
+        return { id: command.id };
+      }
       case "answer": {
         const asked = this.#requests.get(command.permissionId);
         if (asked === undefined) return { id: command.id, rejected: "That request is no longer waiting." };

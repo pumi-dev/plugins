@@ -237,6 +237,10 @@ export type Command =
   | { type: "setOption"; id: CommandId; category: OptionCategory; value: string | boolean; option?: string }
   /** Withdraws a queued prompt before it goes. */
   | { type: "unqueue"; id: CommandId; queued: CommandId }
+  /** Gives a queued prompt to the agent now, in its running turn (`HostState.canSteer`). */
+  | { type: "steer"; id: CommandId; queued: CommandId }
+  /** Stops the running turn and sends the queued prompt `queued` next, before the rest of the queue. */
+  | { type: "sendNow"; id: CommandId; queued: CommandId }
   /** Text the agent is given unseen with its next prompt (what pumi knows: `agent.turn`). */
   | { type: "context"; id: CommandId; text: string }
   /** Goes back to before the user's message `entry` (an entry id): it and what followed are left behind. */
