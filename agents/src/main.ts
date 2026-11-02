@@ -275,7 +275,7 @@ fn.set(
 fn.set(
   "conversation.send",
   {
-    desc: "Sends a command to an agent tab: `{type: \"prompt\", id, text}` (typed into its terminal, or queued while it works), `cancel`, `answer`, `unqueue`. Answers `{id, rejected?}`.",
+    desc: "Sends a command to an agent tab: `{type: \"prompt\", id, text}` (typed into its terminal, or queued while it works), `cancel`, `answer`, `unqueue`, `steer` (a queued prompt into the running turn), `sendNow` (the turn stopped, a queued prompt next). Answers `{id, rejected?}`.",
     parameters: [
       ["number", "tab"],
       ["table", "command"],

@@ -147,7 +147,7 @@ export class ClaudeSession implements Driver {
     private readonly events: SessionEvents,
   ) {
     this.producer = new Producer({ publish: (update) => events.update(update) });
-    this.#state = { phase: "starting", agent: spec.agent, name: spec.name, cwd: spec.cwd, pid: process.pid, canLoad: true, canList: false, canResume: true, canEdit: true, canFork: true };
+    this.#state = { phase: "starting", agent: spec.agent, name: spec.name, cwd: spec.cwd, pid: process.pid, canLoad: true, canList: false, canResume: true, canEdit: true, canFork: true, canSteer: true };
   }
 
   get state(): HostState {
@@ -513,9 +513,7 @@ export class ClaudeSession implements Driver {
       case "cancel": {
         if (!this.#turn) throw new Error("no turn is running");
         if (t.queue.length > 0) this.producer.push({ type: "queue", queue: [] });
-        this.#dropAsked();
-        this.#interrupted = true;
-        await this.#query?.interrupt();
+        await this.#interrupt();
         return;
       }
       case "answer": {
@@ -527,6 +525,27 @@ export class ClaudeSession implements Driver {
       case "unqueue": {
         if (!t.queue.some((q) => q.id === command.queued)) throw new Error("that prompt is not queued");
         this.producer.push({ type: "queue", queue: t.queue.filter((q) => q.id !== command.queued) });
+        return;
+      }
+      case "steer": {
+        const queued = t.queue.find((q) => q.id === command.queued);
+        if (!queued) throw new Error("that prompt is not queued");
+        if (!this.#turn) throw new Error("no turn is running");
+        const inbox = this.#inbox;
+        if (!inbox) throw new Error("Claude's query takes no message now");
+        this.producer.push({ type: "queue", queue: t.queue.filter((q) => q.id !== queued.id) });
+        const uuid = randomUUID();
+        this.producer.push(...promptChanges(queued.text, queued.images ?? [], this.producer).map((change): Change => (change.type === "push" && change.entry.kind === "user" ? { ...change, entry: { ...change.entry, source: uuid, checkpoint: true } } : change)));
+        this.#link(uuid);
+        inbox.push({ type: "user", message: { role: "user", content: this.#content(queued.text, queued.images ?? []) }, parent_tool_use_id: null, session_id: this.#state.session ?? "", uuid });
+        return;
+      }
+      case "sendNow": {
+        const queued = t.queue.find((q) => q.id === command.queued);
+        if (!queued) throw new Error("that prompt is not queued");
+        this.producer.push({ type: "queue", queue: [queued, ...t.queue.filter((q) => q.id !== queued.id)] });
+        if (this.#turn) await this.#interrupt();
+        else this.#nextPrompt();
         return;
       }
       case "context":
@@ -644,6 +663,11 @@ export class ClaudeSession implements Driver {
     this.producer.push(...changes);
     this.#link(uuid);
     this.#turn = { startedAt: this.producer.now() };
+    this.#inbox?.push({ type: "user", message: { role: "user", content: this.#content(text, images) }, parent_tool_use_id: null, session_id: this.#state.session ?? "", uuid });
+  }
+
+  /** What Claude is given for a prompt or a steer: what pumi told it, its skills expanded, the images. */
+  #content(text: string, images: Image[]): Rec[] {
     const told = this.#context;
     this.#context = undefined;
     const content: Rec[] = [];
@@ -653,7 +677,14 @@ export class ClaudeSession implements Driver {
       if (image.data) content.push({ type: "image", source: { type: "base64", media_type: image.mimeType, data: image.data } });
       else if (image.uri) content.push({ type: "text", text: `(An image: ${image.uri.replace(/^file:\/\//, "")})` });
     }
-    this.#inbox?.push({ type: "user", message: { role: "user", content }, parent_tool_use_id: null, session_id: this.#state.session ?? "", uuid });
+    return content;
+  }
+
+  /** Stops the running turn, keeping the queue: `sendNow` has just put its prompt first. */
+  async #interrupt(): Promise<void> {
+    this.#dropAsked();
+    this.#interrupted = true;
+    await this.#query?.interrupt();
   }
 
   #nextPrompt(): void {

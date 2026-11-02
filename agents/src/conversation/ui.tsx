@@ -21,7 +21,8 @@ import type { ZedIcon } from "./ui/icons.ts";
 
 export { Header, OptionPicker, type HeaderProps } from "./ui/header.tsx";
 export { Composer, type ComposerHandle, type ComposerProps, type SavedDraft } from "./ui/composer.tsx";
-export { chatKey, keystrokeOf, sentPrompts, stepRecall, type ChatKey, type Keystroke } from "./keys.ts";
+export { chatKey, keystrokeOf, queueKey, sentPrompts, stepRecall, type ChatKey, type Keystroke } from "./keys.ts";
+export { QueueCard, QUEUE_KEYS, TRASH_ICON, type QueueCardProps } from "./ui/queue.tsx";
 export { Button, PermissionCard, QuestionCard, type ButtonProps, type PermissionCardProps, type QuestionCardProps } from "./ui/question.tsx";
 export { keepTyping, OwnClicks, Press, useTap, type PressProps } from "./ui/press.tsx";
 export { CodeBlock, Inline, Markdown, type MarkdownProps } from "./ui/markdown.tsx";
@@ -84,6 +85,8 @@ export interface ConversationProps {
   rewindsIn?: string;
   /** The producer forks a session from a turn (`fork`): each turn's controls offer it. */
   forks?: boolean;
+  /** The producer takes a queued prompt in its running turn (`steer`): the queue's Steer. */
+  steers?: boolean;
   /** Where the composer keeps its draft while the chat is not drawn (`ComposerProps.draftKey`). */
   draftKey?: string;
   /** The draft kept outside the window, and where it goes as it changes (`ComposerProps.savedDraft`, `onDraft`). */
@@ -97,7 +100,7 @@ export interface ConversationProps {
 }
 
 /** The whole chat: the header, the timeline, the requests waiting, and the composer. */
-export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, draftKey, savedDraft, onDraft, pastPrompts }: ConversationProps) {
+export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, steers = false, draftKey, savedDraft, onDraft, pastPrompts }: ConversationProps) {
   // Files dropped anywhere on the chat go to the composer, as if dropped on it.
   const [dropped, setDropped] = useState<{ paths: string[]; n: number }>({ paths: [], n: 0 });
   // The message being edited in place.
@@ -140,6 +143,8 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
   }
   const setOption = (option: ConfigOption, value: string | boolean) => onCommand({ type: "setOption", id: newCommandId(), category: option.category, option: option.id, value });
   const idle = transcript.status !== "working" && transcript.status !== "blocked" && transcript.queue.length === 0;
+  /** A turn runs (or waits on an answer): the queue's Steer and Send Now have an agent to reach. */
+  const busy = transcript.status === "working" || transcript.status === "blocked";
   // Nothing said yet: the composer is the whole chat.
   const fresh = !said && idle && !sent;
   // A message still being edited that left the conversation (another session, a reload), or once
@@ -249,6 +254,8 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           }}
           onStop={() => onCommand({ type: "cancel", id: newCommandId() })}
           onUnqueue={(queued) => onCommand({ type: "unqueue", id: newCommandId(), queued })}
+          onSteer={busy && steers ? (queued) => onCommand({ type: "steer", id: newCommandId(), queued }) : undefined}
+          onSendNow={busy ? (queued) => onCommand({ type: "sendNow", id: newCommandId(), queued }) : undefined}
         />
       </div>
     </ImageViewerHost>

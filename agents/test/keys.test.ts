@@ -1,7 +1,7 @@
 // The chat's keys: what a keystroke does, and the prompts Up brings back.
 import { expect, test } from "bun:test";
 
-import { answerHint, chatKey, keystrokeOf, recallTakes, sentPrompts, stepRecall, type Keystroke } from "../src/conversation/keys.ts";
+import { answerHint, chatKey, keystrokeOf, queueKey, recallTakes, sentPrompts, stepRecall, type Keystroke } from "../src/conversation/keys.ts";
 import type { Entry } from "../src/conversation/model.ts";
 
 const k = (key: string, more: Partial<Keystroke> = {}): Keystroke => ({ key, ctrl: false, alt: false, shift: false, cmd: false, held: false, ...more });
@@ -81,4 +81,15 @@ test("a draft of one's own is never replaced: Up and Down move its caret", () =>
   expect(recallTakes("up", sent, null, "")).toBe(true);
   expect(recallTakes("up", [], null, "")).toBe(false);
   expect(recallTakes("down", sent, 1, "two")).toBe(true);
+});
+
+test("the queue's keys: Clear All takes them all back, Steer gives the first to the agent now", () => {
+  expect(queueKey(k("backspace", { alt: true, cmd: true }))).toBe("clear");
+  expect(queueKey(k("s", { ctrl: true, cmd: true }))).toBe("steer");
+  expect(queueKey(k("backspace", { cmd: true }))).toBeUndefined();
+  expect(queueKey(k("backspace", { alt: true, cmd: true, shift: true }))).toBeUndefined();
+  expect(queueKey(k("s", { cmd: true }))).toBeUndefined();
+  expect(queueKey(k("s", { ctrl: true, cmd: true, shift: true }))).toBeUndefined();
+  expect(queueKey(k("s", { ctrl: true, cmd: true, alt: true }))).toBeUndefined();
+  expect(queueKey(k("enter"))).toBeUndefined();
 });

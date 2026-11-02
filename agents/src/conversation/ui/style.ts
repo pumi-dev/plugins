@@ -74,6 +74,9 @@ export interface ChatType {
   /** Code, output, diffs. */
   code: number;
   codeLine: number;
+  /** What the user asked: a step over the prose, in the code font of the field it was written in. */
+  prompt: number;
+  promptLine: number;
   mono: string;
 }
 
@@ -91,6 +94,8 @@ export function useType(): ChatType {
       tiny: Math.max(9, body - 2),
       code,
       codeLine: Math.round(code * 1.5),
+      prompt: body + 1,
+      promptLine: Math.round((body + 1) * 1.5),
       mono: font.family,
     };
   }, [m.fontSize, font.family]);

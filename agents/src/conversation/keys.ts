@@ -5,6 +5,7 @@
 //   ↑ / ↓          in an empty prompt: the prompts sent before, newest first, and back
 //   ⌃1 … ⌃9        answer the request waiting with its first … ninth answer
 //   a letter       typed while the focus is elsewhere in the chat goes into the prompt
+//   ⌥⌘⌫ / ⌃⌘S      over a queue: take it all back, or give the first prompt to the agent now
 import type { Entry } from "./model.ts";
 
 /** A keystroke as the window gives it (`KeyEvent`): its key's name and its modifiers. */
@@ -70,6 +71,14 @@ export function chatKey(k: Keystroke, state: ChatKeyState): ChatKey | undefined 
 /** What ⌃ and a digit look like, for a hint: `⌃1`. */
 export function answerHint(index: number): string | undefined {
   return index >= 0 && index < 9 ? `⌃${index + 1}` : undefined;
+}
+
+/** What a keystroke asks of the queue: Clear All (⌥⌘⌫) or Steer (⌃⌘S), else nothing. */
+export function queueKey(k: Keystroke): "clear" | "steer" | undefined {
+  if (k.shift || !k.cmd) return undefined;
+  if (k.key === "backspace" && k.alt && !k.ctrl) return "clear";
+  if (k.key === "s" && k.ctrl && !k.alt) return "steer";
+  return undefined;
 }
 
 // ── Bringing a prompt back ────────────────────────────────────────────────────────────────────

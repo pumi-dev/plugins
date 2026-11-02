@@ -316,6 +316,18 @@ export class AcpSession implements Driver {
         this.producer.push({ type: "queue", queue: t.queue.filter((q) => q.id !== command.queued) });
         return;
       }
+      case "steer":
+        throw new Error("this agent takes no message in a running turn here");
+      case "sendNow": {
+        const queued = t.queue.find((q) => q.id === command.queued);
+        if (!queued) throw new Error("that prompt is not queued");
+        this.producer.push({ type: "queue", queue: [queued, ...t.queue.filter((q) => q.id !== queued.id)] });
+        if (this.#turn) {
+          this.#dropAsked();
+          this.peer.notify("session/cancel", { sessionId: this.#state.session });
+        } else this.#next();
+        return;
+      }
       case "context": {
         this.#context = command.text.trim() === "" ? undefined : command.text;
         return;
