@@ -344,7 +344,10 @@ async function showDiff(root: string | null, spec: DiffSpec, title: string): Pro
         return;
       }
     }
-    const opened = (await workspace.openTab(self.plugin.prefixed("diff"), {}, { kind: "view", name: title })).id;
+    // In the strip of the pane the user is in — the diff as a tab of its own, beside the one they
+    // are looking at. A view of its own would be made behind the one the window shows, unseen.
+    const place = view !== null ? { kind: "tiled", pane: "current" } : { kind: "tiled", split: "right" };
+    const opened = (await workspace.openTab(self.plugin.prefixed("diff"), {}, place)).id;
     diffPane = opened;
     await option.set("diff", value, { scope: "tab", id: opened });
     await option.set("title", title, { scope: "tab", id: opened });
