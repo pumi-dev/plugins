@@ -17,6 +17,9 @@ import type { Panel } from "./panel.ts";
 import { changed, projects } from "./projects.ts";
 import * as git from "./git.ts";
 import type { Change, Commit, CommitMode, DiffSpec, Remote, Sync } from "./git.ts";
+import { parsePatch } from "./patch.ts";
+import { highlightLines, MAX_PARSE, type LineRuns } from "./syntax/highlight.ts";
+import { EXTENSIONS, extensionOf, languageFor } from "./syntax/languages.ts";
 import { diffTotals, rows, stageStates, visible, type Checkbox, type Row } from "./tree.ts";
 
 /** One line of the changes list: a repository's header, a group's, its empty note, or a row of its tree. */
@@ -383,19 +386,60 @@ export async function shown(sha: string): Promise<void> {
   await showDiff(panel.root, { kind: "commit", sha }, commit ? `${sha.slice(0, 7)} ${commit.subject}` : sha.slice(0, 7));
 }
 
-/** The patch a diff tab draws, read now. The view asks again when the repository changes. */
-export async function patchOf(value: string): Promise<{ patch: string; error: string | null }> {
+/** The lines of a patch a file has on its new side, by path: what a diff colours. */
+export type Syntax = Record<string, LineRuns>;
+
+/** Files whose grammar is searched for a patch at most, and what one parse may spend: a change of
+ *  a hundred files is drawn with the first of them coloured rather than taking a second to open. */
+const SYNTAX_FILES = 40;
+const SYNTAX_BUDGET = 60;
+/** The most a whole diff's colours may take; the files past it are drawn plain. */
+const SYNTAX_TOTAL = 400;
+
+/** The extensions a grammar here has: the rest of a patch is drawn plain. */
+const KNOWN = new Set(EXTENSIONS);
+
+/** `patch`, and the syntax runs of each file's lines as its new side has them (only the files a
+ *  grammar here knows, and only the lines the patch shows). */
+export async function patchOf(value: string): Promise<{ patch: string; error: string | null; syntax: Syntax }> {
   let spec: Shown;
   try {
     spec = JSON.parse(value) as Shown;
   } catch {
-    return { patch: "", error: "nothing to show" };
+    return { patch: "", error: "nothing to show", syntax: {} };
   }
+  let patch: string;
   try {
-    return { patch: await git.patch(spec.root, spec), error: null };
+    patch = await git.patch(spec.root, spec);
   } catch (err) {
-    return { patch: "", error: message(err) };
+    return { patch: "", error: message(err), syntax: {} };
   }
+  return { patch, error: null, syntax: await syntaxOf(spec, patch) };
+}
+
+/** The runs of every file's new lines in `patch`, each file read whole and parsed once: a grammar
+ *  needs the whole of it to know where a string or a block ends. A deleted line has none: its side
+ *  is not read (the theme's own wash is enough for what is gone). */
+async function syntaxOf(spec: Shown, patch: string): Promise<Syntax> {
+  const syntax: Syntax = {};
+  const files = parsePatch(patch).filter((file) => file.status !== "binary" && file.path !== "");
+  const started = Date.now();
+  let parsed = 0;
+  for (const file of files) {
+    if (parsed >= SYNTAX_FILES || Date.now() - started > SYNTAX_TOTAL) break;
+    if (!KNOWN.has(extensionOf(file.path))) continue;
+    const lines = file.rows.filter((row) => row.new !== undefined).map((row) => row.new!);
+    if (lines.length === 0) continue;
+    const text = await git.content(spec.root, file.path, spec);
+    if (text === null || text.length > MAX_PARSE) continue;
+    parsed += 1;
+    try {
+      syntax[file.path] = highlightLines(text, lines, languageFor(file.path), SYNTAX_BUDGET);
+    } catch {
+      // A file its grammar refuses (not what its name says) is drawn plain.
+    }
+  }
+  return syntax;
 }
 
 /** A line of a diff pressed: the file, at that line, in the editor. */
