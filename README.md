@@ -18,6 +18,7 @@ pumi plugin add pumi-dev/plugins/file-tree
 | [VSCode Editor](vscode-editor) | VS Code's editor (Monaco) for file tabs |
 | [CSV Viewer](csv-viewer) | CSV and TSV files as a table you can sort, search and edit |
 | [Video Editor](video-editor) | a video in a tab: Clipkit's timeline over a project file an agent can write |
+| [Marmaide](marmaide) | Mermaid diagrams and charts, redrawn as their source changes |
 | [Agents](agents) | coding agents from the + menu, in their terminal or a GUI, told about the workspace around them |
 | [Pixel Office](pixel-office) | a UI theme: pumi as a pixel-art office with a desk for every view |
 | [Music Studio](music-studio) | a song in a tab, laid out as GarageBand does, measured bar by bar for agents |
@@ -27,4 +28,4 @@ Each folder is a whole plugin with nothing shared between them, so you can copy 
 your own. `pumi plugin dev <folder>` links it into pumi and reloads it on save; its README says how
 to test it.
 
-GPL-3.0-or-later.
+GPL-3.0-or-later, unless a folder's LICENSE says otherwise.
