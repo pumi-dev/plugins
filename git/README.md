@@ -11,7 +11,10 @@ pumi plugin add pumi-dev/plugins/git
 - **Changes**: staged, unstaged and conflicted files as a path tree. Stage, unstage, discard,
   ignore, take ours or theirs, and commit (⌘↵).
 - **History**: the commits, newest first, with tags, authors and what the upstream hasn't got.
-- **Diffs**: a file, the whole work tree or a commit, in a tab drawn in the window's theme.
+- **Diffs**: a file, the whole work tree or a commit, in a tab of the pane you are in, drawn as the
+  chats draw a change: a head a file with what it adds up to, its numbered lines on the theme's
+  washes, and the code in its own colours (the Code editor plugin's CodeMirror grammars, for the
+  languages it knows) when the file is one of the work tree's or a commit's.
 - **Sync**: publish, fetch, pull and push from the button beside the branch.
 - **Several repositories**: in a folder that is not a repository, each one up to two levels
   under it is a section of its own, with its branch and how many files it changed. The branch
