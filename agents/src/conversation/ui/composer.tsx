@@ -575,7 +575,9 @@ export function Composer({
       style={{ display: "flex", flexDirection: "column", gap: 8, flexGrow: fill ? 1 : 0, flexShrink: fill ? 1 : 0, minHeight: 0, borderTopWidth: fill || shrink !== null ? 0 : 1, borderColor: t.border, backgroundColor: t.surface }}
     >
       {queue.length > 0 ? (
-        <div style={{ display: "flex", flexShrink: 0, paddingLeft: 10, paddingRight: 8, paddingTop: 8 }}>
+        // A column, so the card takes the chat's width: a row sizes it from its own text, and a
+        // long queued prompt then pushes the card (and its buttons) past the chat's edge.
+        <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, minWidth: 0, paddingLeft: 10, paddingRight: 8, paddingTop: 8 }}>
           <QueueCard
             queue={queue}
             onDelete={onUnqueue}
