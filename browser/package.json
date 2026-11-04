@@ -92,7 +92,7 @@
         {
           "id": "page",
           "title": "Browser",
-          "icon": "globe",
+          "icon": "tool_web",
           "methods": [
             "navigate",
             "back",

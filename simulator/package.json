@@ -88,7 +88,7 @@
         {
           "id": "device",
           "title": "Simulator",
-          "icon": "box",
+          "icon": "smartphone",
           "version": 1
         }
       ],
