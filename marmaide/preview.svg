@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200" font-family="-apple-system, BlinkMacSystemFont, system-ui, sans-serif">
+  <!-- Marmaide: a Mermaid diagram in a tab, drawn in the window's own colours. -->
+  <clipPath id="w"><rect width="320" height="200" rx="10"/></clipPath>
+  <g clip-path="url(#w)">
+  <rect width="320" height="200" fill="#1e1f22"/>
+  <!-- The tab strip: the diagram's tab in front, a terminal beside it. -->
+  <rect width="320" height="22" fill="#26282b"/>
+  <rect y="21" width="320" height="1" fill="#393b41"/>
+  <circle cx="11" cy="11" r="3" fill="#ff5f57"/>
+  <circle cx="21" cy="11" r="3" fill="#febc2e"/>
+  <circle cx="31" cy="11" r="3" fill="#28c840"/>
+  <rect x="44" width="86" height="22" fill="#1e1f22"/>
+  <rect x="129" width="1" height="22" fill="#393b41"/>
+  <g fill="none" stroke="#f0a35e" stroke-width="1.1" stroke-linejoin="round">
+    <rect x="54" y="6.5" width="5" height="4" rx="1"/>
+    <rect x="49.5" y="13.5" width="4.5" height="3.6" rx="1"/>
+    <rect x="59" y="13.5" width="4.5" height="3.6" rx="1"/>
+    <path d="M56.5 10.5v1.2M51.8 11.7h9.4M51.8 11.7v1.8M61.2 11.7v1.8" stroke-linecap="butt"/>
+  </g>
+  <text x="66" y="14" font-size="7.5" fill="#dfe1e5">flowchart</text>
+  <text x="139" y="14" font-size="7.5" fill="#888a8f">pi</text>
+  <!-- The diagram: three nodes and the edges between them, as the plugin draws it. -->
+  <g stroke="#7d838b" stroke-width="1.2" fill="none" stroke-linecap="round">
+    <path d="M104 104h13"/>
+    <path d="M200 104h13"/>
+  </g>
+  <g fill="#7d838b">
+    <path d="M118 104l-5-2.6v5.2z"/>
+    <path d="M214 104l-5-2.6v5.2z"/>
+  </g>
+  <g>
+    <rect x="24" y="90" width="80" height="28" rx="4" fill="#2b2f34" stroke="#52575d"/>
+    <text x="64" y="107.5" font-size="7.5" fill="#c8c8c8" text-anchor="middle">ask</text>
+    <rect x="120" y="90" width="80" height="28" rx="4" fill="#2b2f34" stroke="#52575d"/>
+    <text x="160" y="107.5" font-size="7.5" fill="#c8c8c8" text-anchor="middle">draw</text>
+    <rect x="216" y="90" width="80" height="28" rx="4" fill="#2b2f34" stroke="#52575d"/>
+    <text x="256" y="107.5" font-size="7.5" fill="#c8c8c8" text-anchor="middle">look</text>
+  </g>
+  </g>
+</svg>
