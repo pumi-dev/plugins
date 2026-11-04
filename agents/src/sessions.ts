@@ -25,6 +25,7 @@ import { agentPath, agentPathReady, installed, launchOf, resumeLine } from "./se
 import { lineReader } from "./session/rpc.ts";
 import { fallbackDir, socketPath, type Engine, type FromHost, type HostSpec, type HostState, type ToHost } from "./session/wire.ts";
 import { AGENT, AGENT_CONVERSATION as CONVERSATION, AGENT_MODEL as MODEL, AGENT_SESSION as SESSION, SESSION_CWD as CWD, SESSION_ENGINE as ENGINE, SESSION_START as START, STATUS } from "./names.ts";
+import { agentIcon, ICON } from "./icons.ts";
 import { tell } from "./tell.ts";
 
 
@@ -469,6 +470,7 @@ export async function openSession(given: OpenSession): Promise<number> {
     setOn(CWD, cwd, id),
     setOn(START, given.start ?? "new", id),
     ...(given.session ? [setOn(SESSION, given.session, id)] : []),
+    ...(agentIcon(given.agent) ? [setOn(ICON, agentIcon(given.agent), id)] : []),
   ]);
   await setOn(AGENT, given.agent, id);
   await ensure(id);
@@ -505,6 +507,7 @@ export async function handoff(from: number, engine: Engine): Promise<number> {
   await setOn(CWD, cwd, id);
   await setOn(START, "new", id);
   await setOn(SESSION, session, id);
+  if (agentIcon(name)) await setOn(ICON, agentIcon(name), id);
   await call("tab.close", tabRef(from));
   await Bun.sleep(1000);
   await setOn(AGENT, name, id);

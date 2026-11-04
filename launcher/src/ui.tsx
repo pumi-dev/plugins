@@ -3,12 +3,21 @@
 // row, its key, or Enter on the one the arrows chose opens it in the list's place (`replace`, the
 // same tab); Escape closes the tab.
 import { Fragment, useMemo, useRef, useState } from "react";
-import { Icon, useMetrics, useTextSize, useTheme, type RendererProps } from "pumi";
+import { IconImage, iconSource, useMetrics, useTextSize, useTheme, type RendererProps } from "pumi";
 import * as kit from "pumi/theme";
 import { call, useSlot, via } from "pumi/theme";
 import { byLetter, fromSlot, kinds, type Kind, type NewTab, type Place, type SlotAction } from "./kinds.ts";
 
 const swallow = (err: unknown) => console.error(`launcher: ${String((err as Error)?.message ?? err)}`);
+
+/**
+ * A row's icon: one of the app's by name, or the mark a plugin brings for it (an agent's own,
+ * `data:image/svg+xml,…`). What is neither is the app's box, as a row that names no icon had.
+ */
+function RowIcon({ icon, color }: { icon: string; color: string }) {
+  const source = useMemo(() => iconSource(icon) ?? iconSource("box"), [icon]);
+  return source ? <IconImage icon={source} size={16} color={color} /> : null;
+}
 
 /** Picks a file and opens it in `place`, from tab `at` (which names the server). */
 async function openFile(at: string, place: Place) {
@@ -98,7 +107,7 @@ export function New({ tab, focused }: RendererProps) {
                 backgroundColor: i === chosen ? t.hover : "transparent",
               }}
             >
-              <Icon name={k.icon} size={16} color={t.text} />
+              <RowIcon icon={k.icon} color={t.text} />
               <text style={{ fontSize: ts(14), color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{k.title}</text>
               <div style={{ flexGrow: 1, minWidth: 16 }} />
               {k.keys ? <text style={{ fontSize: ts(12), color: t.faint, whiteSpace: "nowrap", flexShrink: 0 }}>{k.keys}</text> : null}

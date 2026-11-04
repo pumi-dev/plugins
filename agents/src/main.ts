@@ -494,7 +494,7 @@ async function contribute(): Promise<void> {
   const shown = CATALOG.filter((agent) => available(agent, modeOf(agent, modes, prefer), path));
   const own = (self.plugin.manifest.contributes?.commands ?? []) as { id: string; title: string }[];
   const commands = [...own, ...shown.map((agent) => ({ id: newCommand(agent), title: `New ${agent.title}` }))];
-  const actions = shown.map((agent) => ({ id: agent.id, title: agent.title, icon: "sparkle", command: newCommand(agent) }));
+  const actions = shown.map((agent) => ({ id: agent.id, title: agent.title, icon: agentIcon(agent.id) ?? "sparkle", command: newCommand(agent) }));
   await plugin.contribute(self.plugin.id, { commands, slots: { "tab.new": actions.length ? { actions } : null } });
 }
 
@@ -591,8 +591,13 @@ function syncHooks(): Promise<void> {
 
 /** An agent tab the chat reads says so, unless another package serves its conversation or its mode is `off`. */
 async function claim(tab: number): Promise<void> {
-  if (modeFor(await tabOption(AGENT, tab)) === "off") return;
+  const agent = await tabOption(AGENT, tab);
+  if (modeFor(agent) === "off") return;
   if (!text(await tabOption(AGENT_CONVERSATION, tab))) await setTabOption(AGENT_CONVERSATION, self.plugin.id, tab);
+  // Its mark, for a tab opened before the plugin had one (or by another version of it): a tab that
+  // has an icon of its own keeps it.
+  const icon = agentIcon(text(agent) ?? "");
+  if (icon && !text(await tabOption(ICON, tab))) await setTabOption(ICON, icon, tab).catch(() => {});
 }
 
 /**
