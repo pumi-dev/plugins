@@ -91,6 +91,9 @@ export interface ConversationProps {
   draftKey?: string;
   /** The draft kept outside the window, and where it goes as it changes (`ComposerProps.savedDraft`, `onDraft`). */
   savedDraft?: SavedDraft;
+  /** The draft another window of this chat wrote last, to show as it is written there (`ComposerProps.remoteDraft`). */
+  remoteDraft?: SavedDraft;
+  adoptDraft?: boolean;
   onDraft?(saved: SavedDraft | null): void;
   /**
    * Prompts sent before that the transcript may not hold (a session that never started, one
@@ -100,7 +103,7 @@ export interface ConversationProps {
 }
 
 /** The whole chat: the header, the timeline, the requests waiting, and the composer. */
-export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, steers = false, draftKey, savedDraft, onDraft, pastPrompts }: ConversationProps) {
+export function Conversation({ transcript, onCommand, pageSize, autoFocus, placeholder, onLink, hideHeader = false, onMentions, images, onAnswerElsewhere, elsewhereLabel, messageActions, rewinds, rewindsIn, forks = false, steers = false, draftKey, savedDraft, remoteDraft, adoptDraft, onDraft, pastPrompts }: ConversationProps) {
   // Files dropped anywhere on the chat go to the composer, as if dropped on it.
   const [dropped, setDropped] = useState<{ paths: string[]; n: number }>({ paths: [], n: 0 });
   // The message being edited in place.
@@ -240,6 +243,8 @@ export function Conversation({ transcript, onCommand, pageSize, autoFocus, place
           handle={composer}
           draftKey={draftKey}
           savedDraft={savedDraft}
+          remoteDraft={remoteDraft}
+          adoptDraft={adoptDraft}
           onDraft={onDraft}
           history={history}
           options={transcript.options}

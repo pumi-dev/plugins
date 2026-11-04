@@ -11,6 +11,12 @@ export const HOOK_FN = `${PREFIX}hook`;
 /** The event an agent tab's conversation moves by (`emit("conversation.changed")`, prefixed). */
 export const CONVERSATION_CHANGED = `${PREFIX}conversation.changed`;
 
+/** The event a session tab's own state moves by (its phase, its error, the sessions it can load). */
+export const SESSION_CHANGED = `${PREFIX}session.changed`;
+
+/** The event a tab's draft moves by (`emit("draft.changed")`, prefixed): the words typed in one window, in every other. */
+export const DRAFT_CHANGED = `${PREFIX}draft.changed`;
+
 /**
  * The plugin's trait (`agent` in the manifest): a tab is an agent's while it names the agent
  * (`claude`), as its hook sets it. Its fields are the options below.

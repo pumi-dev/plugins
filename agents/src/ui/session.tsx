@@ -4,14 +4,16 @@
 // (signing in, picking a session). The chat shows while the agent starts: a prompt sent then waits
 // in its queue and goes once the agent is ready.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useChannel, useChannelListener, useMetrics, useTab, useTheme, type RendererProps, type TabId } from "pumi";
+import { useChannel, useChannelListener, useEvent, useMetrics, useTab, useTheme, type RendererProps, type TabId } from "pumi";
 
 import { follow, type Update } from "../conversation/change.ts";
 import type { Command, Queued, Transcript } from "../conversation/model.ts";
 import { Conversation, Press } from "../conversation/ui.tsx";
 import type { HostState } from "../session/wire.ts";
-import { AGENT, SESSION_START } from "../names.ts";
+import { AGENT, CONVERSATION_CHANGED, SESSION_CHANGED, SESSION_START } from "../names.ts";
+import type { Changed, StateChanged } from "../topics.ts";
 import { useKept } from "./kept.ts";
+import { useSharedDraft } from "./shared.ts";
 import { attach, authenticate, login, restart, retry, sessionMentions, sessionSend, startSession } from "../main.ts";
 
 /** A throw the tab cannot answer: said in the log. */
@@ -44,6 +46,8 @@ export function Session({ tab, focused }: RendererProps) {
 /** `picks`: the tab starts on the agent's list of sessions, so no chat shows before it. */
 function Live({ id, focused, picks, tab, options }: { id: number; focused: boolean; picks: boolean; tab: TabId; options: Record<string, unknown> }) {
   const kept = useKept(tab, options);
+  // The draft, as every window of the tab has it: typed here, it shows in the others as it is written.
+  const shared = useSharedDraft(id, kept.onDraft);
   const live = useChannel<HostState | undefined>(`session.state.${id}`, undefined);
   const [first, setFirst] = useState<HostState>();
   const [transcript, setTranscript] = useState<Transcript>();
@@ -62,14 +66,31 @@ function Live({ id, focused, picks, tab, options }: { id: number; focused: boole
       .catch(swallow);
   }, [id]);
   useEffect(reread, [reread]);
-  useChannelListener(`session.update.${id}`, (update: Update) => {
-    if (!held.current) {
-      if (update.type === "snapshot") keep(update.transcript);
-      return;
-    }
-    const next = follow(held.current, update);
-    if (!next) reread();
-    else if (next !== held.current) keep(next);
+  // A batch of the conversation: the next transcript, or nothing when this view is out of step (then
+  // it reads again). A batch heard on the channel and by the event is applied once (`follow` says so).
+  const apply = useCallback(
+    (update: Update) => {
+      if (!held.current) {
+        if (update.type === "snapshot") keep(update.transcript);
+        return;
+      }
+      const next = follow(held.current, update);
+      if (!next) reread();
+      else if (next !== held.current) keep(next);
+    },
+    [reread],
+  );
+  useChannelListener(`session.update.${id}`, apply);
+  // A window of another app: it has no channel to this worker, so the host's state and the batches
+  // come by the plugin's events (`sessions.ts`), as they do for a chat over a terminal's.
+  useEvent<StateChanged>(SESSION_CHANGED, (e) => {
+    if (e.data?.tab === id && e.data.state) setFirst(e.data.state);
+  });
+  useEvent<Changed>(CONVERSATION_CHANGED, (e) => {
+    const data = e.data;
+    if (data?.tab !== id) return;
+    if (data.from) apply({ type: "changes", from: data.from, to: data.cursor, changes: data.changes });
+    else reread();
   });
   const send = (command: Command) => {
     setRejected(undefined);
@@ -109,7 +130,9 @@ function Live({ id, focused, picks, tab, options }: { id: number; focused: boole
           autoFocus={focused}
           draftKey={`session:${id}`}
           savedDraft={kept.savedDraft}
-          onDraft={kept.onDraft}
+          remoteDraft={shared.remote}
+          adoptDraft={shared.adopts}
+          onDraft={shared.onDraft}
           pastPrompts={kept.pastPrompts}
           onMentions={(query) => sessionMentions(id, query)}
           rewinds={state?.canEdit ? "exact" : undefined}

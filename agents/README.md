@@ -47,6 +47,11 @@ back exactly as it was.
 - **Nothing typed is lost**: the draft stays when the tab flips to the terminal and back, and is
   kept in the tab across a restart of the app. The prompts sent are kept too: ↑ brings them back,
   even after a session that never started.
+- **The same tab in two windows**: a chat draws in every window that shows the tab (the same view
+  in two windows of the app, or a second pumi on the same server), and the conversation follows in
+  all of them. A prompt shows in the others as it is written there, chips and pictures with it: the
+  window with the keyboard writes, and the others show what it writes. Sending or emptying it
+  clears it everywhere.
 - **Continue** after a turn that was stopped, failed or cut off goes on without a message to type.
 - **Scrolling**: the chat follows the answer while you are at its foot and stays where you read
   when you scroll up; a button takes you back down.
@@ -71,6 +76,9 @@ starts: a prompt sent then goes as soon as it is ready.
 
 - *Agents: continue this agent in its GUI* hands a terminal agent's session to a GUI tab, once
   its turn is over.
+- A GUI tab's chat follows its session in every window that shows the tab, not only the app that
+  runs the plugin: the phase (`Starting…`, `Loading the session…`), a stopped host, and each
+  message as it arrives.
 - The toolbar's terminal button, or *Agents: continue this chat tab's session in the agent's
   terminal*, goes back to the TUI on the same session.
 - ACP adapters that aren't installed are fetched with `npx` at a pinned version.
@@ -191,6 +199,10 @@ A chat reads the last 4 MB of a session file, and the map has your other session
   (128 KB on Linux; a permission to write a big file) fails, and the agent asks in its own prompt.
 - What an agent was told is kept in memory: after the plugin starts again, an agent's next prompt
   hears the whole map again.
+- A draft shows in the tab's other windows, but a prompt sent in one window while its agent is
+  still starting waits in that window only: the other shows it once the agent has it.
+- A draft longer than 64 KB stays in the window it is typed in, and so does one word of a chat
+  that no window is drawing.
 
 ## Development
 

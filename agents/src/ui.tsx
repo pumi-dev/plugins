@@ -17,6 +17,7 @@ import { catalogAgent, modeOf } from "./catalog.ts";
 import { AGENT, CONVERSATION_CHANGED, PREFIX, SESSION_ENGINE, STATUS } from "./names.ts";
 import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 import { useKept } from "./ui/kept.ts";
+import { useSharedDraft } from "./ui/shared.ts";
 
 export { Session } from "./ui/session.tsx";
 // The History panel (the manifest's `panel` slot).
@@ -161,6 +162,8 @@ function useTranscript(tab: number): Transcript | undefined {
 function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
   const options = useTabOptions(`%${tab}`);
   const kept = useKept(`%${tab}`, options);
+  // The draft, as every window of the tab has it: typed here, it shows in the others as it is written.
+  const shared = useSharedDraft(tab, kept.onDraft);
   const spec = agentSpec(options[AGENT]);
   const label = spec?.label ?? "the agent";
   const transcript = useTranscript(tab);
@@ -184,10 +187,12 @@ function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
           transcript={transcript}
           hideHeader
           autoFocus={focused}
-          // The draft outlives a flip to the terminal and back.
+          // The draft outlives a flip to the terminal and back, and shows in the tab's other windows.
           draftKey={`tab:${tab}`}
           savedDraft={kept.savedDraft}
-          onDraft={kept.onDraft}
+          remoteDraft={shared.remote}
+          adoptDraft={shared.adopts}
+          onDraft={shared.onDraft}
           pastPrompts={kept.pastPrompts}
           onMentions={findFiles}
           onAnswerElsewhere={showTerminal}

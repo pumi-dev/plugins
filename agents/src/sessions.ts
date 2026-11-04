@@ -24,8 +24,9 @@ import { catalogAgent, type CatalogAgent } from "./catalog.ts";
 import { agentPath, agentPathReady, installed, launchOf, resumeLine } from "./session/launch.ts";
 import { lineReader } from "./session/rpc.ts";
 import { fallbackDir, socketPath, type Engine, type FromHost, type HostSpec, type HostState, type ToHost } from "./session/wire.ts";
-import { AGENT, AGENT_CONVERSATION as CONVERSATION, AGENT_MODEL as MODEL, AGENT_SESSION as SESSION, SESSION_CWD as CWD, SESSION_ENGINE as ENGINE, SESSION_START as START, STATUS } from "./names.ts";
+import { AGENT, AGENT_CONVERSATION as CONVERSATION, AGENT_MODEL as MODEL, AGENT_SESSION as SESSION, SESSION_CHANGED, SESSION_CWD as CWD, SESSION_ENGINE as ENGINE, SESSION_START as START, STATUS } from "./names.ts";
 import { agentIcon, ICON } from "./icons.ts";
+import type { StateChanged } from "./topics.ts";
 import { tell } from "./tell.ts";
 
 
@@ -40,6 +41,16 @@ export function setOpenTerminal(open: OpenTerminal): void {
 /** The topics a session tab's view hears its host on. */
 export const stateTopic = (tab: number) => `session.state.${tab}`;
 export const updateTopic = (tab: number) => `session.update.${tab}`;
+
+/**
+ * A session tab's own state, to its windows: in the plugin host's, on its channel, and to every
+ * app's window by the plugin's event (`ui/session.tsx` follows both, so a window in another app
+ * sees the phase, the error and the sessions to pick from as they change).
+ */
+function publishState(tab: number, state: HostState): void {
+  ui.post(stateTopic(tab), state);
+  void emit(SESSION_CHANGED, { tab, state } satisfies StateChanged, { tab: `%${tab}` }).catch((err) => console.warn(`agents: ${SESSION_CHANGED}: ${err?.message ?? err}`));
+}
 
 export const sessionBlock = () => self.plugin.prefixed("session");
 const hostsDir = () => join(paths.state, "hosts");
@@ -131,7 +142,7 @@ class Link {
     switch (message.t) {
       case "state":
         this.state = message.state;
-        ui.post(stateTopic(this.tab), message.state);
+        publishState(this.tab, message.state);
         void this.#sync();
         return;
       case "ack":
@@ -362,7 +373,7 @@ async function link(id: number): Promise<Link | undefined> {
     if (each.closed) return;
     // The host went: the view offers to start it again.
     const gone: HostState = { ...(each.state ?? { agent: name, name, cwd: "", pid: 0, canList: false, canLoad: false, canResume: false }), phase: "exited", error: "The agent's host stopped." };
-    ui.post(stateTopic(id), gone);
+    publishState(id, gone);
   });
   each.send({ t: "hello" });
   return each;

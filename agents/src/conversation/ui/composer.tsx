@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { call, Icon, motion, useMetrics, useTheme, type ElementRef } from "pumi";
 
+import { sameChips } from "../draft.ts";
 import type { ConfigOption, Image, Queued, SlashCommand, Status, Usage } from "../model.ts";
 import { recallTakes, stepRecall, keystrokeOf, queueKey, type RecallAt } from "../keys.ts";
 import { applyHint, applyMention, applySlash, baseName, caretAfterEdit, imageTypeOf, insertMentions, mentionAt, mentionText, relativeTo, skillHints, skillToken, slashAt, slashHints, spaceTokens, tokenSpans, type MentionHit, type MentionQuery } from "../view.ts";
@@ -84,7 +85,11 @@ export interface ComposerProps {
   draftKey?: string;
   /** The draft kept from before the app started again (`onDraft`'s): it starts from it when the window has none of its own. */
   savedDraft?: SavedDraft;
-  /** The draft changed (`null`: emptied, or sent), for a store that outlives the window. */
+  /** The draft another window of the chat wrote last, to show here as it is written there. */
+  remoteDraft?: SavedDraft;
+  /** Whether `remoteDraft` is the one to show: this window did not write the draft the chat has. */
+  adoptDraft?: boolean;
+  /** The draft changed (`null`: emptied, or sent), for the store every window of the tab reads. */
   onDraft?(saved: SavedDraft | null): void;
 }
 
@@ -128,8 +133,12 @@ export interface Chip {
 const kept = new Map<string, { draft: string; chips: Chip[] }>();
 
 const MAX_SLASH = 50;
-/** How long the typing rests before the draft is saved outside the window. */
-const DRAFT_SAVE_MS = 400;
+/**
+ * How long the typing rests before the draft leaves the window: `onDraft` is called with it, for the
+ * tab's other windows (`ui/shared.ts`) and for the tab's own options (`ui/kept.ts`, which writes those
+ * behind this, once the words settle). Short, so a prompt reads in both windows as it is written.
+ */
+const DRAFT_SAVE_MS = 60;
 const MAX_MENTIONS = 30;
 const ROW = 26;
 /** The field's own rows, when it is not filling the chat. */
@@ -199,6 +208,8 @@ export function Composer({
   handle,
   draftKey,
   savedDraft,
+  remoteDraft,
+  adoptDraft = false,
   onDraft,
 }: ComposerProps) {
   const t = useTheme();
@@ -307,6 +318,20 @@ export function Composer({
     setPlace(to);
     setDraftState(value);
   };
+  /** Whether this window typed in the field: its words are the ones it shows, until it lets them go. */
+  const typedHere = useRef(false);
+  // A draft written in another window of this chat shows here as it is written: the field takes it
+  // as it had been typed, its caret at the end. Not over words typed here, while this window has
+  // the keyboard: its own go to the other window the same way, and both cannot be written at once.
+  useEffect(() => {
+    if (!adoptDraft || !remoteDraft) return;
+    if (remoteDraft.draft === draftRef.current && sameChips(remoteDraft.chips, chips)) return;
+    if (typedHere.current && hasFocus.current) return;
+    // Taken, not written: `saved` keeps it from going back out as this window's own.
+    saved.current = remoteDraft.draft;
+    setDraft(remoteDraft.draft);
+    setChips(remoteDraft.chips);
+  }, [remoteDraft, adoptDraft]);
   /** The caret where the field says it is, if it says. */
   const told = (e: any): number | undefined => {
     const end = e?.selectionEnd;
@@ -609,6 +634,7 @@ export function Composer({
             interceptKeys={live ? LIST_KEYS : recallTakes("down", history, recall, draft) ? RECALL_BOTH : recallTakes("up", history, recall, draft) ? RECALL_UP : undefined}
             onChange={(e) => {
               const value = e.value ?? "";
+              typedHere.current = true;
               caret.current = told(e) ?? caretAfterEdit(draft, value);
               setAt(caret.current);
               setPlace(caret.current);

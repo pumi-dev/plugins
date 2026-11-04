@@ -32,8 +32,10 @@ import {
 } from "pumi";
 
 import type { Update } from "./conversation/change.ts";
+import type { SavedDraft, SharedDraft } from "./conversation/draft.ts";
 import type { Ack, Command, Cursor } from "./conversation/model.ts";
 import { agentSpec } from "./agents.ts";
+import { draftOf, forgetDraft, setDraft } from "./drafts.ts";
 import { Bridge, type TabOptions } from "./bridge.ts";
 import { mentions as findMentions } from "./mentions.ts";
 import { PICK_IN_TERMINAL } from "./models.ts";
@@ -220,6 +222,25 @@ export async function mentions(tab: number, query: string): Promise<MentionHit[]
 export async function sessionMentions(tab: number, query: string): Promise<MentionHit[]> {
   const cwd = (await option.get(SESSION_CWD, { scope: "tab", id: tabRef(tab) }).catch(() => null)) as string | null;
   return mentionsFrom(tab, cwd ?? undefined, typeof query === "string" ? query : "");
+}
+
+// ── The draft, for every window of a tab ─────────────────────────────────────────────────────
+
+/**
+ * A tab's draft as last written by any window of it: `undefined` until one writes. A window that
+ * opens the chat later starts from it, so the words typed in one window are there in the next.
+ */
+export async function draftRead(tab: number): Promise<SharedDraft | undefined> {
+  return draftOf(tab);
+}
+
+/**
+ * Tab `tab`'s draft, as the window `by` (its own name, `ui/shared.ts`) has it now: the text and
+ * chips, or `null` for one emptied or sent. Answers it as it is kept; the other windows hear it a
+ * moment after (`draft.changed`).
+ */
+export async function draftWrite(tab: number, by: string, saved: SavedDraft | null): Promise<SharedDraft> {
+  return setDraft(tab, by, saved);
 }
 
 /**
@@ -681,6 +702,7 @@ on("tab.closed", { desc: "Agents lets a closed tab's chat go" }, (e: PumiEvent) 
   if (typeof e.tab !== "string") return;
   const tab = numberOf(e.tab);
   stop(tab);
+  forgetDraft(tab);
   drawing.delete(tab);
   listen();
 });
