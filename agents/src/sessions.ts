@@ -169,7 +169,9 @@ class Link {
     const cursor: Cursor = { epoch: next.epoch, seq: next.seq };
     const changes = update.type === "changes" ? update.changes : [];
     const from = update.type === "changes" ? update.from : null;
-    void emit("conversation.changed", { tab: this.tab, changes, cursor, from }, { tab: tabRef(this.tab) }).catch(() => {});
+    // Said in the log when it cannot go out: a window that is not the plugin host's follows the
+    // conversation by this event, so a silent failure would leave it still.
+    void emit("conversation.changed", { tab: this.tab, changes, cursor, from }, { tab: tabRef(this.tab) }).catch((err) => console.warn(`agents: conversation.changed: ${err?.message ?? err}`));
     void this.#sync();
   }
 
