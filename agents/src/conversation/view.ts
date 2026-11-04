@@ -393,6 +393,20 @@ export function toolDiffStats(tool: Tool): { added: number; removed: number } | 
   );
 }
 
+/**
+ * Which side of a box at `top` a preview opens: above it, where the eye expects one over what it
+ * belongs to, unless the room over the box is less than the preview needs — then under it.
+ */
+export function previewSide(top: number, height = PREVIEW_HEIGHT): "top" | "bottom" {
+  return top < height ? "bottom" : "top";
+}
+
+/** The tallest a picture's preview is: its `maxHeight`, and the card's padding and border. */
+export const PREVIEW_HEIGHT = 232;
+
+/** A chip whose place in the window is not known yet: low enough that its picture opens above it. */
+export const PREVIEW_UNKNOWN = Number.MAX_SAFE_INTEGER;
+
 /** At most `max` lines of `text`, and how many more there were. */
 export function clipLines(text: string, max: number): { text: string; more: number } {
   const lines = text.split("\n");

@@ -10,4 +10,6 @@ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH RE
 
 Agent marks
 
-claude.svg, gemini.svg, qwen.svg, cursor.svg, opencode.svg and copilot.svg are from Simple Icons (https://simpleicons.org), released under CC0 1.0. Each mark is a trademark of its owner and is used only to show which agent a tab runs; this does not imply endorsement. pi.svg is Lucide's "pi" icon, under the Lucide License above.
+claude.svg, gemini.svg, qwen.svg, cursor.svg, opencode.svg and copilot.svg are from Simple Icons (https://simpleicons.org), released under CC0 1.0. Each mark is a trademark of its owner and is used only to show which agent a tab runs; this does not imply endorsement.
+
+pi.svg, omp.svg, codex.svg, droid.svg and kiro.svg are the vendors' own marks, scaled into the 24×24 box the others share and filled one colour so the app tints them. None of them is drawn by hand here. No icon here is Lucide's any more, though the License above is kept for the ones Zed's icons still draw from.

@@ -19,6 +19,8 @@ import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 import { useKept } from "./ui/kept.ts";
 
 export { Session } from "./ui/session.tsx";
+// The History panel (the manifest's `panel` slot).
+export { History } from "./ui/history.tsx";
 // Settings' page (the manifest's `settings`).
 export { SettingsPage } from "./settings.tsx";
 

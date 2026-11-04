@@ -78,7 +78,7 @@ export function QueueCard({ queue, onDelete, onEdit, onSteer, onSendNow, onClear
               >
                 <div style={{ width: 7, height: 7, flexShrink: 0, borderRadius: 4, backgroundColor: next ? t.accent : t.faint }} />
                 <div style={{ display: "flex", flexGrow: 1, flexShrink: 1, minWidth: 0 }}>
-                  <text style={{ fontFamily: type.mono, fontSize: type.code, lineHeight: type.codeLine, color: t.text, whiteSpace: "normal", lineClamp: 6 }}>{words}</text>
+                  <text style={{ fontFamily: type.mono, fontSize: type.code, lineHeight: type.codeLine, color: t.text, whiteSpace: "normal", lineClamp: 3 }}>{words}</text>
                 </div>
                 <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 }}>
                   {onDelete ? (

@@ -3,19 +3,20 @@
 // source and store, so no pumi needs to be running.
 import { expect, test } from "bun:test";
 
-import { DEFAULTS, GUIDE as BARE, type Settings } from "../../src/context/context.ts";
-import type { GivenSession } from "../../src/context/snapshot.ts";
-import { answer, readState, toldKey, turned, type Ask, type Source, type Store, type Turn } from "../../src/context/wire.ts";
+import { listed } from "../../src/context/blocks.ts";
+import { DEFAULTS, map, type Settings } from "../../src/context/context.ts";
+import type { GivenSession } from "../../src/context/snapshot.ts";import { answer, readState, toldKey, turned, type Ask, type Source, type Store, type Turn } from "../../src/context/wire.ts";
 import { sessions } from "./fake.ts";
 
-/** The guide as an answer starts with it: in its frame. */
-const GUIDE = `<pumi-context from="pumi_dev/agents">\n${BARE}`;
+/** How a first telling starts: the guide in its frame, saying where the agent is. */
+const GUIDE = `<pumi-context from="pumi_dev/agents">\nYou are in tab %11, pane :5, view @1, session $1 of pumi.`;
 
-/** The API, as `session.list` and `session.get` deep answer it. */
+/** The API, as `session.list` and `session.get` deep answer it, with the blocks the registry has. */
 function source(given: GivenSession[] = sessions()): Source {
   return {
     list: async () => given.map((session) => session.id),
     get: async (id) => given.find((session) => session.id === id) ?? null,
+    blocks: async () => listed([{ id: "file", provider: "core" }], []),
   };
 }
 
@@ -55,11 +56,14 @@ test("an agent is told the guide and the map at its first prompt, and nothing wh
   const first = await answer(turn(), deps);
   expect(first).not.toBeNull();
   expect(first!.startsWith(GUIDE)).toBe(true);
-  expect(first).toContain("<pumi-panes>\n$1 pumi (current)\n");
-  expect(first).toContain("      %11 π - claude — /Users/me/Kitchen/pumi — working (current)\n");
+  expect(first).toContain("You are in tab %11, pane :5, view @1, session $1 of pumi.");
+  expect(first).toContain("The tabs around you:\n\n$1 pumi (current)\n");
+  expect(first).toContain("      - %11, π - claude — working (you, current)\n");
+  // The blocks go out with the guide, under it.
+  expect(first).toContain("block types:\n\n- file: file\n");
   // What it was told is the map alone, kept for its agent and its own session.
   const kept = (deps.store as Store & { kept: Map<string, unknown> }).kept;
-  expect(kept.get(toldKey(turn()))).toBe(first!.split("<pumi-panes>\n")[1]!.replace("</pumi-panes>\n</pumi-context>\n", ""));
+  expect(kept.get(toldKey(turn()))).toBe(map(await readState(source(), 1), { otherSessions: true, session: 1, current: 1, you: 11 }));
   expect(await answer(turn(), deps)).toBeNull();
 });
 
@@ -82,7 +86,7 @@ test("a tab that opened since is what it is told next", async () => {
   expect(moved).not.toBeNull();
   expect(moved!.startsWith(`<pumi-context from="pumi_dev/agents">\n<pumi-panes-changed>`)).toBe(true);
   expect(moved).not.toContain(GUIDE);
-  expect(moved).toContain("%15 make test");
+  expect(moved).toContain("- %15, make test");
 });
 
 test("`updates: start` says nothing again until a session starts", async () => {
@@ -145,6 +149,7 @@ test("with no caller of its own, the worker marks the session the focused tab is
   expect(said).toContain("  @1 main (current)");
   expect(said).toContain("    :5 (focused)");
   // The agent's own session is in the map, unmarked.
+  expect(said).toContain("      - %20, π - site — blocked");
   expect(said).toContain("$2 site\n");
 });
 

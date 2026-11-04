@@ -4,15 +4,22 @@
 // hears the whole map again, which costs it a few lines. `context/` decides what is said.
 import { call, option, workspace } from "pumi";
 
+import { listed } from "./context/blocks.ts";
 import { settingsOf } from "./context/context.ts";
 import { num } from "./context/ids.ts";
 import type { GivenSession } from "./context/snapshot.ts";
 import { answer, turned, type Moment, type Source, type Store, type Turn } from "./context/wire.ts";
 
-/** Where the model comes from: `session.list`, and `session.get` deep for each one. */
+/** Where the model comes from: `session.list`, `session.get` deep for each one, and the blocks. */
 const source: Source = {
   list: () => call("session.list") as Promise<string[]>,
   get: (id) => call("session.get", id, { deep: true }) as Promise<GivenSession | null>,
+  // A registry that does not answer is no block types, not no context: the guide goes out anyway.
+  blocks: async () =>
+    listed(
+      await call("registry.list", "block", {}).catch(() => []),
+      await call("registry.list", "plugin", {}).catch(() => []),
+    ),
 };
 
 /** How many agents' last maps are kept: the oldest goes first. */

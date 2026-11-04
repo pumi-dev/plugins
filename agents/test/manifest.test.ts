@@ -41,7 +41,7 @@ describe("the manifest", () => {
   test("gives its slot components from ui.tsx", () => {
     const names = exported(ui);
     const slots: Record<string, { component?: string }> = manifest.contributes.slots;
-    expect(Object.keys(slots)).toEqual(["tab.toolbar"]);
+    expect(Object.keys(slots)).toEqual(["tab.toolbar", "panel"]);
     for (const slot of Object.values(slots)) expect(names.has(slot.component!)).toBe(true);
   });
 
