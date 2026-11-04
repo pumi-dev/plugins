@@ -520,7 +520,7 @@ export function Composer({
 
   const canSend = !disabled && draft.trim() !== "";
   const who = agent ?? "the agent";
-  const hint = `Ask anything${[commands.length > 0 ? "/ for commands" : undefined, onMentions ? "@ for context" : undefined].filter(Boolean).map((each) => `, ${each}`).join("")}…`;
+  const hint = `Write your prompt here. Ask anything${[commands.length > 0 ? "/ for commands" : undefined, onMentions ? "@ for context" : undefined].filter(Boolean).map((each) => `, ${each}`).join("")}…`;
   const option = (category: ConfigOption["category"]) => options.find((each) => each.category === category && ((each.choices?.length ?? 0) > 0 || typeof each.current === "boolean"));
   const thought = option("thought_level");
   const mode = option("mode");
