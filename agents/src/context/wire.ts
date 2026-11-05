@@ -1,17 +1,17 @@
 // The workspace context's state: what the API says about the workspace, and the answer to a turn.
-// Everything here takes what it needs as an argument (the source, `session.list` and `session.get`
+// Everything here takes what it needs as an argument (the source, `project.list` and `project.get`
 // deep; the store of what each agent was told; the settings), so a test hands it a fake and no
 // pumi needs to be running. `main.ts` wires it to the hook and to session tabs.
 import { compose, frame, map, type Settings, type When } from "./context.ts";
 import { num } from "./ids.ts";
-import { read, type GivenSession, type Snapshot } from "./snapshot.ts";
+import { read, type GivenProject, type Snapshot } from "./snapshot.ts";
 
-/** Where the model comes from: the sessions, and each one's whole tree in one call. */
+/** Where the model comes from: the projects, and each one's whole tree in one call. */
 export interface Source {
-  /** Every session's id, in creation order (`session.list`). */
+  /** Every project's id, in creation order (`project.list`). */
   list(): Promise<string[]>;
-  /** One session and its views, panes and tabs (`session.get` with `deep`), or `null`. */
-  get(id: string): Promise<GivenSession | null>;
+  /** One project and its views, panes and tabs (`project.get` with `deep`), or `null`. */
+  get(id: string): Promise<GivenProject | null>;
 }
 
 /** Where what an agent was told is kept. */
@@ -55,12 +55,12 @@ export function toldKey(turn: Moment): string {
   return `told:2:${turn.agent}:${turn.session ?? turn.tab}`;
 }
 
-/** The model, as the API has it now; `here` is the caller's session, which the map marks. */
+/** The model, as the API has it now; `here` is the caller's project, which the map marks. */
 export async function readState(source: Source, here: number | null): Promise<Snapshot> {
   const ids = await source.list();
-  const sessions = await Promise.all(ids.map((id) => source.get(id)));
+  const projects = await Promise.all(ids.map((id) => source.get(id)));
   return read(
-    sessions.filter((session): session is GivenSession => session !== null),
+    projects.filter((project): project is GivenProject => project !== null),
     here,
   );
 }
@@ -70,7 +70,7 @@ export interface Ask {
   source: Source;
   store: Store;
   settings: Settings;
-  /** The caller's own session (`workspace.currentSession`). */
+  /** The caller's own project (`workspace.currentProject`). */
   here: number | null;
 }
 
@@ -79,12 +79,12 @@ export async function answer(turn: Turn, ask: Ask): Promise<string | null> {
   if (!ask.settings.context) return null;
   const snapshot = await readState(ask.source, ask.here);
   const mine = snapshot.tabs.find((tab) => tab.id === num(turn.tab));
-  // Where the user is: the caller's session, else the session of the tab that has the focus (`%3`
+  // Where the user is: the caller's project, else the project of the tab that has the focus (`%3`
   // is a tab a client is in, which a plugin's own worker never is).
-  const current = ask.here ?? snapshot.tabs.find((tab) => tab.focused)?.session ?? null;
+  const current = ask.here ?? snapshot.tabs.find((tab) => tab.focused)?.project ?? null;
   const said = map(snapshot, {
-    otherSessions: ask.settings.otherSessions,
-    session: mine?.session ?? current,
+    otherProjects: ask.settings.otherProjects,
+    project: mine?.project ?? current,
     current,
   });
   const key = toldKey(turn);

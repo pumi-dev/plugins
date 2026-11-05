@@ -1,14 +1,14 @@
 // What an agent is told: the guide once, only what changed after, and nothing when nothing did,
-// and the map it is told it with — every session, view, pane and tab, with the ids pumi takes.
+// and the map it is told it with — every project, view, pane and tab, with the ids pumi takes.
 import { expect, test } from "bun:test";
 
 import { compose, DEFAULTS, frame, GUIDE, map, settingsOf } from "../../src/context/context.ts";
 import { read, EMPTY } from "../../src/context/snapshot.ts";
-import { sessions } from "./fake.ts";
+import { projects } from "./fake.ts";
 
 const PANES = "<pumi-panes>\na\n</pumi-panes>\n";
-const all = () => read(sessions(), 1);
-const mine = (here: number | null = 1, otherSessions = true) => map(all(), { otherSessions, session: here });
+const all = () => read(projects(), 1);
+const mine = (here: number | null = 1, otherProjects = true) => map(all(), { otherProjects, project: here });
 
 test("the guide is the template the core ships", () => {
   expect(GUIDE.startsWith("<pumi>")).toBe(true);
@@ -16,7 +16,7 @@ test("the guide is the template the core ships", () => {
   expect(GUIDE).toContain("<pumi-panes>");
 });
 
-test("the map names every session, view, pane and tab with the ids pumi takes", () => {
+test("the map names every project, view, pane and tab with the ids pumi takes", () => {
   expect(mine().split("\n")).toEqual([
     "$1 pumi (current)",
     "  @1 main (current)",
@@ -40,20 +40,20 @@ test("the map names every session, view, pane and tab with the ids pumi takes", 
 
 test("the map marks where the user is, even when the agent is elsewhere", () => {
   // The agent is in `$2`; the user is in `$1`, which is what the markers say.
-  const said = map(all(), { otherSessions: true, session: 2, current: 1 });
+  const said = map(all(), { otherProjects: true, project: 2, current: 1 });
   expect(said.split("\n")[0]).toBe("$1 pumi (current)");
   expect(said).toContain("    :5 (focused)");
   expect(said).toContain("$2 site\n");
 });
 
-test("other sessions stay out of the map when the option is off", () => {
+test("other projects stay out of the map when the option is off", () => {
   const said = mine(1, false);
   expect(said).not.toContain("$2");
   expect(said).toContain("%11");
 });
 
 test("a map of nothing is a newline", () => {
-  expect(map(EMPTY, { otherSessions: true, session: null })).toBe("\n");
+  expect(map(EMPTY, { otherProjects: true, project: null })).toBe("\n");
 });
 
 test("an agent is told once, then only what changed", () => {
@@ -73,7 +73,7 @@ test("a session that starts again hears the whole thing, unless it is resumed", 
 
 test("the settings are the options' values, each one its default when it is not one", () => {
   expect(settingsOf(null, null, null)).toEqual(DEFAULTS);
-  expect(settingsOf(false, "start", false)).toEqual({ context: false, updates: "start", otherSessions: false });
+  expect(settingsOf(false, "start", false)).toEqual({ context: false, updates: "start", otherProjects: false });
   expect(settingsOf("yes", "sometimes", 1)).toEqual(DEFAULTS);
 });
 

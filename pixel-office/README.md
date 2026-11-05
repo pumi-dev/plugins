@@ -2,7 +2,7 @@
 
 <p align="center"><img src="preview.svg" width="640" alt="pumi as a pixel-art office: desks with agents at them, typing, asking and done"></p>
 
-A UI theme: pumi as a pixel-art office you walk around. Every session is a room, every view a desk
+A UI theme: pumi as a pixel-art office you walk around. Every project is a room, every view a desk
 whose little screen shows its tab live, and every tab with a status sits at its desk as a player
 with a bubble saying what it is doing.
 

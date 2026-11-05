@@ -1,7 +1,7 @@
 {
   "name": "pumi-git",
   "displayName": "Git",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "GPL-3.0-or-later",
   "description": "Git in the sidebar: stage, commit, history and diffs.",
   "keywords": [
@@ -30,6 +30,7 @@
     "name": "git",
     "owner": "pumi_dev",
     "api": 1,
+    "minPumi": "0.50.0",
     "icon": "icon.png",
     "images": [
       {

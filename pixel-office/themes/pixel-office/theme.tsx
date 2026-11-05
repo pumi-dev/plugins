@@ -1,6 +1,6 @@
 // Pixel Office: pumi as a pixel office you walk around: wood floors,
 // carpeted rooms with their names on signs, dark name tags, framed game boxes and a pixel font. A
-// desk for every view of every session (or every tab), each with its live screen; sit at one and
+// desk for every view of every project (or every tab), each with its live screen; sit at one and
 // its real views open on the monitor. Its Mode setting draws it by day or at night: the same room,
 // its own colours for each (`palette.ts`).
 import { defineTheme } from "pumi"

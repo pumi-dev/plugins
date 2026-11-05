@@ -1,11 +1,11 @@
-// The model the map is made from: every session, its views, their panes and each pane's tabs, with
+// The model the map is made from: every project, its views, their panes and each pane's tabs, with
 // the options that say what a tab is — numeric ids, one record each.
 //
-// It is built from `read`: the worker reads the API (`session.list`, then `session.get` with
-// `deep`, which carries a session's whole tree in one call), so a row reads the same whichever
+// It is built from `read`: the worker reads the API (`project.list`, then `project.get` with
+// `deep`, which carries a project's whole tree in one call), so a row reads the same whichever
 // half made the model, and the map can be tested with no pumi running.
 //
-// What the server's own read does not have: the sessions of other servers (`server.list` +
+// What the server's own read does not have: the projects of other servers (`server.list` +
 // `server.call` reach those, unimplemented here).
 import { AGENT, STATUS } from "../names.ts";
 import { num } from "./ids.ts";
@@ -24,8 +24,8 @@ export interface Program {
 export interface Tab {
   /** `%3`. */
   id: number;
-  /** `$1` its session is in. */
-  session: number;
+  /** `$1` its project is in. */
+  project: number;
   /** `@2` its view. */
   view: number;
   /** `:4` its pane, or `null` for a float or a hidden tab. */
@@ -54,8 +54,8 @@ export interface Tab {
 export interface Pane {
   /** `:4`. */
   id: number;
-  /** `$1` its view's session. */
-  session: number;
+  /** `$1` its view's project. */
+  project: number;
   /** `@2` its view. */
   view: number;
   /** Its place in its view's layout, from 0, as the layout lays it out. */
@@ -72,9 +72,9 @@ export interface Pane {
 export interface View {
   /** `@2`. */
   id: number;
-  /** `$1` its session. */
-  session: number;
-  /** Its place in its session, from 0, as the server counts it. */
+  /** `$1` its project. */
+  project: number;
+  /** Its place in its project, from 0, as the server counts it. */
   index: number;
   /** The name it was given, or `""` while it takes its active tab's title. */
   name: string;
@@ -82,34 +82,34 @@ export interface View {
   panes: Pane[];
   /** The tabs that float over it, or are hidden: in no pane. */
   floating: Tab[];
-  /** It is its session's active view. */
+  /** It is its project's active view. */
   focused: boolean;
 }
 
-/** A session (`$1`): its views, and how pumi names it. */
-export interface Session {
+/** A project (`$1`): its views, and how pumi names it. */
+export interface Project {
   /** `$1`. */
   id: number;
-  /** Its name, or `""` when it has none. */
-  label: string;
-  /** It is the session in front. */
+  /** Its folder: where its terminals start without a `cwd` of their own. */
+  path: string;
+  /** It is the project in front. */
   focused: boolean;
   /** Its views, in index order. */
   views: View[];
 }
 
 export interface Snapshot {
-  sessions: Session[];
+  projects: Project[];
   views: View[];
   panes: Pane[];
   tabs: Tab[];
 }
 
-/** A tab as `session.get` with `deep` carries it. */
+/** A tab as `project.get` with `deep` carries it. */
 export interface GivenTab {
   id: string;
-  /** `$1` its session, `@2` its view: what the tab itself says, which the view it is under repeats. */
-  session?: string;
+  /** `$1` its project, `@2` its view: what the tab itself says, which the view it is under repeats. */
+  project?: string;
   view?: string | null;
   block?: string;
   title?: string | null;
@@ -121,11 +121,11 @@ export interface GivenTab {
   isFocused?: boolean;
 }
 
-/** A view as `session.get` with `deep` carries it: its layout, and every tab in it. */
+/** A view as `project.get` with `deep` carries it: its layout, and every tab in it. */
 export interface GivenView {
   id: string;
-  /** `$1` its session, as the view says it. */
-  session?: string;
+  /** `$1` its project, as the view says it. */
+  project?: string;
   name?: string | null;
   index?: number;
   /** Its panes as they split: `{pane, tabs}`, or `{axis, ratio, first, second}`. */
@@ -136,10 +136,10 @@ export interface GivenView {
   zoom?: string | null;
 }
 
-/** A session as `session.get` with `deep` carries it. */
-export interface GivenSession {
+/** A project as `project.get` with `deep` carries it. */
+export interface GivenProject {
   id: string;
-  name?: string | null;
+  path?: string;
   views?: string[] | null;
   activeView?: string | null;
   /** With `deep`: every view, each with its tabs. */
@@ -152,7 +152,7 @@ export interface GivenPane {
   tabs: number[];
 }
 
-export const EMPTY: Snapshot = { sessions: [], views: [], panes: [], tabs: [] };
+export const EMPTY: Snapshot = { projects: [], views: [], panes: [], tabs: [] };
 
 const array = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const obj = (v: unknown): Record<string, unknown> =>
@@ -202,12 +202,12 @@ export function panesIn(layout: unknown, out: GivenPane[] = []): GivenPane[] {
 }
 
 /** One tab, as the map reads it. */
-function tabOf(given: GivenTab, session: number, view: number, pane: number | null, index: number): Tab {
+function tabOf(given: GivenTab, project: number, view: number, pane: number | null, index: number): Tab {
   const said = obj(given.options);
   const title = str(given.title);
   return {
     id: num(given.id),
-    session,
+    project,
     view,
     pane,
     index,
@@ -223,15 +223,15 @@ function tabOf(given: GivenTab, session: number, view: number, pane: number | nu
   };
 }
 
-/** Every session, view, pane and tab, as the map reads them: one nesting, and what each tab says. */
-export function read(given: GivenSession[], here: number | null): Snapshot {
-  const sessions: Session[] = [];
+/** Every project, view, pane and tab, as the map reads them: one nesting, and what each tab says. */
+export function read(given: GivenProject[], here: number | null): Snapshot {
+  const projects: Project[] = [];
   const views: View[] = [];
   const panes: Pane[] = [];
   const tabs: Tab[] = [];
 
   for (const each of given) {
-    const session = num(each.id);
+    const project = num(each.id);
     const activeView = str(each.activeView) === "" ? null : num(str(each.activeView));
     const madeViews: View[] = [];
 
@@ -264,11 +264,11 @@ export function read(given: GivenSession[], here: number | null): Snapshot {
           ...strip.map((one) => held.find((tab) => num(tab.id) === one)).filter((tab): tab is GivenTab => tab !== undefined),
           ...held.filter((tab) => !strip.includes(num(tab.id))),
         ];
-        const made = ordered.map((tab, at) => tabOf(tab, session, view, id, at));
+        const made = ordered.map((tab, at) => tabOf(tab, project, view, id, at));
         tabs.push(...made);
         return {
           id,
-          session,
+          project,
           view,
           index,
           tabs: made,
@@ -276,12 +276,12 @@ export function read(given: GivenSession[], here: number | null): Snapshot {
           zoomed: str(givenView.zoom) !== "" && num(str(givenView.zoom)) === id,
         };
       });
-      const madeFloating = floating.map((tab, at) => tabOf(tab, session, view, null, at));
+      const madeFloating = floating.map((tab, at) => tabOf(tab, project, view, null, at));
       tabs.push(...madeFloating);
 
       const made: View = {
         id: view,
-        session,
+        project,
         index: typeof givenView.index === "number" ? givenView.index : at,
         name: str(givenView.name),
         panes: madePanes,
@@ -293,8 +293,8 @@ export function read(given: GivenSession[], here: number | null): Snapshot {
       madeViews.push(made);
     });
 
-    sessions.push({ id: session, label: str(each.name), focused: here === session, views: madeViews });
+    projects.push({ id: project, path: str(each.path), focused: here === project, views: madeViews });
   }
 
-  return { sessions, views, panes, tabs };
+  return { projects, views, panes, tabs };
 }

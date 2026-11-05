@@ -61,7 +61,7 @@ import {
   restart,
   retry,
   sessionRead,
-  sessionCwd,
+  projectDir,
   sessionSend,
   setOpenTerminal,
   startSession,
@@ -224,11 +224,11 @@ export async function sessionMentions(tab: number, query: string): Promise<Menti
 
 /**
  * The tabs and the files `query` finds for tab `tab`'s agent, which runs in `cwd`. Its files are
- * its project's: `cwd`, or its session's directory while `cwd` is the home folder (then each path
+ * its project's: `cwd`, or its project's folder while `cwd` is the home folder (then each path
  * is whole, since the agent's directory is not where it is from).
  */
 async function mentionsFrom(tab: number, cwd: string | undefined, query: string): Promise<MentionHit[]> {
-  const project = isProject(cwd) ? cwd : await sessionCwd(tab);
+  const project = isProject(cwd) ? cwd : await projectDir(tab);
   const [tabs, files] = await Promise.all([tabMentions(tab, query), findMentions(project, query)]);
   const whole = project !== undefined && project !== cwd;
   return [...tabs, ...(whole ? files.map((hit) => ({ ...hit, path: `${project.replace(/\/+$/, "")}/${hit.path}` })) : files)];
