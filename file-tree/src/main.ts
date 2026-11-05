@@ -220,8 +220,15 @@ export async function reread(had = -1): Promise<View | null> {
 
 // ---- what the app reaches
 
+/**
+ * Opens the side bar, which is where the tree is. The switch is the app's own (`toggle_sidebar`,
+ * ⌘B): a plugin cannot press a key in the window, so it asks the app to run the command
+ * (`command.run`), and a pumi that does not answer leaves the side bar as it is.
+ */
+const openSidebar = () => call("command.run", "toggle_sidebar").catch(() => null);
+
 /** `cmd+shift+e`, as the app's own key does: the sidebar, which is where the page is. */
-fn.set("toggle", { desc: "Open the files sidebar." }, () => call("toggle_sidebar"));
+fn.set("toggle", { desc: "Open the files sidebar." }, () => openSidebar());
 
 /** The current tab's file, shown in the tree: its folders opened and the cursor on it. A file
  *  outside the project the tree shows points the tree at the file's folder first. */
@@ -238,7 +245,7 @@ fn.set("reveal", { desc: "Show the current tab's file in the project tree." }, a
 
 /** `cmd+f`: the filter box, and the keyboard in it. */
 fn.set("filter", { desc: "Open the files sidebar and filter its tree." }, async () => {
-  await call("toggle_sidebar");
+  await openSidebar();
   searching(true);
 });
 
