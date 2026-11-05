@@ -7,7 +7,7 @@
 // disk, is the worker's (`main.ts`, `panel.ts`, `intent.ts`): a key, a click and a drop each go
 // there and answer the rows as they are afterwards.
 import { Fragment, memo, useEffect, useRef, useState } from "react";
-import { Icon, useAppearance, useDraggable, useDroppable, useInterval, useMetrics, useSession, useTab, useTheme } from "pumi";
+import { Icon, useDraggable, useDroppable, useInterval, useMetrics, useSession, useTab, useTheme } from "pumi";
 
 import { activate, adding, cancelled, chose, committed, dropped, filtered, firstMatch, load, named, pressed, reread, searching, type View } from "./main.ts";
 import { adopt } from "./adopt.ts";
@@ -37,6 +37,19 @@ function chordOf(event: { key?: string | null; modifiers?: { ctrl?: boolean; alt
   const parts = [m.ctrl && "ctrl", m.alt && "alt", m.shift && "shift", m.cmd && "cmd"].filter(Boolean) as string[];
   const key = event.key ?? "";
   return parts.length ? `${parts.join("+")}+${key}` : key;
+}
+
+/** Whether `color` is light, by its brightness (WCAG's relative luminance, above 0.4): which of the
+ *  Material Icon Theme's variants a row's icon takes. The window's own colour says which way the
+ *  theme goes, as it does for the app's native chrome; a plugin is given no appearance of its own. */
+function isLight(color: string): boolean {
+  const hex = /^#[0-9a-f]{6}/i.test(color) ? color : "#000000";
+  const n = Number.parseInt(hex.slice(1, 7), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b! >= 0.4;
 }
 
 /** A throw the tree cannot answer: said in the log, not drawn over the window. */
@@ -301,7 +314,7 @@ function Search({
 const RowView = memo(function RowView({ row, naming, actions }: { row: Row; naming: { name: string; isDir: boolean } | null; actions: RowActions }) {
   const t = useTheme();
   const m = useMetrics();
-  const light = useAppearance() === "light";
+  const light = isLight(t.window);
   const drag = useDraggable({ path: row.path }, { disabled: row.path === "" });
   const drop = useDroppable({ onDrop: (data) => actions.drop(row.key, pathsOf(data)) });
   const color = colorTokens(row.color).map((token) => t[token]).find((each) => each !== undefined) ?? t.text;
