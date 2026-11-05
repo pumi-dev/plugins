@@ -1,12 +1,12 @@
 // What an agent is told about the workspace it is in: the guide (`context/guide.md`), the map of
-// every session, view, pane and tab built from the model, and `compose`, which decides whether an
+// every project, view, pane and tab built from the model, and `compose`, which decides whether an
 // agent is told the whole thing again, only what changed, or nothing. The hook (`hooks/run.ts`)
 // and a session tab (`sessions.ts`) hand it on; `wire.ts` keeps what each agent was told. No
 // `import … from "pumi"` here.
 import { readFileSync } from "node:fs";
 
 import { paneRef, tabRef } from "./ids.ts";
-import { sessionLabel, tabTitle, viewLabel } from "./label.ts";
+import { projectLabel, tabTitle, viewLabel } from "./label.ts";
 import type { Snapshot, Tab } from "./snapshot.ts";
 import { shown } from "./status.ts";
 
@@ -25,18 +25,18 @@ export interface Settings {
   context: boolean;
   /** `changes` tells it again when the tabs move, `start` only at a start. */
   updates: Updates;
-  /** Whether other sessions' tabs are in the map. */
-  otherSessions: boolean;
+  /** Whether other projects' tabs are in the map. */
+  otherProjects: boolean;
 }
 
-export const DEFAULTS: Settings = { context: true, updates: "changes", otherSessions: true };
+export const DEFAULTS: Settings = { context: true, updates: "changes", otherProjects: true };
 
 /** The settings, from the options' values as the server answers them. */
-export function settingsOf(context: unknown, updates: unknown, otherSessions: unknown): Settings {
+export function settingsOf(context: unknown, updates: unknown, otherProjects: unknown): Settings {
   return {
     context: typeof context === "boolean" ? context : DEFAULTS.context,
     updates: updates === "start" ? "start" : "changes",
-    otherSessions: typeof otherSessions === "boolean" ? otherSessions : DEFAULTS.otherSessions,
+    otherProjects: typeof otherProjects === "boolean" ? otherProjects : DEFAULTS.otherProjects,
   };
 }
 
@@ -57,26 +57,26 @@ function marks(parts: string[]): string {
 }
 
 /**
- * The map: every session, view, pane and tab an agent is told about, with the ids `pumi` takes —
- * `$1` a session, `@2` a view, `:4` a pane, `%3` a tab — what runs in each tab, where, and what it
+ * The map: every project, view, pane and tab an agent is told about, with the ids `pumi` takes —
+ * `$1` a project, `@2` a view, `:4` a pane, `%3` a tab — what runs in each tab, where, and what it
  * is doing.
  *
- * `session` is the agent's own: `otherSessions` off keeps the map to it. `current` is where the
- * user is, which the markers say; without one it is the agent's session too.
+ * `project` is the agent's own: `otherProjects` off keeps the map to it. `current` is where the
+ * user is, which the markers say; without one it is the agent's project too.
  */
 export function map(
   snapshot: Snapshot,
-  opts: { otherSessions: boolean; session: number | null; current?: number | null },
+  opts: { otherProjects: boolean; project: number | null; current?: number | null },
 ): string {
-  const where = opts.current === undefined ? opts.session : opts.current;
+  const where = opts.current === undefined ? opts.project : opts.current;
   const lines: string[] = [];
-  for (const session of snapshot.sessions) {
-    if (!opts.otherSessions && opts.session !== null && session.id !== opts.session) continue;
+  for (const project of snapshot.projects) {
+    if (!opts.otherProjects && opts.project !== null && project.id !== opts.project) continue;
     // What the markers say is where the user is: a view's and a pane's own "current" mean nothing
-    // about a session the user is not in.
-    const live = session.id === where;
-    lines.push(`${sessionLabel(session)}${live ? " (current)" : ""}`);
-    for (const view of session.views) {
+    // about a project the user is not in.
+    const live = project.id === where;
+    lines.push(`${projectLabel(project)}${live ? " (current)" : ""}`);
+    for (const view of project.views) {
       lines.push(`  ${viewLabel(view)}${live && view.focused ? " (current)" : ""}`);
       for (const pane of view.panes) {
         const focused = live && view.focused && pane.focused;

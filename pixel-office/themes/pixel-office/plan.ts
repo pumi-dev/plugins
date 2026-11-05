@@ -1,9 +1,9 @@
-// The office's plan: a session is a pod on the carpet with its name on it, and every view in it is a
+// The office's plan: a project is a pod on the carpet with its name on it, and every view in it is a
 // desk — or, with "a desk for every tab" on, one desk for each tab in a split view — plus the free
 // desk that makes a new view. Pods stand next to each other, wrap onto the next row when the floor
 // runs out, and the rows sit in the middle of the room. The plan also says what you bump into
 // (desks, the shelf, the coffee machine, the wall) and how to walk around it.
-import type { Session, Tab, View } from "pumi/theme"
+import type { Project, Tab, View } from "pumi/theme"
 
 /** A desk's cell on the carpet. */
 export const CELL_W = 176
@@ -44,9 +44,9 @@ export interface Seat {
   i: number
 }
 
-/** A session: its carpet, its name, and the cells its desks stand in. */
+/** A project: its carpet, its name, and the cells its desks stand in. */
 export interface Pod {
-  session: Session
+  project: Project
   cols: number
   down: number
   seats: Seat[]
@@ -91,19 +91,19 @@ export function seatsOf(view: View, tabs: Tab[], perTab: boolean): Seat[] {
 export const deskKey = (seat: Seat) => `${seat.view.view_id}${seat.tab ? `:${seat.tab.tab_id}` : ""}`
 
 /**
- * The room: each session's pod (its desks in columns, about as wide as tall, and a free desk), the
+ * The room: each project's pod (its desks in columns, about as wide as tall, and a free desk), the
  * pods in rows in the middle of the floor, the props along its edges.
  */
-export function plan(sessions: Session[], views: View[], tabs: Tab[], width: number, viewHeight: number, perTab: boolean, lowest = 0): Plan {
+export function plan(projects: Project[], views: View[], tabs: Tab[], width: number, viewHeight: number, perTab: boolean, lowest = 0): Plan {
   const pods: Pod[] = []
-  for (const session of sessions) {
-    const seats = views.filter((view) => view.workspace_id === session.workspace_id).flatMap((view) => seatsOf(view, tabs, perTab))
+  for (const project of projects) {
+    const seats = views.filter((view) => view.project_id === project.project_id).flatMap((view) => seatsOf(view, tabs, perTab))
     // Its desks, and always a free one.
     const n = seats.length + 1
     const down = Math.max(1, Math.min(n, Math.ceil(Math.sqrt(n / 1.4))))
     const cols = Math.ceil(n / down)
     pods.push({
-      session,
+      project,
       cols,
       down,
       seats,
@@ -147,7 +147,7 @@ export function plan(sessions: Session[], views: View[], tabs: Tab[], width: num
   const props: Prop[] = [
     { id: "shelf", label: "Bookshelf", x: 24, y: WALL + 10, w: 56, h: 60 },
     { id: "coffee", label: "Settings", x: 92, y: WALL + 14, w: 32, h: 48 },
-    { id: "door", label: "Sessions", x: Math.round(width / 2) - 30, y: height - 32, w: 60, h: 28 },
+    { id: "door", label: "Projects", x: Math.round(width / 2) - 30, y: height - 32, w: 60, h: 28 },
   ]
   return { width, height, pods, props, lounge, centre: { x: Math.round(width / 2), y: Math.min(height - 60, bottom + 18) } }
 }
