@@ -8,7 +8,6 @@ pumi plugin add pumi-dev/plugins/file-tree
 
 | Plugin | |
 | --- | --- |
-| [Launcher](launcher) | a tab that lists what you can open in it, for new tabs |
 | [Terminal](terminal) | a shell in a tab |
 | [File Tree](file-tree) | the project tree in the sidebar: open, rename, move, trash and search files, with git's marks |
 | [Git](git) | stage, commit, history and diffs in the sidebar |
