@@ -1,8 +1,9 @@
 // The office's kit: the pixel font, the game's framed boxes, dark name tags,
 // painted signs, hotbar slots, keycaps, the speech bubbles, and the room's art by path.
 import { useSyncExternalStore, type ReactNode } from "react"
-import { Icon, useTheme, type Tokens } from "pumi"
-import { useAppearance } from "pumi/theme"
+import { Icon, type Tokens } from "pumi"
+import { useThemeOption } from "pumi/theme"
+import { DARK, LIGHT, type Look } from "./palette.ts"
 
 /** The typeface everything is drawn in: the theme brings it (`fonts/`). */
 export const FONT = "Pixelify Sans"
@@ -14,11 +15,25 @@ export const FONT = "Pixelify Sans"
  */
 export const art = (name: string) => `${import.meta.dir}/images/${name}.svg`
 
+/** The look the office is drawn in: its own Mode setting, day unless it says night. */
+export function useLook(): Look {
+  return useThemeOption<string>("appearance", "light") === "dark" ? "dark" : "light"
+}
+
+/**
+ * The office's colours, for the look it is drawn in: every part of it is drawn in these rather than
+ * the window's tokens, which a theme gives once (its spec's day set) and cannot change as it runs.
+ * So Mode redraws the room, its floors, its lighting and its paint.
+ */
+export function useOfficeTheme(): Tokens {
+  return useLook() === "light" ? LIGHT : DARK
+}
+
 /** The floors, by the look in use; the size of a tile in points. */
 export const FLOOR_TILES = { wood: [384, 192], carpet: [128, 128], rug: [128, 128], tile: [128, 128] } as const
 export type FloorTile = keyof typeof FLOOR_TILES
 export function useFloorArt(kind: FloorTile): { src: string; size: [number, number] } {
-  const look = useAppearance()
+  const look = useLook()
   const [w, h] = FLOOR_TILES[kind]
   return { src: art(`floors/${look}/${kind}`), size: [w, h] }
 }
@@ -88,7 +103,7 @@ export function Bubble({ status, style }: { status?: string; style?: Record<stri
 
 /** A name tag: a dark pill over whoever it names, with a dot for how they are. */
 export function Nametag({ children, dot, dim, active, size = 12 }: { children: string; dot?: string; dim?: boolean; active?: boolean; size?: number }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div
       style={{
@@ -114,7 +129,7 @@ export function Nametag({ children, dot, dim, active, size = 12 }: { children: s
 
 /** A painted plate, as a room's name is on its wall: square corners, a dark rim, a light edge. */
 export function Sign({ children, before, onClick, title }: { children: string; before?: ReactNode; onClick?(): void; title?: string }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div
       onClick={onClick}
@@ -141,7 +156,7 @@ export function Sign({ children, before, onClick, title }: { children: string; b
 
 /** A room's name on the plate over its top edge. */
 export function RoomLabel({ children, dot, count, active, onClick, title }: { children: string; dot?: string; count?: number; active?: boolean; onClick?(): void; title?: string }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div
       onClick={onClick}
@@ -199,7 +214,7 @@ export function box(t: Tokens, kind: "dialog" | "slot" | "sign" | "panel" | "tag
 
 /** A hotbar slot: a square framed button with its icon, its number in the corner, lit gold when on. */
 export function Slot({ icon, glyph, label, number, active, onClick, size = 40 }: { icon?: string; glyph?: string; label: string; number?: string; active?: boolean; onClick(): void; size?: number }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div
       onClick={onClick}
@@ -229,7 +244,7 @@ export function Slot({ icon, glyph, label, number, active, onClick, size = 40 }:
 
 /** A wide hotbar slot with its word: what the bar's main buttons are. */
 export function WideSlot({ icon, label, active, onClick, number }: { icon: string; label: string; active?: boolean; onClick(): void; number?: string }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div
       onClick={onClick}
@@ -260,7 +275,7 @@ export function WideSlot({ icon, label, active, onClick, number }: { icon: strin
 
 /** A square framed button, as a game's are. */
 export function PixelButton({ icon, onClick, title, active, size = 28 }: { icon: string; onClick(): void; title?: string; active?: boolean; size?: number }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div
       onClick={onClick}
@@ -288,7 +303,7 @@ export function PixelButton({ icon, onClick, title, active, size = 28 }: { icon:
 
 /** A keycap, as a game prints the key to press. */
 export function Keycap({ children }: { children: string }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minWidth: 20, height: 20, paddingLeft: 5, paddingRight: 5, borderRadius: 3, backgroundColor: t.sign, borderWidth: 1, borderColor: t.signRim, boxShadow: { offsetX: 0, offsetY: 2, blurRadius: 0, spreadRadius: 0, color: t.signRim } }}>
       <text style={{ fontFamily: FONT, fontSize: 12, color: t.signText }}>{children}</text>
@@ -298,7 +313,7 @@ export function Keycap({ children }: { children: string }) {
 
 /** A text button in a dialog: framed, filled when it is the one that goes ahead. */
 export function DialogButton({ label, fill, onClick }: { label: string; fill?: string; onClick(): void }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div onClick={onClick} style={{ display: "flex", alignItems: "center", height: 30, paddingLeft: 14, paddingRight: 14, cursor: "pointer", ...box(t, "slot"), ...(fill ? { backgroundColor: fill } : {}), hover: { borderColor: t.slotActive } }}>
       <text style={{ fontFamily: FONT, fontSize: 14, color: fill ? t.accentText : t.slotText }}>{label}</text>
@@ -308,7 +323,7 @@ export function DialogButton({ label, fill, onClick }: { label: string; fill?: s
 
 /** A dialog's pointing hand: the ▶ before the choice you're on. */
 export function Cursor({ on }: { on: boolean }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const nudge = useBeat(300, on) % 2
   return (
     <div style={{ display: "flex", width: 14, paddingLeft: on ? nudge : 0, flexShrink: 0 }}>

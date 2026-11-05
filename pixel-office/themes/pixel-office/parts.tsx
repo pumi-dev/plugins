@@ -2,7 +2,7 @@
 // every menu and question of the app's as a framed pixel dialog, the lobby's sections (the players
 // and each plugin's panel on a notice board), a player as the lobby lists it, and a button.
 import { createContext, Fragment, useContext, useState, type ReactNode } from "react"
-import { Icon, useTheme } from "pumi"
+import { Icon } from "pumi"
 import {
   call,
   grouped,
@@ -20,7 +20,7 @@ import {
   type DialogProps,
   type MenuProps,
 } from "pumi/theme"
-import { box, Bubble, DialogButton, FONT, Nametag, PixelButton, Sign, Sprite, walkArt, hash } from "./kit.tsx"
+import { box, Bubble, DialogButton, FONT, Nametag, PixelButton, Sign, Sprite, useOfficeTheme, walkArt, hash } from "./kit.tsx"
 
 const swallow = (err: unknown) => console.error(String(err))
 
@@ -32,7 +32,7 @@ export const RoomContext = createContext<{ visit(tab: string): void } | null>(nu
  * a pixel dialog where the mouse is. Its groups with a rule between; a submenu opens under its row.
  */
 function Menu({ at, actions, components, args, close }: MenuProps) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <anchored position={at} fit="snap" deferred occlude onMouseDownOutside={close}>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 200, padding: 6, fontFamily: FONT, ...box(t, "dialog") }}>
@@ -44,7 +44,7 @@ function Menu({ at, actions, components, args, close }: MenuProps) {
 }
 
 function MenuRows({ actions, close, depth }: { actions: ActionItem[]; close(): void; depth: number }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const [open, setOpen] = useState<string>()
   const [at, setAt] = useState<string>()
   return (
@@ -83,7 +83,7 @@ function MenuRows({ actions, close, depth }: { actions: ActionItem[]; close(): v
 
 /** The `Dialog` part: a question as a pixel dialog in the middle of the room. */
 function Dialog({ title, detail, confirm, cancel, danger, input, onConfirm, onCancel }: DialogProps) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <anchored fill="window" occlude priority={1} style={{ backgroundColor: "transparent" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", backgroundColor: t.scrim }}>
@@ -141,7 +141,7 @@ export function Point({ point, args, gap = 4 }: { point: string; args?: Record<s
  * whatever view it's in) and each plugin's panel on a framed notice board.
  */
 function Panel({ point }: { point: string }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const { components } = useSlot(point)
   const [collapsed, setCollapsed] = useLocal<string[]>(`office.${point}.collapsed`, [])
   const sections: { key: string; title: string; icon?: string; body: ReactNode; board: boolean }[] = [
@@ -185,7 +185,7 @@ function Panel({ point }: { point: string }) {
 }
 
 function SessionHeader() {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const session = useSession()
   const { components, actions } = useSlot("session.header", { session: session?.workspace_id })
   if (!session || (!components.length && !actions.length)) return null
@@ -201,7 +201,7 @@ function SessionHeader() {
 function Players() {
   const C = useComponents()
   const tabs = useApp((s) => s.snapshot?.tabs.filter((p) => p.status) ?? [])
-  const t = useTheme()
+  const t = useOfficeTheme()
   if (!tabs.length) {
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: 16 }}>
@@ -221,7 +221,7 @@ function Players() {
 /** A player: the avatar with a bubble saying what its tab's status does, its tag, its row's footer
  *  and controls. A click walks you to its desk. */
 function TabRow({ tab }: { tab: string }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const C = useComponents()
   const room = useContext(RoomContext)
   const p = useTab(tab)
