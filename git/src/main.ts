@@ -502,8 +502,15 @@ function step(by: number): string | null {
 
 // ---- what the app reaches
 
+/**
+ * Opens the side bar, which is where the page is. The switch is the app's own (`toggle_sidebar`,
+ * ⌘B): a plugin cannot press a key in the window, so it asks the app to run the command (`command.run`),
+ * and a pumi that does not answer leaves the side bar as it is.
+ */
+const openSidebar = () => call("command.run", "toggle_sidebar").catch(() => null);
+
 /** `ctrl+shift+g`, as the app's own key does: the sidebar, which is where the page is. */
-fn.set("toggle", { desc: "Open the git sidebar." }, () => call("toggle_sidebar"));
+fn.set("toggle", { desc: "Open the git sidebar." }, () => openSidebar());
 
 /** Its options changed: read them again, and draw with them. */
 on("option.changed", { match: self.plugin.prefixed("*"), desc: "the git page's options" }, () => void projects.reread());
