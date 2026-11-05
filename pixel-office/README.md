@@ -30,7 +30,7 @@ Settings → Pixel Office.
 
 | | |
 | --- | --- |
-| Mode | the office by day (light), at night (dark), or as the system is |
+| Mode | the office by day (light) or at night (dark); the terminals keep the day palette, or the colour scheme you picked |
 | One desk per tab | each tab of a split view gets its own desk, player and screen |
 
 ## Development
@@ -41,7 +41,8 @@ bun test                       # the walk and the floor plan
 bun tools/art.ts               # redraw the furniture and the wall paints
 ```
 
-`themes/pixel-office/plan.ts` places the rooms and desks, `game.ts` walks you, `window.tsx` draws
-the room, `kit.tsx` the pixel boxes and name tags, `parts.tsx` the window's other parts and
-`build.tsx` the Decorate mode. The font is [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans)
+`themes/pixel-office/theme.tsx` is the theme and `palette.ts` its day and night colours (the Mode
+setting picks which the room is drawn in), `plan.ts` places the rooms and desks, `game.ts` walks you,
+`window.tsx` draws the room, `kit.tsx` the pixel boxes and name tags, `parts.tsx` the window's other
+parts and `build.tsx` the Decorate mode. The font is [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans)
 (SIL Open Font License 1.1, `themes/pixel-office/fonts/`).

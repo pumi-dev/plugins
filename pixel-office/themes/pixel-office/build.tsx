@@ -3,9 +3,8 @@
 // foot (furniture to place, the floor, the wall paint, the lights), the ghost of the piece you are
 // placing, and the room's lighting — lamps that glow when the evening comes.
 import { useState, type ReactNode } from "react"
-import { Icon, motion, useTheme } from "pumi"
-import { useAppearance } from "pumi/theme"
-import { box } from "./kit.tsx"
+import { Icon, motion } from "pumi"
+import { box, useLook, useOfficeTheme } from "./kit.tsx"
 import { KIND, KINDS, placeOf, type Kind, type Piece } from "./furniture.ts"
 import { HUD, WALL, type Plan, type Pt, type Rect } from "./plan.ts"
 
@@ -121,7 +120,7 @@ export function PieceView({
   onRemove(piece: Piece): void
   onUse(piece: Piece): void
 }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const kind = KIND[piece.kind]
   const [over, setOver] = useState(false)
   const [press, setPress] = useState<{ x: number; y: number; moved: boolean } | null>(null)
@@ -228,7 +227,7 @@ export function PieceView({
 
 /** The piece you are placing, under the pointer, half there. */
 export function Ghost({ kind, at }: { kind: Kind; at: Pt }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div style={{ position: "absolute", left: Math.round(at.x - kind.w / 2), top: Math.round(at.y - kind.h / 2), width: kind.w, height: kind.h, opacity: 0.6, zIndex: 40000, pointerEvents: "none" }}>
       <img src={pieceArt(kind.id)} style={{ width: kind.w, height: kind.h, imageRendering: "pixelated" }} />
@@ -299,8 +298,8 @@ export function BuildPanel({
   onClear(): void
   onClose(): void
 }) {
-  const t = useTheme()
-  const look = useAppearance()
+  const t = useOfficeTheme()
+  const look = useLook()
   const [tab, setTab] = useState<Tab>("furniture")
   const tabButton = (id: Tab, label: string, icon: string) => (
     <div

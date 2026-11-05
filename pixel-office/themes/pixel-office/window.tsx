@@ -13,14 +13,13 @@
 // status views beside the hotbar; and their overlays, menus (a desk's right click is its view's
 // and its tab's menu) and dialogs are the office's pixel boxes.
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
-import { Icon, motion, useHover, useNow, useTheme } from "pumi"
+import { Icon, motion, useHover, useNow } from "pumi"
 import {
   call,
   commands,
   prompt,
   renderComponent,
   useApp,
-  useAppearance,
   useComponents,
   useFocusedTab,
   useLayout,
@@ -41,7 +40,7 @@ import {
 import { BuildPanel, Ghost, Lighting, PieceView, WALLS, floorOf, lightNow, type Fx, type Light } from "./build.tsx"
 import { KIND, bodyOf, keepAt, newId, placeOf, seatOf, spotOf, starter, type Piece } from "./furniture.ts"
 import { Game, isWalkKey, near, type You } from "./game.ts"
-import { Bubble, Cursor, FONT, Keycap, LOOKS, Nametag, RoomLabel, Slot, Sprite, WideSlot, art, box, sitArt, useBeat, useFloorArt, walkArt } from "./kit.tsx"
+import { Bubble, Cursor, FONT, Keycap, LOOKS, Nametag, RoomLabel, Slot, Sprite, WideSlot, art, box, sitArt, useBeat, useFloorArt, useLook, useOfficeTheme, walkArt } from "./kit.tsx"
 import { Point, RoomContext } from "./parts.tsx"
 import {
   CELL_H,
@@ -85,7 +84,7 @@ const OFFICE = "pumi_dev/pixel-office"
 
 /** "Press X to …", over what you stand by: a framed box that fades in, then bobs. */
 function Prompt({ x, y, label }: { x: number; y: number; label: string }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const bob = useBeat(450) % 2
   return (
     <div
@@ -103,8 +102,8 @@ function Prompt({ x, y, label }: { x: number; y: number; label: string }) {
 
 /** The floor, the wall and the plants: what never moves (but for the floor and paint you chose). */
 function Room({ width, height, floor, wall, onGround }: { width: number; height: number; floor: string; wall: string; onGround(event: any): void }) {
-  const t = useTheme()
-  const f = floorOf(floor, useAppearance())
+  const t = useOfficeTheme()
+  const f = floorOf(floor, useLook())
   const w = WALLS.find((x) => x.id === wall) ?? WALLS[0]!
   const plant = (left: number) => <Sprite key={left} src={plantArt} width={36} height={48} style={{ position: "absolute", left, top: height - 56, zIndex: height, pointerEvents: "none" }} />
   return (
@@ -121,7 +120,7 @@ function Room({ width, height, floor, wall, onGround }: { width: number; height:
 
 /** A session's room: a carpet with a rim, and its name on the plate over its top edge. */
 function Carpet({ pod }: { pod: Pod }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const here = useSession()
   const window = useWindow()
   const carpet = useFloorArt("carpet")
@@ -194,7 +193,7 @@ const decorBody = (at: Pt, index: number): Rect => {
 
 /** The bookshelf (the lobby), the coffee machine (Settings) and the door mat: lit when you stand by them. */
 function PropView({ prop, lit, onUse }: { prop: Prop; lit: boolean; onUse(prop: Prop): void }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const [over, hover] = useHover()
   const src = prop.id === "shelf" ? shelfArt : prop.id === "coffee" ? coffeeArt : matArt
   return (
@@ -240,7 +239,7 @@ function agentName(tab: { terminal_title?: string | null; label?: string | null 
 
 /** A tab's screen in its box, scaled: one pane of the layout's insides. */
 function TabScreen({ tab }: { tab: string }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div style={{ display: "flex", flexGrow: 1, minWidth: 0, minHeight: 0, overflow: "hidden", borderRadius: 2, backgroundColor: t.editor }}>
       <preview tab={tab} style={{ width: "100%", height: "100%" }} />
@@ -270,7 +269,7 @@ function ScreenTree({ tree }: { tree: Tree }) {
 
 /** A desk's screen, big, beside it: what you see walking up to it (or pointing at it). */
 function Peek({ seat, left }: { seat: Seat; left: boolean }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const tree = useLayout(seat.view.view_id)
   const tabs = useApp((s) => s.snapshot?.tabs.filter((x) => x.view_id === seat.view.view_id) ?? [])
   const status = statusOf(seat, tabs)
@@ -328,7 +327,7 @@ interface DeskProps {
  * walked up to (or pointed at) its screen opens big beside it.
  */
 const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on }: DeskProps) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const key = deskKey(seat)
   const focused = useFocusedTab(seat.view.view_id)
   const tabs = useApp((s) => s.snapshot?.tabs.filter((x) => x.view_id === seat.view.view_id) ?? [])
@@ -448,7 +447,7 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
 
 /** The desk a room always has free: walking to it (or a click) makes a new view in its session. */
 function FreeDesk({ at, lit, onUse }: { at: Pt; lit: boolean; onUse(): void }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const [over, hover] = useHover()
   return (
     <div
@@ -477,7 +476,7 @@ function FreeDesk({ at, lit, onUse }: { at: Pt; lit: boolean; onUse(): void }) {
 
 /** You, on the floor: your look, walking the way you go, your name tag, and the emote you sent. */
 function Player({ game, look, emote }: { game: Game; look: number; emote: string | null }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const you = useSyncExternalStore(game.subscribe, game.get)
   const x = Math.round(you.at.x)
   const y = Math.round(you.at.y)
@@ -510,7 +509,7 @@ function Camera({ game, children }: { game: Game; children: ReactNode }) {
 
 /** The floor from above, in a framed box: the rooms, the desks by how they are, you blinking. */
 function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt): void }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const you = useSyncExternalStore(game.subscribe, game.get)
   const cam = useSyncExternalStore(game.subscribe, () => game.cam)
   const blink = useBeat(450) % 2 === 0
@@ -553,7 +552,7 @@ function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt
  * tab, or (a press on "Whole view") its whole view.
  */
 function Monitor({ seat, onStand }: { seat: Seat; onStand(): void }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const C = useComponents()
   const view = seat.view.view_id
   const tabs = useApp((s) => s.snapshot?.tabs.filter((x) => x.view_id === view) ?? [])
@@ -598,7 +597,7 @@ function Monitor({ seat, onStand }: { seat: Seat; onStand(): void }) {
 
 /** A framed dialog in the middle of the room: the door's sessions. */
 function Box({ title, onClose, children }: { title: string; onClose(): void; children: ReactNode }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   return (
     <div onClick={onClose} style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: HUD, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: t.scrim, zIndex: 70 }}>
       <motion.div
@@ -617,7 +616,7 @@ function Box({ title, onClose, children }: { title: string; onClose(): void; chi
 
 /** Choices, as a game lists them: the one you're on gets the pointing hand. */
 function Choices({ items }: { items: { key: string; label: string; detail?: string; dot?: string; run(): void }[] }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const [at, setAt] = useState(-1)
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
@@ -640,7 +639,7 @@ function Choices({ items }: { items: { key: string; label: string; detail?: stri
 
 /** The door: every session, to go to, and a new one. */
 function Door({ onClose }: { onClose(): void }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const window = useWindow()
   const sessions = useSessions()
   const here = useSession()
@@ -688,7 +687,7 @@ function DeskMenu({ seat, at, own, onClose }: { seat: Seat; at: Pt; own: ActionI
 
 /** The lobby down the left, on tiles: the players and every plugin's panel (`C.Panel`). */
 function Lobby({ width, setWidth }: { width: number; setWidth(w: number): void }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const C = useComponents()
   const tile = useFloorArt("tile")
   const [from, setFrom] = useState<{ x: number; width: number } | undefined>()
@@ -732,7 +731,7 @@ function Lobby({ width, setWidth }: { width: number; setWidth(w: number): void }
  * clock.
  */
 function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, onAgent }: { lobby: boolean; look: number; decorating: boolean; onLobby(): void; onLook(): void; onEmote(index: number): void; onDecorate(): void; onAgent(tab: string): void }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const window = useWindow()
   const session = useSession()
   const now = useNow(15000)
@@ -799,7 +798,7 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
 
 /** Over the floor's top: the session's plate (a press lists the others), the minimap. */
 function TopHud({ left, onDoor, minimap }: { left: number; onDoor(): void; minimap: ReactNode }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const session = useSession()
   return (
     <>
@@ -828,7 +827,7 @@ function TopHud({ left, onDoor, minimap }: { left: number; onDoor(): void; minim
 type Spot = { key: string; at: Pt; label: string; prompt: Pt; use(): void }
 
 export function Office() {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const window = useWindow()
   const size = useWindowSize()
   const sessions = useSessions()
@@ -837,7 +836,7 @@ export function Office() {
   const perTab = useThemeOption<boolean>("desk_per_tab", false) === true
   const overlays = useSlot("window.overlay").components
   const wood = useFloorArt("wood")
-  const look_ = useAppearance()
+  const look_ = useLook()
   const [lobby, setLobby] = useSidebar()
   const [lobbyWidth, setLobbyWidth] = useLocal<number>("office.lobby.width", 270)
   const [sitting, setSitting] = useState<string | null>(null)
@@ -1332,7 +1331,7 @@ export function Office() {
 
 /** Nothing to draw yet: the server is starting. You, walking on the spot, and why. */
 export function Starting({ title, detail, gaveUp, lines }: { title: string; detail: string; gaveUp: boolean; lines: string[] }) {
-  const t = useTheme()
+  const t = useOfficeTheme()
   const wood = useFloorArt("wood")
   const step = useBeat(150, !gaveUp)
   return (

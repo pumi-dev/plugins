@@ -1,7 +1,7 @@
 {
   "name": "pumi-pixel-office",
   "displayName": "Pixel Office",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "GPL-3.0-or-later",
   "description": "A UI theme: pumi as a pixel-art office you walk around, with a desk for every view, its agent at it and its screen live.",
   "keywords": [
@@ -44,16 +44,14 @@
       "options": {
         "appearance": {
           "type": "string",
-          "default": "system",
+          "default": "light",
           "label": "Mode",
-          "desc": "The office by day (light), at night (dark), or as the system is.",
+          "desc": "The office by day (light) or at night (dark).",
           "choices": [
-            "system",
             "light",
             "dark"
           ],
           "labels": [
-            "System",
             "Day",
             "Night"
           ],
