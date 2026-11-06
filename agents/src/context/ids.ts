@@ -1,5 +1,5 @@
 // The API's ids are the strings the formats print (`%3` a tab, `:4` a pane, `@2` a view, `$1` a
-// session, and `devbox/%3` for one on another server); this package's own model keeps numbers, so
+// project, and `devbox/%3` for one on another server); this package's own model keeps numbers, so
 // each half of the package converts at its edge and nowhere else.
 
 /** The number a wire id names (`%3` is `3`, `devbox/:4` is `4`). */
@@ -7,8 +7,8 @@ export function num(id: string): number {
   return Number(id.slice(id.indexOf("/") + 1).replace(/^[%:@$]/, ""));
 }
 
-/** The id `$n`: a session. */
-export function sessionRef(n: number): string {
+/** The id `$n`: a project. */
+export function projectRef(n: number): string {
   return `$${n}`;
 }
 

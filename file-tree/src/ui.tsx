@@ -7,7 +7,7 @@
 // disk, is the worker's (`main.ts`, `panel.ts`, `intent.ts`): a key, a click and a drop each go
 // there and answer the rows as they are afterwards.
 import { Fragment, memo, useEffect, useRef, useState } from "react";
-import { Icon, useDraggable, useDroppable, useInterval, useMetrics, useSession, useTab, useTheme } from "pumi";
+import { Icon, useDraggable, useDroppable, useInterval, useMetrics, useProject, useTab, useTheme } from "pumi";
 
 import { activate, adding, cancelled, chose, committed, dropped, filtered, firstMatch, load, named, pressed, reread, searching, type View } from "./main.ts";
 import { adopt } from "./adopt.ts";
@@ -39,6 +39,11 @@ function chordOf(event: { key?: string | null; modifiers?: { ctrl?: boolean; alt
   return parts.length ? `${parts.join("+")}+${key}` : key;
 }
 
+/** A throw the tree cannot answer: said in the log, not drawn over the window. */
+function swallow(err: unknown): void {
+  console.error(`file-tree: ${err instanceof Error ? err.message : String(err)}`);
+}
+
 /** Whether `color` is light, by its brightness (WCAG's relative luminance, above 0.4): which of the
  *  Material Icon Theme's variants a row's icon takes. The window's own colour says which way the
  *  theme goes, as it does for the app's native chrome; a plugin is given no appearance of its own. */
@@ -50,11 +55,6 @@ function isLight(color: string): boolean {
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * r! + 0.7152 * g! + 0.0722 * b! >= 0.4;
-}
-
-/** A throw the tree cannot answer: said in the log, not drawn over the window. */
-function swallow(err: unknown): void {
-  console.error(`file-tree: ${err instanceof Error ? err.message : String(err)}`);
 }
 
 /** What a row does, by its key: one object for every row and every render, so a row that has not
@@ -75,12 +75,12 @@ interface RowActions {
  *  back, which would close every folder. */
 export function Tree() {
   const focused = useTab();
-  const session = useSession();
+  const project = useProject();
   const last = useRef<string | null>(null);
   const cwd = focused?.cwd;
   if (cwd && cwd !== "/") last.current = cwd;
-  // Before any tab has said where it is, the session's own directory is the project.
-  const at = last.current ?? session?.cwd ?? null;
+  // Before any tab has said where it is, the project's own folder is the project.
+  const at = last.current ?? project?.path ?? null;
   return at === null ? null : <TreeAt cwd={at} />;
 }
 

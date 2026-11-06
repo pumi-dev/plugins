@@ -1,21 +1,21 @@
-// The worker's half: the model read from `session.list` and `session.get` deep, the answer to a
+// The worker's half: the model read from `project.list` and `project.get` deep, the answer to a
 // turn, and what an agent is remembered as having been told. Everything here is handed a fake
 // source and store, so no pumi needs to be running.
 import { expect, test } from "bun:test";
 
 import { DEFAULTS, GUIDE as BARE, type Settings } from "../../src/context/context.ts";
-import type { GivenSession } from "../../src/context/snapshot.ts";
+import type { GivenProject } from "../../src/context/snapshot.ts";
 import { answer, readState, toldKey, turned, type Ask, type Source, type Store, type Turn } from "../../src/context/wire.ts";
-import { sessions } from "./fake.ts";
+import { projects } from "./fake.ts";
 
 /** The guide as an answer starts with it: in its frame. */
 const GUIDE = `<pumi-context from="pumi_dev/agents">\n${BARE}`;
 
-/** The API, as `session.list` and `session.get` deep answer it. */
-function source(given: GivenSession[] = sessions()): Source {
+/** The API, as `project.list` and `project.get` deep answer it. */
+function source(given: GivenProject[] = projects()): Source {
   return {
-    list: async () => given.map((session) => session.id),
-    get: async (id) => given.find((session) => session.id === id) ?? null,
+    list: async () => given.map((project) => project.id),
+    get: async (id) => given.find((project) => project.id === id) ?? null,
   };
 }
 
@@ -40,14 +40,14 @@ function ask(over: Partial<Ask> = {}): Ask {
   return { source: source(), store: store(), settings: DEFAULTS, here: 1, ...over };
 }
 
-test("the model is read through a session's views, panes and tabs", async () => {
+test("the model is read through a project's views, panes and tabs", async () => {
   const model = await readState(source(), 1);
-  expect(model.sessions.map((session) => session.id)).toEqual([1, 2]);
+  expect(model.projects.map((project) => project.id)).toEqual([1, 2]);
   expect(model.views.map((view) => view.id)).toEqual([1, 2, 3]);
   expect(model.panes.map((pane) => pane.id)).toEqual([4, 5, 6, 7]);
   expect(model.tabs.map((tab) => tab.id)).toEqual([10, 11, 12, 13, 14, 20]);
-  // The tab the turn is in is found by walking those views: nothing hangs a tab off a session.
-  expect(model.tabs.find((tab) => tab.id === 11)).toMatchObject({ session: 1, view: 1, pane: 5 });
+  // The tab the turn is in is found by walking those views: nothing hangs a tab off a project.
+  expect(model.tabs.find((tab) => tab.id === 11)).toMatchObject({ project: 1, view: 1, pane: 5 });
 });
 
 test("an agent is told the guide and the map at its first prompt, and nothing when nothing changed", async () => {
@@ -66,10 +66,10 @@ test("an agent is told the guide and the map at its first prompt, and nothing wh
 test("a tab that opened since is what it is told next", async () => {
   const deps = ask();
   await answer(turn(), deps);
-  const given = sessions();
+  const given = projects();
   given[0]!.tree![1]!.tabs!.push({
     id: "%15",
-    session: "$1",
+    project: "$1",
     view: "@2",
     block: "terminal",
     place: { kind: "tiled", view: "@2", pane: ":6" },
@@ -126,13 +126,13 @@ test("the switch turns it off", async () => {
   expect((off.store as Store & { kept: Map<string, unknown> }).kept.size).toBe(0);
 });
 
-test("the map is kept to the agent's own session, whichever session the caller is in", async () => {
-  const settings: Settings = { ...DEFAULTS, otherSessions: false };
+test("the map is kept to the agent's own project, whichever project the caller is in", async () => {
+  const settings: Settings = { ...DEFAULTS, otherProjects: false };
   // The agent is in `$2`, and the caller reads the model from `$1`.
   const said = await answer(turn({ tab: "%20", agent: "pi" }), ask({ settings, here: 1 }));
   expect(said).toContain("$2 site");
   expect(said).not.toContain("$1 pumi");
-  // A turn whose tab is in no session falls back to the caller's.
+  // A turn whose tab is in no project falls back to the caller's.
   const elsewhere = await answer(turn({ tab: "%999" }), ask({ settings, here: 1 }));
   expect(elsewhere).toContain("$1 pumi");
   expect(elsewhere).not.toContain("$2 site");

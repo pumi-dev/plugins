@@ -1,11 +1,14 @@
-// How the model is named in the map: a session and a view by their own names, or by the id pumi
-// takes (`$3`, `@2`), and a tab by its title, the agent in it, its directory, or its block.
-import type { Session, Tab, View } from "./snapshot.ts";
+// How the model is named in the map: a project and a view by their folder's or their own name, or
+// by the id pumi takes (`$3`, `@2`), and a tab by its title, the agent in it, its directory, or its
+// block.
+import { basename } from "node:path";
 
-/** A session's name, or its id: `$3 pumi`, `$3`. */
-export function sessionLabel(session: Session): string {
-  const label = session.label.trim();
-  return label === "" ? `$${session.id}` : `$${session.id} ${label}`;
+import type { Project, Tab, View } from "./snapshot.ts";
+
+/** A project's folder, or its id: `$3 pumi`, `$3`. */
+export function projectLabel(project: Project): string {
+  const folder = basename(project.path.replace(/\/+$/, "")) || project.path;
+  return folder === "" ? `$${project.id}` : `$${project.id} ${folder}`;
 }
 
 /** A view's name, or its id: `@2 logs`, `@2`. */

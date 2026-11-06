@@ -1,4 +1,4 @@
-// Pixel Office: pumi as a pixel office you walk around. Every session is a carpeted
+// Pixel Office: pumi as a pixel office you walk around. Every project is a carpeted
 // room on the floor with its name on a plate, and every view in it is a desk — or, with "One desk
 // per tab" on, every tab — whose little screen shows the tab in front of it, live, its agent
 // sitting at it with a bubble that says what it is doing. The whole app is in the room at once.
@@ -6,7 +6,7 @@
 // It plays like a game: arrow keys or WASD walk you (brisk; you slide along what you bump into), a
 // click walks you there in a moment, and walking up to something lights it and says which key uses
 // it — X (or E, Enter, Space) sits you at a desk and opens its monitor with the real views, opens
-// the lobby, pours a coffee (Settings) or opens the door to your sessions. 1–5 are emotes.
+// the lobby, pours a coffee (Settings) or opens the door to your projects. 1–5 are emotes.
 //
 // The plugins are all here: the lobby down the left (⌘B, or the bookshelf) holds the players and
 // every plugin's panel on a notice board; the top right the minimap; the bar along the foot their
@@ -24,8 +24,8 @@ import {
   useFocusedTab,
   useLayout,
   useLocal,
-  useSession,
-  useSessions,
+  useProject,
+  useProjects,
   useSidebar,
   useSlot,
   useThemeOption,
@@ -34,7 +34,7 @@ import {
   via,
   windowContext,
   type ActionItem,
-  type Session,
+  type Project,
   type Tree,
 } from "pumi/theme"
 import { BuildPanel, Ghost, Lighting, PieceView, WALLS, floorOf, lightNow, type Fx, type Light } from "./build.tsx"
@@ -118,14 +118,14 @@ function Room({ width, height, floor, wall, onGround }: { width: number; height:
   )
 }
 
-/** A session's room: a carpet with a rim, and its name on the plate over its top edge. */
+/** A project's room: a carpet with a rim, and its name on the plate over its top edge. */
 function Carpet({ pod }: { pod: Pod }) {
   const t = useOfficeTheme()
-  const here = useSession()
+  const here = useProject()
   const window = useWindow()
   const carpet = useFloorArt("carpet")
-  const current = pod.session.workspace_id === here?.workspace_id
-  const status = pod.session.status
+  const current = pod.project.project_id === here?.project_id
+  const status = pod.project.status
   const dot = status ? (t[`status.${status}`] ?? t["status.unknown"]) : t.success
   return (
     <div style={{ position: "absolute", left: pod.x, top: pod.y, width: pod.width, height: pod.height, zIndex: 2, pointerEvents: "none" }}>
@@ -151,12 +151,12 @@ function Carpet({ pod }: { pod: Pod }) {
           dot={dot}
           count={pod.seats.length}
           active={current}
-          title={current ? pod.session.label : `${pod.session.label} — make it the session in front`}
+          title={current ? pod.project.label : `${pod.project.label} — make it the project in front`}
           onClick={() => {
-            if (!current) window.show(pod.session.workspace_id)
+            if (!current) window.show(pod.project.project_id)
           }}
         >
-          {pod.session.label || "Session"}
+          {pod.project.label || "Project"}
         </RoomLabel>
       </div>
     </div>
@@ -232,7 +232,7 @@ function deskTitle(seat: Seat): string {
 }
 
 /** What a player's name tag says: its tab's title as the tab bar has it (what the agent calls its
- *  session, `π - Fixing the build - pumi`), else the tab's label. */
+ *  project, `π - Fixing the build - pumi`), else the tab's label. */
 function agentName(tab: { terminal_title?: string | null; label?: string | null }): string {
   return tab.terminal_title || tab.label || ""
 }
@@ -445,7 +445,7 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
   )
 })
 
-/** The desk a room always has free: walking to it (or a click) makes a new view in its session. */
+/** The desk a room always has free: walking to it (or a click) makes a new view in its project. */
 function FreeDesk({ at, lit, onUse }: { at: Pt; lit: boolean; onUse(): void }) {
   const t = useOfficeTheme()
   const [over, hover] = useHover()
@@ -456,7 +456,7 @@ function FreeDesk({ at, lit, onUse }: { at: Pt; lit: boolean; onUse(): void }) {
         event?.stopPropagation?.()
         onUse()
       }}
-      title="New desk: a new view in this session"
+      title="New desk: a new view in this project"
       style={{ position: "absolute", left: at.x, top: at.y, width: CELL_W, height: 130, cursor: "pointer", zIndex: Math.round(at.y + 96), opacity: over || lit ? 1 : 0.6 }}
     >
       {lit ? <div style={{ position: "absolute", left: DESK_ART.x - 4, top: DESK_ART.y - 4, width: DESK_ART.w + 8, height: DESK_ART.h + 8, borderRadius: 3, borderWidth: 2, borderColor: t.slotActive }} /> : null}
@@ -522,7 +522,7 @@ function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt
       <div style={{ position: "relative", width: W, height: H, overflow: "hidden", backgroundColor: t["office.floor"], borderWidth: 1, borderColor: t.roomRim }}>
         <div style={{ position: "absolute", left: 0, top: 0, width: W, height: WALL * k, backgroundColor: t.slot }} />
         {room.pods.map((pod) => (
-          <div key={pod.session.workspace_id} style={{ position: "absolute", left: pod.x * k, top: (pod.y + 30) * k, width: pod.width * k, height: (pod.height - 30) * k, backgroundColor: t.carpetFloor }} />
+          <div key={pod.project.project_id} style={{ position: "absolute", left: pod.x * k, top: (pod.y + 30) * k, width: pod.width * k, height: (pod.height - 30) * k, backgroundColor: t.carpetFloor }} />
         ))}
         {room.pods.flatMap((pod) =>
           pod.seats.map((seat, i) => {
@@ -595,7 +595,7 @@ function Monitor({ seat, onStand }: { seat: Seat; onStand(): void }) {
   )
 }
 
-/** A framed dialog in the middle of the room: the door's sessions. */
+/** A framed dialog in the middle of the room: the door's projects. */
 function Box({ title, onClose, children }: { title: string; onClose(): void; children: ReactNode }) {
   const t = useOfficeTheme()
   return (
@@ -637,30 +637,30 @@ function Choices({ items }: { items: { key: string; label: string; detail?: stri
   )
 }
 
-/** The door: every session, to go to, and a new one. */
+/** The door: every project, to go to, and a new one. */
 function Door({ onClose }: { onClose(): void }) {
   const t = useOfficeTheme()
   const window = useWindow()
-  const sessions = useSessions()
-  const here = useSession()
-  const go = (session: Session) => {
-    window.show(session.workspace_id)
+  const projects = useProjects()
+  const here = useProject()
+  const go = (project: Project) => {
+    window.show(project.project_id)
     onClose()
   }
   return (
     <Box title="Where to?" onClose={onClose}>
       <Choices
         items={[
-          ...sessions.map((session) => ({
-            key: session.workspace_id,
-            label: session.label || session.workspace_id,
-            detail: session.workspace_id === here?.workspace_id ? "you are here" : undefined,
-            dot: session.status ? (t[`status.${session.status}`] ?? t["status.unknown"]) : t["status.unknown"],
-            run: () => go(session),
+          ...projects.map((project) => ({
+            key: project.project_id,
+            label: project.label || project.project_id,
+            detail: project.project_id === here?.project_id ? "you are here" : undefined,
+            dot: project.status ? (t[`status.${project.status}`] ?? t["status.unknown"]) : t["status.unknown"],
+            run: () => go(project),
           })),
           {
             key: "new",
-            label: "New session",
+            label: "New project",
             run: () => {
               const context = windowContext(window.id)
               if (context) commands.run("new_workspace", context)
@@ -733,7 +733,7 @@ function Lobby({ width, setWidth }: { width: number; setWidth(w: number): void }
 function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, onAgent }: { lobby: boolean; look: number; decorating: boolean; onLobby(): void; onLook(): void; onEmote(index: number): void; onDecorate(): void; onAgent(tab: string): void }) {
   const t = useOfficeTheme()
   const window = useWindow()
-  const session = useSession()
+  const project = useProject()
   const now = useNow(15000)
   const perTab = useThemeOption<boolean>("desk_per_tab", false)
   const players = useApp((s) => s.snapshot?.tabs.filter((p) => p.status) ?? [])
@@ -756,7 +756,7 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
             <text style={{ fontSize: 15, color: t.text }}>You</text>
             <div style={{ width: 6, height: 6, backgroundColor: t["office.online"], flexShrink: 0 }} />
           </div>
-          <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{session?.label ?? "no session"}</text>
+          <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{project?.label ?? "no project"}</text>
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", flexGrow: 1, flexBasis: 0, minWidth: 0 }}>
@@ -796,10 +796,10 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
   )
 }
 
-/** Over the floor's top: the session's plate (a press lists the others), the minimap. */
+/** Over the floor's top: the project's plate (a press lists the others), the minimap. */
 function TopHud({ left, onDoor, minimap }: { left: number; onDoor(): void; minimap: ReactNode }) {
   const t = useOfficeTheme()
-  const session = useSession()
+  const project = useProject()
   return (
     <>
       <div
@@ -807,11 +807,11 @@ function TopHud({ left, onDoor, minimap }: { left: number; onDoor(): void; minim
           event?.stopPropagation?.()
           onDoor()
         }}
-        title="Your sessions"
+        title="Your projects"
         style={{ position: "absolute", left, top: 12, zIndex: 45, display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 30, paddingLeft: 8, paddingRight: 8, maxWidth: 260, cursor: "pointer", ...box(t, "panel"), hover: { backgroundColor: t.hover } }}
       >
         <div style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: t["office.online"], flexShrink: 0 }} />
-        <text style={{ fontSize: 15, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{session?.label || "pumi"}</text>
+        <text style={{ fontSize: 15, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{project?.label || "pumi"}</text>
         <Icon name="chevron_up_down" size={11} color={t.muted} />
       </div>
       <div onClick={(event: any) => event?.stopPropagation?.()} style={{ position: "absolute", right: 10, top: 10, zIndex: 45, display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
@@ -830,7 +830,7 @@ export function Office() {
   const t = useOfficeTheme()
   const window = useWindow()
   const size = useWindowSize()
-  const sessions = useSessions()
+  const projects = useProjects()
   const views = useApp((s) => s.snapshot?.views ?? [])
   const tabs = useApp((s) => s.snapshot?.tabs ?? [])
   const perTab = useThemeOption<boolean>("desk_per_tab", false) === true
@@ -867,14 +867,14 @@ export function Office() {
   // The furniture: what you put down, or the starter lounge until you change it.
   const pieces = useMemo(() => stored ?? starter(width), [stored, width])
   const room = useMemo(() => {
-    const first = plan(sessions, views, tabs, width, view, perTab)
+    const first = plan(projects, views, tabs, width, view, perTab)
     // The floor goes on as far down as the furniture does.
     const lowest = pieces.reduce((end, piece) => {
       const at = placeOf(piece, first)
       return Math.max(end, at.y + at.h)
     }, 0)
-    return lowest + 80 > first.height ? plan(sessions, views, tabs, width, view, perTab, lowest) : first
-  }, [sessions, views, tabs, width, view, perTab, pieces])
+    return lowest + 80 > first.height ? plan(projects, views, tabs, width, view, perTab, lowest) : first
+  }, [projects, views, tabs, width, view, perTab, pieces])
   const origin = useRef<Pt>({ x: 0, y: 0 })
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const later = (ms: number, run: () => void) => {
@@ -945,7 +945,7 @@ export function Office() {
       .catch(swallow)
       .finally(() => setFocus((n) => n + 1))
   }
-  const newDesk = (pod: Pod) => call(via(pod.session.workspace_id, "tab.open"), null, {}, { kind: "view", session: pod.session.workspace_id }).catch(swallow)
+  const newDesk = (pod: Pod) => call(via(pod.project.project_id, "tab.open"), null, {}, { kind: "view", project: pod.project.project_id }).catch(swallow)
   const useProp = (prop: Prop) => {
     if (prop.id === "shelf") setLobby((v) => !v)
     else if (prop.id === "coffee") {
@@ -1031,11 +1031,11 @@ export function Office() {
   }
   const spots: Spot[] = [
     ...desks.map((d) => ({ key: `desk:${d.key}`, at: deskSpot(d.at), label: `Sit at ${deskTitle(d.seat)}`, prompt: { x: d.at.x + CELL_W / 2, y: d.at.y - 36 }, use: () => sit(d.seat) })),
-    ...freeDesks.map((d) => ({ key: `free:${d.pod.session.workspace_id}`, at: deskSpot(d.at), label: "Set up a new desk", prompt: { x: d.at.x + CELL_W / 2, y: d.at.y - 16 }, use: () => newDesk(d.pod) })),
+    ...freeDesks.map((d) => ({ key: `free:${d.pod.project.project_id}`, at: deskSpot(d.at), label: "Set up a new desk", prompt: { x: d.at.x + CELL_W / 2, y: d.at.y - 16 }, use: () => newDesk(d.pod) })),
     ...room.props.map((prop) => ({
       key: `prop:${prop.id}`,
       at: propSpot(prop),
-      label: prop.id === "shelf" ? (lobby ? "Close the lobby" : "Open the lobby (plugins)") : prop.id === "coffee" ? "Coffee & settings" : "Go to another session",
+      label: prop.id === "shelf" ? (lobby ? "Close the lobby" : "Open the lobby (plugins)") : prop.id === "coffee" ? "Coffee & settings" : "Go to another project",
       prompt: { x: prop.x + prop.w / 2, y: prop.y - 30 },
       use: () => useProp(prop),
     })),
@@ -1194,7 +1194,7 @@ export function Office() {
                   }}
                 />
                 {room.pods.map((pod) => (
-                  <Carpet key={pod.session.workspace_id} pod={pod} />
+                  <Carpet key={pod.project.project_id} pod={pod} />
                 ))}
                 {spares.map((at, i) => (
                   <Decor key={`decor${i}`} at={at} index={i} />
@@ -1229,7 +1229,7 @@ export function Office() {
                   />
                 ))}
                 {freeDesks.map((d) => (
-                  <FreeDesk key={`free${d.pod.session.workspace_id}`} at={d.at} lit={nearKey === `free:${d.pod.session.workspace_id}`} onUse={() => goUse(spots.find((s) => s.key === `free:${d.pod.session.workspace_id}`))} />
+                  <FreeDesk key={`free${d.pod.project.project_id}`} at={d.at} lit={nearKey === `free:${d.pod.project.project_id}`} onUse={() => goUse(spots.find((s) => s.key === `free:${d.pod.project.project_id}`))} />
                 ))}
                 {desks.map((d) => (
                   <Desk key={d.key} seat={d.seat} at={d.at} dragging={dragged === d.key} sitting={sitting === d.key} lit={nearKey === `desk:${d.key}`} peekLeft={d.at.x + CELL_W + 340 > room.width} on={deskOn} />

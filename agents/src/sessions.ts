@@ -419,17 +419,17 @@ on("request.closed", { desc: "Agents answers a session's permission answered els
 /** Whether `dir` is a project an agent works in: not the home folder or the root, which hold everything. */
 export const isProject = (dir: string | undefined): dir is string => !!dir && dir !== "/" && dir !== homedir();
 
-/** The directory of tab `id`'s session (`session.cwd`), when it has one. */
-export async function sessionCwd(id: number): Promise<string | undefined> {
-  const tab = (await call("tab.get", tabRef(id)).catch(() => null)) as { session?: string } | null;
-  if (!tab?.session) return undefined;
-  const session = (await call("session.get", tab.session).catch(() => null)) as { cwd?: string | null } | null;
-  return session?.cwd ?? undefined;
+/** The folder of tab `id`'s project (`project.path`), when it has one. */
+export async function projectDir(id: number): Promise<string | undefined> {
+  const tab = (await call("tab.get", tabRef(id)).catch(() => null)) as { project?: string } | null;
+  if (!tab?.project) return undefined;
+  const project = (await call("project.get", tab.project).catch(() => null)) as { path?: string | null } | null;
+  return project?.path ?? undefined;
 }
 
 /**
  * Where a new tab starts: the given directory, else the tab's beside it (its shell's, its agent's),
- * else its session's. A home folder there gives way to a project after it.
+ * else its project's. A home folder there gives way to a project after it.
  */
 export async function cwdFrom(given: unknown, beside: number | undefined): Promise<string> {
   if (typeof given === "string" && given !== "") return resolve(given.replace(/^~(?=\/|$)/, homedir()));
@@ -437,8 +437,8 @@ export async function cwdFrom(given: unknown, beside: number | undefined): Promi
   const [shell, agent] = await Promise.all([optionOn<string>("tab_current_path", beside), optionOn<string>(CWD, beside)]);
   const near = shell ?? agent;
   if (isProject(near)) return near;
-  const session = await sessionCwd(beside);
-  return isProject(session) ? session : (near ?? session ?? homedir());
+  const dir = await projectDir(beside);
+  return isProject(dir) ? dir : (near ?? dir ?? homedir());
 }
 
 export interface OpenSession {
