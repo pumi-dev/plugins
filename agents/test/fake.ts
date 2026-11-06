@@ -1,87 +1,143 @@
-// What the tests read the model from: sessions, tabs and panes, and what each pane says of itself.
-// A fixture, not an app: nothing of the package's starts, and no pumi needs to be running.
-import type { Given } from "../src/snapshot.ts";
+// What the tests read the model from: sessions, their views, panes and tabs, as `session.get` with
+// `deep` carries them — the API's own names, so a walk over `tabs` or a `pane` at the wrong level
+// fails here as it would in the app. A fixture, not an app: nothing of the package starts, and no
+// pumi needs to be running.
+import type { GivenSession } from "../src/snapshot.ts";
 
-/** The model: two spaces, one of them with two tabs, and a float and a detached pane. */
-export function state(): Given {
-  return {
-    spaces: [
-      { id: 1, label: "pumi", focused: true },
-      { id: 2, label: "site", focused: false },
-    ],
-    tabs: [
-      { id: 10, space: 1, index: 0, label: "Tab 1" },
-      { id: 11, space: 1, index: 1, label: "editor" },
-      { id: 20, space: 2, index: 0, label: "Tab 1" },
-    ],
-    // Each tab's panes in the order its layout lays them out, then the panes in no tab: a float
-    // and a detached pane have none, so they are in no space.
-    panes: [
-      {
-        id: 100,
-        tab: 10,
-        space: 1,
-        title: "zsh",
-        cwd: "/Users/me/Kitchen/pumi",
-        label: "",
-        options: { title: "zsh", pane_current_path: "/Users/me/Kitchen/pumi", pane_current_command: "zsh" },
-      },
-      {
-        id: 101,
-        tab: 11,
-        space: 1,
-        title: "π - claude",
-        cwd: "/Users/me/Kitchen/pumi",
-        label: "",
-        options: {
-          "@agent": "claude",
-          "@agent.status": "working",
-          title: "π - claude",
-          pane_current_path: "/Users/me/Kitchen/pumi",
+/**
+ * Two sessions. `$1` has two views: `@1` split in two panes (`:4` with a shell, `:5` with an agent
+ * and an editor) and a float, and `@2` a pane zoomed on a log. `$2` has `@3`, whose one tab is an
+ * agent that is blocked.
+ */
+export function sessions(): GivenSession[] {
+  return [
+    {
+      id: "$1",
+      name: "pumi",
+      views: ["@1", "@2"],
+      activeView: "@1",
+      tree: [
+        {
+          id: "@1",
+          session: "$1",
+          name: "main",
+          index: 0,
+          layout: {
+            axis: "row",
+            ratio: 0.5,
+            first: { pane: ":4", tabs: ["%10"], active: "%10" },
+            second: { pane: ":5", tabs: ["%11", "%12"], active: "%11" },
+          },
+          activeTab: "%11",
+          activePane: ":5",
+          zoom: null,
+          tabs: [
+            {
+              id: "%10",
+              session: "$1",
+              view: "@1",
+              block: "terminal",
+              place: { kind: "tiled", view: "@1", pane: ":4" },
+              title: "zsh",
+              cwd: "/Users/me/Kitchen/pumi",
+              isFocused: false,
+              options: { title: "zsh", pane_current_path: "/Users/me/Kitchen/pumi" },
+            },
+            {
+              id: "%11",
+              session: "$1",
+              view: "@1",
+              block: "terminal",
+              place: { kind: "tiled", view: "@1", pane: ":5" },
+              title: "π - claude",
+              cwd: "/Users/me/Kitchen/pumi",
+              isFocused: true,
+              options: { "@agent": "claude", "@agent.status": "working", title: "π - claude" },
+            },
+            {
+              id: "%12",
+              session: "$1",
+              view: "@1",
+              block: "terminal",
+              place: { kind: "tiled", view: "@1", pane: ":5" },
+              title: "vim",
+              cwd: "/Users/me/Kitchen/pumi/src",
+              isFocused: false,
+              options: { title: "vim" },
+            },
+            {
+              id: "%13",
+              session: "$1",
+              view: "@1",
+              block: "terminal",
+              place: { kind: "float", view: "@1", pane: null },
+              title: "notes",
+              cwd: "/Users/me/tmp",
+              isFocused: false,
+              options: { title: "notes" },
+            },
+          ],
         },
-      },
-      {
-        id: 102,
-        tab: 11,
-        space: 1,
-        title: "vim",
-        cwd: "/Users/me/Kitchen/pumi/src",
-        label: "",
-        options: { title: "vim", pane_current_path: "/Users/me/Kitchen/pumi/src" },
-      },
-      {
-        id: 200,
-        tab: 20,
-        space: 2,
-        title: "π - site",
-        cwd: "/Users/me/work/site",
-        label: "",
-        options: {
-          "@agent": "pi",
-          "@agent.status": "blocked",
-          "@program_status": [{ id: "", state: "blocked", kind: "permission", msg: "Bash(npm publish)?" }],
-          title: "π - site",
-          pane_current_path: "/Users/me/work/site",
+        {
+          id: "@2",
+          session: "$1",
+          name: "logs",
+          index: 1,
+          layout: { pane: ":6", tabs: ["%14"], active: "%14" },
+          activeTab: "%14",
+          activePane: ":6",
+          zoom: ":6",
+          tabs: [
+            {
+              id: "%14",
+              session: "$1",
+              view: "@2",
+              block: "terminal",
+              place: { kind: "tiled", view: "@2", pane: ":6" },
+              title: "tail",
+              cwd: "/var/log",
+              isFocused: false,
+              options: { title: "tail" },
+            },
+          ],
         },
-      },
-      {
-        id: 300,
-        tab: null,
-        space: null,
-        title: "float",
-        cwd: "/Users/me/Kitchen/pumi",
-        label: "",
-        options: { title: "float" },
-      },
-      {
-        id: 301,
-        tab: null,
-        space: null,
-        title: "detached",
-        cwd: "/Users/me/Kitchen/pumi",
-        label: "",
-        options: { title: "detached" },
-      },
-    ],
-  };
+      ],
+    },
+    {
+      id: "$2",
+      name: "site",
+      views: ["@3"],
+      activeView: "@3",
+      tree: [
+        {
+          id: "@3",
+          session: "$2",
+          name: null,
+          index: 0,
+          layout: { pane: ":7", tabs: ["%20"], active: "%20" },
+          activeTab: "%20",
+          activePane: ":7",
+          zoom: null,
+          tabs: [
+            {
+              id: "%20",
+              session: "$2",
+              view: "@3",
+              block: "terminal",
+              place: { kind: "tiled", view: "@3", pane: ":7" },
+              title: "π - site",
+              cwd: "/Users/me/work/site",
+              isFocused: false,
+              options: {
+                "@agent": "pi",
+                "@agent.status": "blocked",
+                "@program_status": [{ id: "", state: "blocked", kind: "permission", msg: "Bash(npm publish)?" }],
+                title: "π - site",
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ];
 }

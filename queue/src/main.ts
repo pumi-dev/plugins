@@ -1,5 +1,5 @@
-// queue: commands that run one at a time, each after the pane it waits for is done, and a bar under
-// each pane that has one, showing its jobs.
+// queue: commands that run one at a time, each after the tab it waits for is done, and a bar in
+// each tab that has one, showing its jobs.
 //
 //   pumi call queue.add '{"command":"cargo test","after":"%3"}'   # under %3, after %3 is done
 //   pumi call queue.add '{"command":"make deploy","run":"shell"}' # headless, in the app
@@ -7,9 +7,9 @@
 //   pumi call queue.cancel '{"id":3}'
 //   pumi call queue.clear
 //
-// The waiting is pumi's own — a pane's `@agent.status`, its `pane_foreground_pgid` back to its
-// shell, `pane_dead` — read here, in `queue.ts`. This file is what the app reaches: the functions
-// others call, the bar's view, and the events that end a wait.
+// The waiting is pumi's own — a tab's `@agent.status`, its `tab_foreground_pgid` back to its
+// shell, `tab_dead` — read here, in `queue.ts`. This file is what the app reaches: the functions
+// others call, the bar's component, and the events that end a wait.
 import { ApiError, fn, on, self } from "pumi";
 import { detail, paneId, type Job } from "./job.ts";
 import { addJob, advance, busy, cancelJob, clearJobs, jobsOf, listJobs, pulse, syncViews, vanished } from "./queue.ts";
@@ -64,8 +64,8 @@ fn.set("queue.clear", {
 
 // ---- the bar
 //
-// One under each pane that has work, as the manifest's `contributes.slots["pane.strip"]`: the app
-// draws it on every pane, and it draws nothing for a pane the queue has no job for. It reads the
+// One in each tab's strip that has work, as the manifest's `contributes.slots["tab.strip"]`: the app
+// draws it on every tab, and it draws nothing for a tab the queue has no job for. It reads the
 // queue through the two exports below, on its own clock.
 
 /** A job as a bar draws it: what it is called, where it is, and what it says of itself. */
@@ -118,10 +118,10 @@ export function cancel(id: number): Promise<void> {
 
 // ---- the events that end a wait
 //
-// A pane's report, its shell coming back, its program ending: any of them can end a wait.
-on("pane.changed", { desc: "the queue follows the panes it waits for" }, () => void pulse());
-on("pane.closed", { desc: "a pane closed, so what it was doing is over" }, async (e) => {
-  const at = paneId(e.pane) ?? paneId(e.data?.pane);
+// A tab's report, its shell coming back, its program ending: any of them can end a wait.
+on("tab.changed", { desc: "the queue follows the tabs it waits for" }, () => void pulse());
+on("tab.closed", { desc: "a tab closed, so what it was doing is over" }, async (e) => {
+  const at = paneId(e.tab) ?? paneId(e.data?.tab);
   if (at !== null) await vanished(at);
   await pulse();
 });

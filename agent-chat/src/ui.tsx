@@ -1,39 +1,59 @@
-// What the chat draws, in the window: the title bar's button that flips an agent pane between its
-// terminal and the chat, and the chat itself, which draws the pane's `terminal` block (`Chat`, the
-// manifest's `renderers.terminal`) while the pane's `@pane_renderer` names this plugin. The
-// conversation is the worker's (`main.ts` `read`, `send`); the view follows its batches, on the
+// What the chat draws, in the window: the title bar's button that flips an agent tab between its
+// terminal and the chat, and the chat itself, which draws the tab's `terminal` block (`Chat`, the
+// manifest's `renderers.terminal`) while the tab's `@tab_renderer` names this plugin. The
+// conversation is the worker's (`main.ts` `read`, `send`); the chat follows its batches, on the
 // channel in the plugin host's windows and by the convention's event in any app's.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { conversationNames, Icon, IconButton, useChannelListener, useEvent, useMetrics, usePane, usePlugin, useTheme, type PaneId, type RendererProps } from "pumi";
+import { conversationNames, Icon, IconButton, useChannelListener, useEvent, useMetrics, usePlugin, useTab, useTheme, type RendererProps, type TabId } from "pumi";
 
 import { follow, type Update } from "../../lib/conversation/src/change.ts";
 import type { Transcript } from "../../lib/conversation/src/model.ts";
-import { Conversation, Header, Press } from "../../lib/conversation/src/ui.tsx";
-import { agentSpec } from "./agents.ts";
+import { questionsOf } from "../../lib/conversation/src/question.ts";
+import { Button, Conversation, Header, Press, tint } from "../../lib/conversation/src/ui.tsx";
+import { agentSpec, type AgentSpec } from "./agents.ts";
 import { mentions, read, send, setChat, toggle } from "./main.ts";
-import { UPDATE, type Changed, type PaneUpdate } from "./topics.ts";
+import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 
-/** A throw the view cannot answer: said in the log, not drawn over the window. */
+/** A throw the chat cannot answer: said in the log, not drawn over the window. */
 function swallow(err: unknown): void {
   console.error(`agent-chat: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** A pane's number: the worker names panes by it (`%3` is `3`). */
-function paneId(pane: PaneId): number {
-  return Number(pane.slice(pane.indexOf("/") + 1).replace(/^[%@$]/, ""));
+/** A tab's number: the worker names tabs by it (`%3` is `3`). */
+function tabId(tab: TabId): number {
+  return Number(tab.slice(tab.indexOf("/") + 1).replace(/^[%@$]/, ""));
 }
 
 /**
- * The `pane.toolbar` slot's view: on an agent pane the chat reads, the button that flips it,
- * drawn as one of the pane's own (`IconButton`, the theme's).
+ * A tab's options, as last read: while the window's cache reads the tab again (a change it could
+ * not merge) it has none, and a tab drawn from that would flip to its terminal and back.
  */
-export function Toolbar({ pane }: { pane: PaneId }) {
+function useTabOptions(tab: TabId): Record<string, unknown> {
+  const options = useTab(tab)?.options as Record<string, unknown> | undefined;
+  const last = useRef<Record<string, unknown>>({});
+  if (options) last.current = options;
+  return last.current;
+}
+
+/** The agent a tab's `@agent` names, as last read, or `undefined` before its options were ever read. */
+function useAgentSpec(tab: TabId): AgentSpec | null | undefined {
+  const options = useTab(tab)?.options as Record<string, unknown> | undefined;
+  const last = useRef<AgentSpec | null | undefined>(undefined);
+  if (options) last.current = agentSpec(options["@agent"]) ?? null;
+  return last.current;
+}
+
+/**
+ * The `tab.toolbar` slot's component: on an agent tab the chat reads, the button that flips it,
+ * drawn as one of the tab's own (`IconButton`, the theme's).
+ */
+export function Toolbar({ tab }: { tab: TabId }) {
   const t = useTheme();
   const plugin = usePlugin() ?? "";
-  const options = (usePane(pane)?.options ?? {}) as Record<string, unknown>;
+  const options = useTabOptions(tab);
   const spec = agentSpec(options["@agent"]);
   if (!spec) return null;
-  const chat = options["@pane_renderer"] === plugin;
+  const chat = options["@tab_renderer"] === plugin;
   const asking = options["@agent.status"] === "blocked";
   const tip = chat ? `Show ${spec.label}'s terminal` : asking ? `${spec.label} is asking: show the chat` : `Show ${spec.label} as a chat`;
   return (
@@ -42,24 +62,25 @@ export function Toolbar({ pane }: { pane: PaneId }) {
       title={tip}
       active={chat}
       color={asking && !chat ? t["agent.blocked"] : undefined}
-      onClick={() => void toggle(paneId(pane)).catch(swallow)}
+      onClick={() => void toggle(tabId(tab)).catch(swallow)}
     />
   );
 }
 
 /**
  * The `terminal` renderer (the manifest's `renderers`): the chat, over the terminal it keeps
- * running under. A pane of a terminal whose agent the chat does not read (it was named by
- * `@pane_renderer`, or nothing else draws terminals) is drawn as the terminal it is.
+ * running under. A tab of a terminal whose agent the chat does not read (it was named by
+ * `@tab_renderer`, or nothing else draws terminals) is drawn as the terminal it is.
  */
-export function Chat({ pane, focused }: RendererProps) {
-  const spec = agentSpec(((usePane(pane.id)?.options ?? {}) as Record<string, unknown>)["@agent"]);
-  if (!spec) return <terminal pane={pane.id} autoFocus={focused} />;
-  return <PaneChat pane={paneId(pane.id)} focused={focused} />;
+export function Chat({ tab, focused }: RendererProps) {
+  // Not read yet is not "no agent": the chat waits (it says it is loading) rather than flashing the terminal.
+  const spec = useAgentSpec(tab.id);
+  if (spec === null) return <terminal tab={tab.id} autoFocus={focused} />;
+  return <TabChat tab={tabId(tab.id)} focused={focused} />;
 }
 
-/** The pane's conversation, followed from the worker: a snapshot first, then each batch. */
-function useTranscript(pane: number): Transcript | undefined {
+/** The tab's conversation, followed from the worker: a snapshot first, then each batch. */
+function useTranscript(tab: number): Transcript | undefined {
   const plugin = usePlugin() ?? "";
   const [transcript, setTranscript] = useState<Transcript>();
   const local = useRef<Transcript | undefined>(undefined);
@@ -77,7 +98,7 @@ function useTranscript(pane: number): Transcript | undefined {
       return;
     }
     reading.current = "yes";
-    read(pane)
+    read(tab)
       .then((update) => {
         const next = follow(undefined, update);
         if (next) take(next);
@@ -87,7 +108,7 @@ function useTranscript(pane: number): Transcript | undefined {
         reading.current = "no";
         if (again) reread();
       });
-  }, [pane, take]);
+  }, [tab, take]);
 
   const apply = useCallback(
     (update: Update) => {
@@ -105,13 +126,13 @@ function useTranscript(pane: number): Transcript | undefined {
   }, [reread]);
 
   // In the plugin host's windows: the worker's batches, in process.
-  useChannelListener(UPDATE, (data: PaneUpdate) => {
-    if (data?.pane === pane) apply(data.update);
+  useChannelListener(UPDATE, (data: TabUpdate) => {
+    if (data?.tab === tab) apply(data.update);
   });
   // In any app's: the convention's event (a batch heard on both is applied once).
   useEvent<Changed>(conversationNames(plugin).changed, (e) => {
     const data = e.data;
-    if (data?.pane !== pane) return;
+    if (data?.tab !== tab) return;
     if (data.from) return apply({ type: "changes", from: data.from, to: data.cursor, changes: data.changes });
     const now = local.current;
     if (!now || now.epoch !== data.cursor.epoch || now.seq < data.cursor.seq) reread();
@@ -119,22 +140,26 @@ function useTranscript(pane: number): Transcript | undefined {
   return transcript;
 }
 
-/** One agent pane's chat. */
-function PaneChat({ pane, focused }: { pane: number; focused: boolean }) {
-  const options = (usePane(`%${pane}`)?.options ?? {}) as Record<string, unknown>;
+/** One agent tab's chat. */
+function TabChat({ tab, focused }: { tab: number; focused: boolean }) {
+  const options = useTabOptions(`%${tab}`);
   const spec = agentSpec(options["@agent"]);
-  const transcript = useTranscript(pane);
-  const showTerminal = () => void setChat(pane, false).catch(swallow);
-  // One function per pane, so the composer asks again only when the query changes.
-  const findFiles = useCallback((query: string) => mentions(pane, query), [pane]);
-  // The agent waits on its terminal for something pumi was not asked (no request): say so.
-  const askingThere = options["@agent.status"] === "blocked" && (transcript?.permissions.length ?? 0) === 0;
+  const label = spec?.label ?? "the agent";
+  const transcript = useTranscript(tab);
+  const showTerminal = () => void setChat(tab, false).catch(swallow);
+  // One function per tab, so the composer asks again only when the query changes.
+  const findFiles = useCallback((query: string) => mentions(tab, query), [tab]);
+  // The agent waits on its terminal for something pumi was not asked (no request, no question
+  // the timeline shows as one): say so.
+  const asking = transcript ? openQuestion(transcript) : false;
+  const askingThere = options["@agent.status"] === "blocked" && (transcript?.permissions.length ?? 0) === 0 && !asking;
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}>
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", flexShrink: 0 }}>
-        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0 }}>{transcript ? <Header transcript={transcript} /> : null}</div>
-        <TerminalButton label={spec?.label ?? "the agent"} onPress={showTerminal} />
-      </div>
+      {transcript ? (
+        <Header transcript={transcript} except={["model"]}>
+          <TerminalButton label={label} onPress={showTerminal} />
+        </Header>
+      ) : null}
       {askingThere ? <AskingThere label={spec?.label ?? "The agent"} onShow={showTerminal} /> : null}
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0 }}>
         <Conversation
@@ -142,9 +167,13 @@ function PaneChat({ pane, focused }: { pane: number; focused: boolean }) {
           hideHeader
           autoFocus={focused}
           onMentions={findFiles}
-          placeholder={transcript && (transcript.status === "working" || transcript.status === "blocked") ? `Queue a message for ${spec?.label ?? "the agent"}…` : undefined}
+          onAnswerElsewhere={showTerminal}
+          elsewhereLabel={`Answer in ${label}`}
+          rewinds={spec ? (spec.rewind === "command" ? "exact" : "terminal") : undefined}
+          rewindsIn={label}
+          steers={spec !== undefined}
           onCommand={(cmd) =>
-            void send(pane, cmd)
+            void send(tab, cmd)
               .then((ack) => ack.rejected && console.warn(`agent-chat: ${ack.rejected}`))
               .catch(swallow)
           }
@@ -152,6 +181,15 @@ function PaneChat({ pane, focused }: { pane: number; focused: boolean }) {
       </div>
     </div>
   );
+}
+
+/** Whether the newest call asks the user and is still open: the timeline draws it, with where to answer. */
+function openQuestion(transcript: Transcript): boolean {
+  for (let at = transcript.entries.length - 1; at >= 0; at--) {
+    const tool = transcript.entries[at]!.tool;
+    if (tool && (tool.status === "running" || tool.status === "pending") && questionsOf(tool)) return true;
+  }
+  return false;
 }
 
 function TerminalButton({ label, onPress }: { label: string; onPress(): void }) {
@@ -162,10 +200,10 @@ function TerminalButton({ label, onPress }: { label: string; onPress(): void }) 
       aria-label={`Show ${label}'s terminal`}
       title={`Show ${label}'s terminal`}
       onClick={onPress}
-      style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 22, marginRight: 8, paddingLeft: 6, paddingRight: 6, flexShrink: 0, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover }, focusVisible: { outlineWidth: 2, outlineColor: t.accent } }}
+      style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, height: 24, paddingLeft: 7, paddingRight: 8, flexShrink: 0, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, cursor: "pointer", hover: { backgroundColor: t.hover }, focusVisible: { outlineWidth: 2, outlineColor: t.accent } }}
     >
       <Icon name="terminal" size={12} color={t.muted} />
-      <text style={{ fontSize: 12, color: t.muted }}>Terminal</text>
+      <text style={{ fontSize: Math.max(10, m.fontSize - 2), color: t.muted }}>Terminal</text>
     </Press>
   );
 }
@@ -175,18 +213,12 @@ function AskingThere({ label, onShow }: { label: string; onShow(): void }) {
   const t = useTheme();
   const m = useMetrics();
   return (
-    <div role="status" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0, margin: 8, padding: 8, borderRadius: m.radius, borderWidth: 1, borderColor: t["agent.blocked"], backgroundColor: t.surface }}>
-      <Icon name="lock" size={13} color={t["agent.blocked"]} />
+    <div role="status" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0, margin: 10, marginBottom: 0, padding: 8, paddingLeft: 10, borderRadius: m.radius, borderWidth: 1, borderColor: tint(t["agent.blocked"], 0.7), backgroundColor: tint(t["agent.blocked"], 0.08) }}>
+      <Icon name="status_alert" size={13} color={t["agent.blocked"]} />
       <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
         <text style={{ fontSize: m.fontSize, color: t.text }}>{`${label} is asking something in its terminal.`}</text>
       </div>
-      <Press
-        aria-label="Show the terminal"
-        onClick={onShow}
-        style={{ display: "flex", alignItems: "center", height: 24, paddingLeft: 10, paddingRight: 10, borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: t.accent, hover: { opacity: 0.9 }, focusVisible: { outlineWidth: 2, outlineColor: t.accent, outlineOffset: 1 } }}
-      >
-        <text style={{ fontSize: m.fontSize - 1, color: t.accentText }}>Show the terminal</text>
-      </Press>
+      <Button label="Show it" icon="terminal" primary onPress={onShow} />
     </div>
   );
 }

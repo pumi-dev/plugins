@@ -1,18 +1,18 @@
 # pi-session
 
-Two buttons in a pi pane's title bar, beside its split and close: **Fork** opens
-`pi --fork <session>` in a pane beside it, in the same directory; **Copy** puts the session's id,
+Two buttons in a pi tab's title bar, beside its split and close: **Fork** opens
+`pi --fork <session>` in a tab beside it, in the same directory; **Copy** puts the session's id,
 path and directory on the clipboard.
 
 ```text
   ● pi  src/pumi                     ⑂ ⧉ ◫ ⊟ ✕
 ```
 
-They are the manifest's `contributes.slots["pane.toolbar"]` view (`ui.tsx`'s `Toolbar`), drawn
-with `IconButton` from `pumi`, so the theme draws them as it draws the pane's own split and close
-buttons. The view draws nothing for a pane that is not pi's.
+They are the manifest's `contributes.slots["tab.toolbar"]` component (`ui.tsx`'s `Toolbar`), drawn
+with `IconButton` from `pumi`, so the theme draws them as it draws the tab's own split and close
+buttons. The component draws nothing for a tab that is not pi's.
 
-A pane is pi's when its agent's hook said so: `@agent` is `pi` and `@agent.session` is set — what
+A tab is pi's when its agent's hook said so: `@agent` is `pi` and `@agent.session` is set — what
 `pumi skill add pi` writes. A pane that stops being pi's loses its buttons, and one that becomes
 pi's gets them. The session is read from the pane each time a button is pressed, so a fork or a copy
 is of the session the pane is in now, not the one it started in.

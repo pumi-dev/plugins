@@ -3,21 +3,21 @@
 import type { Update } from "../../lib/conversation/src/change.ts";
 import type { Cursor } from "../../lib/conversation/src/model.ts";
 
-/** The channel topic (`ui.post`) a view hears its pane's batches on. */
+/** The channel topic (`ui.post`) the chat hears its tab's batches on. */
 export const UPDATE = "update";
 
 /** What `UPDATE` carries. */
-export interface PaneUpdate {
-  pane: number;
+export interface TabUpdate {
+  tab: number;
   update: Update;
 }
 
 /**
- * The data of `<prefix>conversation.changed`: the convention's `{pane, changes, cursor}`, and
+ * The data of `<prefix>conversation.changed`: the convention's `{tab, changes, cursor}`, and
  * `from`, the cursor the changes go on from (`null` for a new epoch: read again).
  */
 export interface Changed {
-  pane: number;
+  tab: number;
   changes: Extract<Update, { type: "changes" }>["changes"];
   cursor: Cursor;
   from: Cursor | null;

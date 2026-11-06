@@ -1,15 +1,15 @@
 // What the window draws: serve-sim's own preview page, in a webview. It brings the device's chrome,
-// its toolbar and its input (taps, drags, keys go back over the helper's websocket), so the pane is
+// its toolbar and its input (taps, drags, keys go back over the helper's websocket), so the tab is
 // the page and nothing here reimplements the protocol.
 import { useEffect, useRef, useState } from "react"
-import { usePane, usePlugin, useTheme, WebView, call, type RendererProps } from "pumi"
+import { usePlugin, useTab, useTheme, WebView, call, type RendererProps } from "pumi"
 import { release, stream } from "./main.ts"
 
-/** The device in a pane; no `udid` means the booted one (the plugin's `udid` option). */
-export function Device({ pane, focused }: RendererProps) {
+/** The device in a tab; no `udid` means the booted one (the plugin's `udid` option). */
+export function Device({ tab, focused }: RendererProps) {
   const plugin = usePlugin() ?? "amresyd/simulator"
   const key = `${plugin.replace("/", ".")}.udid`
-  const wanted = String(usePane(pane.id)?.options?.[key] ?? "")
+  const wanted = String(useTab(tab.id)?.options?.[key] ?? "")
   const [attempt, setAttempt] = useState(0)
   const [url, setUrl] = useState<string>()
   const [error, setError] = useState<string>()
@@ -24,8 +24,8 @@ export function Device({ pane, focused }: RendererProps) {
         if (!live) return void release(started.udid)
         held.current = started.udid
         setUrl(started.url)
-        // The pane's title in its bar, and in `pumi pane list`.
-        void call("pane.call", pane.id, "report", { title: started.name }).catch(() => {})
+        // The tab's title in its bar, and in `pumi tab list`.
+        void call("tab.call", tab.id, "report", { title: started.name }).catch(() => {})
       })
       .catch((failed: unknown) => {
         if (live) setError(failed instanceof Error ? failed.message : String(failed))
@@ -40,7 +40,7 @@ export function Device({ pane, focused }: RendererProps) {
 
   if (error) return <Notice title="The simulator did not start" detail={error} retry={() => setAttempt((n) => n + 1)} />
   if (!url) return <Notice title="Starting the simulator…" detail="The first device takes a moment: serve-sim installs itself once." />
-  return <WebView handle={`simulator-${pane.id}`} src={url} autoFocus={focused} />
+  return <WebView handle={`simulator-${tab.id}`} src={url} autoFocus={focused} />
 }
 
 function Notice({ title, detail, retry }: { title: string; detail: string; retry?: () => void }) {

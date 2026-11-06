@@ -1,4 +1,4 @@
-// The Windows 98 desktop: teal, its icons down the left, a window for each of the session's tabs
+// The Windows 98 desktop: teal, its icons down the left, a window for each of the session's views
 // (moved by its caption, sized by its edges, maximized, minimized to the taskbar, the one pressed
 // last on top), and the taskbar along the foot — the Start button, the quick launch, a button
 // for each window and the tray with the agents and the clock. The desktop and the taskbar move
@@ -11,14 +11,14 @@ import {
   confirm,
   num,
   prompt,
-  renderView,
+  renderComponent,
   run,
   startRename,
   useAgents,
   useApp,
   useAutoEqualize,
   useComponents,
-  useFocusedPane,
+  useFocusedTab,
   useLocal,
   useMenu,
   usePaneTitles,
@@ -26,22 +26,23 @@ import {
   useSessions,
   useSidebar,
   useSlot,
-  useTabs,
+  useTab,
+  useViews,
   useWindow,
   useWindowSize,
   via,
   type ActionItem,
-  type Pane as PaneInfo,
   type Tab as TabInfo,
+  type View as ViewInfo,
 } from "pumi/theme"
 import { ExplorerBar, goTo } from "./explorer.tsx"
-import { Art, bevel, Box, caption, CaptionButton, FONT, Label, paneArt, paneName, Picture, PushButton, Separator, stop, swallow, tabName } from "./kit.tsx"
+import { Art, bevel, Box, caption, CaptionButton, FONT, Label, Picture, PushButton, Separator, stop, swallow, tabArt, tabTitle, viewName } from "./kit.tsx"
 import { DropMenu } from "./menu.tsx"
 
 const TASKBAR = 28
 /** What a plugin of the user's may have: the command palette's toggle, a browser's new page. */
 const PALETTE = "amresyd.palette.toggle"
-const BROWSER = "amresyd.browser.openTab"
+const BROWSER = "pumi.browser.openTab"
 
 /** Whether a command exists now: a plugin's comes and goes with its plugin. */
 function useHasCommand(name: string): boolean {
@@ -95,66 +96,65 @@ function cascade(index: number, desk: Desk): Place {
 export function Desktop() {
   const t = useTheme()
   const session = useSession()
-  const tabs = useTabs()
-  const sorted = useMemo(() => [...tabs].sort((a, b) => a.number - b.number), [tabs])
-  const front = session?.active_tab_id ?? undefined
+  const views = useViews()
+  const sorted = useMemo(() => [...views].sort((a, b) => a.number - b.number), [views])
+  const front = session?.active_view_id ?? undefined
   const [places, setPlaces] = useLocal<Places>("win98.windows", NO_PLACES)
   const size = useWindowSize()
   // The system's buttons stay over the top left: what sits there (the icons, a maximized
   // window) starts below them.
   const lights = useWindow().trafficLights
   const desk: Desk = { w: size?.width ?? 1100, h: (size?.height ?? 720) - TASKBAR, top: lights ? lights.y + lights.height + 8 : 0 }
-  // The windows in the order they were pressed in, the front tab's last (on top).
+  // The windows in the order they were pressed in, the front view's last (on top).
   const [order, setOrder] = useState<string[]>([])
   useEffect(() => {
     if (front) setOrder((now) => (now[now.length - 1] === front ? now : [...now.filter((x) => x !== front), front]))
   }, [front])
-  const placeOf = (tab: string, index: number) => places[tab] ?? cascade(index, desk)
-  const setPlace = (tab: string, next: Place) => setPlaces((old) => ({ ...old, [tab]: next }))
-  const raise = (tab: string) => {
-    if (tab !== front) call(via(tab, "tab.focus"), tab).catch(swallow)
+  const placeOf = (view: string, index: number) => places[view] ?? cascade(index, desk)
+  const setPlace = (view: string, next: Place) => setPlaces((old) => ({ ...old, [view]: next }))
+  const raise = (view: string) => {
+    if (view !== front) call(via(view, "view.focus"), view).catch(swallow)
   }
-  const rank = (tab: string) => (order.indexOf(tab) < 0 ? -1 : order.indexOf(tab))
-  const overlays = useSlot("window.overlay").views
-  const shown = sorted.filter((tab, i) => !placeOf(tab.tab_id, i).min)
+  const rank = (view: string) => (order.indexOf(view) < 0 ? -1 : order.indexOf(view))
+  const overlays = useSlot("window.overlay").components
+  const shown = sorted.filter((view, i) => !placeOf(view.view_id, i).min)
   // The window on top that is not folded away: the active one, whose caption is navy.
-  const top = [...shown].sort((a, b) => rank(a.tab_id) - rank(b.tab_id)).pop()?.tab_id
+  const top = [...shown].sort((a, b) => rank(a.view_id) - rank(b.view_id)).pop()?.view_id
   return (
     <div
       style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", position: "relative", backgroundColor: t["w98.desktop"], fontFamily: FONT, fontSize: 11, color: t.text, appRegion: "drag", overflow: "hidden" }}
     >
       <div style={{ position: "relative", flexGrow: 1, minHeight: 0 }}>
         <DesktopIcons top={Math.max(8, desk.top)} />
-        {sorted.map((tab, index) => {
-          const place = placeOf(tab.tab_id, index)
+        {sorted.map((view, index) => {
+          const place = placeOf(view.view_id, index)
           if (place.min) return null
           return (
-            <TabWindow
-              key={tab.tab_id}
-              tab={tab}
-              index={index}
-              active={tab.tab_id === top}
-              z={rank(tab.tab_id) + 2}
+            <ViewWindow
+              key={view.view_id}
+              view={view}
+              active={view.view_id === top}
+              z={rank(view.view_id) + 2}
               place={place}
               desk={desk}
-              setPlace={(next) => setPlace(tab.tab_id, next)}
-              raise={() => raise(tab.tab_id)}
+              setPlace={(next) => setPlace(view.view_id, next)}
+              raise={() => raise(view.view_id)}
             />
           )
         })}
       </div>
-      <Taskbar tabs={sorted} active={top} minimized={(tab) => !!places[tab]?.min} toggle={(tab, index) => {
-        const place = placeOf(tab, index)
+      <Taskbar views={sorted} active={top} minimized={(view) => !!places[view]?.min} toggle={(view, index) => {
+        const place = placeOf(view, index)
         if (place.min) {
-          setPlace(tab, { ...place, min: false })
-          raise(tab)
-        } else if (tab === top) setPlace(tab, { ...place, min: true })
-        else raise(tab)
-      }} showDesktop={() => setPlaces((old) => Object.fromEntries(sorted.map((tab, i) => [tab.tab_id, { ...(old[tab.tab_id] ?? cascade(i, desk)), min: true }])))} />
+          setPlace(view, { ...place, min: false })
+          raise(view)
+        } else if (view === top) setPlace(view, { ...place, min: true })
+        else raise(view)
+      }} showDesktop={() => setPlaces((old) => Object.fromEntries(sorted.map((view, i) => [view.view_id, { ...(old[view.view_id] ?? cascade(i, desk)), min: true }])))} />
       <DragGhost />
       {overlays.map((v) => (
-        <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-          {renderView(v)}
+        <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+          {renderComponent(v)}
         </div>
       ))}
     </div>
@@ -204,31 +204,31 @@ function DesktopIcon({ art, label, selected, select, open, id }: { id: string; a
   )
 }
 
-// ── A tab's window ─────────────────────────────────────────────────────────────────────────────
+// ── A view's window ───────────────────────────────────────────────────────────────────────────
 
 type Drag = { kind: "move" | "size"; x: number; y: number; from: Place }
 
 /**
- * One tab as a window: its frame, its caption (the front pane's picture, which opens the tab's
- * menu; the tab's name; minimize, maximize and close), its menu bar, the Explorer bar and its
+ * One view as a window: its frame, its caption (the front tab's picture, which opens the view's
+ * menu; the view's name; minimize, maximize and close), its menu bar, the Explorer bar and its
  * panes, and its status bar. Pressed anywhere, it comes to the front.
  */
-function TabWindow({ tab, index, active, z, place, desk, setPlace, raise }: { tab: TabInfo; index: number; active: boolean; z: number; place: Place; desk: Desk; setPlace(next: Place): void; raise(): void }) {
+function ViewWindow({ view, active, z, place, desk, setPlace, raise }: { view: ViewInfo; active: boolean; z: number; place: Place; desk: Desk; setPlace(next: Place): void; raise(): void }) {
   const t = useTheme()
   const C = useComponents()
   const session = useSession()
   const [explorer] = useSidebar()
   const [width, setWidth] = useLocal("win98.explorer.width", 190)
-  const focused = useFocusedPane(tab.tab_id)
-  const pane = useApp((s) => s.snapshot?.panes.find((p) => p.pane_id === focused))
+  const focused = useFocusedTab(view.view_id)
+  const tab = useTab(focused)
   const [drag, setDrag] = useState<Drag>()
   const [live, setLive] = useState<Place>()
-  const { open: tabMenu, show: showTabMenu, menu } = useMenu(["tab.menu", "tab.actions"], { tab: tab.tab_id })
+  const { open: viewMenu, show: showViewMenu, menu } = useMenu(["view.menu", "view.actions"], { view: view.view_id })
   const shown = live ?? place
   const max = !!shown.max
-  const name = tabName(tab, index)
+  const name = viewName(view)
   const title = session?.label ? `${name} - ${session.label}` : name
-  const close = () => call(via(tab.tab_id, "tab.close"), num(tab.tab_id)).catch(swallow)
+  const close = () => call(via(view.view_id, "view.close"), num(view.view_id)).catch(swallow)
   const toggleMax = () => setPlace({ ...place, max: !place.max })
   const clamp = (p: Place): Place => ({ ...p, x: Math.min(Math.max(p.x, 40 - p.w), desk.w - 40), y: Math.min(Math.max(p.y, 0), desk.h - 20), w: Math.max(260, p.w), h: Math.max(160, p.h) })
   const begin = (kind: Drag["kind"]) => (e: any) => {
@@ -273,11 +273,11 @@ function TabWindow({ tab, index, active, z, place, desk, setPlace, raise }: { ta
           onMouseMove={moving}
           onMouseUp={end}
           onDoubleClick={toggleMax}
-          onAuxClick={tabMenu}
+          onAuxClick={viewMenu}
           style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3, height: 18, flexShrink: 0, paddingLeft: 2, paddingRight: 2, userSelect: "none", ...caption(t, active) }}
         >
-          <div onMouseDown={stop} onClick={(e: any) => (stop(e), showTabMenu(e))} title="Window menu" style={{ display: "flex", flexShrink: 0 }}>
-            <Art name={paneArt(pane)} size={16} />
+          <div onMouseDown={stop} onClick={(e: any) => (stop(e), showViewMenu(e))} title="Window menu" style={{ display: "flex", flexShrink: 0 }}>
+            <Art name={tabArt(tab)} size={16} />
           </div>
           <Label bold color={active ? t["w98.white"] : t["w98.light"]} style={{ flexShrink: 1 }}>
             {title}
@@ -288,15 +288,15 @@ function TabWindow({ tab, index, active, z, place, desk, setPlace, raise }: { ta
           <div style={{ width: 2 }} />
           <CaptionButton glyph="close" title="Close" onClick={close} />
         </div>
-        <MenuBar tab={tab} index={index} pane={focused} />
+        <MenuBar view={view} tab={tab} />
         <div style={{ display: "flex", flexDirection: "row", flexGrow: 1, minHeight: 0 }}>
           {explorer ? <ExplorerBar width={width} /> : null}
           {explorer ? <Sizer width={width} setWidth={setWidth} /> : null}
           <div style={{ display: "flex", flexGrow: 1, minWidth: 0, minHeight: 0, backgroundColor: t["w98.shadow"] }}>
-            <C.Layout tab={tab.tab_id} />
+            <C.Layout view={view.view_id} />
           </div>
         </div>
-        <StatusBar pane={pane} active={active} grip={!max} onGrip={begin("size")} onGripMove={moving} onGripUp={end} />
+        <StatusBar tab={tab} grip={!max} onGrip={begin("size")} onGripMove={moving} onGripUp={end} />
       </div>
       {menu}
     </div>
@@ -317,19 +317,19 @@ function Sizer({ width, setWidth }: { width: number; setWidth(w: number): void }
 }
 
 /**
- * The window's menu bar: File, Edit (the focused pane's own menu), View, Window and Help, each a
+ * The window's menu bar: File, Edit (the front tab's own menu), View, Window and Help, each a
  * menu dropped under its title. Moving along the bar while one is open opens the next.
  */
-function MenuBar({ tab, index, pane }: { tab: TabInfo; index: number; pane?: string }) {
+function MenuBar({ view, tab }: { view: ViewInfo; tab?: TabInfo }) {
   const [open, setOpen] = useState<string>()
   const go = useRun()
   const [titles, setTitles] = usePaneTitles()
   const [explorer, setExplorer] = useSidebar()
   const [even] = useAutoEqualize()
-  const paneMenu = useSlot("pane.menu", open === "edit" && pane ? { pane } : undefined).actions
+  const tabMenu = useSlot("tab.menu", open === "edit" && tab ? { tab: tab.tab_id } : undefined).actions
   const sessions = useSessions()
   const window = useWindow()
-  const name = tabName(tab, index)
+  const name = viewName(view)
   const menus: { id: string; title: string; items(): ActionItem[] }[] = [
     {
       id: "file",
@@ -338,12 +338,11 @@ function MenuBar({ tab, index, pane }: { tab: TabInfo; index: number; pane?: str
         act("new_tab", "New Tab", () => go("new_tab"), { keys: keysOf("new_tab"), group: "new" }),
         act("new_session", "New Session", () => go("new_workspace"), { keys: keysOf("new_workspace"), group: "new" }),
         act("new_window", "New Window", () => go("new_window"), { keys: keysOf("new_window"), group: "new" }),
-        act("remote", "Open Remote Folder…", () => go("open_remote_folder"), { group: "open" }),
-        act("rename", "Rename…", () => startRename({ tab: tab.tab_id }, name), { group: "tab" }),
-        act("close", "Close", () => go("close_tab"), { keys: keysOf("close_tab"), group: "close" }),
+        act("rename", "Rename…", () => startRename({ view: view.view_id }, name), { group: "view" }),
+        act("close", "Close", () => go("close_view"), { keys: keysOf("close_view"), group: "close" }),
       ],
     },
-    { id: "edit", title: "Edit", items: () => (pane ? paneMenu : []) },
+    { id: "edit", title: "Edit", items: () => (tab ? tabMenu : []) },
     {
       id: "view",
       title: "View",
@@ -427,29 +426,19 @@ function EmptyMenu({ close }: { close(): void }) {
   return <DropMenu actions={[act("empty", "(Empty)", () => {}, { disabled: true })]} close={close} />
 }
 
-/** The window's status bar: what the focused pane is in, what its agent says, and the size grip. */
-function StatusBar({ pane, active, grip, onGrip, onGripMove, onGripUp }: { pane?: PaneInfo; active: boolean; grip: boolean; onGrip(e: any): void; onGripMove(e: any): void; onGripUp(): void }) {
+/** The window's status bar: what its front tab is in, what its agent says, and the size grip. */
+function StatusBar({ tab, grip, onGrip, onGripMove, onGripUp }: { tab?: TabInfo; grip: boolean; onGrip(e: any): void; onGripMove(e: any): void; onGripUp(): void }) {
   const t = useTheme()
-  const status = useSlot("status")
-  const C = useComponents()
-  const agent = pane?.agent ? `${pane.agent}: ${pane.agent_status || "unknown"}` : undefined
+  const agent = tab?.agent ? `${tab.agent}: ${tab.agent_status || "unknown"}` : undefined
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2, height: 20, flexShrink: 0, marginTop: 2 }}>
       <Box kind="status" style={{ flexGrow: 1, flexShrink: 1, minWidth: 0, height: 18 }} inner={{ justifyContent: "center", paddingLeft: 3, paddingRight: 3 }}>
-        <Label>{pane?.cwd ?? (pane ? paneName(pane) : "")}</Label>
+        <Label>{tab?.cwd ?? (tab ? tabTitle(tab) : "")}</Label>
       </Box>
       {agent ? (
         <Box kind="status" style={{ height: 18, maxWidth: 220 }} inner={{ flexDirection: "row", alignItems: "center", gap: 3, paddingLeft: 3, paddingRight: 3 }}>
-          <div style={{ width: 8, height: 8, flexShrink: 0, backgroundColor: t[`agent.${pane?.agent_status || "unknown"}`] ?? t["agent.unknown"], borderWidth: 1, borderColor: t["w98.dark"] }} />
+          <div style={{ width: 8, height: 8, flexShrink: 0, backgroundColor: t[`agent.${tab?.agent_status || "unknown"}`] ?? t["agent.unknown"], borderWidth: 1, borderColor: t["w98.dark"] }} />
           <Label>{agent}</Label>
-        </Box>
-      ) : null}
-      {active && (status.views.length || status.actions.length) ? (
-        <Box kind="status" style={{ height: 18 }} inner={{ flexDirection: "row", alignItems: "center", gap: 2, paddingLeft: 2, paddingRight: 2 }}>
-          {status.views.map((v) => renderView(v))}
-          {status.actions.map((a) => (
-            <C.Action key={`${a.plugin}/${a.id}`} action={a} />
-          ))}
         </Box>
       ) : null}
       {grip ? (
@@ -468,7 +457,7 @@ function StatusBar({ pane, active, grip, onGrip, onGripMove, onGripUp }: { pane?
  * for each window (pushed in for the active one; pressed again, it folds away), and the tray.
  * Its empty part moves pumi's window, as the desktop does.
  */
-function Taskbar({ tabs, active, minimized, toggle, showDesktop }: { tabs: TabInfo[]; active?: string; minimized(tab: string): boolean; toggle(tab: string, index: number): void; showDesktop(): void }) {
+function Taskbar({ views, active, minimized, toggle, showDesktop }: { views: ViewInfo[]; active?: string; minimized(view: string): boolean; toggle(view: string, index: number): void; showDesktop(): void }) {
   const t = useTheme()
   const go = useRun()
   const browser = useHasCommand(BROWSER)
@@ -481,8 +470,8 @@ function Taskbar({ tabs, active, minimized, toggle, showDesktop }: { tabs: TabIn
       <QuickLaunch art="computer" title="Show Desktop" onClick={showDesktop} />
       <Separator vertical />
       <div style={{ display: "flex", flexDirection: "row", gap: 3, flexGrow: 1, flexShrink: 1, minWidth: 0, overflow: "hidden" }}>
-        {tabs.map((tab, index) => (
-          <Task key={tab.tab_id} tab={tab} index={index} pushed={tab.tab_id === active && !minimized(tab.tab_id)} onClick={() => toggle(tab.tab_id, index)} />
+        {views.map((view, index) => (
+          <Task key={view.view_id} view={view} pushed={view.view_id === active && !minimized(view.view_id)} onClick={() => toggle(view.view_id, index)} />
         ))}
       </div>
       <Tray />
@@ -502,23 +491,22 @@ function QuickLaunch({ art: picture, title, onClick }: { art: string; title: str
   )
 }
 
-/** A window's button on the taskbar: its picture and name; right-pressed, the tab's menu. */
-function Task({ tab, index, pushed, onClick }: { tab: TabInfo; index: number; pushed: boolean; onClick(): void }) {
-  const focused = useFocusedPane(tab.tab_id)
-  const pane = useApp((s) => s.snapshot?.panes.find((p) => p.pane_id === focused))
-  const status = useApp((s) => lead(s.snapshot?.panes.filter((p) => p.tab_id === tab.tab_id && p.agent).map((p) => p.agent_status) ?? []))
-  const { open, menu } = useMenu(["tab.menu", "tab.actions"], { tab: tab.tab_id })
-  const name = tabName(tab, index)
+/** A window's button on the taskbar: its picture and name; right-pressed, the view's menu. */
+function Task({ view, pushed, onClick }: { view: ViewInfo; pushed: boolean; onClick(): void }) {
+  const tab = useTab(useFocusedTab(view.view_id))
+  const status = useApp((s) => lead(s.snapshot?.tabs.filter((t) => t.view_id === view.view_id && t.agent).map((t) => t.agent_status) ?? []))
+  const { open, menu } = useMenu(["view.menu", "view.actions"], { view: view.view_id })
+  const name = viewName(view)
   return (
     <div style={{ display: "flex", flexDirection: "column", position: "relative", flexShrink: 1, minWidth: 40, width: 160 }}>
       <PushButton
         label={status === "done" || status === "blocked" || status === "error" ? `${name} *` : name}
-        art={paneArt(pane)}
+        art={tabArt(tab)}
         pushed={pushed}
         bold={pushed}
         onClick={onClick}
         onAuxClick={open}
-        title={pane ? `${name} — ${paneName(pane)}` : name}
+        title={tab ? `${name} — ${tabTitle(tab)}` : name}
         style={{ height: 22, flexGrow: 1 }}
         inner={{ justifyContent: "flex-start", paddingLeft: 3 }}
       />
@@ -538,7 +526,7 @@ function lead(statuses: string[]): string | undefined {
   return best
 }
 
-/** The tray: an icon for each agent (its state; a press goes to it), what plugins put in the status bar, and the clock. */
+/** The tray: an icon for each agent (its state; a press goes to it), and the clock. */
 function Tray() {
   const t = useTheme()
   const window = useWindow()
@@ -548,8 +536,8 @@ function Tray() {
     <Box kind="status" style={{ height: 22, flexShrink: 0 }} inner={{ flexDirection: "row", alignItems: "center", gap: 3, paddingLeft: 4, paddingRight: 6 }}>
       {agents.slice(0, 8).map((a) => (
         <div
-          key={a.pane_id}
-          onClick={() => goTo(window, a.workspace_id, a.tab_id, a.pane_id)}
+          key={a.tab_id}
+          onClick={() => goTo(window, a.workspace_id, a.tab_id)}
           title={`${a.title || a.name || a.agent}: ${a.agent_status || "unknown"}`}
           style={{ display: "flex", width: 16, height: 16, alignItems: "center", justifyContent: "center" }}
         >
@@ -610,24 +598,23 @@ function StartMenu({ close }: { close(): void }) {
   const window = useWindow()
   const go = useRun()
   const sessions = useSessions()
-  const tabs = useApp((s) => s.snapshot?.tabs ?? NO_TABS)
+  const views = useApp((s) => s.snapshot?.views ?? NO_VIEWS)
   const palette = useHasCommand(PALETTE)
   const [explorer, setExplorer] = useSidebar()
   const [titles, setTitles] = usePaneTitles()
   const [even] = useAutoEqualize()
-  // The session's own menu, for its worktrees: what the app knows of them.
+  // The session's worktrees: the views of it that are in one.
   const session = window.session
-  const own = useSlot("session.menu", session ? { session } : undefined).actions
-  const worktrees = own.find((a) => a.plugin === "pumi" && a.id === "worktrees")?.items ?? []
+  const worktrees = views.filter((view) => view.workspace_id === session && view.worktree)
   const programs: ActionItem[] = [
     ...sessions.map((s) => {
-      const theirs = tabs.filter((tab) => tab.workspace_id === s.workspace_id).sort((a, b) => a.number - b.number)
+      const theirs = views.filter((view) => view.workspace_id === s.workspace_id).sort((a, b) => a.number - b.number)
       return act(`session.${s.workspace_id}`, s.label || s.workspace_id, () => {}, {
         icon: "folder",
         group: "sessions",
         items: [
-          ...theirs.map((tab, i) => act(`tab.${tab.tab_id}`, tabName(tab, i), () => goTo(window, s.workspace_id, tab.tab_id), { icon: "terminal", group: "tabs" })),
-          act("new_tab", "New Tab", () => call(via(s.workspace_id, "pane.open"), "terminal", {}, { kind: "tab", session: num(s.workspace_id) }).then(() => window.session === s.workspace_id || window.show(s.workspace_id)), { group: "new" }),
+          ...theirs.map((view) => act(`view.${view.view_id}`, viewName(view), () => goTo(window, s.workspace_id, view.view_id), { icon: "terminal", group: "views" })),
+          act("new_view", "New View", () => call(via(s.workspace_id, "tab.open"), "terminal", {}, { kind: "view", session: num(s.workspace_id) }).then(() => window.session === s.workspace_id || window.show(s.workspace_id)), { group: "new" }),
         ],
       })
     }),
@@ -636,7 +623,11 @@ function StartMenu({ close }: { close(): void }) {
   ]
   const items: ActionItem[] = [
     act("programs", "Programs", () => {}, { icon: "programs", items: programs, group: "main" }),
-    act("documents", "Documents", () => {}, { icon: "documents", items: worktrees, group: "main" }),
+    act("documents", "Documents", () => {}, {
+      icon: "documents",
+      group: "main",
+      items: worktrees.map((view) => act(`worktree.${view.view_id}`, viewName(view), () => session && goTo(window, session, view.view_id), { icon: "folder" })),
+    }),
     act("settings", "Settings", () => {}, {
       icon: "settings",
       group: "main",
@@ -657,7 +648,7 @@ function StartMenu({ close }: { close(): void }) {
     act("help", "Help", () => go("help"), { icon: "help", group: "main" }),
     act("run", "Run…", async () => {
       const line = await prompt({ title: "Type the name of a program, and pumi will open it for you.", placeholder: "htop", confirm: "OK" })
-      if (line?.trim()) await call(via(session, "pane.open"), "terminal", { command: line.trim() }, { kind: "tab", ...(session ? { session: num(session) } : {}) })
+      if (line?.trim()) await call(via(session, "tab.open"), "terminal", { command: line.trim() }, { kind: "view", ...(session ? { session: num(session) } : {}) })
     }, { icon: "run", group: "main" }),
     act("logoff", "Close Window…", async () => {
       if (await confirm({ title: "Are you sure you want to close this window?", detail: "Its sessions go on running.", confirm: "Yes", cancel: "No" })) go("close_window")
@@ -674,23 +665,23 @@ function StartMenu({ close }: { close(): void }) {
   return <DropMenu actions={items} close={close} side="top" large band={band} width={170} />
 }
 
-const NO_TABS: TabInfo[] = []
+const NO_VIEWS: never[] = []
 
-/** What a pane or tab drag carries, by the mouse: its picture and its name, as a dotted outline would. */
+/** What a tab, a view or a session drag carries, by the mouse: its picture and its name, as a dotted outline would. */
 function DragGhost() {
   const t = useTheme()
   const drag = useDragState()
-  const it = drag?.data as { kind?: string; pane?: string; tab?: string } | undefined
-  const snapshot = useApp((s) => (it?.kind === "pumi.pane" || it?.kind === "pumi.tab" ? s.snapshot : undefined))
+  const it = drag?.data as { kind?: string; tab?: string; view?: string; session?: string } | undefined
+  const snapshot = useApp((s) => (it?.kind?.startsWith("pumi.") ? s.snapshot : undefined))
   if (!drag || !snapshot || !it) return null
-  const p = it.kind === "pumi.pane" ? snapshot.panes.find((x) => x.pane_id === it.pane) : snapshot.panes.find((x) => x.tab_id === it.tab)
-  const tab = snapshot.tabs.find((x) => x.tab_id === (it.tab ?? p?.tab_id))
-  const label = it.kind === "pumi.pane" ? (p ? paneName(p) : undefined) : tabName(tab)
+  const tab = it.tab ? snapshot.tabs.find((x) => x.tab_id === it.tab) : undefined
+  const view = it.view ? snapshot.views.find((x) => x.view_id === it.view) : tab ? snapshot.views.find((x) => x.view_id === tab.view_id) : undefined
+  const label = tab ? tabTitle(tab) : view ? viewName(view) : it.session ? snapshot.workspaces.find((x) => x.workspace_id === it.session)?.label : undefined
   if (!label) return null
   return (
     <anchored position={{ x: drag.x + 12, y: drag.y + 8 }} style={{ pointerEvents: "none" }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 20, paddingLeft: 3, paddingRight: 6, pointerEvents: "none", ...caption(t, true), opacity: 0.85 }}>
-        <Art name={paneArt(p)} size={16} />
+        <Art name={tab ? tabArt(tab) : view ? "folder" : "computer"} size={16} />
         <Label bold color={t["w98.white"]}>
           {label}
         </Label>

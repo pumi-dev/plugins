@@ -1,28 +1,28 @@
 // Office: pumi as a pixel office you walk around, in Gather's style. Every session is a carpeted
-// room on the floor with its name on a plate, and every tab in it is a desk — or, with "One desk
-// per pane" on, every pane — whose little screen shows its pane live, its agent sitting at it with
-// a bubble that says what it is doing. The whole app is in the room at once.
+// room on the floor with its name on a plate, and every view in it is a desk — or, with "One desk
+// per tab" on, every tab — whose little screen shows the tab in front of it, live, its agent
+// sitting at it with a bubble that says what it is doing. The whole app is in the room at once.
 //
 // It plays like a game: arrow keys or WASD walk you (brisk; you slide along what you bump into), a
 // click walks you there in a moment, and walking up to something lights it and says which key uses
-// it — X (or E, Enter, Space) sits you at a desk and opens its monitor with the real panes, opens
+// it — X (or E, Enter, Space) sits you at a desk and opens its monitor with the real views, opens
 // the lobby, pours a coffee (Settings) or opens the door to your sessions. 1–5 are emotes.
 //
 // The plugins are all here: the lobby down the left (⌘B, or the bookshelf) holds the players and
-// every plugin's panel on a notice board; the top right their title-bar buttons and views and the
-// minimap; the bar along the foot their status views beside the hotbar; and their overlays, menus
-// (a desk's right click is its tab's and pane's menu) and dialogs are the office's pixel boxes.
+// every plugin's panel on a notice board; the top right the minimap; the bar along the foot their
+// status views beside the hotbar; and their overlays, menus (a desk's right click is its view's
+// and its tab's menu) and dialogs are the office's pixel boxes.
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { Icon, motion, useHover, useNow, useTheme } from "pumi"
 import {
   call,
   commands,
   prompt,
-  renderView,
+  renderComponent,
   useApp,
   useAppearance,
   useComponents,
-  useFocusedPane,
+  useFocusedTab,
   useLayout,
   useLocal,
   useSession,
@@ -32,6 +32,7 @@ import {
   useThemeOption,
   useWindow,
   useWindowSize,
+  via,
   windowContext,
   type ActionItem,
   type Session,
@@ -219,27 +220,33 @@ function PropView({ prop, lit, onUse }: { prop: Prop; lit: boolean; onUse(prop: 
 
 // ── Desks ───────────────────────────────────────────────────────────────────────────────────
 
-const tabTitle = (seat: Seat) => (seat.tab.label && !/^\d+$/.test(seat.tab.label) ? seat.tab.label : `Desk ${seat.tab.number}`)
+const viewTitle = (seat: Seat) => (seat.view.label && !/^\d+$/.test(seat.view.label) ? seat.view.label : `Desk ${seat.view.number}`)
 
-/** What a desk is called: its pane's name when it is a pane's desk, else its tab's. */
+/** What a desk is called: its tab's name when it is a tab's desk, else its view's. */
 function deskTitle(seat: Seat): string {
-  const pane = seat.pane
-  if (!pane) return tabTitle(seat)
-  if (pane.label) return pane.label
-  if (pane.terminal_title) return pane.terminal_title
-  const cwd = pane.cwd?.replace(/\/+$/, "")
-  return cwd ? cwd.split("/").pop() || "/" : `${tabTitle(seat)} · ${seat.i}`
+  const tab = seat.tab
+  if (!tab) return viewTitle(seat)
+  if (tab.label) return tab.label
+  if (tab.terminal_title) return tab.terminal_title
+  const cwd = tab.cwd?.replace(/\/+$/, "")
+  return cwd ? cwd.split("/").pop() || "/" : `${viewTitle(seat)} · ${seat.i}`
 }
 
-/** A tab's panes as its layout splits them, each its live screen: the big screen's insides. */
-function ScreenTree({ tree }: { tree: Tree }) {
+/** A tab's screen in its box, scaled: one pane of the layout's insides. */
+function TabScreen({ tab }: { tab: string }) {
   const t = useTheme()
+  return (
+    <div style={{ display: "flex", flexGrow: 1, minWidth: 0, minHeight: 0, overflow: "hidden", borderRadius: 2, backgroundColor: t.editor }}>
+      <preview tab={tab} style={{ width: "100%", height: "100%" }} />
+    </div>
+  )
+}
+
+/** A view's panes as its layout splits them, each its front tab's live screen: the big screen's insides. */
+function ScreenTree({ tree }: { tree: Tree }) {
   if ("pane" in tree) {
-    return (
-      <div style={{ display: "flex", flexGrow: 1, minWidth: 0, minHeight: 0, overflow: "hidden", borderRadius: 2, backgroundColor: t.editor }}>
-        <preview pane={tree.pane} style={{ width: "100%", height: "100%" }} />
-      </div>
-    )
+    const front = tree.active ?? tree.tabs[0]
+    return front ? <TabScreen tab={front} /> : null
   }
   if ("app" in tree) return null
   const row = tree.axis === "row"
@@ -258,9 +265,9 @@ function ScreenTree({ tree }: { tree: Tree }) {
 /** A desk's screen, big, beside it: what you see walking up to it (or pointing at it). */
 function Peek({ seat, left }: { seat: Seat; left: boolean }) {
   const t = useTheme()
-  const tree = useLayout(seat.tab.tab_id)
-  const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === seat.tab.tab_id) ?? [])
-  const status = statusOf(seat, panes)
+  const tree = useLayout(seat.view.view_id)
+  const tabs = useApp((s) => s.snapshot?.tabs.filter((x) => x.view_id === seat.view.view_id) ?? [])
+  const status = statusOf(seat, tabs)
   const colour = status ? (t[`agent.${status}`] ?? t["agent.unknown"]) : undefined
   return (
     <div
@@ -285,7 +292,7 @@ function Peek({ seat, left }: { seat: Seat; left: boolean }) {
         <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap" }}>{status || "idle"}</text>
       </div>
       <div style={{ display: "flex", flexGrow: 1, minHeight: 0, overflow: "hidden", padding: 2, borderRadius: 3, backgroundColor: t.editor, borderWidth: 5, borderColor: t.monitorBezel }}>
-        {seat.pane ? <ScreenTree tree={{ pane: seat.pane.pane_id } as Tree} /> : tree ? <ScreenTree tree={tree} /> : null}
+        {seat.tab ? <TabScreen tab={seat.tab.tab_id} /> : tree ? <ScreenTree tree={tree} /> : null}
       </div>
     </div>
   )
@@ -311,20 +318,20 @@ interface DeskProps {
 
 /**
  * A desk: its sprite, its live little screen, the chair and the agent at it, the cups of a split
- * tab, the bubble and the name tag. Pressed and dragged it moves; clicked, you walk over and sit;
+ * view, the bubble and the name tag. Pressed and dragged it moves; clicked, you walk over and sit;
  * walked up to (or pointed at) its screen opens big beside it.
  */
 const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on }: DeskProps) {
   const t = useTheme()
   const key = deskKey(seat)
-  const focused = useFocusedPane(seat.tab.tab_id)
-  const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === seat.tab.tab_id) ?? [])
-  const shown = seat.pane?.pane_id ?? focused ?? panes[0]?.pane_id
-  const status = statusOf(seat, panes)
-  const agentPane = seat.pane ?? panes.find((p) => p.agent_status === status && status) ?? panes.find((p) => p.agent || p.agent_status)
-  const busy = !!(agentPane && (agentPane.agent || agentPane.agent_status))
+  const focused = useFocusedTab(seat.view.view_id)
+  const tabs = useApp((s) => s.snapshot?.tabs.filter((x) => x.view_id === seat.view.view_id) ?? [])
+  const shown = seat.tab?.tab_id ?? focused ?? tabs[0]?.tab_id
+  const status = statusOf(seat, tabs)
+  const agentTab = seat.tab ?? tabs.find((x) => x.agent_status === status && status) ?? tabs.find((x) => x.agent || x.agent_status)
+  const busy = !!(agentTab && (agentTab.agent || agentTab.agent_status))
   const title = deskTitle(seat)
-  const agent = seat.pane?.label || agentPane?.label || agentPane?.agent || title
+  const agent = seat.tab?.label || agentTab?.label || agentTab?.agent || title
   const working = status === "working"
   const alarmed = status === "blocked" || status === "error"
   const bob = useBeat(working ? 300 : 450, busy && (working || alarmed)) % 2
@@ -351,9 +358,9 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
     >
       {lit ? <div style={{ position: "absolute", left: DESK_ART.x - 4, top: DESK_ART.y - 4, width: DESK_ART.w + 8, height: DESK_ART.h + 8, borderRadius: 3, borderWidth: 2, borderColor: t.slotActive }} /> : null}
       <Sprite src={deskArt} width={DESK_ART.w} height={DESK_ART.h} style={{ position: "absolute", left: DESK_ART.x, top: DESK_ART.y }} />
-      {/* The little screen: the pane in front of the tab, live; it flickers while its agent works. */}
+      {/* The little screen: the view's front tab, live; it flickers while its agent works. */}
       <div style={{ position: "absolute", left: 68, top: 16, width: 40, height: 22, overflow: "hidden", backgroundColor: t.monitorBezel, borderWidth: 1, borderColor: ring }}>
-        {shown ? <preview pane={shown} style={{ width: "100%", height: "100%" }} /> : null}
+        {shown ? <preview tab={shown} style={{ width: "100%", height: "100%" }} /> : null}
         {working ? (
           <motion.div
             animate={{ opacity: [0, 0.3, 0.05, 0.25, 0] }}
@@ -369,8 +376,8 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
           />
         ) : null}
       </div>
-      {/* A cup for each pane past the first: a desk you have split. */}
-      {seat.pane ? null : panes.slice(1, 5).map((_, index) => <Sprite key={index} src={cupArt} width={12} height={10} style={{ position: "absolute", left: 44 + index * 13, top: 26 }} />)}
+      {/* A cup for each tab past the first: a view you have split. */}
+      {seat.tab ? null : tabs.slice(1, 5).map((_, index) => <Sprite key={index} src={cupArt} width={12} height={10} style={{ position: "absolute", left: 44 + index * 13, top: 26 }} />)}
       <Sprite src={chairArt} width={28} height={24} style={{ position: "absolute", left: 74, top: 72 }} />
       {/* The agent, back to us at its screen: typing while it works, fidgeting while it waits. */}
       {busy ? <Sprite src={sitArt(key)} width={24} height={24} style={{ position: "absolute", left: 76 + (alarmed ? bob * 2 - 1 : 0), top: 66 + (working ? bob : 0) }} /> : null}
@@ -433,7 +440,7 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
   )
 })
 
-/** The desk a room always has free: walking to it (or a click) makes a new tab in its session. */
+/** The desk a room always has free: walking to it (or a click) makes a new view in its session. */
 function FreeDesk({ at, lit, onUse }: { at: Pt; lit: boolean; onUse(): void }) {
   const t = useTheme()
   const [over, hover] = useHover()
@@ -444,7 +451,7 @@ function FreeDesk({ at, lit, onUse }: { at: Pt; lit: boolean; onUse(): void }) {
         event?.stopPropagation?.()
         onUse()
       }}
-      title="New desk: a new tab in this session"
+      title="New desk: a new view in this session"
       style={{ position: "absolute", left: at.x, top: at.y, width: CELL_W, height: 130, cursor: "pointer", zIndex: Math.round(at.y + 96), opacity: over || lit ? 1 : 0.6 }}
     >
       {lit ? <div style={{ position: "absolute", left: DESK_ART.x - 4, top: DESK_ART.y - 4, width: DESK_ART.w + 8, height: DESK_ART.h + 8, borderRadius: 3, borderWidth: 2, borderColor: t.slotActive }} /> : null}
@@ -501,7 +508,7 @@ function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt
   const you = useSyncExternalStore(game.subscribe, game.get)
   const cam = useSyncExternalStore(game.subscribe, () => game.cam)
   const blink = useBeat(450) % 2 === 0
-  const panes = useApp((s) => s.snapshot?.panes ?? [])
+  const tabs = useApp((s) => s.snapshot?.tabs ?? [])
   const W = 140
   const k = W / room.width
   const H = Math.max(40, Math.min(120, Math.round(room.height * k)))
@@ -514,7 +521,7 @@ function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt
         ))}
         {room.pods.flatMap((pod) =>
           pod.seats.map((seat, i) => {
-            const status = statusOf(seat, panes)
+            const status = statusOf(seat, tabs)
             const cell = pod.cells[i]!
             return (
               <div
@@ -536,17 +543,17 @@ function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt
 
 /**
  * The monitor: the desk you sat down at, as Gather's desk — the screen in its bezel with the real
- * panes in it, the keyboard, the mug and a sticky note under it. A pane's own desk shows that
- * pane, or (a press on "Whole tab") its whole tab.
+ * views in it, the keyboard, the mug and a sticky note under it. A tab's own desk shows that
+ * tab, or (a press on "Whole view") its whole view.
  */
 function Monitor({ seat, onStand }: { seat: Seat; onStand(): void }) {
   const t = useTheme()
   const C = useComponents()
-  const tab = seat.tab.tab_id
-  const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === tab) ?? [])
+  const view = seat.view.view_id
+  const tabs = useApp((s) => s.snapshot?.tabs.filter((x) => x.view_id === view) ?? [])
   const [whole, setWhole] = useState(false)
-  const one = seat.pane && !whole ? seat.pane.pane_id : undefined
-  const status = statusOf(seat, panes)
+  const one = seat.tab && !whole ? seat.tab.tab_id : undefined
+  const status = statusOf(seat, tabs)
   return (
     <div
       onClick={onStand}
@@ -563,20 +570,20 @@ function Monitor({ seat, onStand }: { seat: Seat; onStand(): void }) {
           <Nametag dot={status ? (t[`agent.${status}`] ?? t["agent.unknown"]) : t["office.online"]} size={13}>
             {deskTitle(seat)}
           </Nametag>
-          <text style={{ fontSize: 12, color: t.muted }}>{one ? `pane ${seat.i} of ${tabTitle(seat)}` : `${panes.length} pane${panes.length === 1 ? "" : "s"}`}</text>
+          <text style={{ fontSize: 12, color: t.muted }}>{one ? `tab ${seat.i} of ${viewTitle(seat)}` : `${tabs.length} tab${tabs.length === 1 ? "" : "s"}`}</text>
           <div style={{ flexGrow: 1 }} />
-          {seat.pane && panes.length > 1 ? <WideSlot icon="layout_panel_left" label={whole ? "This pane" : "Whole tab"} onClick={() => setWhole((v) => !v)} active={whole} /> : null}
+          {seat.tab && tabs.length > 1 ? <WideSlot icon="layout_panel_left" label={whole ? "This tab" : "Whole view"} onClick={() => setWhole((v) => !v)} active={whole} /> : null}
           <WideSlot icon="arrow_left" label="Stand up" onClick={onStand} />
         </div>
         <div style={{ display: "flex", flexGrow: 1, minHeight: 0, overflow: "hidden", borderRadius: 4, backgroundColor: t.editor, borderWidth: 6, borderColor: t.monitorBezel }}>
-          {one ? <C.Pane pane={one} focused zoomed={false} /> : <C.Layout tab={tab} />}
+          {one ? <C.TabBody tab={one} focused /> : <C.Layout view={view} />}
         </div>
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 24, flexShrink: 0, paddingTop: 4 }}>
           <Sprite src={art("decor/mug")} width={18} height={14} />
           <Sprite src={art("decor/keyboard")} width={60} height={18} />
           <Sprite src={art("decor/sticky")} width={18} height={18} />
           <div style={{ flexGrow: 1 }} />
-          <Point point="pane.toolbar" args={{ pane: one ?? seat.pane?.pane_id ?? panes[0]?.pane_id }} />
+          <Point point="tab.toolbar" args={{ tab: one ?? tabs[0]?.tab_id }} />
         </div>
       </motion.div>
     </div>
@@ -661,13 +668,14 @@ function Door({ onClose }: { onClose(): void }) {
   )
 }
 
-/** A desk's menu where it was right-clicked: the office's own, then its tab's and its pane's (the app's and the plugins'). */
+/** A desk's menu where it was right-clicked: the office's own, then its view's and its tab's (the app's and the plugins'). */
 function DeskMenu({ seat, at, own, onClose }: { seat: Seat; at: Pt; own: ActionItem[]; onClose(): void }) {
   const C = useComponents()
-  const tab = useSlot("tab.menu", { tab: seat.tab.tab_id })
-  const pane = useSlot(seat.pane ? "pane.menu" : "", seat.pane ? { pane: seat.pane.pane_id } : undefined)
-  const actions = [...own, ...tab.actions.map((a) => ({ ...a, group: `tab:${a.group ?? ""}` })), ...(seat.pane ? pane.actions.map((a) => ({ ...a, group: `pane:${a.group ?? ""}` })) : [])]
-  return <C.Menu at={at} actions={actions} views={[...tab.views, ...(seat.pane ? pane.views : [])]} args={{ tab: seat.tab.tab_id, pane: seat.pane?.pane_id }} close={onClose} />
+  const tab = seat.tab
+  const view = useSlot("view.menu", { view: seat.view.view_id })
+  const onTab = useSlot(tab ? "tab.menu" : "", tab ? { tab: tab.tab_id } : undefined)
+  const actions = [...own, ...view.actions.map((a) => ({ ...a, group: `view:${a.group ?? ""}` })), ...(tab ? onTab.actions.map((a) => ({ ...a, group: `tab:${a.group ?? ""}` })) : [])]
+  return <C.Menu at={at} actions={actions} components={[...view.components, ...(tab ? onTab.components : [])]} args={{ view: seat.view.view_id, tab: tab?.tab_id }} close={onClose} />
 }
 
 // ── The lobby ───────────────────────────────────────────────────────────────────────────────
@@ -710,26 +718,18 @@ function Lobby({ width, setWidth }: { width: number; setWidth(w: number): void }
 
 // ── The bar ─────────────────────────────────────────────────────────────────────────────────
 
-/** A framed board for what plugins draw on the bar, in the theme's own colours. */
-function Board({ children }: { children: ReactNode }) {
-  const t = useTheme()
-  return <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, minHeight: 30, paddingLeft: 6, paddingRight: 6, flexShrink: 1, minWidth: 0, ...box(t, "panel") }}>{children}</div>
-}
-
 /**
  * The bar along the foot, on the floor: your player card, the hotbar (new desk, decorate, the
- * lobby, settings, one desk per pane, the emotes), and the tray — the plugins' status views and
- * buttons, the agents' counts and the clock.
+ * lobby, settings, one desk per tab, the emotes), and the tray — the agents' counts and the
+ * clock.
  */
-function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, onAgent }: { lobby: boolean; look: number; decorating: boolean; onLobby(): void; onLook(): void; onEmote(index: number): void; onDecorate(): void; onAgent(pane: string): void }) {
+function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, onAgent }: { lobby: boolean; look: number; decorating: boolean; onLobby(): void; onLook(): void; onEmote(index: number): void; onDecorate(): void; onAgent(tab: string): void }) {
   const t = useTheme()
-  const C = useComponents()
   const window = useWindow()
   const session = useSession()
   const now = useNow(15000)
-  const perPane = useThemeOption<boolean>("desk_per_pane", false)
-  const agents = useApp((s) => s.snapshot?.panes.filter((p) => p.agent) ?? [])
-  const { views, actions } = useSlot("status")
+  const perTab = useThemeOption<boolean>("desk_per_tab", false)
+  const agents = useApp((s) => s.snapshot?.tabs.filter((p) => p.agent) ?? [])
   const count = (status: string) => agents.filter((a) => a.agent_status === status).length
   const run = (name: string) => {
     const context = windowContext(window.id)
@@ -754,10 +754,10 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
       </div>
       <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", flexGrow: 1, flexBasis: 0, minWidth: 0 }}>
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, padding: 4, flexShrink: 1, minWidth: 0, overflowX: "scroll", ...box(t, "panel") }}>
-          <WideSlot icon="plus" label="New desk" onClick={() => run("new_tab")} />
+          <WideSlot icon="plus" label="New desk" onClick={() => run("new_view")} />
           <Slot icon="sparkle" label="Decorate" active={decorating} onClick={onDecorate} />
           <Slot icon="layout_sidebar_left" label="Lobby: the players and the plugins' panels (⌘B)" active={lobby} onClick={onLobby} />
-          <Slot icon="blocks" label={`One desk per pane: ${perPane ? "on" : "off"}`} active={perPane === true} onClick={() => call("option.set", "amresyd.office.desk_per_pane", !perPane, { scope: "plugin", plugin: OFFICE }).catch(swallow)} />
+          <Slot icon="blocks" label={`One desk per tab: ${perTab ? "on" : "off"}`} active={perTab === true} onClick={() => call("option.set", "amresyd.office.desk_per_tab", !perTab, { scope: "plugin", plugin: OFFICE }).catch(swallow)} />
           <Slot icon="settings" label="Settings" onClick={() => run("settings")} />
           <div style={{ width: 2, height: 30, marginLeft: 2, marginRight: 2, backgroundColor: t.slotRing, flexShrink: 0 }} />
           {EMOTES.map((emote, index) => (
@@ -766,10 +766,6 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6, flexShrink: 1, minWidth: 0 }}>
-        {views.length ? <Board>{views.map((v) => renderView(v))}</Board> : null}
-        {actions.map((a) => (
-          <C.Action key={`${a.plugin}/${a.id}`} action={a} />
-        ))}
         {["working", "blocked"].map((status) =>
           count(status) ? (
             <div
@@ -777,7 +773,7 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
               title={status === "blocked" ? "Walk to the one waiting for you" : "Walk to one at work"}
               onClick={() => {
                 const next = agents.find((a) => a.agent_status === status)
-                if (next) onAgent(next.pane_id)
+                if (next) onAgent(next.tab_id)
               }}
               style={{ display: "flex", flexDirection: "row", cursor: "pointer", flexShrink: 0 }}
             >
@@ -793,12 +789,10 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
   )
 }
 
-/** Over the floor's top: the session's plate (a press lists the others), the plugins' title-bar buttons and views, the minimap. */
+/** Over the floor's top: the session's plate (a press lists the others), the minimap. */
 function TopHud({ left, onDoor, minimap }: { left: number; onDoor(): void; minimap: ReactNode }) {
   const t = useTheme()
-  const C = useComponents()
   const session = useSession()
-  const { views, actions } = useSlot("window.titlebar")
   return (
     <>
       <div
@@ -814,14 +808,6 @@ function TopHud({ left, onDoor, minimap }: { left: number; onDoor(): void; minim
         <Icon name="chevron_up_down" size={11} color={t.muted} />
       </div>
       <div onClick={(event: any) => event?.stopPropagation?.()} style={{ position: "absolute", right: 10, top: 10, zIndex: 45, display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
-        {actions.length ? (
-          <div style={{ display: "flex", flexDirection: "row", gap: 4, paddingTop: 2 }}>
-            {actions.map((a) => (
-              <C.Action key={`${a.plugin}/${a.id}`} action={a} />
-            ))}
-          </div>
-        ) : null}
-        {views.length ? <Board>{views.map((v) => renderView(v))}</Board> : null}
         {minimap}
       </div>
     </>
@@ -838,10 +824,10 @@ export function Office() {
   const window = useWindow()
   const size = useWindowSize()
   const sessions = useSessions()
+  const views = useApp((s) => s.snapshot?.views ?? [])
   const tabs = useApp((s) => s.snapshot?.tabs ?? [])
-  const panes = useApp((s) => s.snapshot?.panes ?? [])
-  const perPane = useThemeOption<boolean>("desk_per_pane", false) === true
-  const overlays = useSlot("window.overlay").views
+  const perTab = useThemeOption<boolean>("desk_per_tab", false) === true
+  const overlays = useSlot("window.overlay").components
   const wood = useFloorArt("wood")
   const look_ = useAppearance()
   const [lobby, setLobby] = useSidebar()
@@ -874,14 +860,14 @@ export function Office() {
   // The furniture: what you put down, or the starter lounge until you change it.
   const pieces = useMemo(() => stored ?? starter(width), [stored, width])
   const room = useMemo(() => {
-    const first = plan(sessions, tabs, panes, width, view, perPane)
+    const first = plan(sessions, views, tabs, width, view, perTab)
     // The floor goes on as far down as the furniture does.
     const lowest = pieces.reduce((end, piece) => {
       const at = placeOf(piece, first)
       return Math.max(end, at.y + at.h)
     }, 0)
-    return lowest + 80 > first.height ? plan(sessions, tabs, panes, width, view, perPane, lowest) : first
-  }, [sessions, tabs, panes, width, view, perPane, pieces])
+    return lowest + 80 > first.height ? plan(sessions, views, tabs, width, view, perTab, lowest) : first
+  }, [sessions, views, tabs, width, view, perTab, pieces])
   const origin = useRef<Pt>({ x: 0, y: 0 })
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const later = (ms: number, run: () => void) => {
@@ -920,7 +906,7 @@ export function Office() {
     if (x !== at.x || y !== at.y) g.place({ x, y })
     else if (g.follow()) g.place(at)
   }, [room.width, room.height, view])
-  // The desk you sat at went away (its tab closed): you stand up.
+  // The desk you sat at went away (its view closed): you stand up.
   useEffect(() => {
     if (sitting && !sat) setSitting(null)
   }, [sitting, sat])
@@ -933,10 +919,10 @@ export function Office() {
     setEmote(glyph)
     later(2400, () => setEmote((now) => (now === glyph ? null : now)))
   }
-  const sit = (seat: Seat, pane?: string) => {
-    call("tab.focus", seat.tab.tab_id).catch(swallow)
-    const focus = pane ?? seat.pane?.pane_id
-    if (focus) call("pane.focus", focus).catch(swallow)
+  const sit = (seat: Seat, tab?: string) => {
+    call(via(seat.view.view_id, "view.focus"), seat.view.view_id).catch(swallow)
+    const focus = tab ?? seat.tab?.tab_id
+    if (focus) call(via(focus, "tab.focus"), focus).catch(swallow)
     g.stop()
     setDecorating(false)
     setSitting(deskKey(seat))
@@ -946,13 +932,13 @@ export function Office() {
     setFocus((n) => n + 1)
   }
   const rename = (seat: Seat) => {
-    const label = seat.tab.label && !/^\d+$/.test(seat.tab.label) ? seat.tab.label : ""
-    prompt({ title: "Rename desk", detail: seat.pane ? `Names its tab, ${tabTitle(seat)}` : undefined, value: label, placeholder: "A name for this desk", confirm: "Rename" })
-      .then((name) => (name === undefined ? undefined : call("tab.update", seat.tab.tab_id, { name: name.trim() || null })))
+    const label = seat.view.label && !/^\d+$/.test(seat.view.label) ? seat.view.label : ""
+    prompt({ title: "Rename desk", detail: seat.tab ? `Names its view, ${viewTitle(seat)}` : undefined, value: label, placeholder: "A name for this desk", confirm: "Rename" })
+      .then((name) => (name === undefined ? undefined : call(via(seat.view.view_id, "view.update"), seat.view.view_id, { name: name.trim() || null })))
       .catch(swallow)
       .finally(() => setFocus((n) => n + 1))
   }
-  const newDesk = (pod: Pod) => call("pane.open", "terminal", {}, { kind: "tab", session: pod.session.workspace_id }).catch(swallow)
+  const newDesk = (pod: Pod) => call(via(pod.session.workspace_id, "tab.open"), "terminal", {}, { kind: "view", session: pod.session.workspace_id }).catch(swallow)
   const useProp = (prop: Prop) => {
     if (prop.id === "shelf") setLobby((v) => !v)
     else if (prop.id === "coffee") {
@@ -1079,14 +1065,14 @@ export function Office() {
     if (near(g.you.at, spot.at, REACH)) use()
     else if (!g.walkTo(spot.at, use)) use()
   }
-  /** Walks you to the desk a pane is at and sits you down there, in front of that pane. */
-  const visit = (pane: string) => {
-    const tab = panes.find((p) => p.pane_id === pane)?.tab_id
-    const desk = desks.find((d) => d.seat.pane?.pane_id === pane) ?? desks.find((d) => !d.seat.pane && d.seat.tab.tab_id === tab)
-    if (!desk) return void call("pane.focus", pane).catch(swallow)
+  /** Walks you to the desk a tab is at and sits you down there, in front of that tab. */
+  const visit = (tab: string) => {
+    const view = tabs.find((t) => t.tab_id === tab)?.view_id
+    const desk = desks.find((d) => d.seat.tab?.tab_id === tab) ?? desks.find((d) => !d.seat.tab && d.seat.view.view_id === view)
+    if (!desk) return void call(via(tab, "tab.focus"), tab).catch(swallow)
     setSitting(null)
     const spot = spots.find((s) => s.key === `desk:${desk.key}`)
-    goUse(spot && { ...spot, use: () => sit(desk.seat, pane) })
+    goUse(spot && { ...spot, use: () => sit(desk.seat, tab) })
   }
   // The desks' handlers, the same functions each time (so a desk draws again only when it changes),
   // calling what this draw made.
@@ -1107,7 +1093,7 @@ export function Office() {
   )
   const latestVisit = useRef(visit)
   latestVisit.current = visit
-  const room_ = useMemo(() => ({ visit: (pane: string) => latestVisit.current(pane) }), [])
+  const room_ = useMemo(() => ({ visit: (tab: string) => latestVisit.current(tab) }), [])
 
   const floorAt = (event: any): Pt => ({ x: (event?.x ?? 0) - origin.current.x, y: (event?.y ?? 0) - origin.current.y + g.cam })
   const overlay = !!(sitting || door)
@@ -1324,9 +1310,9 @@ export function Office() {
           />
         ) : null}
         {menu ? <DeskMenu seat={menu.seat} at={menu.at} own={deskActions(menu.seat)} onClose={() => setMenu(null)} /> : null}
-        {overlays.map((v) => (
-          <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
-            {renderView(v)}
+        {overlays.map((c) => (
+          <div key={`${c.plugin}/${c.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+            {renderComponent(c)}
           </div>
         ))}
       </div>

@@ -19,11 +19,11 @@ test("its two options are declared for Settings, each with what it says", () => 
   expect(options.notify.default).toBe(true);
 });
 
-test("its bar is a view in the strip above every pane", () => {
+test("its bar is a component in every tab's strip", () => {
   expect(pumi.name).toBe("queue");
   expect(pumi.owner).toBe("amresyd");
   expect(pumi.api).toBe(1);
-  expect(pumi.contributes.slots).toEqual({ "pane.strip": { view: "Bar" } });
+  expect(pumi.contributes.slots).toEqual({ "tab.strip": { component: "Bar" } });
   expect(pumi.contributes.points).toBeUndefined();
   expect(pumi.contributes.blocks).toBeUndefined();
   expect(pumi.activation).toEqual(["onStartup"]);

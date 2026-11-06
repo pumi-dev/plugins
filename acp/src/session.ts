@@ -320,6 +320,19 @@ export class AcpSession {
         this.producer.push({ type: "queue", queue: t.queue.filter((q) => q.id !== command.queued) });
         return;
       }
+      case "steer":
+        throw new Error("an ACP agent takes a prompt only between turns: send it now instead");
+      case "sendNow": {
+        // First in the queue, and the running turn cancelled: its end sends the queue on (`#next`).
+        const queued = t.queue.find((q) => q.id === command.queued);
+        if (!queued) throw new Error("that prompt is not queued");
+        this.producer.push({ type: "queue", queue: [queued, ...t.queue.filter((q) => q !== queued)] });
+        if (this.#turn) {
+          this.#dropAsked();
+          this.peer.notify("session/cancel", { sessionId: this.#state.session });
+        } else this.#next();
+        return;
+      }
       case "context": {
         this.#context = command.text.trim() === "" ? undefined : command.text;
         return;
@@ -327,6 +340,8 @@ export class AcpSession {
       case "setOption":
         if (this.#state.phase !== "ready") throw new Error("the session is not ready");
         return;
+      case "rewind":
+        throw new Error("an ACP session cannot go back to an earlier message");
     }
   }
 

@@ -1,16 +1,8 @@
-// What a pane draws: Pele's drawing, in the app's colours, written out as the SVG file the app's
-// own renderer paints at whatever size the pane gives it — the Rust rasterised the same SVG with
-// resvg inside the component, which a Bun worker has no way to do.
-//
-// The file is named by what is in it (its colours included), so a redrawn diagram is a new file:
-// the app keeps the image it loaded by name, and a new name is what tells it there is a new
-// picture. The cache directory is the package's own, and one that can be made again.
-import { createHash } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { paths } from "pumi";
+// What a tab shows: Pele's drawing, dressed in the app's colours, as the SVG markup the window's
+// own `<svg paint="image">` element draws — gpui parses it with resvg and rasters it at the size the
+// element is given, drawing it again when that size changes (a zoom), so it is sharp at any size
+// and nothing is written to disk.
 import { faces } from "./faces.ts";
-import { nodes, type Node } from "./nodes.ts";
 import { palette, type AppTheme } from "./palette.ts";
 import { draw, themed } from "./pele.ts";
 
@@ -21,35 +13,17 @@ export interface Picture {
   /** The diagram's own size, in points. */
   width: number;
   height: number;
-  /** Pele's own SVG: themeable wherever it is put. */
-  raw: string;
-  /** Where the app draws it: the themed SVG, a file of the package's cache. */
-  file: string;
-  /** The diagram's nodes, for a click on one. */
-  nodes: Node[];
+  /** The SVG the window draws: Pele's own, every colour written out. */
+  svg: string;
 }
 
-/** `source` drawn by Pele, in the app's colours, and written where the app can paint it. `theme` is
- * the window's (`ui.tsx` passes `useTheme()`'s tokens); without one the diagram is Pele's own. */
+/**
+ * `source` drawn by Pele, in the app's colours. `theme` is the window's (`ui.tsx` passes what
+ * `useTheme()` and `useMetrics()` say); without one — a call from elsewhere, like `render` — the
+ * diagram is Pele's own light one.
+ */
 export async function picture(source: string, theme: AppTheme | null = null): Promise<Picture> {
   const set = await faces(theme);
   const laid = draw(source, set);
-  // The nodes come from Pele's own SVG: what `themed()` does to it is write colours and faces
-  // where variables were, and the shapes stay where Pele put them.
-  return {
-    kind: laid.kind,
-    width: laid.width,
-    height: laid.height,
-    raw: laid.raw,
-    file: written(themed(laid.svg, palette(theme, set).vars)),
-    nodes: nodes(laid.svg),
-  };
-}
-
-/** The SVG written in the package's cache, named by what is in it, and where it went. */
-export function written(svg: string): string {
-  const name = createHash("sha1").update(svg).digest("hex").slice(0, 20);
-  const file = join(paths.cache, `${name}.svg`);
-  if (!existsSync(file)) writeFileSync(file, svg);
-  return file;
+  return { kind: laid.kind, width: laid.width, height: laid.height, svg: themed(laid.svg, palette(theme, set).vars) };
 }

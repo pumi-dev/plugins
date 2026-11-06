@@ -1,12 +1,12 @@
-// usage: how much of each AI plan is left, in the status bar and a section of the side bar.
+// usage: how much of each AI plan is left, in a section of the side bar.
 //
 //   pumi call amresyd.usage.refresh                 # read them now
-//   pumi call amresyd.usage.report                  # what the bar has
-//   pumi option set amresyd.usage.layout meters     # meters only
+//   pumi call amresyd.usage.report                  # what the section has
+//   pumi option set amresyd.usage.resets clock      # when each window comes back
 //
 // The worker reads on its own clock (the `every` option), keeps the last numbers in the plugin's
 // storage so a restart draws them before the first read, and posts each snapshot to its views in
-// the window. What a plan is and how it is read is `providers/`; what the bar shows of it is
+// the window. What a plan is and how it is read is `providers/`; what the section shows of it is
 // `model.ts` and `settings.ts`, which `ui.tsx` shares.
 
 import { fn, on, option, request, self, ui } from "pumi";
@@ -77,7 +77,7 @@ async function read(): Promise<Snapshot> {
       if (current.alert) void alerts(next, current);
       return next;
     } finally {
-      // Whatever happened, the clock starts again: a failed read is not the end of the bar.
+      // Whatever happened, the clock starts again: a failed read is not the end of the numbers.
       schedule(current.every);
     }
   })().finally(() => {
@@ -116,7 +116,7 @@ function message(err: unknown): string {
 
 // ---- the functions the window and anyone else reaches
 
-/** The bar's numbers as they stand: what a view that mounts reads before the next snapshot. */
+/** The numbers as they stand: what a view that mounts reads before the next snapshot. */
 export async function current(): Promise<Snapshot> {
   return snapshot;
 }
@@ -128,16 +128,10 @@ export async function refresh(): Promise<Snapshot> {
 
 fn.set("refresh", { desc: "Read the plans again now." }, () => read());
 
-/** Takes the bar away, or brings it back; the side bar's section stays either way. */
-fn.set("toggle", { desc: "Show or hide the plans in the status bar." }, async () => {
-  const show = await option.get("show");
-  await option.set("show", show === false);
-});
-
 fn.set(
   "report",
   {
-    desc: "How much of each plan is left, as the status bar has it: the plans signed in on this Mac, their limit windows, when each resets, and why a read failed if it did.",
+    desc: "How much of each plan is left, as the side bar has it: the plans signed in on this Mac, their limit windows, when each resets, and why a read failed if it did.",
     parameters: [],
     examples: [{ args: [] }],
   },

@@ -1,8 +1,11 @@
 // A press: a `div` that acts like a button. The SDK used to give a `Button`; it does not any
 // more, so this is the same thing built from an element: the `button` role (or the one a list
 // wants, `option`), a tab stop, pressed by a click, Enter or Space.
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { EventPayload, KeyEvent, StyleDesc } from "pumi";
+
+/** A mouse event, which an element's handler can keep from its ancestors' (as the DOM's). */
+export type PressEvent = EventPayload & { stopPropagation?(): void };
 
 export interface PressProps {
   onClick?(event: EventPayload): void;
@@ -49,6 +52,36 @@ export function Press({ onClick, onMouseEnter, disabled = false, focusableWhenDi
       }}
       style={style}
     >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * A plain click, on an element and anything in it: the primary button let go where it went down.
+ * A drag (a text selection) or a second click of a double one is not a tap. Spread its handlers on
+ * the element; `onTap` runs on the release.
+ */
+export function useTap(onTap: (event: PressEvent) => void): { onMouseDown(event: PressEvent): void; onMouseUp(event: PressEvent): void } {
+  const down = useRef<{ x: number; y: number } | null>(null);
+  return {
+    onMouseDown: (event) => {
+      down.current = (event.button ?? 0) === 0 ? { x: event.x ?? 0, y: event.y ?? 0 } : null;
+    },
+    onMouseUp: (event) => {
+      const at = down.current;
+      down.current = null;
+      if (!at || (event.button ?? 0) !== 0 || (event.clickCount ?? 1) > 1) return;
+      if (Math.hypot((event.x ?? 0) - at.x, (event.y ?? 0) - at.y) > 4) return;
+      onTap(event);
+    },
+  };
+}
+
+/** Around a field of its own in the chat (an answer, an edit): a click in it stays its own, not a tap of the chat's. */
+export function OwnClicks({ style, children }: { style?: StyleDesc; children?: ReactNode }) {
+  return (
+    <div onMouseUp={(event: PressEvent) => event.stopPropagation?.()} style={style}>
       {children}
     </div>
   );

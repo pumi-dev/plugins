@@ -53,8 +53,8 @@
         }
       },
       "slots": {
-        "pane.toolbar": {
-          "view": "Toolbar"
+        "tab.toolbar": {
+          "component": "Toolbar"
         }
       }
     }

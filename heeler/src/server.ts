@@ -5,7 +5,7 @@
 // PROVENANCE: framing and envelopes from herdr `src/api/server.rs` @ v0.9.3 (Apache-2.0).
 
 import type { Socket } from "bun";
-import { Fail, dispatch, fromApi, paneNumber, translate, view, type CoreEvent } from "./api.ts";
+import { Fail, dispatch, fromApi, numberOf, translate, view, type CoreEvent } from "./api.ts";
 import { find as findEvent } from "./events.ts";
 import { listen, type Handler, type Listener } from "./listen.ts";
 import { log } from "./log.ts";
@@ -182,8 +182,8 @@ function drop(conn: Connection | undefined): void {
 /** An event of the core's: what it means to herdr's clients goes to whoever asked for it. */
 export async function onEvent(event: CoreEvent): Promise<void> {
   if (!subscribed()) return;
-  // The pane an event is about has changed.
-  const at = paneNumber(event.pane);
+  // The pane an event is about — a pumi tab — has changed.
+  const at = numberOf(event.tab);
   if (at !== undefined) bump(at);
   let now;
   try {

@@ -1,13 +1,13 @@
 // What an agent is doing, read the way the core does: `@agent.status` is one word, and
 // `@program_status` is every program's own report, of which the most urgent is the one that speaks
-// for the pane. All that is drawn of it is in the map, as a word after the pane's title.
-import type { Pane, Program } from "./snapshot.ts";
+// for the tab. All that is drawn of it is in the map, as a word after the tab's title.
+import type { Program, Tab } from "./snapshot.ts";
 
 /** The states, most urgent first, as pumi ranks them (`blocked`, `error`, `done`, `working`, `idle`). */
 export const STATES = ["blocked", "error", "done", "working", "idle", "unknown"] as const;
 export type State = (typeof STATES)[number];
 
-/** How urgent a state is: the order a list of panes sorts in. */
+/** How urgent a state is: the order a list of tabs sorts in. */
 function urgency(state: string): number {
   switch (state) {
     case "blocked":
@@ -24,12 +24,12 @@ function urgency(state: string): number {
 }
 
 /**
- * The program that speaks for a pane: the most urgent report, and between two the root's (`id` is
+ * The program that speaks for a tab: the most urgent report, and between two the root's (`id` is
  * empty), so a sub-agent's block does not hide its own.
  */
-export function program(pane: Pane): Program | undefined {
+export function program(tab: Tab): Program | undefined {
   let best: Program | undefined;
-  for (const record of pane.program) {
+  for (const record of tab.program) {
     if (!best) {
       best = record;
       continue;
@@ -40,9 +40,9 @@ export function program(pane: Pane): Program | undefined {
   return best;
 }
 
-/** The word a pane goes by: `@agent.status`'s, with a `done` whose program failed read as `error`. */
-export function state(pane: Pane): State {
-  switch (pane.status) {
+/** The word a tab goes by: `@agent.status`'s, with a `done` whose program failed read as `error`. */
+export function state(tab: Tab): State {
+  switch (tab.status) {
     case "working":
       return "working";
     case "blocked":
@@ -50,7 +50,7 @@ export function state(pane: Pane): State {
     case "error":
       return "error";
     case "done":
-      return program(pane)?.state === "error" ? "error" : "done";
+      return program(tab)?.state === "error" ? "error" : "done";
     case "idle":
       return "idle";
     default:
@@ -58,8 +58,8 @@ export function state(pane: Pane): State {
   }
 }
 
-/** The state the map says after a pane: the quiet ones say nothing. */
-export function shown(pane: Pane): State | "" {
-  const word = state(pane);
+/** The state the map says after a tab: the quiet ones say nothing. */
+export function shown(tab: Tab): State | "" {
+  const word = state(tab);
   return word === "idle" || word === "unknown" ? "" : word;
 }

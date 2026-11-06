@@ -1,7 +1,7 @@
 # queue
 
-Commands that run **one at a time**, each after the pane it waits for is done — and a bar under
-each pane that has one, showing its jobs.
+Commands that run **one at a time**, each after the tab it waits for is done — and a bar in
+each tab's strip that has one, showing its jobs.
 
 ```
   ───────────────────────────────────────
@@ -36,20 +36,20 @@ not done yet.
 
 pumi already knows, and the queue only reads it:
 
-- **`done`** — the pane's program reported it over (`@agent.status`, OSC 7501: an agent's turn,
+- **`done`** — the tab's program reported it over (`@agent.status`, OSC 7501: an agent's turn,
   a tool that reports itself), **or** its shell has the terminal again
-  (`pane_foreground_pgid == pane_pid`), which is what a plain `make test` looks like. A `blocked`
+  (`tab_foreground_pgid == tab_pid`), which is what a plain `make test` looks like. A `blocked`
   program (one waiting for permission) is not done.
 - **`idle`** — only the shell being back, and nothing reporting that it works.
-- **`exit`** — the pane's program exited (`pane_dead`). This is what a job's own pane uses.
+- **`exit`** — the tab's program exited (`tab_dead`). This is what a job's own tab uses.
 
-A pane typed into (`run: "%7"`) is armed when the keys go in: it is not "done" until it has been
+A tab typed into (`run: "%7"`) is armed when the keys go in: it is not "done" until it has been
 seen busy, or 2 s have passed with it at rest (a command too quick to see, `true`, `echo hi`).
 
 ## The bar
 
-One under each pane that has work — the manifest's `contributes.slots["pane.strip"]` view, which
-draws nothing for a pane the queue has no job for: the jobs waiting for that pane, the one running
+One in each tab's strip that has work — the manifest's `contributes.slots["tab.strip"]` component,
+which draws nothing for a tab the queue has no job for: the jobs waiting for that tab, the one running
 in it, and a job that is over for ten seconds after. It is one line: the job that matters at the
 moment, how many follow it, and how many are over. The line goes to the pane it is about — the one
 it waits for, or the one it was added from — so a click focuses it; `✕` cancels a job that has not
@@ -65,12 +65,12 @@ started.
 
 A TypeScript package: pumi's Bun host runs it in a worker of its own while the app is open, so the
 queue is while the app is open too, and a worker that is restarted loses what it held (a job's pane
-is its record). Waiting is event-driven — `pane.changed` on the pane's `@agent.status`,
-`pane_foreground_pgid`, `pane_current_command` and `pane_dead`, `terminal.closed` and
-`pane.closed` end a wait — and a bar looks at the panes it waits for twice a second while it has
+is its record). Waiting is event-driven — `tab.changed` on the tab's `@agent.status`,
+`tab_foreground_pgid`, `tab_current_command` and `tab_dead`, `terminal.closed` and
+`tab.closed` end a wait — and a bar looks at the tabs it waits for twice a second while it has
 work, now and then when it has none, for the ones that never fired an event. A job that runs in the
 app is `sh -c` through `Bun.spawn`; one in a pane of its own is a `terminal` pane opened with its
-command; one typed into a terminal is `pane.call(pane, "input", …)`.
+command; one typed into a terminal is `tab.call(tab, "input", …)`.
 
 ```sh
 bun test                       # the pure logic: no pumi running

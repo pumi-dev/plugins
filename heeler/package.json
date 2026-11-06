@@ -49,8 +49,27 @@
           "default": true,
           "label": "herdr's keys",
           "group": "heeler",
-          "desc": "While the plugin runs, bind the prefix table (`C-b` then a key) herdr's way: `v` and `-` split, `h` `j` `k` `l` move, `1`–`9` pick a tab."
+          "desc": "While the plugin runs, bind the prefix table (`C-b` then a key) herdr's way: `v` and `-` split, `h` `j` `k` `l` move, `1`\u2013`9` pick a tab."
         }
+      },
+      "settings": {
+        "pages": [
+          {
+            "id": "pair",
+            "title": "Heeler",
+            "icon": "link",
+            "component": "HeelerPage",
+            "keywords": [
+              "heeler",
+              "pair",
+              "pairing",
+              "qr",
+              "phone",
+              "host",
+              "ssh"
+            ]
+          }
+        ]
       }
     },
     "activation": [

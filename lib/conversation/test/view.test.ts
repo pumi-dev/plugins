@@ -12,6 +12,7 @@ import {
   insertMentions,
   mentionAt,
   mentionText,
+  queueKey,
   conversationTitle,
   currentName,
   formatCount,
@@ -26,6 +27,15 @@ import {
   turnLine,
   usageLine,
   visibleEntries,
+  activitySummary,
+  clipLines,
+  diffRows,
+  diffStats,
+  imagePathsIn,
+  shortModel,
+  timelineRows,
+  tint,
+  toolHeadline,
 } from "../src/view.ts";
 
 const entries: Entry[] = Array.from({ length: 5 }, (_, i) => ({ id: String(i), kind: "agent", at: 0, text: String(i) }));
@@ -159,4 +169,68 @@ test("an image, by its extension", () => {
   expect(imageTypeOf("README")).toBeUndefined();
   expect(baseName("/a/b/c.png")).toBe("c.png");
   expect(baseName("src/")).toBe("src");
+});
+
+test("a patch's rows are numbered from its hunks, its headers left off", () => {
+  const patch = "--- a.ts\n+++ a.ts\n@@ -3,2 +3,3 @@ fn\n keep\n-old\n+new\n+more";
+  expect(diffRows(patch)).toEqual([
+    { kind: "hunk", text: "fn" },
+    { kind: "context", text: "keep", old: 3, new: 3 },
+    { kind: "del", text: "old", old: 4 },
+    { kind: "add", text: "new", new: 4 },
+    { kind: "add", text: "more", new: 5 },
+  ]);
+  expect(diffStats(patch)).toEqual({ added: 2, removed: 1 });
+});
+
+test("a run of calls and thoughts is one activity; the last is live while the agent works", () => {
+  const at = 0;
+  const tool = (id: string, kind: Tool["kind"] = "shell", title = "bash"): Entry => ({ id, kind: "tool", at, tool: { id, kind, title, status: "completed", content: [] } });
+  const entries: Entry[] = [
+    { id: "u", kind: "user", at, text: "go" },
+    { id: "th", kind: "thought", at, text: "hm" },
+    tool("t1"),
+    tool("t2", "read", "read"),
+    { id: "a", kind: "agent", at, text: "done" },
+    tool("t3"),
+    tool("q", "other", "AskUserQuestion"),
+    tool("t4"),
+    tool("t5", "edit", "edit"),
+  ];
+  const rows = timelineRows(entries, true, (t) => t.title === "AskUserQuestion");
+  expect(rows.map((row) => (row.type === "entry" ? row.entry.id : `[${row.entries.map((e) => e.id).join(",")}${row.live ? " live" : ""}]`))).toEqual(["u", "[th,t1,t2]", "a", "t3", "q", "[t4,t5 live]"]);
+  expect(activitySummary(entries.slice(1, 4))).toBe("Ran 1 command, read 1 file");
+  expect(activitySummary([entries[1]!])).toBe("Thought");
+});
+
+test("pictures named by their path in a prompt", () => {
+  expect(imagePathsIn('look at /tmp/a.png and "/Users/me/my shot.jpg", not b.png')).toEqual(["/Users/me/my shot.jpg", "/tmp/a.png"]);
+  expect(imagePathsIn("/Users/me/x\\ y.webp")).toEqual(["/Users/me/x y.webp"]);
+});
+
+test("small words: a wash of a colour, a clipped text, a model's short name", () => {
+  expect(tint("#a6e3a1", 0.5)).toBe("#a6e3a180");
+  expect(tint("#fff", 1)).toBe("#ffffffff");
+  expect(tint("#11223380", 0.5)).toBe("#11223340");
+  expect(clipLines("a\nb\nc", 2)).toEqual({ text: "a\nb", more: 1 });
+  expect(shortModel("kiro/claude-opus-5.5")).toBe("claude-opus-5.5");
+  expect(imageSource({ mimeType: "image/png", uri: "file:///tmp/a%20b.png" })).toBe("/tmp/a b.png");
+});
+
+test("a call's headline: its verb in the tense it is in, and what it acted on", () => {
+  const tool = (over: Partial<Tool>): Tool => ({ id: "t", kind: "shell", title: "bash", status: "completed", content: [], ...over });
+  expect(toolHeadline(tool({ input: { command: "cargo test\nmore" } }))).toEqual({ verb: "Ran", target: "cargo test", mono: true });
+  expect(toolHeadline(tool({ kind: "read", title: "read", status: "running", locations: [{ path: "src/a.ts" }] }))).toEqual({ verb: "Reading", target: "src/a.ts", mono: false });
+  expect(toolHeadline(tool({ kind: "mcp", title: "blender: run", input: { query: "q" } }))).toEqual({ verb: "blender: run", target: "q", mono: false });
+});
+
+test("the queue's keys: ⌥⌘⌫ clears it, ⌃⌘S steers, anything else is the field's", () => {
+  const mods = (on: string) => ({ shift: on.includes("shift"), ctrl: on.includes("ctrl"), alt: on.includes("alt"), cmd: on.includes("cmd") });
+  expect(queueKey({ key: "backspace", modifiers: mods("alt cmd") })).toBe("clear");
+  expect(queueKey({ key: "s", modifiers: mods("ctrl cmd") })).toBe("steer");
+  expect(queueKey({ key: "backspace", modifiers: mods("cmd") })).toBeUndefined();
+  expect(queueKey({ key: "s", modifiers: mods("cmd") })).toBeUndefined();
+  expect(queueKey({ key: "s", modifiers: mods("ctrl cmd shift") })).toBeUndefined();
+  expect(queueKey({ key: "backspace", modifiers: mods("alt") })).toBeUndefined();
+  expect(queueKey({ key: "enter" })).toBeUndefined();
 });

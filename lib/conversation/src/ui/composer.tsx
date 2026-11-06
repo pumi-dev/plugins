@@ -1,15 +1,19 @@
 // Where the user writes: a textarea (Enter sends, Shift+Enter is a new line), the prompts queued
-// behind the running turn, and Stop while the agent works. Above it, a list to pick from while the
+// behind the running turn (`queue.tsx`: Enter with nothing written sends the first now, ⌃⌘S steers
+// it, ⌥⌘⌫ clears them), and Stop while the agent works. Above it, a list to pick from while the
 // draft asks for one: the slash commands while it is `/name`, the files while the caret is after an
 // `@`. Up/Down (or Ctrl+P/Ctrl+N) move in it, Tab or Enter takes the one marked, Escape closes it.
 // Files dropped on it are mentioned (`@path`); pictures are attached and shown above the field.
 import { useEffect, useRef, useState } from "react";
-import { Icon, useMetrics, useTheme } from "pumi";
+import { call, Icon, useMetrics, useTheme } from "pumi";
 
-import type { Image, Queued, SlashCommand, Status } from "../model.ts";
-import { applyHint, applyMention, baseName, caretAfterEdit, imageSource, imageTypeOf, insertMentions, mentionAt, relativeTo, slashHints, type MentionHit } from "../view.ts";
-import { Press } from "./press.tsx";
-import { useTextTheme } from "./style.ts";
+import type { ConfigOption, Image, Queued, SlashCommand, Status } from "../model.ts";
+import { applyHint, applyMention, baseName, caretAfterEdit, imageSource, imageTypeOf, insertMentions, mentionAt, queueKey, relativeTo, slashHints, type MentionHit } from "../view.ts";
+import { OptionPicker } from "./header.tsx";
+import { OwnClicks, Press } from "./press.tsx";
+import { QueueCard } from "./queue.tsx";
+import { SEND_ICON } from "./timeline.tsx";
+import { swallow, useTextTheme, useType } from "./style.ts";
 
 export interface ComposerProps {
   status: Status;
@@ -21,6 +25,10 @@ export interface ComposerProps {
   onStop?(): void;
   /** Take back a queued prompt. */
   onUnqueue?(id: string): void;
+  /** Give a queued prompt to the agent now, into its running turn. Without it the queue offers no Steer. */
+  onSteer?(id: string): void;
+  /** Stop the running turn and send a queued prompt next. */
+  onSendNow?(id: string): void;
   /** The files an `@` query finds, best first, as the draft names them. Without it `@` is plain text. */
   onMentions?(query: string): Promise<MentionHit[]>;
   /** The directory a dropped file's mention is written from (the agent's). Absolute paths without it. */
@@ -33,6 +41,16 @@ export interface ComposerProps {
   autoFocus?: boolean;
   /** Whether it takes prompts now (false: drawn but read-only). */
   disabled?: boolean;
+  /** What the draft should be now (an earlier prompt to edit); `n` changes with each. */
+  draft?: { text: string; n: number };
+  /** Who it writes to, for the placeholder. */
+  agent?: string;
+  /** Take the keyboard focus (unless it has it): each new number asks once. */
+  focus?: number;
+  /** Settings shown beside Send (the model), each a picker. */
+  options?: ConfigOption[];
+  /** One of them changed; without it they are shown but not changed. */
+  onOption?(option: ConfigOption, value: string | boolean): void;
 }
 
 /** One row of the list over the field. */
@@ -60,6 +78,8 @@ export function Composer({
   onSend,
   onStop,
   onUnqueue,
+  onSteer,
+  onSendNow,
   onMentions,
   cwd,
   images: takesImages = true,
@@ -67,9 +87,15 @@ export function Composer({
   placeholder,
   autoFocus = false,
   disabled = false,
+  draft: given,
+  agent,
+  focus,
+  options = [],
+  onOption,
 }: ComposerProps) {
   const t = useTheme();
   const m = useMetrics();
+  const type = useType();
   const text = useTextTheme();
   const [draft, setDraftState] = useState("");
   const [attached, setAttached] = useState<Image[]>([]);
@@ -81,6 +107,19 @@ export function Composer({
   const [found, setFound] = useState<{ query: string; hits: MentionHit[] }>({ query: "", hits: [] });
   const asked = useRef(0);
   const working = status === "working" || status === "blocked";
+  // Whether the field has the keyboard focus, and the mount that takes it: a field is focused only
+  // as it is built (`autoFocus`), so a focus asked for builds it again, its draft kept.
+  const hasFocus = useRef(false);
+  const [mount, setMount] = useState(0);
+  const lastFocus = useRef(focus);
+  useEffect(() => {
+    if (focus === undefined || focus === lastFocus.current) return;
+    lastFocus.current = focus;
+    if (hasFocus.current) return;
+    caret.current = draft.length;
+    setAt(draft.length);
+    setMount((n) => n + 1);
+  }, [focus]);
 
   /** The draft set from here: the field's caret goes to its end, so that is where it is. */
   const setDraft = (value: string) => {
@@ -105,6 +144,8 @@ export function Composer({
 
   const send = (value: string, images = attached) => {
     const prompt = value.trim();
+    // Nothing written: Enter sends the first queued prompt now.
+    if (!disabled && prompt === "" && images.length === 0 && queue[0] && onSendNow) return onSendNow(queue[0].id);
     if (disabled || (prompt === "" && images.length === 0)) return;
     onSend(prompt, images);
     setDraft("");
@@ -155,12 +196,42 @@ export function Composer({
       setDraft(next.draft);
     }
   };
+  // A draft handed in (an earlier prompt to edit) replaces what is written.
+  const lastGiven = useRef(given?.text ? undefined : given?.n);
+  useEffect(() => {
+    if (!given || given.n === lastGiven.current) return;
+    lastGiven.current = given.n;
+    setDraft(given.text);
+  });
+  const pick = () => {
+    void call("fs.pick", { kind: "file", multiple: true, title: "Attach" })
+      .then((chosen: unknown) => take(Array.isArray(chosen) ? chosen.filter((p): p is string => typeof p === "string") : typeof chosen === "string" ? [chosen] : []))
+      .catch(swallow);
+  };
   const lastDrop = useRef(dropped?.n);
   useEffect(() => {
     if (!dropped || dropped.n === lastDrop.current) return;
     lastDrop.current = dropped.n;
     take(dropped.paths);
   });
+
+  /** A queued prompt taken back into the field, ahead of what is written there, to change it. */
+  const editQueued = (queued: Queued) => {
+    onUnqueue?.(queued.id);
+    setDraft(draft.trim() === "" ? queued.text : `${queued.text}\n\n${draft}`);
+    if (queued.images?.length) setAttached((now) => [...(queued.images ?? []).filter((each) => !now.some((had) => had.uri === each.uri)), ...now]);
+    setMount((n) => n + 1);
+  };
+  const clearQueue = () => queue.forEach((each) => onUnqueue?.(each.id));
+  /** The queue's keys, from anywhere in the composer. */
+  const onQueueKey = (e: any) => {
+    const asked = queue.length > 0 && !disabled ? queueKey(e ?? {}) : undefined;
+    if (asked === "clear" && onUnqueue) clearQueue();
+    else if (asked === "steer" && onSteer) onSteer(queue[0]!.id);
+    else return;
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+  };
 
   const onKey = (e: any) => {
     const key = e?.key ?? "";
@@ -189,34 +260,30 @@ export function Composer({
   };
 
   const canSend = !disabled && (draft.trim() !== "" || attached.length > 0);
+  const who = agent ?? "the agent";
+  const hint = working ? `Queue a message for ${who}…` : `Message ${who}${onMentions ? ", @ to include files" : ""}, / for commands`;
   return (
     <div
       // Dropped here unless the chat around takes drops for it (`dropped`): one drop, taken once.
       onFileDrop={dropped ? undefined : (e: any) => take(e?.paths ?? [])}
-      style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, padding: 8, borderTopWidth: 1, borderColor: t.border }}
+      onKeyDown={onQueueKey}
+      style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, paddingLeft: 12, paddingRight: 10, paddingTop: 10, paddingBottom: 8, borderTopWidth: 1, borderColor: t.border, backgroundColor: t.editor }}
     >
       {queue.length > 0 ? (
-        <div role="list" aria-label="Queued prompts" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {queue.map((each) => (
-            <div key={each.id} role="listitem" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: 6, paddingRight: 4, height: 22, borderRadius: m.radiusSmall, backgroundColor: t.surface }}>
-              <Icon name="status_ring" size={11} color={t.faint} />
-              <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
-                <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{each.text || `${each.images?.length ?? 0} image(s)`}</text>
-              </div>
-              {onUnqueue ? (
-                <Press aria-label={`Take back the queued prompt: ${each.text}`} onClick={() => onUnqueue(each.id)} style={{ display: "flex", padding: 2, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } }}>
-                  <Icon name="close" size={11} color={t.faint} />
-                </Press>
-              ) : null}
-            </div>
-          ))}
-        </div>
+        <QueueCard
+          queue={queue}
+          onDelete={onUnqueue}
+          onEdit={onUnqueue && !disabled ? editQueued : undefined}
+          onSteer={onSteer && !disabled ? onSteer : undefined}
+          onSendNow={onSendNow && !disabled ? onSendNow : undefined}
+          onClear={onUnqueue ? clearQueue : undefined}
+        />
       ) : null}
       {shown ? (
         <div
           role="listbox"
           aria-label={mention ? "Files" : "Slash commands"}
-          style={{ display: "flex", flexDirection: "column", maxHeight: 22 * 8 + 4, overflowY: "scroll", paddingTop: 2, paddingBottom: 2, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}
+          style={{ display: "flex", flexDirection: "column", maxHeight: 26 * 8 + 6, overflowY: "scroll", paddingTop: 3, paddingBottom: 3, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.overlay }}
         >
           {picks.map((pick, index) => (
             <Press
@@ -231,78 +298,106 @@ export function Composer({
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 8,
-                height: 22,
+                height: 26,
                 flexShrink: 0,
+                marginLeft: 3,
+                marginRight: 3,
                 paddingLeft: 8,
                 paddingRight: 8,
+                borderRadius: m.radiusSmall,
                 cursor: "pointer",
                 backgroundColor: index === current ? t.selected : undefined,
                 focusVisible: { backgroundColor: t.selected },
               }}
             >
-              <Icon name={pick.icon} size={11} color={index === current ? t.text : t.faint} />
-              <text style={{ fontSize: 12, color: t.text, whiteSpace: "nowrap", flexShrink: 0 }}>{pick.label}</text>
-              {pick.hint ? <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap", flexShrink: 0 }}>{pick.hint}</text> : null}
+              <Icon name={pick.icon} size={12} color={index === current ? t.text : t.faint} />
+              <text style={{ fontSize: type.small, fontWeight: 600, fontFamily: mention ? undefined : type.mono, color: t.text, whiteSpace: "nowrap", flexShrink: 0 }}>{pick.label}</text>
+              {pick.hint ? <text style={{ fontSize: type.small, color: t.faint, whiteSpace: "nowrap", flexShrink: 0 }}>{pick.hint}</text> : null}
               <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
-                <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{pick.detail ?? ""}</text>
+                <text style={{ fontSize: type.small, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{pick.detail ?? ""}</text>
               </div>
             </Press>
           ))}
         </div>
       ) : null}
-      {attached.length > 0 ? (
-        <div role="list" aria-label="Attached images" style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-          {attached.map((image) => (
-            <div key={image.uri ?? image.data} role="listitem" title={image.uri} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 32, paddingLeft: 3, paddingRight: 4, maxWidth: 220, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
-              <img src={imageSource(image)} alt="" objectFit="cover" style={{ width: 26, height: 26, flexShrink: 0, borderRadius: m.radiusSmall }} />
-              <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
-                <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{baseName(image.uri ?? "image")}</text>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {attached.length > 0 ? (
+          <div role="list" aria-label="Attached pictures" style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 6, paddingBottom: 2 }}>
+            {attached.map((image) => (
+              <div key={image.uri ?? image.data} role="listitem" title={image.uri} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 36, paddingLeft: 3, paddingRight: 4, maxWidth: 220, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
+                <img src={imageSource(image)} alt="" objectFit="cover" style={{ width: 28, height: 28, flexShrink: 0, borderRadius: m.radiusSmall }} />
+                <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
+                  <text style={{ fontSize: type.small, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{baseName(image.uri ?? "picture")}</text>
+                </div>
+                <Press
+                  aria-label={`Remove ${baseName(image.uri ?? "the picture")}`}
+                  onClick={() => setAttached((now) => now.filter((each) => each !== image))}
+                  style={{ display: "flex", padding: 3, flexShrink: 0, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } }}
+                >
+                  <Icon name="close" size={11} color={t.faint} />
+                </Press>
               </div>
-              <Press
-                aria-label={`Remove ${baseName(image.uri ?? "the image")}`}
-                onClick={() => setAttached((now) => now.filter((each) => each !== image))}
-                style={{ display: "flex", padding: 2, flexShrink: 0, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } }}
-              >
-                <Icon name="close" size={11} color={t.faint} />
-              </Press>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", gap: 6, padding: 6, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.editor }}>
-        <textarea
-          aria-label="Message the agent"
-          value={draft}
-          placeholder={placeholder ?? (working ? "Queue a message…" : `Message the agent… (/ for commands${onMentions ? ", @ for files" : ""})`)}
-          readOnly={disabled}
-          autoFocus={autoFocus}
-          minRows={1}
-          maxRows={10}
-          theme={text}
-          interceptKeys={shown ? LIST_KEYS : undefined}
-          onChange={(e) => {
-            const value = e.value ?? "";
-            caret.current = caretAfterEdit(draft, value);
-            setAt(caret.current);
-            setDraftState(value);
-          }}
-          onKeyDown={onKey}
-          onSubmit={(e) => (shown ? picks[current]?.enter() : send(e.value ?? draft))}
-          style={{ flexGrow: 1, minWidth: 0, fontSize: m.fontSize, color: t.text, backgroundColor: t.editor }}
-        />
-        {working && onStop ? (
-          <Press aria-label="Stop the agent" onClick={onStop} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, flexShrink: 0, borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: t.active, hover: { backgroundColor: t.hover } }}>
-            <Icon name="square_dot" size={12} color={t.error} />
-          </Press>
+            ))}
+          </div>
         ) : null}
-        <Press
-          aria-label="Send"
-          disabled={!canSend}
-          onClick={() => send(draft)}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, flexShrink: 0, borderRadius: m.radiusSmall, cursor: "pointer", backgroundColor: canSend ? t.accent : t.active, hover: { opacity: 0.9 } }}
-        >
-          <Icon name="arrow_up" size={12} color={canSend ? t.accentText : t.faint} />
-        </Press>
+        {/* A click in the field places its caret: not a tap of the chat's, which would build it again. */}
+        <OwnClicks style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <textarea
+            aria-label={`Message ${who}`}
+            value={draft}
+            placeholder={placeholder ?? hint}
+            readOnly={disabled}
+            key={mount}
+            autoFocus={autoFocus || mount > 0}
+            minRows={3}
+            maxRows={12}
+            theme={text}
+            interceptKeys={shown ? LIST_KEYS : undefined}
+            onChange={(e) => {
+              const value = e.value ?? "";
+              caret.current = caretAfterEdit(draft, value);
+              setAt(caret.current);
+              setDraftState(value);
+            }}
+            onKeyDown={onKey}
+            onFocus={() => (hasFocus.current = true)}
+            onBlur={() => (hasFocus.current = false)}
+            onSubmit={(e) => (shown ? picks[current]?.enter() : send(e.value ?? draft))}
+            style={{ flexGrow: 1, minWidth: 0, fontSize: type.body, color: t.text, backgroundColor: "transparent" }}
+          />
+        </OwnClicks>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4 }}>
+          {takesImages ? (
+            <Press aria-label="Attach pictures or files" title="Attach pictures or files" onClick={pick} disabled={disabled} style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, flexShrink: 0, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } }}>
+              <Icon name="plus" size={13} color={t.muted} />
+            </Press>
+          ) : null}
+          <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }} />
+          {options.map((option) => (
+            <OptionPicker
+              key={option.id}
+              option={option}
+              side="top"
+              title={working ? `${option.name}: changed once the agent is done` : option.name}
+              onChange={onOption && !working ? (value) => onOption(option, value) : undefined}
+            />
+          ))}
+          {working && onStop ? (
+            <Press aria-label="Stop the agent" title="Stop (Esc in the agent)" onClick={onStop} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 5, height: 26, paddingLeft: 8, paddingRight: 9, flexShrink: 0, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, cursor: "pointer", hover: { backgroundColor: t.hover } }}>
+              <Icon name="square_dot" size={11} color={t.error} />
+              <text style={{ fontSize: type.small, color: t.text }}>Stop</text>
+            </Press>
+          ) : null}
+          <Press
+            aria-label={working ? "Queue it" : "Send"}
+            title={working ? "Queue it for when the agent is done" : "Send (↵, ⇧↵ for a new line)"}
+            disabled={!canSend}
+            onClick={() => send(draft)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 26, flexShrink: 0, borderRadius: m.radiusSmall, cursor: canSend ? "pointer" : "default", backgroundColor: canSend ? t.accent : t.active, hover: canSend ? { opacity: 0.9 } : {} }}
+          >
+            <svg source={SEND_ICON} style={{ width: 13, height: 13, flexShrink: 0, color: canSend ? t.accentText : t.faint }} />
+          </Press>
+        </div>
       </div>
     </div>
   );

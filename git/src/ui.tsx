@@ -8,7 +8,7 @@
 // whose unchanged rows are not drawn again, and the commit box keeps its own text. The repository,
 // the lines and every action are the worker's (`main.ts`, `panel.ts`, `tree.ts`).
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Icon, useChannel, useMetrics, usePane, usePlugin, useTab, useTheme, type RendererProps } from "pumi";
+import { Icon, useChannel, useMetrics, usePlugin, useSession, useTab, useTheme, type RendererProps } from "pumi";
 
 import {
   chose,
@@ -34,6 +34,8 @@ import {
 } from "./main.ts";
 import type { Commit, CommitMode, Sync } from "./git.ts";
 import { when } from "./time.ts";
+import { foldedAtFirst, parsePatch, tint } from "../../lib/diff/src/patch.ts";
+import { PatchView, Stats } from "../../lib/diff/src/ui.tsx";
 
 /** A line's height, and a commit's, and the filter box's, in pixels. */
 const ROW = 26;
@@ -44,12 +46,20 @@ const FILTER_ROW = 34;
 const FIXED = 34 + 34 + 34 + 12 + FILTER_ROW + ROW * 3;
 /** A commit message line's height, in pixels. */
 const MESSAGE_LINE = 18;
+/** The page's height under which the commit box stops claiming its four rows and gives them, one at a
+ * time, back to the lines above: at `ROOMY` and taller it keeps all four, shorter than that it shrinks. */
+const ROOMY = 500;
+/** The room the message is charged for and does not have, so its four rows run out at `ROOMY` and not
+ * at the ~300 a page needs for them: a `ROOMY` page, less its four lines, less what is not the message. */
+const CLAIMED = ROOMY - FIXED - 4 * MESSAGE_LINE;
 /** A directory level's indent, and where its guide runs in it: under the middle of the folder icon. */
 const INDENT = 16;
 const GUIDE = 7;
 const PAD = 10;
 /** Lines made beyond each end of what shows. */
 const OVERSCAN = 40;
+/** How long the page waits to ask a worker that did not answer again, in ms. */
+const RETRY = 1000;
 
 /** A throw the page cannot answer: said in the log, not drawn over the window. */
 function swallow(err: unknown): void {
@@ -75,17 +85,20 @@ function at(e: any): At {
   return { x: e?.x ?? 0, y: e?.y ?? 0 };
 }
 
-/** The `panel` slot's view. Only the focused pane's directory is read here, so a pane's title or
- * status changing draws nothing of the page. */
+/** The `panel` slot's component. Only the focused tab's directory is read here, so a tab's title
+ * or status changing draws nothing of the page. */
 export function Git() {
-  const focused = usePane(useTab()?.activePane?.id);
+  const focused = useTab();
+  const session = useSession();
   const prefix = usePrefix();
-  // A pane with no directory of its own (this plugin's diff, a page, nothing focused yet) is not
-  // somewhere the user went: the page stays on the repository it was showing.
+  // A tab with no directory of its own (this plugin's diff, a page, nothing focused yet) is not
+  // somewhere the user went: the page stays on the repository it was showing. Before any tab has
+  // said, the session's own directory is where the user works.
   const last = useRef<string | null>(null);
   const cwd = focused?.cwd;
   if (cwd && cwd !== "/" && focused?.block !== `${prefix}diff`) last.current = cwd;
-  return <GitAt cwd={last.current} />;
+  const own = session?.cwd;
+  return <GitAt cwd={last.current ?? (own && own !== "/" ? own : null)} />;
 }
 
 /** The newer of what was posted and what an export answered. */
@@ -102,10 +115,25 @@ const GitAt = memo(function GitAt({ cwd }: { cwd: string | null }) {
   const postedChanges = useChannel<ChangesView | undefined>("changes", undefined);
   const postedHistory = useChannel<HistoryView | undefined>("history", undefined);
   const [answer, setAnswer] = useState<Views | undefined>(undefined);
+  // Raised to ask again: the worker was not there to answer (the app still starting its plugins, the
+  // plugin reloading), so nothing was posted either, and the page would stay blank.
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    // No directory yet: what the worker posted (it looked where it started) is the page.
-    if (cwd !== null) void follow(cwd).then(setAnswer).catch(swallow);
-  }, [cwd]);
+    // Asked with no directory too: the call starts the worker, which then posts the page.
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    follow(cwd).then(
+      (views) => live && setAnswer(views),
+      (err) => {
+        swallow(err);
+        if (live) timer = setTimeout(() => setRetry((n) => n + 1), RETRY);
+      },
+    );
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [cwd, retry]);
   const changes = newest(postedChanges, answer?.changes);
   const history = newest(postedHistory, answer?.history);
   const open = (where: At, items: Item[]) => setMenu({ at: where, items });
@@ -474,7 +502,8 @@ function Checkbox({ state, onClick }: { state: string; onClick(): void }) {
         borderRadius: 3,
         borderWidth: 1,
         borderColor: on ? t.accent : t.border,
-        backgroundColor: on ? t.accent : t.editor,
+        // Unchecked it is the list it sits in (a fill of its own would darken it again, see-through).
+        backgroundColor: on ? t.accent : undefined,
         cursor: "pointer",
         hover: { borderColor: on ? t.accent : t.faint },
       }}
@@ -578,7 +607,7 @@ function CommitBox({ view, menu, room }: { view: ChangesView; menu(where: At, it
   const t = useTheme();
   const [draft, setDraft] = useState(view.message);
   const [tall, setTall] = useState(false);
-  const fits = room === null ? Infinity : Math.max(1, Math.floor(room / MESSAGE_LINE));
+  const fits = room === null ? Infinity : Math.max(1, Math.floor((room - CLAIMED) / MESSAGE_LINE));
   const minRows = Math.min(tall ? 14 : 4, fits);
   const maxRows = Math.max(minRows, Math.min(tall ? 40 : 10, fits));
   const mode: CommitMode = view.staged > 0 || view.tracked === 0 ? "staged" : "tracked";
@@ -762,7 +791,7 @@ function Menu({ at: where, items, close }: { at: At; items: Item[]; close(): voi
   const m = useMetrics();
   return (
     <anchored position={where} fit="snap" deferred occlude onMouseDownOutside={close}>
-      <div style={{ display: "flex", flexDirection: "column", minWidth: 170, padding: 4, borderRadius: m.radius, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}>
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 170, padding: 4, borderRadius: m.radius, backgroundColor: t.overlay, borderWidth: 1, borderColor: t.border, boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: "#00000066" } }}>
         {items.map((item) => (
           <div
             key={item.label}
@@ -782,71 +811,20 @@ function Menu({ at: where, items, close }: { at: At; items: Item[]; close(): voi
 
 // ---- the diff pane
 
-/** One line of a patch, and what it is: a file's header, a hunk's, an addition, a deletion. */
-export interface PatchLine {
-  /** The file it is in, as its `diff --git` header names it. */
-  file: string | null;
-  kind: "file" | "hunk" | "add" | "del" | "plain";
-  text: string;
-}
-
-/** A patch as lines, each keeping the file it is in. */
-export function patchLines(patch: string): PatchLine[] {
-  const lines: PatchLine[] = [];
-  let file: string | null = null;
-  for (const text of patch.split("\n")) {
-    if (text.startsWith("diff --git ")) {
-      const at = text.indexOf(" b/");
-      file = at >= 0 ? text.slice(at + 3) : text.slice(11);
-      lines.push({ file, kind: "file", text });
-    } else if (text.startsWith("@@")) lines.push({ file, kind: "hunk", text });
-    else if (text.startsWith("+++") || text.startsWith("---") || text.startsWith("index ")) lines.push({ file, kind: "plain", text });
-    else if (text.startsWith("+")) lines.push({ file, kind: "add", text });
-    else if (text.startsWith("-")) lines.push({ file, kind: "del", text });
-    else lines.push({ file, kind: "plain", text });
-  }
-  return lines;
-}
-
-/** This plugin's options carry its prefix (`amresyd.git.`), which is how the pane's own `diff` is
+/** This plugin's options carry its prefix (`amresyd.git.`), which is how the tab's own `diff` is
  * named in the state the window reads. */
 function usePrefix(): string {
   const id = usePlugin();
   return id === undefined ? "" : `${id.replace("/", ".").replaceAll("-", "_")}.`;
 }
 
-/** The files of a patch, and what it adds and deletes, read in one pass over its lines. */
-function summary(patch: string): { files: string[]; added: number; deleted: number } {
-  const files: string[] = [];
-  let added = 0;
-  let deleted = 0;
-  let at = 0;
-  while (at < patch.length) {
-    let end = patch.indexOf("\n", at);
-    if (end < 0) end = patch.length;
-    const c = patch.charCodeAt(at);
-    if (c === 43 /* + */) {
-      if (!patch.startsWith("+++ ", at)) added += 1;
-    } else if (c === 45 /* - */) {
-      if (!patch.startsWith("--- ", at)) deleted += 1;
-    } else if (c === 100 /* d */ && patch.startsWith("diff --git ", at)) {
-      const line = patch.slice(at, end);
-      const b = line.lastIndexOf(" b/");
-      files.push(b >= 0 ? line.slice(b + 3) : line.slice(11));
-    }
-    at = end + 1;
-  }
-  return { files, added, deleted };
-}
-
-/** A diff pane: what the page said to show (the pane's `diff` option), read through the worker and
+/** A diff tab: what the page said to show (the tab's `diff` option), read through the worker and
  * drawn here — its files' lines in the theme's own additions and deletions, each file header
  * folding the lines under it. What it drew stays up while the next read runs, so a change in the
  * work tree never blanks it. */
-export function Diff({ pane }: RendererProps) {
+export function Diff({ tab }: RendererProps) {
   const t = useTheme();
-  const m = useMetrics();
-  const each = usePane(pane.id);
+  const each = useTab(tab.id);
   const prefix = usePrefix();
   const value = (each?.options?.[`${prefix}diff`] as string | undefined) ?? "";
   const spec = useMemo<Shown | null>(() => {
@@ -859,8 +837,9 @@ export function Diff({ pane }: RendererProps) {
   // The work tree's diff is read again whenever the page is posted anew; a commit's never changes.
   const changes = useChannel<ChangesView | undefined>("changes", undefined);
   const stamp = spec?.kind === "work" ? changes?.version ?? 0 : 0;
-  const [read, setRead] = useState<{ value: string; patch: string; error: string | null } | null>(null);
-  const [folded, setFolded] = useState<Set<string>>(() => new Set());
+  const [read, setRead] = useState<{ value: string; patch: string; error: string | null; cut: boolean } | null>(null);
+  // What the user folded and opened; the rest is as `foldedAtFirst` has it (lock files, very long files).
+  const [choice, setChoice] = useState<{ value: string; folded: Set<string>; opened: Set<string> }>(() => ({ value, folded: new Set(), opened: new Set() }));
 
   useEffect(() => {
     if (value === "") return;
@@ -875,75 +854,83 @@ export function Diff({ pane }: RendererProps) {
       live = false;
     };
   }, [value, stamp]);
-  // Another diff is another set of files: none of them folded.
-  useEffect(() => setFolded(new Set()), [value]);
 
   const patch = read?.patch ?? "";
-  const lines = useMemo(() => patchLines(patch), [patch]);
-  const info = useMemo(() => summary(patch), [patch]);
-  const many = info.files.length > 1;
-  const allFolded = many && folded.size >= info.files.length;
+  const files = useMemo(() => parsePatch(patch), [patch]);
+  // Another diff is another set of files: what was folded goes.
+  const mine = choice.value === value ? choice : { value, folded: new Set<string>(), opened: new Set<string>() };
+  const folded = useMemo(() => {
+    const at = foldedAtFirst(files);
+    for (const path of mine.opened) at.delete(path);
+    for (const path of mine.folded) at.add(path);
+    return at;
+  }, [files, mine]);
+  const toggle = (path: string) =>
+    setChoice(() => {
+      const next = { value, folded: new Set(mine.folded), opened: new Set(mine.opened) };
+      if (folded.has(path)) {
+        next.folded.delete(path);
+        next.opened.add(path);
+      } else {
+        next.opened.delete(path);
+        next.folded.add(path);
+      }
+      return next;
+    });
+  const added = files.reduce((n, file) => n + file.added, 0);
+  const deleted = files.reduce((n, file) => n + file.removed, 0);
+  const many = files.length > 1;
+  const allFolded = many && files.every((file) => folded.has(file.path));
   const path = spec?.kind === "work" ? spec.path : undefined;
+  const root = spec?.root;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, color: t.text }}>
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 34, flexShrink: 0, paddingLeft: 12, paddingRight: 8, borderBottomWidth: 1, borderColor: t.border }}>
+    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, color: t.text, backgroundColor: t.editor }}>
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 34, flexShrink: 0, paddingLeft: 12, paddingRight: 8, borderBottomWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
         <Icon name={spec?.kind === "commit" ? "status_dot" : "git_branch"} size={13} color={t.muted} />
-        <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0, flexShrink: 1 }}>
+        <text style={{ fontSize: 13, fontWeight: 600, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", minWidth: 0, flexShrink: 1 }}>
           {path ?? spec?.title ?? "Diff"}
         </text>
         {spec?.kind === "work" && spec.path === undefined ? null : spec?.kind === "work" && spec.side === "staged" ? <Tag text="Staged" /> : null}
-        {many ? <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap" }}>{`${count(info.files.length)} files`}</text> : null}
-        {info.added > 0 ? <text style={{ fontSize: 12, color: t.success, whiteSpace: "nowrap" }}>{`+${count(info.added)}`}</text> : null}
-        {info.deleted > 0 ? <text style={{ fontSize: 12, color: t.error, whiteSpace: "nowrap" }}>{`−${count(info.deleted)}`}</text> : null}
+        {many ? <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap" }}>{`${count(files.length)} files`}</text> : null}
+        <Stats added={added} removed={deleted} />
         <div style={{ flexGrow: 1 }} />
         {many ? (
           <IconButton
             name={allFolded ? "chevron_down" : "chevron_up_down"}
             label={allFolded ? "Open every file" : "Fold every file"}
             on={false}
-            onClick={() => setFolded(allFolded ? new Set() : new Set(info.files))}
+            onClick={() => setChoice({ value, folded: allFolded ? new Set() : new Set(files.map((file) => file.path)), opened: allFolded ? new Set(files.map((file) => file.path)) : new Set() })}
           />
         ) : null}
         {spec?.kind === "work" && path !== undefined ? (
           <IconButton name="arrow_up_right" label="Open the file" on={false} onClick={() => void reveal(spec.root, path, null).catch(swallow)} />
         ) : null}
       </div>
+      {read?.cut ? (
+        <div role="status" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0, paddingLeft: 12, paddingRight: 12, height: 26, backgroundColor: tint(t.warning, 0.12) }}>
+          <Icon name="warning" size={12} color={t.warning} />
+          <text style={{ fontSize: 12, color: t.text }}>The change is too big to show whole: its end is left out.</text>
+        </div>
+      ) : null}
       {read === null ? (
-        <div style={{ flexGrow: 1, backgroundColor: t.editor }} />
+        <div style={{ flexGrow: 1 }} />
       ) : read.error !== null ? (
         <div style={{ padding: 12 }}>
           <text style={{ fontSize: 12, color: t.error }}>{read.error}</text>
         </div>
-      ) : patch === "" ? (
-        <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center", backgroundColor: t.editor }}>
+      ) : files.length === 0 ? (
+        <div style={{ display: "flex", flexGrow: 1, alignItems: "center", justifyContent: "center" }}>
           <text style={{ fontSize: 13, color: t.faint }}>No changes</text>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll", backgroundColor: t.editor, borderRadius: m.radiusSmall }}>
-          {lines.map((line, index) => {
-            if (line.file !== null && folded.has(line.file) && line.kind !== "file") return null;
-            const wash = line.kind === "add" ? (t.diffAdd ?? t.active) : line.kind === "del" ? (t.diffDel ?? t.selected) : undefined;
-            return (
-              <div
-                key={index}
-                onClick={
-                  line.file === null || line.kind !== "file"
-                    ? undefined
-                    : () =>
-                        setFolded((had) => {
-                          const next = new Set(had);
-                          if (!next.delete(line.file!)) next.add(line.file!);
-                          return next;
-                        })
-                }
-                style={{ display: "flex", flexShrink: 0, paddingLeft: 8, paddingRight: 8, cursor: line.kind === "file" ? "pointer" : "default", backgroundColor: wash }}
-              >
-                <text style={{ fontSize: m.fontSize - 1, color: line.kind === "file" || line.kind === "hunk" ? t.muted : t.text, whiteSpace: "nowrap" }}>{line.text}</text>
-              </div>
-            );
-          })}
-        </div>
+        <PatchView
+          files={files}
+          folded={folded}
+          onToggle={toggle}
+          onOpen={root && spec?.kind === "work" ? (file) => void reveal(root, file.path, null).catch(swallow) : undefined}
+          onLine={root && spec?.kind === "work" ? (file, line) => void reveal(root, file.path, line).catch(swallow) : undefined}
+        />
       )}
     </div>
   );

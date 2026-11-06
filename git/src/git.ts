@@ -64,21 +64,41 @@ const COMMAND = "git";
 const ENV: Record<string, string | undefined> = { ...process.env, GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0" };
 
 /** Runs git in `dir`; what it wrote, and how it ended. */
-async function run(dir: string, args: string[]): Promise<Answer> {
+async function run(dir: string, args: string[], limit = Number.POSITIVE_INFINITY): Promise<Answer> {
   let proc: Bun.Subprocess<"ignore", "pipe", "pipe">;
   try {
     proc = Bun.spawn([COMMAND, ...args], { cwd: dir, env: ENV, stdin: "ignore", stdout: "pipe", stderr: "pipe" });
   } catch (err) {
     throw new GitError(`cannot run ${COMMAND}: ${message(err)}`);
   }
-  const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
-  return { code, out, err };
+  const reading = Number.isFinite(limit) ? capped(proc, limit) : new Response(proc.stdout).text();
+  const [out, err, code] = await Promise.all([reading, new Response(proc.stderr).text(), proc.exited]);
+  // A read cut at its limit ended git early: what it gave is the answer, not the signal it got.
+  return { code: out.length >= limit ? 0 : code, out, err };
+}
+
+/** At most `limit` characters of a process's output; past them it is stopped. */
+async function capped(proc: Bun.Subprocess<"ignore", "pipe", "pipe">, limit: number): Promise<string> {
+  const reader = proc.stdout.getReader();
+  const decoder = new TextDecoder();
+  let out = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    out += decoder.decode(value, { stream: true });
+    if (out.length >= limit) {
+      proc.kill();
+      void reader.cancel().catch(() => {});
+      return out.slice(0, limit);
+    }
+  }
+  return out + decoder.decode();
 }
 
 /** Runs git in `dir` and gives its standard output; a non-zero exit is `GitError` with its own
  * words (the last line of its standard error, which is where git puts the reason). */
-async function ok(dir: string, args: string[]): Promise<string> {
-  const answer = await run(dir, args);
+async function ok(dir: string, args: string[], limit?: number): Promise<string> {
+  const answer = await run(dir, args, limit);
   if (answer.code !== 0) throw new GitError(reason(answer));
   return answer.out;
 }
@@ -499,24 +519,39 @@ export const UNTRACKED_LIMIT = 200;
 
 const DIFF_FLAGS = ["--no-color", "--no-ext-diff", "--find-renames", "--patch"];
 
-/** A unified patch for `spec`, as `git diff` writes it, for the `<diff>` element to draw. */
+/** The most of a patch read, in characters: past it, the diff tab says the rest was left out. */
+export const PATCH_LIMIT = 48 << 20;
+
+/** A unified patch for `spec`, as `git diff` writes it, of at most `PATCH_LIMIT` characters (cut at a line's end). */
 export async function patch(root: string, spec: DiffSpec): Promise<string> {
+  return (await readPatch(root, spec)).text;
+}
+
+/** `patch`, and whether it was cut at `PATCH_LIMIT`. */
+export async function readPatch(root: string, spec: DiffSpec): Promise<{ text: string; cut: boolean }> {
+  const text = await wholePatch(root, spec);
+  if (text.length < PATCH_LIMIT) return { text, cut: false };
+  const end = text.lastIndexOf("\n", PATCH_LIMIT);
+  return { text: text.slice(0, end > 0 ? end + 1 : PATCH_LIMIT), cut: true };
+}
+
+async function wholePatch(root: string, spec: DiffSpec): Promise<string> {
   if (spec.kind === "commit") {
     if (!/^[0-9a-f]{4,64}$/.test(spec.sha)) throw new GitError(`not a commit: ${spec.sha}`);
-    return ok(root, ["show", "--format=", ...DIFF_FLAGS, spec.sha]);
+    return ok(root, ["show", "--format=", ...DIFF_FLAGS, spec.sha], PATCH_LIMIT);
   }
   const paths = spec.path ? ["--", spec.path] : [];
   if (spec.path && spec.untracked) return untrackedPatch(root, [spec.path]);
-  if (spec.side === "staged") return ok(root, ["diff", "--cached", ...DIFF_FLAGS, ...paths]);
+  if (spec.side === "staged") return ok(root, ["diff", "--cached", ...DIFF_FLAGS, ...paths], PATCH_LIMIT);
   if (spec.side === "changes") {
-    const tracked = await ok(root, ["diff", ...DIFF_FLAGS, ...paths]);
-    if (spec.path) return tracked;
+    const tracked = await ok(root, ["diff", ...DIFF_FLAGS, ...paths], PATCH_LIMIT);
+    if (spec.path || tracked.length >= PATCH_LIMIT) return tracked;
     return tracked + (await untrackedPatch(root, await untracked(root)));
   }
   // Everything against HEAD (or, before the first commit, everything staged), and what is new.
   const born = (await run(root, ["rev-parse", "-q", "--verify", "HEAD"])).code === 0;
-  const tracked = await ok(root, born ? ["diff", "HEAD", ...DIFF_FLAGS, ...paths] : ["diff", "--cached", ...DIFF_FLAGS, ...paths]);
-  if (spec.path) return tracked;
+  const tracked = await ok(root, born ? ["diff", "HEAD", ...DIFF_FLAGS, ...paths] : ["diff", "--cached", ...DIFF_FLAGS, ...paths], PATCH_LIMIT);
+  if (spec.path || tracked.length >= PATCH_LIMIT) return tracked;
   return tracked + (await untrackedPatch(root, await untracked(root)));
 }
 
@@ -531,7 +566,7 @@ async function untrackedPatch(root: string, paths: string[]): Promise<string> {
   const read = paths.slice(0, UNTRACKED_LIMIT);
   const parts = await Promise.all(
     read.map(async (path) => {
-      const answer = await run(root, ["diff", "--no-index", ...DIFF_FLAGS, "--", "/dev/null", path]);
+      const answer = await run(root, ["diff", "--no-index", ...DIFF_FLAGS, "--", "/dev/null", path], PATCH_LIMIT);
       return answer.code <= 1 ? answer.out : "";
     }),
   );

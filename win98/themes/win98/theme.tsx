@@ -1,11 +1,11 @@
-// Windows 98: a teal desktop, a window for each tab (moved by its caption, sized by its corner,
+// Windows 98: a teal desktop, a window for each view (moved by its caption, sized by its corner,
 // maximized and minimized to the taskbar), the taskbar along the foot and a Start menu of your
-// sessions and their tabs. Every menu is the system's grey card, every question a message box.
+// sessions and their views. Every menu is the system's grey card, every question a message box.
 // One look, light and dark alike, as the system had one.
 import { defineTheme } from "pumi"
 import { Desktop } from "./desktop.tsx"
 import { Menu } from "./menu.tsx"
-import { Action, Dialog, IconButton, Pane, PaneTitle, Splitter, Starting } from "./panes.tsx"
+import { Action, Dialog, IconButton, Pane, PaneTab, PaneTitle, Splitter, Starting } from "./panes.tsx"
 
 const TOKENS: Record<string, string> = {
   window: "#c0c0c0",
@@ -74,5 +74,5 @@ export default defineTheme({
     fontSize: 11,
     fontFamily: "Tahoma",
   },
-  components: { Window: Desktop, Starting, Pane, PaneTitle, Splitter, Menu, Dialog, IconButton, Action },
+  components: { Window: Desktop, Starting, Pane, PaneTitle, PaneTab, Splitter, Menu, Dialog, IconButton, Action },
 })

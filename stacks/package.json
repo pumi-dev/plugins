@@ -1,0 +1,53 @@
+{
+  "name": "pumi-stacks",
+  "displayName": "Stacks",
+  "version": "0.1.0",
+  "description": "Stacked columns in one sideways scroll, in the default theme's look: every tab of the session is a column, and the ones scrolled past fold into spines.",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "stacks",
+    "owner": "amresyd",
+    "api": 1,
+    "themes": [
+      "themes/stacks"
+    ],
+    "contributes": {
+      "options": {
+        "column_width": {
+          "type": "number",
+          "default": 90,
+          "min": 40,
+          "max": 200,
+          "step": 5,
+          "unit": " chars",
+          "label": "Column width",
+          "control": "slider",
+          "desc": "How wide a new column is, in terminal characters. Drag a column's right edge to size that one.",
+          "group": "Columns"
+        },
+        "focus_follows_mouse": {
+          "type": "boolean",
+          "default": false,
+          "label": "Focus the column under the mouse",
+          "desc": "A column takes the focus as the mouse moves onto it, without a click.",
+          "group": "Columns"
+        },
+        "haptics": {
+          "type": "boolean",
+          "default": true,
+          "label": "Haptic feedback",
+          "desc": "A tap on a Force Touch trackpad as a switch turns or a slider steps. Nothing on a mouse.",
+          "group": "Motion and feedback"
+        }
+      }
+    }
+  }
+}

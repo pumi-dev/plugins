@@ -294,21 +294,20 @@ export function Label({ children, color, bold, style }: { children: ReactNode; c
   return <text style={{ fontSize: 11, fontFamily: FONT, fontWeight: bold ? 700 : 400, color: color ?? t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0, ...style }}>{children}</text>
 }
 
-/** A tab's name as its window says it: its own, or `Tab n` for one not named. */
-export function tabName(tab: { label?: string | null; number?: number } | undefined, index?: number): string {
-  if (tab?.label && !/^\d+$/.test(tab.label)) return tab.label
-  return `Tab ${index !== undefined ? index + 1 : (tab?.number ?? "")}`.trim()
+/** A view, as its window's caption says it: its own name, or `View n` for one not named. */
+export function viewName(v: { label?: string | null; number?: number } | undefined): string {
+  return v?.label || `View ${v?.number ?? ""}`.trim()
 }
 
-/** A pane by what it shows: an agent by its title, then its name, its title, its folder, its kind. */
-export function paneName(p: { block: string; label?: string; terminal_title?: string | null; cwd?: string | null; agent?: string | null }): string {
+/** A tab by what it shows: an agent by its title, then its name, its title, its folder, its kind. */
+export function tabTitle(p: { block: string; label?: string | null; terminal_title?: string | null; cwd?: string | null; agent?: string | null }): string {
   const dir = p.cwd ? p.cwd.replace(/\/+$/, "").split("/").pop() : undefined
   if (p.agent) return p.terminal_title || p.label || p.agent
   return p.label || p.terminal_title || dir || p.block
 }
 
-/** The picture a pane is shown with: a prompt for a terminal, a globe for a page, a plug for a plugin's. */
-export function paneArt(p: { block: string; agent?: string | null } | undefined): string {
+/** The picture a tab is shown with: a prompt for a terminal, a globe for a page, a plug for a plugin's. */
+export function tabArt(p: { block: string; agent?: string | null } | undefined): string {
   if (!p) return "dos"
   if (p.agent) return "help"
   if (p.block === "terminal") return "dos"

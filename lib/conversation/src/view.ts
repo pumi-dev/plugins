@@ -2,6 +2,7 @@
 // commands a draft hints at, how a status, a turn, a tool or a count reads. `ui.tsx` draws these.
 // No `import … from "pumi"` here.
 import { describeInput, type ConfigOption, type Entry, type Image, type OptionCategory, type SlashCommand, type Status, type Tool, type ToolKind, type ToolStatus, type Transcript, type TurnSummary, type Usage } from "./model.ts";
+import { diffStats } from "../../diff/src/patch.ts";
 import { unifiedDiff } from "./diff.ts";
 
 /** The newest `count` entries, and how many are left out before them. */
@@ -205,10 +206,137 @@ export function patchOf(part: { path: string; old?: string; new: string; unified
   return part.unified ?? unifiedDiff(part.path, part.old, part.new);
 }
 
-/** An image as `<img src>`: a data URL for inline bytes, else its uri. */
+/** An image as `<img src>`: a data URL for inline bytes, else its uri (a `file:` URL as its path). */
 export function imageSource(image: Image): string | undefined {
   if (image.data) return `data:${image.mimeType};base64,${image.data}`;
+  if (image.uri?.startsWith("file://")) return decodeURIComponent(image.uri.slice("file://".length));
   return image.uri;
+}
+
+/** The pictures a prompt names by their absolute path (how pi is told of an attached picture). */
+export function imagePathsIn(text: string): string[] {
+  const found: string[] = [];
+  const quoted = /"(\/[^"\n]+?\.(?:png|jpe?g|gif|webp))"/gi;
+  for (let m = quoted.exec(text); m; m = quoted.exec(text)) if (!found.includes(m[1]!)) found.push(m[1]!);
+  const path = /(?:^|[\s"'(])((?:\/|file:\/\/\/)(?:[^\s"'()]|\\ )+?\.(?:png|jpe?g|gif|webp))(?=$|[\s"'),.;:])/gi;
+  for (let m = path.exec(text); m; m = path.exec(text)) {
+    const each = m[1]!.replace(/\\ /g, " ").replace(/^file:\/\//, "");
+    if (!found.includes(each)) found.push(each);
+  }
+  return found;
+}
+
+// ── Diffs ─────────────────────────────────────────────────────────────────────────────────────
+
+export { diffRows, diffStats, type DiffRow } from "../../diff/src/patch.ts";
+
+/** What a tool's changes add up to, over all its diffs. */
+export function toolDiffStats(tool: Tool): { added: number; removed: number } | undefined {
+  const diffs = tool.content.filter((part) => part.type === "diff");
+  if (diffs.length === 0) return undefined;
+  return diffs.reduce(
+    (sum, part) => {
+      const each = diffStats(patchOf(part as { path: string; old?: string; new: string; unified?: string }));
+      return { added: sum.added + each.added, removed: sum.removed + each.removed };
+    },
+    { added: 0, removed: 0 },
+  );
+}
+
+/** At most `max` lines of `text`, and how many more there were. */
+export function clipLines(text: string, max: number): { text: string; more: number } {
+  const lines = text.split("\n");
+  if (lines.length <= max) return { text, more: 0 };
+  return { text: lines.slice(0, max).join("\n"), more: lines.length - max };
+}
+
+// ── Grouping ──────────────────────────────────────────────────────────────────────────────────
+
+/** A row of the timeline: one entry, or a run of the agent's work (its calls and thoughts) as one. */
+export type TimelineRow = { type: "entry"; entry: Entry } | { type: "activity"; id: string; entries: Entry[]; live: boolean };
+
+/** Whether an entry is the agent's work between what it says: a call (not a question) or a thought. */
+function isWork(entry: Entry, isQuestion: (tool: Tool) => boolean): boolean {
+  if (entry.kind === "thought") return true;
+  return entry.kind === "tool" && !!entry.tool && !isQuestion(entry.tool);
+}
+
+/**
+ * The timeline's rows: each run of two or more calls and thoughts in a row is one activity; the
+ * last, while the agent works, is `live`. A question stands on its own, as does what is said.
+ */
+export function timelineRows(entries: Entry[], working: boolean, isQuestion: (tool: Tool) => boolean = () => false): TimelineRow[] {
+  const rows: TimelineRow[] = [];
+  let run: Entry[] = [];
+  const flush = () => {
+    if (run.length === 1) rows.push({ type: "entry", entry: run[0]! });
+    else if (run.length > 1) rows.push({ type: "activity", id: `activity:${run[0]!.id}`, entries: run, live: false });
+    run = [];
+  };
+  for (const entry of entries) {
+    if (isWork(entry, isQuestion)) {
+      run.push(entry);
+      continue;
+    }
+    flush();
+    rows.push({ type: "entry", entry });
+  }
+  flush();
+  const last = rows[rows.length - 1];
+  if (working && last?.type === "activity") last.live = true;
+  return rows;
+}
+
+/** An activity in a line: `Ran 3 commands, read 2 files, edited 1 file`. */
+export function activitySummary(entries: Entry[]): string {
+  const count = new Map<string, number>();
+  const edited = new Set<string>();
+  let thoughts = 0;
+  let failed = 0;
+  for (const entry of entries) {
+    if (entry.kind === "thought") {
+      thoughts++;
+      continue;
+    }
+    const tool = entry.tool;
+    if (!tool) continue;
+    if (tool.status === "failed") failed++;
+    if (tool.kind === "edit" || tool.kind === "write") {
+      edited.add(tool.locations?.[0]?.path ?? tool.id);
+      continue;
+    }
+    count.set(tool.kind, (count.get(tool.kind) ?? 0) + 1);
+  }
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const parts: string[] = [];
+  const verbs: [string, (n: number) => string][] = [
+    ["shell", (n) => `ran ${plural(n, "command", "commands")}`],
+    ["read", (n) => `read ${plural(n, "file", "files")}`],
+    ["search", (n) => `searched ${plural(n, "time", "times")}`],
+    ["fetch", (n) => `fetched ${plural(n, "page", "pages")}`],
+    ["subagent", (n) => `ran ${plural(n, "agent", "agents")}`],
+    ["mcp", (n) => `used ${plural(n, "MCP tool", "MCP tools")}`],
+    ["other", (n) => `used ${plural(n, "tool", "tools")}`],
+  ];
+  if (edited.size > 0) parts.push(`edited ${plural(edited.size, "file", "files")}`);
+  for (const [kind, say] of verbs) {
+    const n = count.get(kind);
+    if (n) parts.push(say(n));
+  }
+  if (parts.length === 0) parts.push(thoughts > 1 ? `thought ${thoughts} times` : "thought");
+  if (failed > 0) parts.push(`${failed} failed`);
+  const line = parts.join(", ");
+  return line.charAt(0).toUpperCase() + line.slice(1);
+}
+
+// ── Colour ────────────────────────────────────────────────────────────────────────────────────
+
+export { tint } from "../../diff/src/patch.ts";
+
+/** A model's id as a header shows it: its provider left off (`kiro/claude-opus-5.5` is `claude-opus-5.5`). */
+export function shortModel(model: string | undefined): string | undefined {
+  if (!model) return undefined;
+  return model.split("/").pop() || model;
 }
 
 /** A token count as people read it: 950, 12.3k, 1.2M. */
@@ -272,4 +400,38 @@ export function currentName(option: ConfigOption): string {
 /** What the header names the conversation by: its title, else its agent. */
 export function conversationTitle(t: Transcript): string {
   return t.session?.title || t.session?.agent || "Agent";
+}
+
+/**
+ * A call's line as the timeline says it: what it did, in the tense of where it is (`Ran`,
+ * `Running`), and what it did it to, a command in the code font.
+ */
+export function toolHeadline(tool: Tool): { verb: string; target?: string; mono: boolean } {
+  const running = tool.status === "running" || tool.status === "pending";
+  const words: Partial<Record<ToolKind, [string, string]>> = {
+    shell: ["Ran", "Running"],
+    read: ["Read", "Reading"],
+    edit: ["Edited", "Editing"],
+    write: ["Wrote", "Writing"],
+    search: ["Searched", "Searching"],
+    fetch: ["Fetched", "Fetching"],
+  };
+  const pair = words[tool.kind];
+  const { title, detail } = toolLine(tool);
+  const path = tool.locations?.[0]?.path;
+  if (pair) {
+    const target = tool.kind === "shell" ? (describeInput(tool.input) ?? detail ?? title) : (path ?? detail ?? (title.toLowerCase() === tool.kind ? undefined : title));
+    return { verb: pair[running ? 1 : 0], target: target?.split("\n")[0], mono: tool.kind === "shell" || tool.kind === "search" };
+  }
+  if (tool.kind === "subagent") return { verb: running ? "Agent working" : "Agent", target: detail ?? title, mono: false };
+  return { verb: title, target: detail?.split("\n")[0], mono: false };
+}
+
+/** What a key down asks of the queue: Clear All (⌥⌘⌫) or Steer (⌃⌘S), else nothing. */
+export function queueKey(event: { key?: string; modifiers?: { ctrl?: boolean; alt?: boolean; cmd?: boolean; shift?: boolean } }): "clear" | "steer" | undefined {
+  const mods = event.modifiers ?? {};
+  if (mods.shift || !mods.cmd) return undefined;
+  if (event.key === "backspace" && mods.alt && !mods.ctrl) return "clear";
+  if (event.key === "s" && mods.ctrl && !mods.alt) return "steer";
+  return undefined;
 }

@@ -1,17 +1,20 @@
-// One agent pane's conversation, as the chat has it: its session file followed into a `Producer`
+// One agent tab's conversation, as the chat has it: its session file followed into a `Producer`
 // (lib/conversation), the hook's `@agent.status` merged in, prompts typed into its terminal (or
 // queued behind the running turn), and the requests pumi holds for it (`request.open`) shown as
 // the conversation's. The TUI stays the session's only owner: this reads its file and types into
 // its terminal, nothing else.
-import { readFileSync, statSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 
 import { call, emit, request, ui } from "pumi";
 
 import { ChangeError, CommandLedger, noticeChange, Producer, type Change, type Update } from "../../lib/conversation/src/change.ts";
-import { cursorOf, describeInput, emptyTranscript, randomId, type Ack, type Command, type Cursor, type Image, type Permission, type PermissionKind, type SessionInfo, type SlashCommand, type Status, type Transcript } from "../../lib/conversation/src/model.ts";
-import { promptParts, promptWrites, statusOf, takesPrompt, type AgentSpec } from "./agents.ts";
+import { cursorOf, describeInput, emptyTranscript, randomId, type Ack, type Command, type Cursor, type Image, type Permission, type PermissionKind, type Choice, type SessionInfo, type SlashCommand, type Status, type Transcript } from "../../lib/conversation/src/model.ts";
+import { extensionCurrent, extensionFile, promptParts, promptWrites, rewindCommand, statusOf, takesPrompt, type AgentSpec } from "./agents.ts";
 import { bareCommand, commandsFor } from "./commands.ts";
 import { matchesEcho } from "./echo.ts";
+import { modelCommand, modelOption, modelsFor, PICK_IN_TERMINAL } from "./models.ts";
 import { locate, type Where } from "./locate.ts";
 import { ClaudeParser } from "./parse/claude.ts";
 import { CodexParser } from "./parse/codex.ts";
@@ -19,20 +22,22 @@ import { records, type Parser } from "./parse/common.ts";
 import { PiParser } from "./parse/pi.ts";
 import { assistantTimestamp, EMPTY, Live, liveFileOf, parseLive } from "./live.ts";
 import { Tail } from "./tail.ts";
-import { UPDATE, type Changed, type PaneUpdate } from "./topics.ts";
+import { UPDATE, type Changed, type TabUpdate } from "./topics.ts";
 
-/** A permission a pane's agent asked for, as `request.opened` carries it. */
+/** A permission a tab's agent asked for, as `request.opened` carries it. */
 export interface Asked {
   request: string;
-  pane: string | null;
+  tab: string | null;
   kind: string;
   title: string;
   detail: string | null;
   options: unknown[];
+  /** A question that takes words beside its options. */
+  text?: boolean;
 }
 
-/** The pane options a bridge follows: what the hooks set. */
-export interface PaneOptions {
+/** The tab options a bridge follows: what the hooks set. */
+export interface TabOptions {
   session?: string;
   transcript?: string;
   model?: string;
@@ -50,8 +55,23 @@ const RETRY_MAX = 5_000;
 const IMAGE_DELAY = 250;
 /** How long the commands read from disk are kept before a read looks again, in ms. */
 const COMMANDS_FRESH = 15_000;
+/** How long the model picker's list is kept before it is read again. */
+const MODELS_FRESH = 60_000;
 /** How often pi's live file is looked at while the agent works, in ms. */
 const LIVE_EVERY = 120;
+/** Between the two Escapes of a backtrack, in ms: a TUI tells a double press from two. */
+const BACKTRACK_GAP = 120;
+
+/** How long a rewind waits for the session file to say the session went back, in ms. */
+const REWIND_WAIT = 8_000;
+/** How long pi takes to load its extensions again after `/reload`, in ms. */
+const RELOAD_WAIT = 1_500;
+
+/** The pi extension this plugin ships (`pi/pumi-chat.ts`): `/pumi-rewind`. */
+const EXTENSION = join(import.meta.dir, "..", "pi", "pumi-chat.ts");
+
+/** How the chat goes back to before a message: to that very one (`exact`), or in the agent's own terminal. */
+export type Rewinds = "exact" | "terminal";
 
 function parserFor(spec: AgentSpec): Parser {
   switch (spec.format) {
@@ -67,7 +87,7 @@ function parserFor(spec: AgentSpec): Parser {
 export class Bridge {
   readonly producer: Producer;
   #parser: Parser;
-  #options: PaneOptions;
+  #options: TabOptions;
   #file: string | undefined;
   #tail: Tail | undefined;
   #retry: ReturnType<typeof setTimeout> | undefined;
@@ -87,16 +107,21 @@ export class Bridge {
   /** The slash commands the agent takes (`commands.ts`), and when they were read. */
   #commands: SlashCommand[] = [];
   #commandsAt = 0;
+  /** The models the picker offers (`models.ts`), and when they were read. */
+  #models: Choice[] = [];
+  #modelsAt = 0;
   /** pi's message and tool output as they come (`live.ts`); none for the other agents. */
   #live: Live | undefined;
   #liveTimer: ReturnType<typeof setInterval> | undefined;
   /** The live file's mtime and size when last read. */
   #liveSeen = "";
+  /** Called when the session file says the session moved to another branch (a rewind waits on it). */
+  #moved: (() => void) | undefined;
 
   constructor(
-    readonly pane: number,
+    readonly tab: number,
     readonly spec: AgentSpec,
-    options: PaneOptions,
+    options: TabOptions,
     /** The most of a session file's end read at first, in bytes. */
     readonly history: () => number,
   ) {
@@ -104,6 +129,7 @@ export class Bridge {
     this.#status = statusOf(options.status);
     this.#parser = parserFor(spec);
     this.#readCommands();
+    this.#readModels();
     this.producer = new Producer({ transcript: this.#empty(), publish: (update) => this.#publish(update) });
     this.#open();
   }
@@ -112,9 +138,10 @@ export class Bridge {
     return this.producer.transcript;
   }
 
-  /** What brings a view at `since` up to now. */
+  /** What brings the chat at `since` up to now. */
   read(since?: Cursor): Update {
     if (Date.now() - this.#commandsAt > COMMANDS_FRESH) this.refreshCommands();
+    if (Date.now() - this.#modelsAt > MODELS_FRESH) this.#readModels();
     return this.producer.read(since);
   }
 
@@ -135,6 +162,11 @@ export class Bridge {
     if (JSON.stringify(this.#commands) !== before) this.#push({ type: "commands", commands: this.#commands });
   }
 
+  /** How a rewind goes for this agent. */
+  get rewinds(): Rewinds {
+    return this.spec.rewind === "command" ? "exact" : "terminal";
+  }
+
   #readCommands(): void {
     this.#commandsAt = Date.now();
     try {
@@ -142,6 +174,32 @@ export class Bridge {
     } catch (err) {
       console.warn(`agent-chat: the commands: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  /** The model picker, as the conversation's options. */
+  #modelOptions() {
+    // The session file's model is the one in use (a hook's says the model at its last turn).
+    const current = (this.producer as Producer | undefined)?.transcript.session?.model ?? this.#options.model;
+    return [modelOption(current, this.#models, this.spec.label)];
+  }
+
+  /** The picker's options again, when they changed. */
+  #syncModels(): void {
+    const next = this.#modelOptions();
+    if (JSON.stringify(next) !== JSON.stringify(this.transcript.options)) this.#push({ type: "options", options: next });
+  }
+
+  /** Reads the models the picker offers (pi's take a moment: its `--list-models`). */
+  #readModels(): void {
+    this.#modelsAt = Date.now();
+    modelsFor(this.spec, this.#options.cwd).then(
+      (models) => {
+        if (this.#disposed) return;
+        this.#models = models;
+        this.#syncModels();
+      },
+      (err) => console.warn(`agent-chat: the models: ${err instanceof Error ? err.message : String(err)}`),
+    );
   }
 
   dispose(): void {
@@ -153,9 +211,9 @@ export class Bridge {
     this.producer.dispose();
   }
 
-  // ── The pane's options ──────────────────────────────────────────────────────────────────────
+  // ── The tab's options ──────────────────────────────────────────────────────────────────────
 
-  /** A hook changed one of the pane's options. */
+  /** A hook changed one of the tab's options. */
   optionChanged(name: string, value: unknown): void {
     const text = typeof value === "string" && value !== "" ? value : undefined;
     switch (name) {
@@ -166,12 +224,14 @@ export class Bridge {
         this.#drain();
         return;
       case "@agent.model": {
+        if (!text) return;
         this.#options.model = text;
         const session = this.transcript.session;
-        if (session && text && session.model !== text) this.#push({ type: "session", session: { ...session, model: text } });
+        if (session && session.model !== text) this.#push({ type: "session", session: { ...session, model: text } });
+        this.#syncModels();
         return;
       }
-      case "pane_current_path": {
+      case "tab_current_path": {
         // The agent moved: its mentions and its project's commands are the new directory's.
         if (!text || text === this.#options.cwd) return;
         this.#options.cwd = text;
@@ -206,7 +266,7 @@ export class Bridge {
   }
 
   #empty(): Transcript {
-    return { ...emptyTranscript(randomId(), this.#session()), status: this.#status, commands: this.#commands };
+    return { ...emptyTranscript(randomId(), this.#session()), status: this.#status, commands: this.#commands, options: this.#modelOptions() };
   }
 
   /** Another session: the file is found again and read from its end. */
@@ -263,6 +323,9 @@ export class Bridge {
 
   /** The file was cut, replaced, or went to another branch: read it again. */
   #reread(): void {
+    const moved = this.#moved;
+    this.#moved = undefined;
+    queueMicrotask(() => moved?.());
     this.#tail?.stop();
     this.#tail = undefined;
     this.#stopLive();
@@ -299,8 +362,9 @@ export class Bridge {
     this.#echoes = this.#echoes.filter((echo) => !loaded.entries.some((entry) => entry.kind === "user" && matchesEcho(entry.text ?? "", echo.text)));
     const still = echoes.filter((entry) => this.#echoes.some((echo) => echo.entry === entry.id));
     this.#waiting = undefined;
-    this.producer.reset({ ...loaded, entries: [...loaded.entries, ...still], queue: keep.queue, permissions: keep.permissions, status: keep.status, commands: this.#commands });
+    this.producer.reset({ ...loaded, entries: [...loaded.entries, ...still], queue: keep.queue, permissions: keep.permissions, status: keep.status, commands: this.#commands, options: this.#modelOptions() });
     this.#syncStatus();
+    this.#syncModels();
   }
 
   /** Lines appended to the file: their changes, a prompt already shown as an echo left out. */
@@ -317,6 +381,8 @@ export class Bridge {
         this.#push(change);
       }
     }
+    // The file may say another model now.
+    this.#syncModels();
   }
 
   // ── pi's live file ──────────────────────────────────────────────────────────────────────────
@@ -370,20 +436,20 @@ export class Bridge {
       this.producer.push(change);
     } catch (err) {
       if (!(err instanceof ChangeError)) throw err;
-      console.warn(`agent-chat: pane ${this.pane}: ${err.message}`);
+      console.warn(`agent-chat: tab ${this.tab}: ${err.message}`);
     }
   }
 
   #publish(update: Update): void {
-    ui.post(UPDATE, { pane: this.pane, update } satisfies PaneUpdate);
-    // The conversation convention (`@agent.conversation`): `{pane, changes, cursor}`, and `from`
+    ui.post(UPDATE, { tab: this.tab, update } satisfies TabUpdate);
+    // The conversation convention (`@agent.conversation`): `{tab, changes, cursor}`, and `from`
     // for a reader that follows batch by batch. A snapshot (a new epoch) moves the cursor's epoch:
     // a reader reads again.
     const changed: Changed =
       update.type === "changes"
-        ? { pane: this.pane, changes: update.changes, cursor: update.to, from: update.from }
-        : { pane: this.pane, changes: [], cursor: cursorOf(update.transcript), from: null };
-    emit("conversation.changed", changed, { pane: `%${this.pane}` }).catch((err) => console.warn(`agent-chat: conversation.changed: ${err?.message ?? err}`));
+        ? { tab: this.tab, changes: update.changes, cursor: update.to, from: update.from }
+        : { tab: this.tab, changes: [], cursor: cursorOf(update.transcript), from: null };
+    emit("conversation.changed", changed, { tab: `%${this.tab}` }).catch((err) => console.warn(`agent-chat: conversation.changed: ${err?.message ?? err}`));
   }
 
   // ── Status ──────────────────────────────────────────────────────────────────────────────────
@@ -408,7 +474,7 @@ export class Bridge {
 
   // ── Commands ────────────────────────────────────────────────────────────────────────────────
 
-  /** A view's command: acted on once per id. */
+  /** The chat's command: acted on once per id. */
   async send(command: Command): Promise<Ack> {
     if (!this.#ledger.first(command.id)) return { id: command.id };
     switch (command.type) {
@@ -417,31 +483,166 @@ export class Bridge {
         const images = command.images ?? [];
         if (text === "" && images.length === 0) return { id: command.id, rejected: "The prompt is empty." };
         if (images.some((image) => !image.uri || /^[a-z]+:/i.test(image.uri))) return { id: command.id, rejected: "Only pictures from files can go into the terminal." };
+        if (command.replaces && this.spec.rewind !== "command") return { id: command.id, rejected: `${this.spec.label}'s messages are edited in its terminal.` };
+        if (command.replaces) {
+          // An edit: back to before the message, then the new text in its place.
+          const back = await this.#rewind(command.id, command.replaces);
+          if (back.rejected) return back;
+          return this.#deliver(command.id, text, images);
+        }
         if (this.#ready() && this.transcript.queue.length === 0) return this.#deliver(command.id, text, images);
         this.#push({ type: "queue", queue: [...this.transcript.queue, { id: command.id, text, ...(images.length > 0 ? { images } : {}) }] });
         return { id: command.id };
       }
       case "cancel":
-        await call("pane.call", `%${this.pane}`, "input", { text: this.spec.cancel });
+        await call("tab.call", `%${this.tab}`, "input", { text: this.spec.cancel });
         return { id: command.id };
       case "unqueue":
         this.#push({ type: "queue", queue: this.transcript.queue.filter((each) => each.id !== command.queued) });
         return { id: command.id };
+      case "steer": {
+        // Typed into the terminal now: each of these agents takes a prompt submitted mid-turn into
+        // that turn (Claude Code at its next step, pi and Codex as a steer).
+        const queued = this.transcript.queue.find((each) => each.id === command.queued);
+        if (!queued) return { id: command.id, rejected: "That message is no longer queued." };
+        if (this.#delivering) return { id: command.id, rejected: `${this.spec.label} is taking another message: try again in a moment.` };
+        if (this.transcript.permissions.length > 0) return { id: command.id, rejected: `${this.spec.label} is waiting for an answer: answer it first.` };
+        this.#push({ type: "queue", queue: this.transcript.queue.filter((each) => each.id !== queued.id) });
+        const ack = await this.#deliver(command.id, queued.text, queued.images ?? []);
+        this.#drain();
+        return ack;
+      }
+      case "sendNow": {
+        // First in the queue, and the turn stopped: the queue goes on once the agent is ready.
+        const queued = this.transcript.queue.find((each) => each.id === command.queued);
+        if (!queued) return { id: command.id, rejected: "That message is no longer queued." };
+        this.#push({ type: "queue", queue: [queued, ...this.transcript.queue.filter((each) => each !== queued)] });
+        if (!takesPrompt(this.#status) || this.#awaiting !== undefined) await call("tab.call", `%${this.tab}`, "input", { text: this.spec.cancel });
+        this.#drain();
+        return { id: command.id };
+      }
       case "answer": {
         const asked = this.#requests.get(command.permissionId);
         if (asked === undefined) return { id: command.id, rejected: "That request is no longer waiting." };
+        const text = command.text?.trim();
         try {
-          await request.close(asked, { answer: { option: command.optionId } });
+          await request.close(asked, { answer: text ? { text } : { option: command.optionId } });
         } catch {
           this.resolved(asked);
           return { id: command.id, rejected: "It was answered already, or it ended." };
         }
         return { id: command.id };
       }
-      case "setOption":
-        return { id: command.id, rejected: `${this.spec.label}'s settings are changed in its terminal.` };
+      case "setOption": {
+        if (command.category !== "model" || typeof command.value !== "string" || command.value === "") return { id: command.id, rejected: `${this.spec.label}'s settings are changed in its terminal.` };
+        if (!this.#ready() || this.transcript.queue.length > 0) return { id: command.id, rejected: `${this.spec.label} is busy: change the model once its turn is over.` };
+        // Codex's `/model` is a picker of its own; so is the choice that asks for the agent's.
+        const own = command.value === PICK_IN_TERMINAL || this.spec.format === "codex";
+        const typed = await this.#type(own ? "/model" : modelCommand(command.value));
+        if (typed) return { id: command.id, rejected: typed };
+        // Its hook says the model at the next turn: shown now, as picked.
+        if (!own) this.optionChanged("@agent.model", command.value);
+        return { id: command.id };
+      }
       case "context":
         return { id: command.id, rejected: "A terminal agent's context goes through its own hook." };
+      case "rewind": {
+        const ack = await this.#rewind(command.id, command.entry);
+        if (!ack.rejected && this.spec.rewind === "command") this.#push(noticeChange(`Went back to before that message. ${this.spec.label} keeps what was left in /tree.`, "info", this.producer));
+        return ack;
+      }
+    }
+  }
+
+  /**
+   * Goes back to before the user's message `entry`. pi goes to that very message (`/pumi-rewind`,
+   * this plugin's extension, installed into pi on first use) and the answer waits until its file
+   * says so; Claude Code and Codex open their own way back in their terminal, which the chat
+   * shows (`main.ts`), and the user picks the message there.
+   */
+  async #rewind(id: string, entryId: string): Promise<Ack> {
+    if (!this.#ready() || this.transcript.queue.length > 0) return { id, rejected: `${this.spec.label} is busy: go back once its turn is over.` };
+    const entry = this.transcript.entries.find((each) => each.id === entryId);
+    if (entry?.kind !== "user") return { id, rejected: "That is not one of your messages." };
+    const tab = `%${this.tab}`;
+    const type = async (text: string) => {
+      await call("tab.call", tab, "input", { text });
+      await Bun.sleep(SUBMIT_DELAY);
+      await call("tab.call", tab, "input", { text: "\r" });
+    };
+    this.#delivering = true;
+    try {
+      switch (this.spec.rewind) {
+        case "command": {
+          if (!entry.source) return { id, rejected: `That message is not in ${this.spec.label}'s session file yet.` };
+          if (this.#installExtension()) {
+            this.#push(noticeChange(`Added the chat's extension to ${this.spec.label} (~/${extensionFile(this.spec)}) and reloaded it.`, "info", this.producer));
+            await type("/reload");
+            await Bun.sleep(RELOAD_WAIT);
+          }
+          const moved = new Promise<boolean>((resolve) => {
+            const timer = setTimeout(() => resolve(false), REWIND_WAIT);
+            this.#moved = () => {
+              clearTimeout(timer);
+              resolve(true);
+            };
+          });
+          await type(rewindCommand(entry.source));
+          if (!(await moved)) {
+            this.#moved = undefined;
+            return { id, rejected: `${this.spec.label} did not go back: its terminal says why.` };
+          }
+          return { id };
+        }
+        case "picker":
+          await type("/rewind");
+          return { id };
+        case "backtrack":
+          await call("tab.call", tab, "input", { text: "\x1b" });
+          await Bun.sleep(BACKTRACK_GAP);
+          await call("tab.call", tab, "input", { text: "\x1b" });
+          return { id };
+      }
+    } catch (err) {
+      return { id, rejected: err instanceof Error ? err.message : String(err) };
+    } finally {
+      this.#delivering = false;
+    }
+  }
+
+  /** Puts this plugin's pi extension where pi loads it, unless the copy there is current; answers whether it wrote it. */
+  #installExtension(): boolean {
+    const to = join(homedir(), extensionFile(this.spec));
+    const shipped = readFileSync(EXTENSION, "utf8");
+    let installed: string | undefined;
+    try {
+      installed = readFileSync(to, "utf8");
+    } catch {
+      installed = undefined;
+    }
+    if (extensionCurrent(installed, shipped)) return false;
+    mkdirSync(dirname(to), { recursive: true });
+    writeFileSync(to, shipped);
+    return true;
+  }
+
+  /**
+   * Puts a one-line command into the terminal and submits it, shown nowhere: answers what went
+   * wrong, if anything. A bare one (`/model`) is typed, to open the agent's own screen; one with
+   * an argument is pasted, since typed, pi's completion of the argument would take the Enter.
+   */
+  async #type(text: string): Promise<string | undefined> {
+    this.#delivering = true;
+    try {
+      const writes = promptWrites(text);
+      await call("tab.call", `%${this.tab}`, "input", /\s/.test(text.trim()) ? { paste: text } : writes.body);
+      await Bun.sleep(SUBMIT_DELAY);
+      await call("tab.call", `%${this.tab}`, "input", writes.submit);
+      return undefined;
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err);
+    } finally {
+      this.#delivering = false;
     }
   }
 
@@ -464,21 +665,24 @@ export class Bridge {
       this.#push({ type: "push", entry: { id: entry, kind: "user", at: this.producer.now(), text: shown } });
       this.#echoes.push({ entry, text: shown });
     }
-    this.#awaiting = setTimeout(() => {
-      this.#awaiting = undefined;
-      this.#syncStatus();
-      this.#drain();
-    }, AWAIT_WORKING);
+    // Typed into a running turn (a steer), the agent works already: there is nothing to wait for.
+    if (takesPrompt(this.#status)) {
+      this.#awaiting = setTimeout(() => {
+        this.#awaiting = undefined;
+        this.#syncStatus();
+        this.#drain();
+      }, AWAIT_WORKING);
+    }
     this.#syncStatus();
     try {
       for (const paste of pastes) {
-        await call("pane.call", `%${this.pane}`, "input", { paste });
+        await call("tab.call", `%${this.tab}`, "input", { paste });
         await Bun.sleep(IMAGE_DELAY);
       }
       const writes = promptWrites(text);
-      if (text !== "") await call("pane.call", `%${this.pane}`, "input", writes.body);
+      if (text !== "") await call("tab.call", `%${this.tab}`, "input", writes.body);
       await Bun.sleep(SUBMIT_DELAY);
-      await call("pane.call", `%${this.pane}`, "input", writes.submit);
+      await call("tab.call", `%${this.tab}`, "input", writes.submit);
       return { id };
     } catch (err) {
       this.#settled();
@@ -502,17 +706,25 @@ export class Bridge {
 
   // ── Requests (`request.open`) ───────────────────────────────────────────────────────────────
 
-  /** A request pumi holds for this pane: shown as the conversation's permission. */
+  /** A request pumi holds for this tab: shown as the conversation's permission. */
   requested(asked: Asked): void {
     const id = `request:${asked.request}`;
     if (this.#requests.has(id) || this.transcript.permissions.some((each) => each.id === id)) return;
     const options = (asked.options ?? [])
       .map((each) => each as { id?: unknown; label?: unknown; kind?: unknown })
       .filter((each): each is { id: string; label: string; kind?: unknown } => typeof each.id === "string" && typeof each.label === "string")
-      .map((each) => ({ id: each.id, label: each.label, kind: each.kind as PermissionKind }));
-    if (options.length === 0) return;
+      .map((each) => ({ id: each.id, label: each.label, kind: (typeof each.kind === "string" ? each.kind : "other") as PermissionKind }));
+    const question = asked.kind === "question";
+    // A permission is answered by one of its options; a question with none takes words.
+    if (options.length === 0 && !question) return;
     const detail = asked.detail ?? undefined;
-    const permission: Permission = { id, title: asked.title, options, ...(detail ? { detail } : {}) };
+    const permission: Permission = {
+      id,
+      title: asked.title,
+      options,
+      ...(question ? { kind: "question" as const, text: options.length === 0 || asked.text === true } : {}),
+      ...(detail ? { detail } : {}),
+    };
     this.#requests.set(id, asked.request);
     this.#push({ type: "permissionAsked", permission });
     this.#syncStatus();

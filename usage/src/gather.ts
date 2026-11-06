@@ -1,6 +1,6 @@
 // One read of every plan: find the sign-in each provider has, ask its service, and turn the answer
 // into a reading. A provider that fails keeps the numbers it had, marked with why, rather than
-// blanking them; a provider with no sign-in is left out, so the bar shows only plans that exist on
+// blanking them; a provider with no sign-in is left out, so the panel shows only plans that exist on
 // this machine (or that the user hid).
 //
 // Nothing here reaches the machine or the network itself: `env` and `http` are the worker's, which

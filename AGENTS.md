@@ -65,8 +65,7 @@ bun install                    # a package's npm dependencies, if it has any
       "keys": [{ "key": "<D-S-q>", "command": "toggle" }],
       "slots": {
         "panel": { "view": "Board", "title": "Queue", "icon": "list" },
-        "pane.strip": { "view": "Bar" },
-        "status": { "actions": [{ "id": "toggle", "title": "Queue", "icon": "list", "command": "toggle" }] }
+        "pane.toolbar": { "actions": [{ "id": "toggle", "title": "Queue", "icon": "list", "command": "toggle" }] }
       },
       "blocks": [{ "id": "board", "title": "Queue" }]
     },
@@ -76,9 +75,9 @@ bun install                    # a package's npm dependencies, if it has any
 }
 ```
 
-- **`slots`** is keyed by the fixed set: `window.titlebar`, `window.overlay`, `session.header`,
-  `tab.actions`, `tab.badge`, `pane.toolbar`, `pane.strip`, `pane.overlay`, `pane.menu`,
-  `agent.controls`, `agent.footer`, `agent.menu`, `panel`, `status`, `palette.actions`. A slot has
+- **`slots`** is keyed by the fixed set: `window.overlay`, `session.header`, `tab.actions`,
+  `tab.badge`, `pane.toolbar`, `pane.strip`, `pane.overlay`, `pane.menu`, `agent.controls`,
+  `agent.footer`, `agent.menu`, `panel`, `sidebar.footer`, `palette.actions`. A slot has
   a `view` (a `ui.tsx` export) and/or `actions` (data, drawn as the theme's buttons; an action runs
   its command with `{ pane }` or `{ tab }` of where it was pressed).
 - **`blocks`** are what a plugin's panes hold: `{ "id": "board" }` is the block

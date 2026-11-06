@@ -32,6 +32,8 @@ export class PiParser implements Parser {
 
   continues(record: Rec): boolean {
     if (record.type === "session" || !str(record.id)) return true;
+    // A new root (`parentId: null` after the first entry: a rewind to before the first message) is another branch too.
+    if (record.parentId === null) return this.#last === undefined;
     const parent = str(record.parentId);
     return this.#last === undefined || parent === undefined || parent === this.#last;
   }
@@ -41,7 +43,7 @@ export class PiParser implements Parser {
     const at = timeOf(record.timestamp, stamp);
     switch (record.type) {
       case "message":
-        return this.#message(obj(record.message) ?? {}, t, at, stamp);
+        return this.#message(record, obj(record.message) ?? {}, t, at, stamp);
       case "model_change": {
         const model = [str(record.provider), str(record.modelId)].filter(Boolean).join("/");
         return model && t.session && t.session.model !== model ? [{ type: "session", session: { ...t.session, model } }] : [];
@@ -61,12 +63,13 @@ export class PiParser implements Parser {
     }
   }
 
-  #message(message: Rec, t: Transcript, at: number, stamp: Stamp): Change[] {
+  #message(record: Rec, message: Rec, t: Transcript, at: number, stamp: Stamp): Change[] {
     switch (message.role) {
       case "user": {
+        const source = str(record.id);
         const changes: Change[] = [];
         const text = textOf(message.content);
-        if (text) changes.push({ type: "push", entry: { id: stamp.id(), kind: "user", at, text } });
+        if (text) changes.push({ type: "push", entry: { id: stamp.id(), kind: "user", at, text, ...(source ? { source } : {}) } });
         for (const block of objs(message.content)) {
           const image = imageOf(block);
           if (image) changes.push({ type: "push", entry: { id: stamp.id(), kind: "image", at, image, from: "user" } });

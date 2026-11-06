@@ -60,10 +60,15 @@ under the toolbar, in git's own words.
 ## The diff
 
 A file's click shows its diff, `View Diff` the whole work tree (new files and all), and a commit in
-History that commit — each in a tab of its own, drawn by the app's native `<diff>`: virtualised,
-syntax-highlighted, the changed words marked, and in the window's theme (the editor's background, the
-theme's green and red), so a theme switch redraws it. Further diffs reuse that tab while you are
-still in it, and a change in the work tree redraws what it shows without blanking it first.
+History that commit — each in a tab of its own, drawn by `lib/diff`'s `PatchView`
+in the window's theme (the editor's background, the theme's green and red). Each file has a head
+that folds it, with its status and what it adds up to. Lines are numbered on both sides, and a
+double click opens the file at that line.
+
+It is windowed, so only the rows near the viewport are made, and a change of any size scrolls.
+Lock files, minified files and files over 3000 lines start folded. A patch is read up to 48 MB,
+and past that the tab says its end was left out. Further diffs reuse that tab while you are still
+in it, and a change in the work tree redraws what it shows without blanking it first.
 
 The split button beside the branch, when the repository has a remote, publishes the branch, or (with
 an upstream) says `Pull 2` / `Push 1` when it is behind or ahead; its menu offers fetch, pull, push

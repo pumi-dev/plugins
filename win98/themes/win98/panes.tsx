@@ -1,58 +1,63 @@
-// A pane, as a child window of its tab's: a small caption (navy while it has the focus, grey
-// when not) with its picture, its name, what plugins put in its toolbar and its own caption
-// buttons, over a sunken well its block is drawn in. The edges between panes are raised bars;
+// A pane, as a child window of its view's: a small caption (navy while it has the focus, grey
+// when not) with its picture, its tabs, what plugins put in its toolbar and its own caption
+// buttons, over a sunken well its front tab is drawn in. The edges between panes are raised bars;
 // a question is a message box.
 import { useMemo, useRef } from "react"
 import { useDraggable, useTheme } from "pumi"
 import {
   call,
   num,
-  renderView,
+  renderComponent,
   useAgentOf,
   useComponents,
   useLayout,
   useMenu,
-  usePane,
+  usePaneTabs,
   usePaneTitles,
   useSlot,
+  useTab,
   via,
   type ActionItem,
   type DialogProps,
   type IconButtonProps,
 } from "pumi/theme"
-import { AnyIcon, Art, bevel, Box, caption, CaptionButton, FONT, Label, paneArt, paneName, PushButton, stop, swallow } from "./kit.tsx"
+import { AnyIcon, Art, bevel, Box, caption, CaptionButton, FONT, Label, PushButton, stop, swallow, tabArt, tabTitle } from "./kit.tsx"
 
 /**
  * The `Pane` part: a child window. A tiled one has its caption while pane captions show
- * (`toggle_pane_titles`); a float is drawn bare, in the app's frame.
+ * (`pane_titles`), or while it holds several tabs; a float is drawn bare, in the app's frame.
  */
-export function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boolean; zoomed: boolean; lifted?: boolean }) {
+export function Pane({ pane: id, tabs, active, focused, zoomed }: { pane: string; tabs: string[]; active?: string | null; focused: boolean; zoomed: boolean; lifted?: boolean }) {
   const t = useTheme()
   const C = useComponents()
-  const live = usePane(id)
+  const front = active ?? tabs[0]
+  const live = useTab(front)
   const last = useRef(live)
   if (live) last.current = live
-  const pane = live ?? last.current
+  const tab = live ?? last.current
   const [titles] = usePaneTitles()
-  const { open, menu } = useMenu("pane.menu", { pane: id })
-  const floating = (pane?.place as { kind?: string } | undefined)?.kind === "float"
-  const titled = titles && !!live && !floating
+  const strip = usePaneTabs()
+  const { open, menu } = useMenu("tab.menu", { tab: front ?? "" })
+  const floating = (tab?.place as { kind?: string } | undefined)?.kind === "float"
+  // A pane of several tabs shows its caption whatever the setting: it is the only way to them.
+  const titled = !!live && !!front && !floating && (titles || (strip && tabs.length > 1))
   const [outer, inner] = bevel(t, "window")
   const [well, wellIn] = bevel(t, "sunken")
   return (
     <div
       onMouseDown={() => {
-        if (!focused) call(via(id, "pane.focus"), id).catch(swallow)
+        // A press anywhere in the pane brings its front tab, and so the pane, to the front.
+        if (!focused && front) call(via(front, "tab.focus"), front).catch(swallow)
       }}
       onAuxClick={open}
       style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, backgroundColor: t["w98.face"], ...(floating ? {} : { borderWidth: 1, ...outer }) }}
     >
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, ...(floating ? {} : { borderWidth: 1, ...inner!, padding: 1 }) }}>
-        {titled ? <C.PaneTitle pane={id} focused={focused} zoomed={zoomed} menu={open} /> : null}
-        {/* The well the block sits in: black for a terminal, as a DOS box's was. */}
+        {titled ? <C.PaneTitle pane={id} tabs={tabs} active={front} focused={focused} zoomed={zoomed} menu={open} /> : null}
+        {/* The well the front tab sits in: black for a terminal, as a DOS box's was. */}
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, marginTop: titled ? 1 : 0, borderWidth: 1, ...well }}>
-          <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, borderWidth: 1, ...wellIn!, backgroundColor: pane?.block === "terminal" ? "#000000" : t.editor }}>
-            <C.PaneBody pane={id} focused={focused} />
+          <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, borderWidth: 1, ...wellIn!, backgroundColor: tab?.block === "terminal" ? "#000000" : t.editor }}>
+            {front ? <C.TabBody key={front} tab={front} focused={focused} /> : null}
           </div>
         </div>
       </div>
@@ -62,25 +67,43 @@ export function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boo
 }
 
 /**
- * The `PaneTitle` part: a child window's caption. Its picture opens its menu (as a window's icon
- * opens its system menu), a double press fills the tab (or gives the layout back), and it drags
- * the pane onto a side of another, or onto a task on the taskbar.
+ * The `PaneTitle` part: a child window's caption. Its picture opens the front tab's menu (as a
+ * window's icon opens its system menu), a double press fills the view (or gives the layout back),
+ * and it drags the front tab onto a side of another pane. A pane of several tabs shows them as a
+ * strip of chips in place of its name.
  */
-export function PaneTitle({ pane: id, focused, zoomed, menu }: { pane: string; focused: boolean; zoomed: boolean; menu(e: { x?: number; y?: number }): void }) {
+export function PaneTitle({
+  pane: id,
+  tabs,
+  active,
+  focused,
+  zoomed,
+  menu,
+}: {
+  pane: string
+  tabs: string[]
+  active?: string | null
+  focused: boolean
+  zoomed: boolean
+  over?: boolean
+  menu(e: { x?: number; y?: number }): void
+}) {
   const t = useTheme()
   const C = useComponents()
-  const p = usePane(id)
-  const agent = useAgentOf(id)
-  const tree = useLayout(p?.tab_id)
-  const draggable = useDraggable({ kind: "pumi.pane", pane: id })
-  const toolbar = useSlot("pane.toolbar")
-  const args = useMemo(() => ({ pane: id }), [id])
-  if (!p) return null
+  const front = active ?? tabs[0]
+  const p = useTab(front)
+  const agent = useAgentOf(front)
+  const tree = useLayout(p?.view_id)
+  const strip = usePaneTabs()
+  const draggable = useDraggable({ kind: "pumi.tab" as const, tab: front ?? "" })
+  const args = useMemo(() => ({ tab: front }), [front])
+  const toolbar = useSlot("tab.toolbar")
+  if (!p || !front) return null
   const zoomable = zoomed || (!!tree && "axis" in tree)
   const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
-  const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: num(id), split: side }).catch(swallow)
+  const split = (side: "right" | "down") => call(via(id, "tab.open"), "terminal", {}, { kind: "tiled", pane: id, split: side }).catch(swallow)
   const status = agent?.agent_status
-  const name = paneName(p) + (agent && status && status !== "idle" && status !== "unknown" ? ` - [${status[0]!.toUpperCase()}${status.slice(1)}]` : "")
+  const name = tabTitle(p) + (agent && status && status !== "idle" && status !== "unknown" ? ` - [${status[0]!.toUpperCase()}${status.slice(1)}]` : "")
   return (
     <div
       {...draggable.props}
@@ -92,14 +115,18 @@ export function PaneTitle({ pane: id, focused, zoomed, menu }: { pane: string; f
       title={p.cwd ?? undefined}
       style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3, height: 18, flexShrink: 0, paddingLeft: 2, paddingRight: 2, userSelect: "none", opacity: draggable.dragging ? 0.6 : 1, ...caption(t, focused) }}
     >
-      <div onClick={(e: any) => (stop(e), menu(e))} onMouseDown={stop} title="Pane menu" style={{ display: "flex", flexShrink: 0 }}>
-        <Art name={paneArt(p)} size={16} />
+      <div onClick={(e: any) => (stop(e), menu(e))} onMouseDown={stop} title="Tab menu" style={{ display: "flex", flexShrink: 0 }}>
+        <Art name={tabArt(p)} size={16} />
       </div>
-      <Label bold color={focused ? t["w98.white"] : t["w98.light"]} style={{ flexShrink: 1 }}>
-        {name}
-      </Label>
+      {strip && tabs.length > 1 ? (
+        tabs.map((tab, i) => <C.PaneTab key={tab} tab={tab} pane={id} index={i} active={tab === front} focused={focused} />)
+      ) : (
+        <Label bold color={focused ? t["w98.white"] : t["w98.light"]} style={{ flexShrink: 1 }}>
+          {name}
+        </Label>
+      )}
       <div style={{ flexGrow: 1 }} />
-      {toolbar.views.map((v) => renderView(v, args))}
+      {toolbar.components.map((v) => renderComponent(v, args))}
       {toolbar.actions.map((a) => (
         <C.Action key={`${a.plugin}/${a.id}`} action={a} args={args} />
       ))}
@@ -113,6 +140,54 @@ export function PaneTitle({ pane: id, focused, zoomed, menu }: { pane: string; f
       <div style={{ marginLeft: 2, display: "flex" }}>
         <CaptionButton glyph="close" title="Close" onClick={() => call(via(id, "pane.close"), num(id)).catch(swallow)} />
       </div>
+    </div>
+  )
+}
+
+/** The `PaneTab` part: one tab of a pane's caption, as the system's folder tabs were. */
+export function PaneTab({ tab: id, index, active, focused }: { tab: string; pane: string; index: number; active: boolean; focused: boolean }) {
+  const t = useTheme()
+  const tab = useTab(id)
+  const draggable = useDraggable({ kind: "pumi.tab" as const, tab: id })
+  const { open, menu } = useMenu("tab.menu", { tab: id })
+  if (!tab) return null
+  return (
+    <div
+      {...draggable.props}
+      onMouseDown={(e: any) => {
+        draggable.props.onMouseDown(e)
+        if ((e?.button ?? 0) !== 0) return
+        if (!active || !focused) call(via(id, "tab.focus"), id).catch(swallow)
+      }}
+      onDoubleClick={stop}
+      onAuxClick={(e: any) => {
+        stop(e)
+        open(e)
+      }}
+      title={tab.cwd ?? undefined}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 2,
+        height: 18,
+        flexShrink: 1,
+        minWidth: 30,
+        maxWidth: 150,
+        paddingLeft: 3,
+        paddingRight: 3,
+        marginLeft: index === 0 ? 0 : 2,
+        borderWidth: 1,
+        ...(active ? { borderTopColor: t["w98.white"], borderLeftColor: t["w98.white"], borderRightColor: t["w98.shadow"], borderBottomColor: "#00000000" } : bevel(t, "raised")[0]),
+        backgroundColor: t["w98.face"],
+        opacity: draggable.dragging ? 0.6 : 1,
+      }}
+    >
+      <Art name={tabArt(tab)} size={16} />
+      <Label bold={active} color={t.text}>
+        {tabTitle(tab)}
+      </Label>
+      {menu}
     </div>
   )
 }

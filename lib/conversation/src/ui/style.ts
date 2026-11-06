@@ -1,9 +1,11 @@
-// The chat's look, from the theme: the colours `<markdown>`, `<code>`, `<diff>` and `<textarea>`
-// draw with, and the small pieces every part uses. A view is given no appearance of its own
-// (`useAppearance` is not the SDK's), so the native text keeps its dark look for what these leave
-// unset (the syntax colours); every field a light theme must change, these set.
+// The chat's look, from the theme: the colours `<textarea>` draws with, and the small pieces every
+// part uses (the type sizes, the monospaced family, washes of the theme's colours). A view is given
+// no appearance of its own (`useAppearance` is not the plugin SDK's), so every colour here is one of
+// the theme's tokens, or a wash of one (`tint`).
 import { useMemo } from "react";
-import { useMetrics, useTheme } from "pumi";
+import { useFont, useMetrics, useTheme } from "pumi";
+
+export { tint } from "../view.ts";
 
 /** The native text elements' `theme` prop: the fields this sets of gpuix's `GpuixTheme`. */
 export interface TextTheme {
@@ -46,6 +48,41 @@ export function useTextTheme(): TextTheme {
     }),
     [t, m],
   );
+}
+
+/** The chat's type: its sizes and line heights, from the theme's font size, and the terminal's family for code. */
+export interface ChatType {
+  /** Prose. */
+  body: number;
+  bodyLine: number;
+  /** Labels, tool lines. */
+  small: number;
+  smallLine: number;
+  /** Captions, counts. */
+  tiny: number;
+  /** Code, output, diffs. */
+  code: number;
+  codeLine: number;
+  mono: string;
+}
+
+export function useType(): ChatType {
+  const m = useMetrics();
+  const font = useFont();
+  return useMemo(() => {
+    const body = m.fontSize;
+    const code = Math.max(10, m.fontSize - 1);
+    return {
+      body,
+      bodyLine: Math.round(body * 1.55),
+      small: Math.max(10, body - 1),
+      smallLine: Math.round(Math.max(10, body - 1) * 1.45),
+      tiny: Math.max(9, body - 2),
+      code,
+      codeLine: Math.round(code * 1.5),
+      mono: font.family,
+    };
+  }, [m.fontSize, font.family]);
 }
 
 /** A throw a part cannot answer: said in the log, not drawn over the window. */

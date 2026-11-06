@@ -1,5 +1,5 @@
 // What the package contributes without running, as the app reads it: Settings shows its three
-// options, and the window knows which export draws the dog in the status bar.
+// options, and the window knows which export draws the dog in the side bar.
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -19,10 +19,10 @@ test("its three options are declared for Settings, each with what it says", () =
   expect(options.speed.unit).toBe("fps");
 });
 
-test("its dog is a view in the status bar, put away and back by a command", () => {
+test("its dog is a section of the side bar, put away and back by a command", () => {
   expect(pumi.name).toBe("pumi-dog");
   expect(pumi.owner).toBe("amresyd");
-  expect(pumi.contributes.slots).toEqual({ status: { view: "Dog" } });
+  expect(pumi.contributes.slots).toEqual({ panel: { component: "Dog", title: "Pumi dog", icon: "sparkle" } });
   expect(pumi.contributes.points).toBeUndefined();
   expect(pumi.contributes.blocks).toBeUndefined();
   expect(pumi.contributes.commands).toEqual([{ id: "toggle", title: "Pumi dog: take it away, or bring it back" }]);

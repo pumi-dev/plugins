@@ -4,9 +4,9 @@ Heeler's Host for pumi — a normal herdr Host: the machine's own SSH on port 22
 herdr session named `pumi`.
 
 One plugin is everything the [Heeler](https://heeler.app) mobile app needs from this machine: it
-serves herdr's API and terminal-attach sockets on pumi's sessions, tabs and panes; it mints the QR
+serves herdr's API and terminal-attach sockets on pumi's sessions, views and tabs; it mints the QR
 **Pairing Code** that enrolls a phone into the account's `authorized_keys`; and it sends Heeler's
-**Agent Notifications** and drives its **Live Activities** from an agent's `@agent.status`.
+**Agent Notifications** and drives its **Live Activities** from a tab's `@status`.
 
 The plugin runs **no SSH server of its own** and has **no Tailscale integration**: Heeler connects to
 the machine's OpenSSH (macOS `Remote Login`, or the distro's sshd) exactly as it would to any herdr
@@ -31,12 +31,15 @@ Heeler app ──ssh :22 (the machine's sshd, as your account)──▶ herdr.so
 
 The protocol is herdr's own (v0.9.x, newline-delimited JSON, protocol 22); `ping`, `pane.read` and
 `events.subscribe` are the parts worth knowing. herdr's public ids come from pumi's: session `$5` is
-`w5`, its tab `@7` is `w5:t7`, its pane `%9` is `w5:p9`, terminal `term_9`.
+`w5`, its tab `@7` is `w5:t7`, its pane `%9` is `w5:p9`, terminal `term_9` — a session is a
+workspace, a view is a tab, and a tab on the core's terminal engine (its `tab_pid` a number) is a
+pane. A tab that holds something else is no pane of herdr's.
 
-Nothing keeps a screen: `pane.read` is the core's own text (`pane.call`'s `read`), keys are
-`{"keys": […]}` on the same call, and what an agent is doing is the pane's `@agent`/`@agent.status`
-(OSC 7501). Methods herdr serves from its own TUI, plugins or remotes answer `unsupported`, with the
-reason. `PARITY.md` is the method-by-method accounting.
+Nothing keeps a screen: `pane.read` is the core's own text (`tab.call`'s `read`), keys are
+`{"keys": […]}` on the same call, and what an agent is doing is its tab's `@status`, with the Agents
+plugin's trait (`@pumi_dev.agents.agent`) naming the agent. Methods herdr serves from its own TUI,
+plugins or remotes answer `unsupported`, with the reason. `PARITY.md` is the method-by-method
+accounting.
 
 The sockets are in pumi's data directory (`$PUMI_DATA_DIR`, else
 `~/Library/Application Support/pumi`, else `~/.local/share/pumi`) and, as herdr keeps a named
@@ -101,7 +104,7 @@ swept at every start and every ceremony. The QR is rendered as block characters
 
 `src/notify.ts`, `src/activity.ts`, `src/seal.ts`.
 
-The same hooks Heeler's herdr plugin runs, over pumi's `@agent.status` instead of herdr's
+The same hooks Heeler's herdr plugin runs, over a tab's `@status` instead of herdr's
 `pane.agent_status_changed`. Heeler writes its Notification Registration to the plugin's config
 directory (`~/.config/herdr/plugins/config/heeler/notifications.json`, the path both this plugin and
 a real herdr's `plugin config-dir heeler` print); the plugin reads it before every push, so a device
@@ -111,9 +114,15 @@ latest-wins and encrypted under `HERDR-ACTIVITY:1`. Session scoping is Heeler 0.
 delivered only to its session, and legacy entries to every session. `notify.json`'s `relay_url`,
 `debounce_ms`, `activity_debounce_ms` and `retry_delay_ms` are read from the same directory.
 
-## Settings, and what is still missing there
+## Settings
 
-The user-facing half is Settings, as functions (`pumi call heeler.…`):
+The user-facing half is Settings → **Heeler**: a page of its own (`contributes.settings.pages`, drawn
+by `HeelerPage` in `src/ui.tsx`) with the checklist, the code as a QR grid and as text, the device
+that enrolled, and the one-key revoke. The page polls `pair.poll` while a code is live, so a device
+pairing in the app shows up there without a reload.
+
+Everything the page shows and does is also a function, so a terminal has the same surface
+(`pumi call amresyd.heeler.…`):
 
 | Function | |
 | --- | --- |
@@ -125,35 +134,13 @@ The user-facing half is Settings, as functions (`pumi call heeler.…`):
 | `heeler.pair.copy` / `heeler.pair.qr <text>` | the code to the clipboard / any text as a QR |
 | `heeler.host.restart` / `heeler.host.key` | re-probe the SSH port / the host key fingerprint |
 
-**Blockers in pumi's Settings for drawing the pairing surface today** (Settings is the native gpui
-window, `src/ui/settings/`):
-
-1. **No plugin view in Settings.** `contributes` has no `settings` entry, and Settings cannot host a
-   `ui.tsx` (it is not the React window). What Settings can render of a plugin today is its declared
-   options only.
-2. **No controls for this flow.** Settings has no read-only multi-line text block (for `qrText`), no
-   check-list for `candidates`/`selected`, and no buttons that run one of a plugin's functions and
-   show its answer.
-3. **No live refresh.** A code changes phase on its own (enrolled / expired). Settings would have to
-   poll `heeler.pair.poll` (500 ms while a code is up is plenty) or pumi would need a
-   plugin→Settings event.
-4. **Monospace fidelity.** The QR is text rows of `█ ▀ ▄`; it must be drawn in a monospaced font,
-   unwrapped, with a line height that keeps the cells square enough to scan.
-
-A minimal contract that would unblock it, in the shape Settings already has: a
-`contributes.settings` page per plugin with **actions** (a button that calls one provided function
-and shows its JSON/text result) plus two controls — `code` (monospaced, multi-line, no wrap) and
-`list` (strings with checkboxes) — would draw this whole flow without touching the React SDK.
-
-Meanwhile every function works from a terminal. To get a scannable QR today:
+`heeler.pair.confirm` takes the addresses as its first argument (a string, or an array); with none it
+uses the pre-checked ones. From a terminal, with the plugin's own prefix:
 
 ```sh
-pumi call heeler.pair.confirm | jq -r .qrText     # the live code's QR, as block text
-pumi call heeler.pair.copy                         # or the code itself, to the clipboard
+pumi call amresyd.heeler.pair.confirm | jq -r .qrText   # the live code's QR, as block text
+pumi call amresyd.heeler.pair.copy                       # or the code itself, to the clipboard
 ```
-
-`heeler.pair.confirm` takes the addresses as its first argument (a string, or an array); with none it
-uses the pre-checked ones. `heeler.pair.status` draws the same checklist without minting anything.
 
 ## Options
 

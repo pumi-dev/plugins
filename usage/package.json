@@ -1,7 +1,7 @@
 {
   "name": "pumi-usage",
   "version": "0.1.0",
-  "description": "How much of your AI plans you have left, in the status bar: Claude, Codex, Copilot and OpenRouter, read with the sign-ins already on this Mac.",
+  "description": "How much of your AI plans you have left, in a section of the side bar: Claude, Codex, Copilot and OpenRouter, read with the sign-ins already on this Mac.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {
@@ -16,7 +16,6 @@
     "usage",
     "quota",
     "limits",
-    "status bar",
     "claude",
     "codex",
     "copilot",
@@ -33,13 +32,6 @@
     ],
     "contributes": {
       "options": {
-        "show": {
-          "type": "boolean",
-          "default": true,
-          "label": "Show the bar",
-          "group": "Usage",
-          "desc": "Segments in the status bar, one for each plan signed in. Their numbers are also in the side bar's Usage section."
-        },
         "every": {
           "type": "number",
           "default": 5,
@@ -87,33 +79,6 @@
           "group": "Plans",
           "desc": "Prepaid credits and the API key's own spending cap, read with the key below or `OPENROUTER_API_KEY`."
         },
-        "layout": {
-          "type": "string",
-          "default": "detailed",
-          "choices": [
-            "detailed",
-            "compact",
-            "meters"
-          ],
-          "labels": [
-            "Meter and numbers",
-            "Numbers only",
-            "Meters only"
-          ],
-          "label": "What the bar shows",
-          "group": "Display",
-          "desc": "A meter for the window closest to a limit, the numbers, or both."
-        },
-        "windows": {
-          "type": "number",
-          "default": 2,
-          "min": 1,
-          "max": 3,
-          "step": 1,
-          "label": "Limits named",
-          "group": "Display",
-          "desc": "How many of each plan's limit windows the bar names, the tightest first. The rest stay in the side bar."
-        },
         "resets": {
           "type": "string",
           "default": "countdown",
@@ -130,25 +95,6 @@
           "label": "Resets",
           "group": "Display",
           "desc": "`Time left` counts down (`2h 53m`); `When it resets` names the local time it comes back."
-        },
-        "label": {
-          "type": "boolean",
-          "default": true,
-          "label": "Name each plan",
-          "group": "Display",
-          "desc": "The plan's name before its numbers. Off, the bar is numbers and meters only."
-        },
-        "meter": {
-          "type": "number",
-          "default": 36,
-          "min": 16,
-          "max": 80,
-          "step": 2,
-          "unit": "px",
-          "control": "slider",
-          "label": "Meter width",
-          "group": "Display",
-          "desc": "How wide a segment's bar is."
         },
         "tint": {
           "type": "boolean",
@@ -198,10 +144,6 @@
         {
           "id": "refresh",
           "title": "Usage: read the plans again"
-        },
-        {
-          "id": "toggle",
-          "title": "Usage: show the bar, or hide it"
         }
       ],
       "slots": {
@@ -209,17 +151,6 @@
           "view": "Details",
           "title": "Usage",
           "icon": "zap"
-        },
-        "status": {
-          "view": "Segments",
-          "actions": [
-            {
-              "id": "refresh",
-              "title": "Read the plans again",
-              "icon": "rotate_cw",
-              "command": "refresh"
-            }
-          ]
         }
       }
     },

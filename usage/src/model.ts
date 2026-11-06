@@ -1,4 +1,4 @@
-// What a plan's usage is, in the terms the bar and its panel show: which limit windows it has, how
+// What a plan's usage is, in the terms the panel shows: which limit windows it has, how
 // much of each is used, when each resets, and how its spend compares with the window's own length.
 // Nothing here talks to a service or to pumi: the providers fill this in, and `ui.tsx` draws it.
 
@@ -87,20 +87,6 @@ export function tightest(windows: Window[] | undefined): Window | undefined {
   return best;
 }
 
-/**
- * The `count` windows closest to their limits, in the order the service listed them: the session
- * window keeps its place before the weekly one instead of sorting by use.
- */
-export function barWindows(windows: Window[] | undefined, count: number): Window[] {
-  const all = windows ?? [];
-  const chosen = all
-    .map((window, index) => ({ window, index }))
-    .sort((a, b) => percent(b.window.used) - percent(a.window.used) || a.index - b.index)
-    .slice(0, Math.max(0, Math.floor(count)))
-    .sort((a, b) => a.index - b.index);
-  return chosen.map(({ window }) => window);
-}
-
 /** How much of a window's length has gone by, in percent; none without both a length and a reset. */
 export function expected(w: Window, now: number): number | undefined {
   if (!w.length || w.length <= 0 || w.resetsAt === undefined) return undefined;
@@ -185,7 +171,7 @@ export function describeWindow(w: Window, now: number, style: Resets): string {
   return `${w.title}: ${Math.round(percent(w.used))}% used${reset ? `, resets in ${reset}` : ""}`;
 }
 
-/** One line per window, for a segment's tooltip. */
+/** One line per window, as `describeWindow` says each. */
 export function describeWindows(report: Report | undefined, now: number, style: Resets): string[] {
   if (!report) return [];
   return report.windows.map((w) => describeWindow(w, now, style));

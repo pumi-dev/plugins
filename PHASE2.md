@@ -9,7 +9,7 @@ start, and follow it exactly.
 | Before | Now |
 | --- | --- |
 | `src/*.ts`, one file per part, drawing with the builder (`div().flex().gap(px(8))`) and a `View` class | `src/main.ts` (logic, a worker) and `src/ui.tsx` (what it draws, React) |
-| `contributes.views` with slots (`sidebar.left`, `statusline`, `winbar.bottom`, `PaneStrip`) | `contributes.points`, keyed by point: `panel`, `status`, `pane.strip`, `tab.badge`, … |
+| `contributes.views` with slots (`sidebar.left`, `statusline`, `winbar.bottom`, `PaneStrip`) | `contributes.slots`, keyed by slot: `panel`, `pane.toolbar`, `pane.strip`, `tab.badge`, … |
 | style rules (`style.set`), CSS, `.class("x")` | style objects only: `style={{ … , hover: { … } }}` |
 | the theme's colours as `theme.bg`, `token("agent.working")`, `px(8)` | `useTheme()` (`t.surface`, `t["agent.working"]`), plain numbers for pixels |
 | `native(view)`, `ui.*` | `<terminal pane>`, `<preview pane>`, and divs |
@@ -54,8 +54,7 @@ which rarely import `pumi`). Only the `View` classes and their helpers are rewri
     "keys": [{ "key": "<D-S-q>", "command": "toggle" }],
     "points": {
       "panel": { "view": "Board", "title": "Queue", "icon": "list" },
-      "pane.strip": { "view": "Bar" },
-      "status": { "actions": [{ "id": "toggle", "title": "Queue", "icon": "list", "command": "toggle" }] }
+      "pane.toolbar": { "actions": [{ "id": "toggle", "title": "Queue", "icon": "list", "command": "toggle" }] }
     },
     "views": [{ "id": "board", "title": "Queue" }]
   }
@@ -65,20 +64,21 @@ which rarely import `pumi`). Only the `View` classes and their helpers are rewri
 - **`points`** is keyed by point. A point has a `view` (the name of a `ui.tsx` export), `actions`
   (data: `id`, `title`, `icon`, `command`, drawn as the theme's own buttons), or both. An action
   runs its command with `{ pane }` or `{ tab }` of where it was clicked.
-- **The points** (the fixed set): `window.titlebar`, `window.overlay`, `session.header`,
-  `tab.actions`, `tab.badge`, `pane.toolbar`, `pane.strip`, `pane.overlay`, `pane.menu`,
-  `agent.controls`, `agent.footer`, `agent.menu`, `panel`, `status`, `palette.actions`.
+- **The points** (the fixed set): `window.overlay`, `session.header`, `tab.actions`, `tab.badge`,
+  `pane.toolbar`, `pane.strip`, `pane.overlay`, `pane.menu`, `agent.controls`, `agent.footer`,
+  `agent.menu`, `panel`, `palette.actions`.
 - **Mapping from the old places**:
   - `slot: "sidebar.left"` (a page in the side bar) → **`panel`**, with its title and icon.
-  - `slot: "statusline"` → **`status`**.
+  - `slot: "statusline"` → **`panel`**, a section of the side bar (there is no status bar).
   - `slot: "winbar.bottom"` / `"PaneStrip"` / a strip under a pane → **`pane.strip`**.
   - `slot: "tabline"` extras → **`tab.actions`** (buttons) or **`tab.badge`** (a small label).
-  - `slot: "titlebar.*"` → **`window.titlebar`**; a page over everything → **`window.overlay`**.
+  - `slot: "titlebar.*"` → **`panel`** or **`pane.toolbar`** (there is no title bar slot); a page
+    over everything → **`window.overlay`**.
   - a page over a pane → **`pane.overlay`**; a right-click menu → **`pane.menu`**.
   - anything the package opens as a pane (`pane.open`) stays a **`views`** pane type: floats
     (palette, pickers, overlays) and tiled panes (browser, diagrams).
-- **A point view's props**: `panel`, `status`, `pane.strip`, `pane.toolbar`, `pane.overlay`,
-  `window.titlebar`, `window.overlay`, `agent.controls`, `agent.footer` get
+- **A point view's props**: `panel`, `pane.strip`, `pane.toolbar`, `pane.overlay`,
+  `window.overlay`, `agent.controls`, `agent.footer` get
   `{ pane?: string; tab?: string; session?: string }` where they make sense (`pane.*` and
   `agent.*` always get `pane`); `pane.menu` and `agent.menu` also get `close()`.
 - **`views` stay pane types**: `{ "id": "board" }` is the type `owner.name.board`, drawn by the

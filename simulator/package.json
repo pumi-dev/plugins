@@ -32,7 +32,7 @@
       "options": {
         "udid": {
           "type": "string",
-          "scope": "pane",
+          "scope": "tab",
           "blocks": [
             "device"
           ],
@@ -99,6 +99,16 @@
               "id": "open",
               "title": "Simulator: open",
               "icon": "box",
+              "command": "open"
+            }
+          ]
+        },
+        "tab.new": {
+          "actions": [
+            {
+              "id": "device",
+              "title": "Simulator",
+              "icon": "smartphone",
               "command": "open"
             }
           ]

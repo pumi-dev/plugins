@@ -15,7 +15,7 @@
 // view gets control back when someone types there.
 import { call } from "pumi";
 import type { Socket } from "bun";
-import { view } from "./api.ts";
+import { paneRef, view } from "./api.ts";
 import { Frames } from "./frames.ts";
 import {
   MAX_FRAME as GRID_MAX_FRAME,
@@ -391,7 +391,7 @@ interface MouseModes {
 async function modes(pane: number): Promise<MouseModes | undefined> {
   let answer: Json;
   try {
-    answer = (await call("pane.call", pane, "modes")) as Json;
+    answer = (await call("tab.call", paneRef(pane), "modes", {})) as Json;
   } catch {
     return undefined;
   }

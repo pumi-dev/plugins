@@ -4,30 +4,29 @@ A pumi UI theme: the app as a pixel office you walk around, drawn in Gather's st
 carpeted rooms with their names on plates, dark name tags, framed game boxes and the Pixelify Sans
 pixel font (bundled in `themes/office/fonts/`). Day (light) or night (dark) is its **Mode** setting.
 
-Every session is a room on the floor, and every tab in it is a desk whose little screen shows that
-tab's pane in front, live — so the whole app is in the room at once. Its agent sits at the desk,
+Every session is a room on the floor, and every view in it is a desk whose little screen shows the
+tab in front of it, live — so the whole app is in the room at once. Its agent sits at the desk,
 back to you, with a bubble saying what it is doing (typing dots, a `!` when it needs you, a tick).
 
-- **One desk per pane** (`desk_per_pane`, in Settings → Office, or the hotbar's grid slot) gives
-  each pane of a split tab its own desk, agent and screen. Sitting at one opens that pane ("Whole
-  tab" in the monitor shows the rest).
-- **Sit at a desk** (walk up and press X, or click it) and the monitor opens with the real panes.
+- **One desk per tab** (`desk_per_tab`, in Settings → Office, or the hotbar's grid slot) gives
+  each tab of a split view its own desk, agent and screen. Sitting at one opens that tab ("Whole
+  view" in the monitor shows the rest).
+- **Sit at a desk** (walk up and press X, or click it) and the monitor opens with the real views.
   "Stand up" or a press outside it closes it.
 - **Drag a desk** by its body to move it; where you left it is kept (`office.desks`). Double-click
-  renames its tab; right-click is its menu — the office's own, then its tab's and its pane's, the
+  renames its view; right-click is its menu — the office's own, then its view's and its tab's, the
   app's and the plugins' items together.
 
 ## The plugins
 
 - **The lobby** down the left (⌘B, the hotbar's sidebar slot, or the bookshelf): the players —
-  every agent; a click walks you to their desk and sits you down — and every plugin's `panel` view
-  on a notice board, each folded by its sign.
-- **The top right**: the plugins' `window.titlebar` buttons and views, then the minimap.
-- **The bar along the foot**: you, the hotbar (New desk, Decorate, the lobby, One desk per pane,
-  Settings, the emotes 1–5), the plugins' `status` views and buttons, the agents' counts (a click
-  walks you to one) and the clock.
-- Their `window.overlay` views, menus (`Menu`), questions (`Dialog`) and buttons (`Action`) are drawn
-  as the office's pixel boxes.
+  every agent; a click walks you to their desk and sits you down — and every plugin's `panel`
+  component on a notice board, each folded by its sign.
+- **The top right**: the minimap.
+- **The bar along the foot**: you, the hotbar (New desk, Decorate, the lobby, One desk per tab,
+  Settings, the emotes 1–5), the agents' counts (a click walks you to one) and the clock.
+- Their `window.overlay` components, menus (`Menu`), questions (`Dialog`) and buttons (`Action`) are
+  drawn as the office's pixel boxes.
 
 ## Playing it
 

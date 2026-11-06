@@ -1,56 +1,72 @@
 // P3's window, after T3 Code. Flat and quiet: the side bar is a shade lighter than the panes, with
 // the traffic lights and the wordmark on top, a search row (the command palette) with a new
-// session and a new tab beside it, then every tab of every session as a thread — its project's
-// tag and name, its title, what is in it — and at its foot the settings, each plugin's `panel`,
-// and what plugins put in the status bar. Over the panes is a breadcrumb (project / thread) with
-// the window's buttons; the panes sit edge to edge in the app's own layout (`Layout`, `Split`:
-// its splits, its edges that drag, its zoom, its floats), a hairline between them.
+// session and a new view beside it, then every view of every session as a thread — its project's
+// tag and name, its title, what is in it — and at its foot the settings. Over the panes is a
+// breadcrumb (project / thread) with the window's buttons; the panes sit edge to edge in the app's
+// own layout (`Layout`, `Split`: its splits, its edges that drag, its zoom, its floats), a hairline
+// between them, each pane's tabs in a strip over it.
 // Its menus are the app's actions (`useMenu`) drawn in this theme's `Menu`, its questions in its
 // `Dialog`. Started from P-Rex's window (which started from the app's default): the behaviour is
 // the default's wherever a theme can reach it, the look is this file's.
 import { createContext, Fragment, memo, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
-import { Icon, motion, useDraggable, useDragState, useDroppable, useMetrics, useTheme } from "pumi"
+import { Icon, motion, useDraggable, useDragState, useMetrics, useTheme } from "pumi"
 import {
   call,
+  carried,
   commands,
+  componentKey,
+  Dock,
   grouped,
-  num,
-  renderView,
+  leafOf,
+  renderComponent,
+  rowDrop,
   run,
+  runMove,
   serverOf,
   shortcut,
+  shownOf,
+  sortSessions,
+  stripDrop,
+  tabsOf,
   useAgentOf,
+  useAgents,
   useApp,
   useComponents,
   useDock,
   useDockPanels,
-  Dock,
-  viewKey,
-  type DockPanels,
-  useFocusedPane,
+  useDropBox,
+  useFocusedTab,
   useLayout,
   useLocal,
   useMenu,
-  usePane,
+  usePaneTabs,
   usePaneTitles,
   useRename,
   useSession,
   useSessions,
   useSlot,
   useTab,
-  useTabs,
+  useView,
+  useViews,
   useWindow,
   via,
+  whereIn,
+  within,
   type ActionItem,
+  type Carried,
   type Components,
   type DialogProps,
+  type DockPanels,
   type IconButtonProps,
   type MenuProps,
-  type Pane as PaneInfo,
   type RenameInput,
+  type Row,
+  type Snapshot,
 } from "pumi/theme"
 
 type Tokens = ReturnType<typeof useTheme>
+type SnapTab = Snapshot["tabs"][number]
+type SnapView = Snapshot["views"][number]
 
 const swallow = (err: unknown) => console.error(String(err))
 const stop = (e: any) => e?.stopPropagation?.()
@@ -72,10 +88,11 @@ const Glyph = memo(function Glyph({ name, size = 14, color }: { name: string; si
 /** The order sessions were dragged into, in the default theme's list: kept to, not changed. */
 const SESSION_ORDER = "default.agents.order"
 const NONE: string[] = []
+const NO_TABS: SnapTab[] = []
 
-/** The commands a plugin of the user's may have: the palette's toggle, the browser's new tab. */
+/** The commands a plugin of the user's may have: the palette's toggle, the browser's open. */
 const PALETTE = "amresyd.palette.toggle"
-const BROWSER = "amresyd.browser.openTab"
+const BROWSER = "pumi.browser.open"
 
 /** Whether a command exists now: a plugin's comes and goes with its plugin. */
 function useHasCommand(name: string): boolean {
@@ -88,29 +105,35 @@ const tip = (title: string, command?: string) => {
   return keys ? `${title}  ${keys}` : title
 }
 
-/** Shows a session's tab (and a pane of it) in `window`. */
-function goTo(window: ReturnType<typeof useWindow>, session: string, tab?: string, pane?: string) {
+/** Shows a session's view in `window`. */
+function goTo(window: ReturnType<typeof useWindow>, session: string, view?: string) {
   if (window.session !== session) window.show(session)
-  const tabbed = tab ? call(via(tab, "tab.focus"), tab) : Promise.resolve()
-  tabbed.then(() => pane && call(via(pane, "pane.focus"), pane)).catch(swallow)
+  if (view) call(via(view, "view.focus"), view).catch(swallow)
 }
 
 // ── Names ──────────────────────────────────────────────────────────────────────────────────────
 
-type PaneLike = Pick<PaneInfo, "block" | "label" | "terminal_title" | "cwd" | "agent">
-
-/** A pane by what it shows: an agent by its title first, then its name, its title, its folder, its type. */
-function paneTitle(p: PaneLike): string {
-  const dir = p.cwd ? p.cwd.replace(/\/+$/, "").split("/").pop() : undefined
-  if (p.agent) return p.terminal_title || p.label || p.agent
-  return p.label || p.terminal_title || dir || p.block
-}
-
-/** A tab's name: the one it was given, or else its focused pane's. */
-const tabTitle = (named: string | null | undefined, p: PaneLike | undefined) => (named && !/^\d+$/.test(named) ? named : p ? paneTitle(p) : "New thread")
-
 /** A worktree's folder name (`avid-storm`). */
 const shortName = (path: string) => path.replace(/\/+$/, "").split("/").pop() || path
+
+/** A tab by what it shows: its name, its title, its folder, its type. */
+function tabLabel(p: Pick<SnapTab, "block" | "label" | "terminal_title" | "cwd">): string {
+  return p.label || p.terminal_title || (p.cwd ? shortName(p.cwd) : "") || p.block
+}
+
+/** A tab as its strip names it: an agent by its title first, else its label. */
+function tabTitle(p: SnapTab): string {
+  return (p.agent && (p.terminal_title || p.label || p.agent)) || tabLabel(p)
+}
+
+/** A view's name: the one it was given, else its tab last in front, else its first. */
+function viewLabel(view: SnapView | undefined, tabs: SnapTab[], front: string | undefined): string {
+  if (!view) return "New thread"
+  if (view.label) return view.label
+  const held = tabs.filter((p) => p.view_id === view.view_id)
+  const tab = held.find((p) => p.tab_id === front) ?? held[0]
+  return tab ? tabTitle(tab) : "New thread"
+}
 
 /** A project's tag: its name's initials, as T3 Code marks a workspace (`workspace` → `WE`). */
 function initials(label: string): string {
@@ -131,8 +154,8 @@ function lead(statuses: string[]): string | undefined {
   return best
 }
 
-/** A pane's glyph: an agent's spark, a terminal's prompt, a page's globe. */
-function glyphOf(p: Pick<PaneInfo, "block" | "agent"> | undefined): string {
+/** A tab's glyph: an agent's spark, a terminal's prompt, a page's globe. */
+function glyphOf(p: Pick<SnapTab, "block" | "agent"> | undefined): string {
   if (!p) return "terminal"
   if (p.agent) return p.agent.toLowerCase().includes("codex") ? "zap" : "sparkle"
   if (p.block === "terminal") return "terminal"
@@ -228,14 +251,14 @@ function RenameField({ input }: { input: RenameInput }) {
   return <input {...input} style={{ flexGrow: 1, minWidth: 0, fontSize: 13, color: t.text, paddingLeft: 4, paddingRight: 4, borderRadius: 5, borderWidth: 1, borderColor: t.accent, backgroundColor: t.editor }} />
 }
 
-/** A slot's views, given `args`, and its actions as buttons, in a row. */
+/** A slot's components, given `args`, and its actions as buttons, in a row. */
 const SlotRow = memo(function SlotRow({ slot, args, gap = 2 }: { slot: string; args?: Record<string, unknown>; gap?: number }) {
   const C = useComponents()
-  const { views, actions } = useSlot(slot)
-  if (!views.length && !actions.length) return null
+  const { components, actions } = useSlot(slot)
+  if (!components.length && !actions.length) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap, flexShrink: 0 }}>
-      {views.map((v) => renderView(v, args))}
+      {components.map((v) => renderComponent(v, args))}
       {actions.map((a) => (
         <C.Action key={`${a.plugin}/${a.id}`} action={a} args={args} />
       ))}
@@ -255,7 +278,7 @@ function Window() {
   const m = useMetrics()
   const C = useComponents()
   const sidebar = useDock("sidebar")
-  const overlays = useSlot("window.overlay").views
+  const overlays = useSlot("window.overlay").components
   const handle = { hover: { backgroundColor: t.border } }
   return (
     <div style={{ display: "flex", flexDirection: "row", width: "100%", height: "100%", position: "relative", color: t.text, fontSize: m.fontSize, backgroundColor: t.editor }}>
@@ -279,8 +302,8 @@ function Window() {
       </Dock>
       <DragGhost />
       {overlays.map((v) => (
-        <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-          {renderView(v)}
+        <div key={`${v.plugin}/${v.id}`} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+          {renderComponent(v)}
         </div>
       ))}
     </div>
@@ -297,37 +320,22 @@ function useTitleRow() {
   }
 }
 
-/** What plugins put in the title bar (`window.titlebar`): their buttons beside the window's. */
-function TitlebarSlot() {
-  const C = useComponents()
-  const { views, actions } = useSlot("window.titlebar")
-  if (!views.length && !actions.length) return null
-  return (
-    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 }}>
-      {views.map((v) => renderView(v))}
-      {actions.map((a) => (
-        <C.Action key={`${a.plugin}/${a.id}`} action={a} />
-      ))}
-    </div>
-  )
-}
-
 /**
- * Over the panes: the project's tag and name, a slash, the thread (the front tab); at the far end
- * what plugins put in the title bar, the panes' title bars shown or not, a split, and the
- * surfaces' dock. With the side bar hidden it starts past the traffic lights, with the button
- * that shows it.
+ * Over the panes: the project's tag and name, a slash, the thread (the view in front); at the far
+ * end the panes' title bars shown or not, a split, and the surfaces' dock. With the side bar hidden
+ * it starts past the traffic lights, with the button that shows it.
  */
 function Breadcrumb({ sidebar }: { sidebar: boolean }) {
   const t = useTheme()
   const window = useWindow()
   const { height, inset } = useTitleRow()
   const session = useSession()
-  const tab = useTab()
-  const focused = useFocusedPane(tab?.tab_id)
-  const pane = usePane(focused)
+  const view = useView()
+  const front = useFocusedTab(view?.view_id)
+  const tabs = useApp((s) => s.snapshot?.tabs ?? NO_TABS)
   const [titles, setTitles] = usePaneTitles()
   const surfaces = useDock("surfaces")
+  const label = viewLabel(view, tabs, front)
   return (
     <div cache style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height, flexShrink: 0, paddingLeft: sidebar ? 18 : inset, paddingRight: 10, appRegion: "drag" }}>
       {sidebar ? null : <BarButton icon="layout_sidebar_left" title="Show Threads" command="toggle_sidebar" onClick={() => run("toggle_sidebar", window.id)} />}
@@ -336,11 +344,10 @@ function Breadcrumb({ sidebar }: { sidebar: boolean }) {
           <ProjectTag label={session.label} />
           <text style={{ fontSize: 13, color: t.muted, whiteSpace: "nowrap", flexShrink: 0 }}>{session.label || session.workspace_id}</text>
           <text style={{ fontSize: 13, color: t.faint, flexShrink: 0, paddingLeft: 4, paddingRight: 4 }}>/</text>
-          <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{tabTitle(tab?.label, pane)}</text>
+          <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{label}</text>
         </div>
       ) : null}
       <div style={{ flexGrow: 1 }} />
-      <TitlebarSlot />
       <BarButton icon={titles ? "eye" : "eye_off"} title={titles ? "Hide pane titles" : "Show pane titles"} command="toggle_pane_titles" active={!titles} onClick={() => setTitles((v) => !v)} />
       <BarButton icon="split" title="Split Right" command="split_vertical" onClick={() => run("split_vertical", window.id)} />
       <BarButton icon="layout_sidebar_right" title={surfaces.open ? `Hide ${surfaces.title}` : `Show ${surfaces.title}`} command={surfaces.command} active={surfaces.open} onClick={surfaces.toggle} />
@@ -366,7 +373,7 @@ function SidebarHeader() {
   )
 }
 
-/** Search (the command palette, when it is installed), a new session and a new tab. */
+/** Search (the command palette, when it is installed), a new session and a new view. */
 function SearchRow() {
   const t = useTheme()
   const window = useWindow()
@@ -382,7 +389,7 @@ function SearchRow() {
         <text style={{ fontSize: 13, color: t.muted }}>Search</text>
       </div>
       <BarButton icon="folder_plus" title="New Session" command="new_workspace" onClick={() => run("new_workspace", window.id)} />
-      <BarButton icon="edit" title="New Thread" command="new_tab" onClick={() => run("new_tab", window.id)} />
+      <BarButton icon="edit" title="New Thread" command="new_view" onClick={() => run("new_view", window.id)} />
     </div>
   )
 }
@@ -391,12 +398,12 @@ function SearchRow() {
 function SessionHeaderSlot() {
   const C = useComponents()
   const session = useSession()
-  const { views, actions } = useSlot("session.header")
+  const { components, actions } = useSlot("session.header")
   const args = useMemo(() => ({ session: session?.workspace_id }), [session?.workspace_id])
-  if (!session || (!views.length && !actions.length)) return null
+  if (!session || (!components.length && !actions.length)) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, minHeight: 30, flexShrink: 0, paddingLeft: 16, paddingRight: 8 }}>
-      {views.map((v) => renderView(v, args))}
+      {components.map((v) => renderComponent(v, args))}
       {actions.map((a) => (
         <C.Action key={`${a.plugin}/${a.id}`} action={a} args={args} />
       ))}
@@ -404,14 +411,15 @@ function SessionHeaderSlot() {
   )
 }
 
-/** The side bar's foot: the settings, and on the right what plugins put in the status bar. */
+/** The side bar's foot: the settings, then what plugins put beside them (`sidebar.footer`). */
 function SidebarFooter() {
   const window = useWindow()
+  const args = useMemo(() => ({ point: "sidebar" }), [])
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 44, flexShrink: 0, paddingLeft: 10, paddingRight: 10 }}>
       <BarButton icon="settings" title="Settings" command="settings" onClick={() => run("settings", window.id)} />
       <div style={{ flexGrow: 1, minWidth: 4 }} />
-      <SlotRow slot="status" />
+      <SlotRow slot="sidebar.footer" args={args} />
     </div>
   )
 }
@@ -428,7 +436,7 @@ function Surfaces() {
   const { height } = useTitleRow()
   const dock = useDock("surfaces")
   const panels = useDockPanels("surfaces")
-  const { shown } = panels
+  const shown = panels.shown
   return (
     <>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height, flexShrink: 0, paddingLeft: 10, paddingRight: 10, appRegion: "drag" }}>
@@ -438,7 +446,7 @@ function Surfaces() {
         <BarButton icon="close" title={`Hide ${dock.title}`} command={dock.command} onClick={dock.toggle} />
       </div>
       {shown ? (
-        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll", paddingLeft: 6, paddingRight: 6 }}>{renderView(shown)}</div>
+        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll", paddingLeft: 6, paddingRight: 6 }}>{renderComponent(shown)}</div>
       ) : (
         <SurfaceList panels={panels} />
       )}
@@ -463,7 +471,7 @@ function SurfaceList({ panels }: { panels: DockPanels }) {
   const surfaces: Surface[] = [
     ...(browser ? [{ key: "browser", icon: "globe", title: "Browser", command: BROWSER, open: () => run(BROWSER, window.id) }] : []),
     { key: "terminal", icon: "terminal", title: "Terminal", command: "split_vertical", open: () => run("split_vertical", window.id) },
-    ...panels.views.map((v) => ({ key: viewKey(v), icon: v.icon ?? "blocks", title: v.title ?? v.id, open: () => panels.show(v) })),
+    ...panels.components.map((v) => ({ key: componentKey(v), icon: v.icon ?? "blocks", title: v.title ?? v.id, open: () => panels.show(v) })),
   ]
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexGrow: 1, minHeight: 0, paddingLeft: 24, paddingRight: 24, paddingBottom: 44 }}>
@@ -496,73 +504,89 @@ function SurfaceRow({ surface: s }: { surface: Surface }) {
 
 // ── The threads ────────────────────────────────────────────────────────────────────────────────
 
-/** Every session's tabs, one list: in the order the default theme's list was dragged into. */
+/** Every session's views, one list: in the order the default theme's list was dragged into. */
 function Threads() {
   const t = useTheme()
   const sessions = useSessions()
   const [order] = useLocal<string[]>(SESSION_ORDER, NONE)
   if (!sessions.length) return <text style={{ paddingLeft: 18, paddingTop: 8, fontSize: 12, color: t.faint }}>No threads</text>
-  const rank = (id: string) => (order.indexOf(id) < 0 ? order.length : order.indexOf(id))
-  const sorted = sessions.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s.workspace_id) - rank(b.s.workspace_id) || a.i - b.i).map(({ s }) => s)
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingBottom: 8 }}>
-      {sorted.map((s) => (
+      {sortSessions(sessions, order).map((s) => (
         <SessionThreads key={s.workspace_id} session={s.workspace_id} label={s.label} />
       ))}
     </div>
   )
 }
 
-/** A session's tabs, each a thread under the session's name. */
+/** A session's views, each a thread under the session's name. */
 const SessionThreads = memo(function SessionThreads({ session: id, label }: { session: string; label: string }) {
-  const window = useWindow()
-  const session = useSession(id)
-  const tabs = useTabs(id)
-  const sorted = useMemo(() => [...tabs].sort((a, b) => a.number - b.number), [tabs])
-  const current = window.session === id
+  const views = useViews(id)
+  const sorted = useMemo(() => [...views].sort((a, b) => a.number - b.number), [views])
   const server = serverOf(id)
   const project = server ? `${label || id} · ${server}` : label
   return (
     <>
-      {sorted.map((tab) => (
-        <ThreadRow key={tab.tab_id} tab={tab.tab_id} session={id} project={project} label={tab.label} worktree={tab.worktree} front={current && session?.active_tab_id === tab.tab_id} />
+      {sorted.map((view) => (
+        <ThreadRow key={view.view_id} view={view.view_id} session={id} project={project} />
       ))}
     </>
   )
 })
 
-const NO_PANES: PaneInfo[] = []
-
 /**
- * A tab, as a thread: its project's tag and name, and an agent's state, on top; its title; what is
- * in it (each pane's glyph) at the foot, with its worktree. The front tab of the window's session
- * is lit. A click goes to it, a double click renames it, a right click (or the `…` on hover) opens
- * its menu: the tab's, its focused pane's, its session's. It drags (onto a pane, to join that
- * tab), and a pane dropped on it moves into it.
+ * A view, as a thread: its project's tag and name, and an agent's state, on top; its title; what is
+ * in it (its tabs' glyphs) at the foot, with its worktree. The view in front of the window's
+ * session is lit. A click goes to it, a double click renames it, a right click or the `…` on hover
+ * opens its menu (the view's, its session's); a tab dropped on it joins it, and dragged, it moves
+ * among its session's views or to another session.
  */
-const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: named, worktree, front }: { tab: string; session: string; project: string; label: string | null; worktree?: string; front: boolean }) {
+const ThreadRow = memo(function ThreadRow({ view: id, session, project }: { view: string; session: string; project: string }) {
   const t = useTheme()
   const C = useComponents()
   const window = useWindow()
   const [hovered, setHovered] = useState(false)
-  const focused = useFocusedPane(id)
-  const panes = useApp((s) => s.snapshot?.panes.filter((p) => p.tab_id === id && (p.place as { kind?: string } | undefined)?.kind !== "float") ?? NO_PANES)
-  const p = panes.find((x) => x.pane_id === focused) ?? panes[0]
-  const status = lead(panes.filter((x) => x.agent).map((x) => x.agent_status))
-  const label = tabTitle(named, p)
+  const view = useView(id)
+  const tree = useLayout(id)
+  const front = useFocusedTab(id)
+  const tabs = useApp((s) => s.snapshot?.tabs ?? NO_TABS)
+  const snapshot = useApp((s) => s.snapshot)
+  const agents = useAgents()
+  const current = useApp((s) => s.snapshot?.workspaces.find((w) => w.workspace_id === session)?.active_view_id)
+  const held = useMemo(() => tabs.filter((p) => p.view_id === id && (p.place as { kind?: string } | undefined)?.kind !== "float"), [tabs, id])
+  // The tabs in front of their panes first, as the layout has them, then the ones behind.
+  const ordered = useMemo(() => {
+    const at = tree ? [...shownOf(tree), ...tabsOf(tree)] : []
+    const rank = (tab: string) => (at.indexOf(tab) < 0 ? at.length : at.indexOf(tab))
+    return [...held].sort((a, b) => rank(a.tab_id) - rank(b.tab_id))
+  }, [held, tree])
+  const tab = ordered.find((p) => p.tab_id === front) ?? ordered[0]
+  const status = lead(agents.filter((a) => a.view_id === id).map((a) => a.agent_status))
+  const label = viewLabel(view, tabs, front)
   const loud = status === "done" || status === "blocked" || status === "error"
-  const { renaming, start, input } = useRename({ tab: id }, label)
-  const { open, show, menu, shown } = useMenu(["tab.menu", "tab.actions", "pane.menu", "session.menu"], { tab: id, pane: p?.pane_id, session })
-  const draggable = useDraggable({ kind: "pumi.tab", tab: id }, { disabled: renaming })
-  const drop = useDroppable<{ kind: "pumi.pane"; pane: string }>({
-    accept: (data: any): data is { kind: "pumi.pane"; pane: string } => data?.kind === "pumi.pane" && typeof data.pane === "string" && !panes.some((x) => x.pane_id === data.pane) && serverOf(data.pane) === serverOf(id),
-    onDrop: (data) => call(via(data.pane, "pane.update"), data.pane, { place: { kind: "tiled", tab: id } }).catch(swallow),
-  })
+  const { renaming, start, input } = useRename({ view: id }, label)
+  const { open, show, menu, shown } = useMenu(["view.menu", "tab.menu", "session.menu"], { view: id, tab: tab?.tab_id, session })
+  const draggable = useDraggable<Carried>({ kind: "pumi.view", view: id }, { disabled: renaming })
+  const row = useMemo<Row>(() => ({ kind: "view", session, view: id }), [session, id])
+  const where = useMemo(() => whereIn(snapshot), [snapshot])
+  const drop = useDropBox(
+    (data): data is Carried => {
+      const it = carried(data)
+      return !!it && !!rowDrop(it, row, 0.5, where)
+    },
+    (it, at, box) => {
+      const move = rowDrop(it, row, within(at, box).fy, where)
+      if (move) runMove(move)
+    },
+  )
   const controls = useSlot("agent.controls")
-  const agent = !!p?.agent
+  const viewActions = useSlot("view.actions")
+  const footerArgs = useMemoTabArgs(tab?.tab_id ?? "")
+  const viewArgs = useMemo(() => ({ view: id }), [id])
+  const agent = !!tab?.agent
   const word = status ? STATUS_WORD[status] : undefined
-  const glyphs = [...new Set(panes.map((x) => glyphOf(x)))].slice(0, 4)
-  const lit = drop.isOver ? t.active : front ? t.selected : undefined
+  const glyphs = [...new Set(ordered.map((p) => glyphOf(p)))].slice(0, 4)
+  const lit = drop.isOver ? t.active : window.session === session && current === id ? t.selected : undefined
   return (
     <>
       <div
@@ -573,7 +597,7 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
         onClick={() => renaming || draggable.wasDragged() || goTo(window, session, id)}
         onDoubleClick={() => renaming || start()}
         onAuxClick={open}
-        title={p?.cwd ?? undefined}
+        title={view?.worktree ?? tab?.cwd ?? undefined}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -599,7 +623,10 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
           <div style={{ flexGrow: 1 }} />
           {(hovered || shown) && !renaming ? (
             <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1, flexShrink: 0 }}>
-              {agent && controls.actions.length + controls.views.length > 0 ? <C.AgentControls pane={p!.pane_id} /> : null}
+              {viewActions.actions.map((a) => (
+                <C.Action key={`${a.plugin}/${a.id}`} action={a} args={viewArgs} />
+              ))}
+              {agent && tab && controls.actions.length + controls.components.length > 0 ? <C.AgentControls tab={tab.tab_id} /> : null}
               <RowButton icon="ellipsis" title="More" onClick={show} />
             </div>
           ) : word && status ? (
@@ -612,17 +639,17 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
         {input ? (
           <RenameField input={input} />
         ) : (
-          <text style={{ fontSize: 13, fontWeight: loud ? 600 : 400, color: front || loud ? t.text : t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{label}</text>
+          <text style={{ fontSize: 13, fontWeight: loud ? 600 : 400, color: (window.session === session && current === id) || loud ? t.text : t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{label}</text>
         )}
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 16, minWidth: 0 }}>
-          {worktree ? (
-            <div title={worktree} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 1, minWidth: 0 }}>
+          {view?.worktree ? (
+            <div title={view.worktree} style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3, flexShrink: 1, minWidth: 0 }}>
               <Icon name="git_worktree" size={11} color={t.faint} />
-              <text style={{ fontSize: 11, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{shortName(worktree)}</text>
+              <text style={{ fontSize: 11, color: t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>{shortName(view.worktree)}</text>
             </div>
           ) : null}
           <div style={{ flexGrow: 1 }} />
-          {agent ? <SlotRow slot="agent.footer" args={{ pane: p!.pane_id }} /> : null}
+          {agent && tab ? <SlotRow slot="agent.footer" args={footerArgs} /> : null}
           {glyphs.map((g) => (
             <Glyph key={g} name={g} size={12} color={t.faint} />
           ))}
@@ -633,35 +660,33 @@ const ThreadRow = memo(function ThreadRow({ tab: id, session, project, label: na
   )
 })
 
+/** `{ tab }`, the args a slot over a tab is given, kept while the tab is the same. */
+function useMemoTabArgs(tab: string): { tab: string } {
+  return useMemo(() => ({ tab }), [tab])
+}
+
 /** An agent's actions (`agent.controls`), given the agent: on its thread while hovered. */
-function AgentControls({ pane }: { pane: string }) {
-  const args = useMemo(() => ({ pane }), [pane])
+function AgentControls({ tab }: { tab: string }) {
+  const args = useMemoTabArgs(tab)
   return <SlotRow slot="agent.controls" args={args} />
 }
 
-/** What a pane or tab drag carries, by the mouse: its glyph and its name. */
+/** What a tab or a view drag carries, by the mouse: its glyph and its name. */
 function DragGhost() {
   const t = useTheme()
   const drag = useDragState()
-  const it = drag?.data as { kind?: string; pane?: string; tab?: string } | undefined
-  const snapshot = useApp((s) => (it?.kind === "pumi.pane" || it?.kind === "pumi.tab" ? s.snapshot : undefined))
-  if (!drag || !snapshot || !it) return null
-  let p: PaneInfo | undefined
-  let label: string | undefined
-  if (it.kind === "pumi.pane") {
-    p = snapshot.panes.find((x) => x.pane_id === it.pane)
-    label = p && paneTitle(p)
-  } else {
-    const tab = snapshot.tabs.find((x) => x.tab_id === it.tab)
-    const focused = snapshot.layouts.find((l) => l.tab_id === it.tab)?.focused_pane_id
-    p = snapshot.panes.find((x) => x.pane_id === focused) ?? snapshot.panes.find((x) => x.tab_id === it.tab)
-    label = tabTitle(tab?.label, p)
-  }
+  const it = carried(drag?.data)
+  const tab = useTab(it?.kind === "pumi.tab" ? it.tab : undefined)
+  const view = useView(it?.kind === "pumi.view" ? it.view : undefined)
+  const tabs = useApp((s) => s.snapshot?.tabs ?? NO_TABS)
+  if (!drag || !it) return null
+  const label = it.kind === "pumi.tab" ? (tab ? tabTitle(tab) : undefined) : viewLabel(view, tabs, undefined)
   if (!label) return null
+  const glyph = it.kind === "pumi.tab" ? glyphOf(tab) : "list_circle"
   return (
     <anchored position={{ x: drag.x + 14, y: drag.y + 10 }} style={{ pointerEvents: "none" }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, height: 30, paddingLeft: 10, paddingRight: 12, borderRadius: 8, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, pointerEvents: "none", boxShadow: { offsetX: 0, offsetY: 6, blurRadius: 18, spreadRadius: 0, color: t["p3.shadow"] } }}>
-        <Glyph name={glyphOf(p)} size={13} color={t.muted} />
+        <Glyph name={glyph} size={13} color={t.muted} />
         <text style={{ fontSize: 13, color: t.text, whiteSpace: "nowrap" }}>{label}</text>
       </div>
     </anchored>
@@ -719,7 +744,7 @@ function useMenuState(parent?: MenuState): MenuState {
 }
 
 /** The `Menu` part: every menu of the app's, where the mouse is. A press outside it closes it. */
-function Menu({ at, actions, views, args, close }: MenuProps) {
+function Menu({ at, actions, components, args, close }: MenuProps) {
   const t = useTheme()
   const state = useMenuState()
   return (
@@ -727,8 +752,8 @@ function Menu({ at, actions, views, args, close }: MenuProps) {
       <MenuContext.Provider value={state}>
         <div onMouseDownOutside={() => state.inSub() || close()} style={menuCard(t)}>
           <MenuRows actions={actions} close={close} />
-          {views?.length && actions.length ? <MenuRule /> : null}
-          {views?.map((v) => renderView(v, { ...args, close }))}
+          {components?.length && actions.length ? <MenuRule /> : null}
+          {components?.map((v) => renderComponent(v, { ...args, close }))}
         </div>
       </MenuContext.Provider>
     </anchored>
@@ -932,73 +957,132 @@ function Action({ action, args }: { action: ActionItem; args?: unknown }) {
 }
 
 /**
- * A pane's title bar, flat on the pane: its glyph and name (lit while it is focused), what plugins
- * put at `pane.toolbar`, and — on the focused pane, or while the mouse is over it — a split right
- * and down, a zoom and a close. It drags the pane; a double click zooms it; a right click opens
- * its menu.
+ * One tab in a pane's strip, flat on the pane: its glyph (or its agent's state), its title, and on
+ * hover a close. The front tab is the pane's shade. A press
+ * brings it to the front and gives its pane the focus; a right press opens its menu. It drags
+ * along its strip, into another pane's, or onto a row of the side bar; a tab dropped on it goes
+ * before it.
  */
-function PaneTitle({ pane: id, focused, zoomed, over, menu }: { pane: string; focused: boolean; zoomed: boolean; over: boolean; menu(e: any): void }) {
+function PaneTab({ tab: id, pane, index, active, focused }: { tab: string; pane: string; index: number; active: boolean; focused: boolean }) {
   const t = useTheme()
-  const C = useComponents()
-  const p = usePane(id)
+  const [hovered, setHovered] = useState(false)
+  const tab = useTab(id)
   const agent = useAgentOf(id)
-  const tree = useLayout(p?.tab_id)
-  const draggable = useDraggable({ kind: "pumi.pane", pane: id })
-  const toolbar = useMemo(() => ({ pane: id }), [id])
-  if (!p) return null
+  const tree = useLayout(tab?.view_id)
+  const draggable = useDraggable<Carried>({ kind: "pumi.tab", tab: id })
+  const { open, menu } = useMenu("tab.menu", { tab: id })
+  const leaf = useMemo(() => ({ pane, tabs: leafOf(tree, pane)?.tabs ?? [id] }), [pane, tree, id])
+  const zone = useDropBox(
+    (data): data is Carried => {
+      const it = carried(data)
+      return !!it && !!stripDrop(it, leaf, index)
+    },
+    (it) => {
+      const move = stripDrop(it, leaf, index)
+      if (move) runMove(move)
+    },
+  )
+  if (!tab) return null
+  const status = agent?.agent_status
+  return (
+    <>
+      <div
+        ref={zone.ref}
+        {...draggable.props}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onMouseDown={(e: any) => {
+          draggable.props.onMouseDown(e)
+          if (!active || !focused) call(via(id, "tab.focus"), id).catch(swallow)
+        }}
+        onAuxClick={(e: any) => {
+          stop(e)
+          open(e)
+        }}
+        title={tab.cwd ?? undefined}
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 5,
+          height: 24,
+          flexShrink: 1,
+          maxWidth: 220,
+          minWidth: 60,
+          paddingLeft: 8,
+          paddingRight: 5,
+          borderRadius: 6,
+          cursor: draggable.dragging ? "grabbing" : "pointer",
+          opacity: draggable.dragging ? 0.55 : 1,
+          backgroundColor: active ? t.selected : undefined,
+          color: active ? t.text : t.faint,
+          borderLeftWidth: zone.isOver ? 2 : 0,
+          borderColor: t.accent,
+          hover: { backgroundColor: active ? t.selected : t.hover, color: t.text },
+        }}
+      >
+        {status ? <StatusDot status={status} /> : <Glyph name={glyphOf(tab)} size={12} color={active ? t.muted : t.faint} />}
+        <text style={{ fontSize: 12, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{tabTitle(tab)}</text>
+        {hovered ? <RowButton icon="close" title="Close Tab" onClick={() => call(via(id, "tab.close"), id).catch(swallow)} /> : null}
+      </div>
+      {menu}
+    </>
+  )
+}
+
+/**
+ * A pane's title bar, flat over the pane: the strip of its tabs (each a `PaneTab`), then what
+ * plugins put at `tab.toolbar` (the front tab's), and — on the focused pane, or while the mouse is
+ * over it — a split right and down, a zoom and a close. A right click opens the front tab's menu.
+ */
+function PaneTitle({ pane: id, tabs, active, focused, zoomed, over, menu }: { pane: string; tabs: string[]; active?: string | null; focused: boolean; zoomed: boolean; over?: boolean; menu(e: { x?: number; y?: number }): void }) {
+  const C = useComponents()
+  const front = active ?? tabs[0]
+  const tab = useTab(front)
+  const tree = useLayout(tab?.view_id)
+  const toolbar = useMemo(() => ({ tab: front }), [front])
+  if (!tab || !front) return null
   const zoomable = zoomed || (!!tree && "axis" in tree)
-  const split = (side: "right" | "down") => call(via(id, "pane.open"), "terminal", {}, { beside: num(id), split: side }).catch(swallow)
+  const split = (side: "right" | "down") => call(via(id, "tab.open"), "terminal", {}, { kind: "tiled", pane: id, split: side }).catch(swallow)
   const zoom = () => call(via(id, "pane.update"), id, { zoom: !zoomed }).catch(swallow)
-  const status = agent?.agent_status || "unknown"
-  const busy = !!agent && status !== "idle" && status !== "unknown"
   return (
     <div
-      {...draggable.props}
-      onDoubleClick={() => zoomable && zoom()}
       onAuxClick={(e: any) => {
         stop(e)
         menu(e)
       }}
-      title={p.cwd ?? undefined}
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 7,
-        height: 30,
-        flexShrink: 0,
-        paddingLeft: 14,
-        paddingRight: 8,
-        userSelect: "none",
-        opacity: draggable.dragging ? 0.55 : 1,
-        cursor: draggable.dragging ? "grabbing" : "default",
-      }}
+      onDoubleClick={() => zoomable && zoom()}
+      title={tab.cwd ?? undefined}
+      style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 7, height: 30, flexShrink: 0, paddingLeft: 8, paddingRight: 8, userSelect: "none", overflow: "hidden" }}
     >
-      {busy ? <StatusDot status={status} /> : <Glyph name={glyphOf(p)} size={13} color={focused ? t.muted : t.faint} />}
-      <text style={{ fontSize: 12, color: focused ? t.text : t.faint, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{paneTitle(p)}</text>
-      <div style={{ flexGrow: 1 }} />
-      <SlotRow slot="pane.toolbar" args={toolbar} gap={4} />
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1, minWidth: 0, overflowX: "scroll" }}>
+        {tabs.map((tab, index) => (
+          <C.PaneTab key={tab} tab={tab} pane={id} index={index} active={tab === front} focused={focused} />
+        ))}
+      </div>
+      <div style={{ flexGrow: 1, minWidth: 8 }} />
+      <SlotRow slot="tab.toolbar" args={toolbar} gap={4} />
       {focused || over ? (
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 }}>
           <C.IconButton icon="split" title={tip("Split Right", "split_vertical")} onClick={() => split("right")} />
           <C.IconButton icon="split_down" title={tip("Split Down", "split_horizontal")} onClick={() => split("down")} />
-          {zoomable ? <C.IconButton icon={zoomed ? "minimize" : "maximize"} title={tip(zoomed ? "Restore the Layout" : "Fill the Tab", "zoom")} onClick={zoom} /> : null}
-          <C.IconButton icon="close" title={tip("Close Pane", "close_pane")} onClick={() => call(via(id, "pane.close"), num(id)).catch(swallow)} />
+          {zoomable ? <C.IconButton icon={zoomed ? "minimize" : "maximize"} title={tip(zoomed ? "Restore the Layout" : "Fill the View", "zoom")} onClick={zoom} /> : null}
+          <C.IconButton icon="close" title={tip("Close Pane", "close_pane")} onClick={() => call(via(id, "pane.close"), id).catch(swallow)} />
         </div>
       ) : null}
     </div>
   )
 }
 
-/** A pane without a title bar: a button to fill the tab, or give it back its layout, while hovered. */
-function ZoomButton({ pane: id, zoomed, over }: { pane: string; zoomed: boolean; over: boolean }) {
+/** A pane without a title bar: a button to fill the view, or give it back its layout, while hovered. */
+function ZoomButton({ pane: id, tab: front, zoomed, over }: { pane: string; tab: string; zoomed: boolean; over: boolean }) {
   const t = useTheme()
-  const pane = usePane(id)
-  const tree = useLayout(pane?.tab_id)
+  const tab = useTab(front)
+  const tree = useLayout(tab?.view_id)
   // The button covers the pane, so the pane is not under the mouse while the button is.
   const [onIt, setOnIt] = useState(false)
-  if (!pane || !(zoomed || (tree && "axis" in tree)) || !(over || onIt)) return null
-  const title = zoomed ? "Restore the Layout" : "Fill the Tab"
+  if (!(zoomed || (tree && "axis" in tree)) || !(over || onIt)) return null
+  const title = zoomed ? "Restore the Layout" : "Fill the View"
   return (
     <div
       aria-label={title}
@@ -1018,29 +1102,36 @@ function ZoomButton({ pane: id, zoomed, over }: { pane: string; zoomed: boolean;
 
 /**
  * A pane: flat on the window, no frame of its own (the layout draws a hairline where two touch),
- * its title bar on top while titles show, its body as the app draws it (`PaneBody`). A float's
- * frame is the app's, so a float is drawn bare.
+ * its title bar's strip of tabs on top while titles show, its front tab's body as the app draws it
+ * (`TabBody`). A float's frame is the app's, so a float is drawn bare.
  */
-function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boolean; zoomed: boolean; lifted?: boolean }) {
+function Pane({ pane: id, tabs, active, focused, zoomed }: { pane: string; tabs: string[]; active?: string | null; focused: boolean; zoomed: boolean; lifted?: boolean }) {
   const t = useTheme()
   const C = useComponents()
-  // A closed pane is still drawn while it shrinks away: as what it was, not as a terminal.
-  const live = usePane(id)
+  const front = active ?? tabs[0]
+  // A closed tab is still drawn while its pane shrinks away: as what it was, not as a terminal.
+  const live = useTab(front)
   const last = useRef(live)
   if (live) last.current = live
-  const pane = live ?? last.current
+  const tab = live ?? last.current
   const [over, setOver] = useState(false)
   const [titles] = usePaneTitles()
-  const toolbar = useSlot("pane.toolbar")
-  const { open, menu } = useMenu("pane.menu", { pane: id })
-  const stripArgs = useMemo(() => ({ pane: id }), [id])
-  const floating = (pane?.place as { kind?: string } | undefined)?.kind === "float"
-  const titled = titles && !!live && !floating
-  const terminal = pane?.block === "terminal"
+  const strip = usePaneTabs()
+  const toolbar = useSlot("tab.toolbar")
+  const { open, menu } = useMenu("tab.menu", { tab: front })
+  const floating = (tab?.place as { kind?: string } | undefined)?.kind === "float"
+  // A pane of several tabs shows its strip, bars or not: it is the only way to its other tabs.
+  const titled = !!live && !floating && (titles || (strip && tabs.length > 1))
+  const terminal = tab?.block === "terminal"
+  // The tab is in front of the user: what its program left for them (done, error) is seen.
+  useEffect(() => {
+    if (focused && live && front) call(via(front, "tab.update"), front, { seen: true }).catch(swallow)
+  }, [front, focused])
+  if (!front) return null
   return (
     <div
       onMouseDown={() => {
-        if (!focused) call(via(id, "pane.focus"), id).catch(swallow)
+        if (!focused) call(via(front, "tab.focus"), front).catch(swallow)
       }}
       onAuxClick={open}
       onMouseEnter={() => setOver(true)}
@@ -1048,15 +1139,16 @@ function Pane({ pane: id, focused, zoomed }: { pane: string; focused: boolean; z
       style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, overflow: "hidden", ...(floating ? {} : { backgroundColor: t.editor }) }}
     >
       {titled ? (
-        <PaneTitle pane={id} focused={focused} zoomed={zoomed} over={over} menu={open} />
-      ) : toolbar.views.length || toolbar.actions.length ? (
+        <C.PaneTitle pane={id} tabs={tabs} active={front} focused={focused} zoomed={zoomed} over={over} menu={open} />
+      ) : toolbar.components.length || toolbar.actions.length ? (
         <div style={{ display: "flex", flexDirection: "row", justifyContent: "flex-end", height: 28, flexShrink: 0, paddingRight: 6 }}>
-          <SlotRow slot="pane.toolbar" args={stripArgs} gap={4} />
+          <SlotRow slot="tab.toolbar" args={{ tab: front }} gap={4} />
         </div>
       ) : null}
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, position: "relative", ...(terminal && !floating ? { paddingLeft: 12, paddingRight: 4, paddingBottom: 6, paddingTop: titled ? 0 : 6 } : {}) }}>
-        <C.PaneBody pane={id} focused={focused} />
-        {titled || floating ? null : <ZoomButton pane={id} zoomed={zoomed} over={over} />}
+        {/* Keyed by the tab: another tab's body is drawn as itself, not as this one's. */}
+        <C.TabBody key={front} tab={front} focused={focused} />
+        {titled || floating ? null : <ZoomButton pane={id} tab={front} zoomed={zoomed} over={over} />}
       </div>
       {menu}
     </div>
@@ -1085,15 +1177,17 @@ function Starting({ title, detail, gaveUp, lines }: { title: string; detail: str
 }
 
 /**
- * The parts P3 draws. The app's own draw the rest: the layout of a tab's panes (`Layout`, `Split`,
- * `Splitter`), a pane's body (`PaneBody`) and a float's frame (`Float`), each with this theme's
- * `Pane` in it. There is no tab bar or status bar: the tabs are the side bar's threads, and what
- * plugins put in the status bar sits at the side bar's foot.
+ * The parts P3 draws. The app's own draw the rest: the layout of a view's panes (`Layout`, `Split`,
+ * `Splitter`), and a tab's body (`TabBody`), each with this theme's `Pane` in it. There is no view
+ * bar and no status bar: the views are the side bar's threads, and what plugins contribute to the
+ * side bar's foot sits beside the settings.
  */
 export const P3: Partial<Components> = {
   Window,
   Starting,
   Pane,
+  PaneTitle,
+  PaneTab,
   AgentControls,
   Action,
   Menu,

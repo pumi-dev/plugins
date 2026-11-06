@@ -1,17 +1,13 @@
 // Pele — kepano's Mermaid renderer, the small synchronous one Obsidian draws with — from npm
-// (`pele`), written into `pele.vendor.js` by `bun scripts/vendor-pele.mjs` because the app's workers
-// are a compiled bundle and resolve a package's own files, not its node_modules. The Rust package could not run it: a component was
-// wasm, so it started `render.mjs` under a `bun` or `node` it had to find on the machine, one
-// process per drawing. Bun runs Pele itself, in the same worker.
+// (`pele`): the plugin's worker resolves its own `node_modules`, so `bun install` is all it takes.
 //
-// Two shapes of one drawing come out of here: `raw`, Pele's own SVG with its `--pele-*` variables
-// and the generic family names, which is what `render` and `save` hand out (a page, a browser or
-// any theme resolves them); and `themed()`, the same SVG with every `var()` written out as a
-// colour, which is what the app's own SVG renderer paints — usvg knows no CSS custom properties.
-import { render } from "./pele.vendor.js";
-import { fail, message } from "./errors.ts";
+// Pele draws with CSS custom properties (`var(--pele-fg)` and the like), which the app's SVG
+// renderer does not resolve. So a diagram comes out twice: `svg`, Pele's own, handed out by
+// `render` and themeable anywhere; and `themed()`, the same with every `var()` written out as the
+// colour it names, which is what the tab shows.
+import { render } from "pele";
 
-/** The families a diagram is set in when none is named: Pele's own generic ones. */
+/** The families a diagram is set in when none is named. */
 export const FALLBACK_FONT = "sans-serif";
 export const FALLBACK_MONO = "monospace";
 /** The size Pele lays a diagram out at without one said. */
@@ -31,8 +27,6 @@ export interface Faces {
 export interface Drawn {
   /** Pele's own SVG: `var(--pele-*)`, and the families it was measured in. */
   svg: string;
-  /** The same, set in `sans-serif` and `monospace`: a file themes wherever it is put. */
-  raw: string;
   /** Mermaid's own name for the kind of diagram (`flowchart`, `sequenceDiagram`, …). */
   kind: string;
   /** The diagram's own size, in points. */
@@ -41,26 +35,15 @@ export interface Drawn {
 }
 
 /**
- * `source` drawn by Pele, laid out in `faces`. Throws a `render` error whose message is Pele's
- * own — which line of the Mermaid it could not read — so a caller can say what to fix.
+ * `source` drawn by Pele, laid out in `faces`. Throws Pele's own error — the line of the Mermaid it
+ * could not read — which a caller hands on as its `render` error, so a user knows what to fix.
  */
 export function draw(source: string, faces: Partial<Faces> = {}): Drawn {
   const font = named(faces.font) ?? FALLBACK_FONT;
   const mono = named(faces.mono) ?? FALLBACK_MONO;
   const size = typeof faces.size === "number" && Number.isFinite(faces.size) ? faces.size : FALLBACK_SIZE;
-  let made;
-  try {
-    made = render(source, { fontFamily: font, fontFamilyMono: mono, fontSize: size });
-  } catch (err) {
-    throw fail("render", message(err));
-  }
-  return {
-    svg: made.svg,
-    raw: made.svg.replaceAll(font, FALLBACK_FONT).replaceAll(mono, FALLBACK_MONO),
-    kind: made.type,
-    width: made.width,
-    height: made.height,
-  };
+  const made = render(source, { fontFamily: font, fontFamilyMono: mono, fontSize: size });
+  return { svg: made.svg, kind: made.type, width: made.width, height: made.height };
 }
 
 /** Every `var(--name, fallback)` in a value. */
@@ -86,7 +69,7 @@ export function resolve(value: string, vars: Record<string, string>, defs: Map<s
 }
 
 /**
- * `svg` with every `var()` written out — a colour, a length or a font name — so a rasteriser that
+ * `svg` with every `var()` written out — a colour, a length or a font name — so a renderer that
  * knows no CSS custom properties paints what a browser would. The face is written onto every text
  * element too: usvg inherits `font-family` from the root `style` only sometimes, and a text element
  * it cannot name a face for is a text element it drops.

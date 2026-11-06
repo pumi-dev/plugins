@@ -12,7 +12,7 @@ export const MAX_PREVIEWS = 20;
 export interface Card {
   /** The pane it is. */
   pane: PaneId;
-  /** Its block (`terminal`, `amresyd.browser.page`, …). */
+  /** Its block (`terminal`, `pumi.browser.page`, …). */
   kind: string;
   /** Its title, or what it runs, or its block. */
   title: string;

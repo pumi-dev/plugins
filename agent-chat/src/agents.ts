@@ -20,16 +20,22 @@ export interface AgentSpec {
   images: "paste" | "text";
   /** Where its own settings, commands and skills are, from the home directory. */
   home: string;
+  /**
+   * How it goes back to before a message: `command`, this plugin's own pi extension's
+   * `/pumi-rewind <entry>` (to that very message); `picker`, its own `/rewind` list, shown in its
+   * terminal; `backtrack`, Escape twice, its own way back, in its terminal.
+   */
+  rewind: "command" | "picker" | "backtrack";
 }
 
 export const AGENTS: Record<string, AgentSpec> = {
-  claude: { id: "claude", label: "Claude Code", format: "claude", cancel: "\x1b", images: "paste", home: ".claude" },
-  codex: { id: "codex", label: "Codex", format: "codex", cancel: "\x1b", images: "paste", home: ".codex" },
-  pi: { id: "pi", label: "pi", format: "pi", cancel: "\x1b", images: "text", home: ".pi/agent" },
-  omp: { id: "omp", label: "omp", format: "pi", cancel: "\x1b", images: "text", home: ".omp/agent" },
+  claude: { id: "claude", label: "Claude Code", format: "claude", cancel: "\x1b", images: "paste", home: ".claude", rewind: "picker" },
+  codex: { id: "codex", label: "Codex", format: "codex", cancel: "\x1b", images: "paste", home: ".codex", rewind: "backtrack" },
+  pi: { id: "pi", label: "pi", format: "pi", cancel: "\x1b", images: "text", home: ".pi/agent", rewind: "command" },
+  omp: { id: "omp", label: "omp", format: "pi", cancel: "\x1b", images: "text", home: ".omp/agent", rewind: "command" },
 };
 
-/** The agent a pane's `@agent` names, when the chat can bridge it. */
+/** The agent a tab's `@agent` names, when the chat can bridge it. */
 export function agentSpec(agent: unknown): AgentSpec | undefined {
   return typeof agent === "string" ? AGENTS[agent] : undefined;
 }
@@ -82,4 +88,22 @@ export function promptParts(spec: AgentSpec, text: string, images: string[]): { 
   if (images.length === 0) return { pastes: [], text };
   if (spec.images === "paste") return { pastes: images.map(escaped), text: text === "" ? "" : ` ${text}` };
   return { pastes: [], text: [...images.map(quoted), text].filter((part) => part !== "").join(" ") };
+}
+
+/** Where this plugin's own extension goes for an agent of the `command` kind, from the home directory. */
+export function extensionFile(spec: AgentSpec): string {
+  return `${spec.home}/extensions/pumi-chat.ts`;
+}
+
+/** The version line of this plugin's extension (`pi/pumi-chat.ts`), which a copy must have to be current. */
+export const EXTENSION_MARK = "// pumi-chat v1";
+
+/** Whether an installed copy of the extension is the one this plugin ships. */
+export function extensionCurrent(installed: string | undefined, shipped: string): boolean {
+  return typeof installed === "string" && installed.includes(EXTENSION_MARK) && installed === shipped;
+}
+
+/** The writes that go back to before entry `source`, for an agent of the `command` kind. */
+export function rewindCommand(source: string): string {
+  return `/pumi-rewind ${source}`;
 }

@@ -83,9 +83,10 @@ export class Panel {
   private ignored: string[] = [];
   /** Where its folded directories are kept; given at start, from the package's own state directory. */
   private stateDir: string | null = null;
-  private scanning = false;
-  /** A look at the repository was asked for while one was running, and is still owed. */
-  private owed = false;
+  /** The look running now, or the last one. */
+  private running: Promise<void> = Promise.resolve();
+  /** The look asked for while one runs: every caller in between waits on this one. */
+  private waiting: Promise<void> | null = null;
   private seen = "";
   /** The history is being read. */
   private reading = false;
@@ -120,24 +121,21 @@ export class Panel {
     await this.refresh();
   }
 
-  /** Looks at the repository again, and draws it when it is not as it was. */
-  async refresh(): Promise<void> {
-    if (this.scanning) {
-      this.owed = true;
-      return;
-    }
-    this.scanning = true;
-    try {
-      await this.scan();
-    } catch (err) {
-      console.error(`git: ${message(err)}`);
-    } finally {
-      this.scanning = false;
-      if (this.owed) {
-        this.owed = false;
-        void this.refresh();
+  /** Looks at the repository again, and draws it when it is not as it was. Resolves once a look
+   * that began after the call is done, so what is answered then is of the directory asked for. */
+  refresh(): Promise<void> {
+    if (this.waiting) return this.waiting;
+    const next = this.running.then(async () => {
+      this.waiting = null;
+      try {
+        await this.scan();
+      } catch (err) {
+        console.error(`git: ${message(err)}`);
       }
-    }
+    });
+    this.waiting = next;
+    this.running = next;
+    return next;
   }
 
   private async scan(): Promise<void> {
@@ -347,12 +345,12 @@ export class Panel {
     await this.refresh();
   }
 
-  /** Opens a file of the work tree in a pane beside the current one, without taking the keyboard. */
+  /** Opens a file of the work tree in a pane beside the current tab, without taking the keyboard. */
   async open(path: string): Promise<void> {
     const root = this.root;
     if (root === null) return;
     try {
-      await workspace.openPane("file", { path: `${root}/${path}` }, { kind: "tiled", split: "right", focus: false });
+      await workspace.openTab("file", { path: `${root}/${path}` }, { kind: "tiled", split: "right", focus: false });
     } catch (err) {
       this.say(false, `open failed: ${message(err)}`);
       this.changed();

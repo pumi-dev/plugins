@@ -1,0 +1,22 @@
+{
+  "name": "pumi-slate",
+  "version": "0.1.0",
+  "description": "slate: a UI theme for pumi, from the default.",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "pumi": "npm:@pumi-dev/sdk@0.2.0",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "slate",
+    "owner": "amr",
+    "api": 1,
+    "themes": [
+      "themes/slate"
+    ]
+  }
+}

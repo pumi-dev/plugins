@@ -49,6 +49,8 @@ export interface Entry {
   turn?: TurnSummary;
   /** Its text was cut to stay in bounds (`Bounds.entryText`). */
   clipped?: boolean;
+  /** The agent's own id for what it came from (pi's entry id, Claude's record uuid): what a rewind names. */
+  source?: string;
 }
 
 export type NoticeLevel = "info" | "warning" | "error";
@@ -100,9 +102,13 @@ export interface PermissionOption {
   kind: PermissionKind;
 }
 
-/** A question the agent waits on, usually before running a tool. */
+/** A request the agent waits on: a permission (usually before running a tool), or a question. */
 export interface Permission {
   id: string;
+  /** A permission without one; a `question` is asked of the user, and may take words (`text`). */
+  kind?: "permission" | "question";
+  /** A question that takes an answer in words, beside its options or instead of them. */
+  text?: boolean;
   /** The tool call it is about, when it is about one. */
   toolId?: string;
   title: string;
@@ -207,17 +213,27 @@ export type CommandId = string;
 
 /** What a view asks of the producer. */
 export type Command =
-  /** Sends a prompt now, or queues it behind the running turn. */
-  | { type: "prompt"; id: CommandId; text: string; images?: Image[] }
+  /**
+   * Sends a prompt now, or queues it behind the running turn. With `replaces` (a user entry's id)
+   * it is an edit of that message: the conversation goes back to before it first.
+   */
+  | { type: "prompt"; id: CommandId; text: string; images?: Image[]; replaces?: string }
   /** Ends the running turn. */
   | { type: "cancel"; id: CommandId }
-  | { type: "answer"; id: CommandId; permissionId: string; optionId: string }
+  /** Answers a request: one of its options, or (a question that takes words) `text` with `optionId` "". */
+  | { type: "answer"; id: CommandId; permissionId: string; optionId: string; text?: string }
   /** Sets the option of `category` (or the one named `option`, when a category has several). */
   | { type: "setOption"; id: CommandId; category: OptionCategory; value: string | boolean; option?: string }
   /** Withdraws a queued prompt before it goes. */
   | { type: "unqueue"; id: CommandId; queued: CommandId }
+  /** Gives a queued prompt to the agent now, into the running turn (a producer that can: see `ConversationProps.steers`). */
+  | { type: "steer"; id: CommandId; queued: CommandId }
+  /** Ends the running turn and sends a queued prompt next, ahead of the rest. */
+  | { type: "sendNow"; id: CommandId; queued: CommandId }
   /** Text the agent is given unseen with its next prompt (what pumi knows: `agent.turn`). */
-  | { type: "context"; id: CommandId; text: string };
+  | { type: "context"; id: CommandId; text: string }
+  /** Goes back to before the user's message `entry` (an entry id): it and what followed are left behind. */
+  | { type: "rewind"; id: CommandId; entry: string };
 
 /** The producer's answer to a command: done, or why not. */
 export interface Ack {

@@ -11,10 +11,12 @@ view, command or option, so pumi never starts it. A package imports its files by
 | `src/change.ts` | `Change`, `apply`, `coalesce`, the bounds, `Producer`, `follow`, the changes every producer says |
 | `src/acp.ts` | ACP's `session/update`, `session/request_permission` and setup/prompt answers → `Change`s; commands → ACP calls |
 | `src/diff.ts` | `unifiedDiff(path, old, new)`: a patch for `<diff>` |
-| `src/view.ts` | what the chat says in words (pure, tested) |
+| `src/view.ts` | what the chat says in words (pure, tested): grouping a turn's work, a call's headline, … |
+| `src/markdown.ts` | the markdown agents write, as blocks and inline runs (pure, tested) |
+| `src/question.ts` | a call that asks the user (`AskUserQuestion`, `ask_user_question`): its questions and answers |
 | `src/ui.tsx`, `src/ui/*.tsx` | `<Conversation>` and its parts |
 
-Only `ui.tsx` and `ui/` import `pumi`; the rest runs anywhere.
+Only `ui.tsx` and `ui/` import `pumi`; the rest runs anywhere. Diffs are `lib/diff`'s.
 
 ## The contract
 
@@ -34,7 +36,11 @@ Only `ui.tsx` and `ui/` import `pumi`; the rest runs anywhere.
   means a snapshot.
 - **`Command`** (view → producer), each with a `CommandId` so a resend is acted on once
   (`CommandLedger`): `prompt{text, images?}`, `cancel`, `answer{permissionId, optionId}`,
-  `setOption{category, value, option?}`, `unqueue{queued}`. The producer answers an `Ack {id, rejected?}`.
+  `setOption{category, value, option?}`, `unqueue{queued}`, `steer{queued}` (a queued prompt
+  into the running turn, where the producer can), `sendNow{queued}` (the turn cancelled, that
+  prompt next), `rewind{entry}` (back to before a
+  user message), and a `prompt` with `replaces: entry` is an edit of that message. An `answer` to
+  a question may carry `text`. The producer answers an `Ack {id, rejected?}`.
 
 ## A producer
 
@@ -68,12 +74,15 @@ const next = follow(transcript, update);
 ```
 
 `Conversation` takes `{ transcript, onCommand, pageSize?, autoFocus?, placeholder?, onLink?,
-hideHeader?, onMentions?, images? }`. Its parts stand alone: `Header {transcript, onOption?}`,
+hideHeader?, onMentions?, images?, rewinds?, rewindsIn?, steers? }`. Its parts stand alone: `Header {transcript, onOption?}`,
 `Timeline {transcript, pageSize?, onLink?}`, `EntryView`, `ToolCard`, `ToolPart`, `PlanList`,
 `Thought`, `PermissionCard {permission, onAnswer, autoFocus?}`, `Composer {status, commands?,
-queue?, onSend, onStop?, onUnqueue?, onMentions?, cwd?, images?, dropped?, placeholder?, autoFocus?,
+queue?, onSend, onStop?, onUnqueue?, onSteer?, onSendNow?, onMentions?, cwd?, images?, dropped?, placeholder?, autoFocus?,
 disabled?}`, `OptionPicker`. Enter sends, Shift+Enter is a new line; the last `pageSize` (60)
-entries show, "Show earlier" brings more. Colours are the theme's (`useTextTheme` gives them to
+entries show, "Show earlier" brings more.
+The queue is a card over the field (`QueueCard`): it folds, Clear All (⌥⌘⌫) takes every prompt
+back, and each row has Delete, Edit (back into the field), Steer (⌃⌘S, only with `onSteer`) and
+Send Now. The keys and Enter with nothing written act on the first row. Colours are the theme's (`useTextTheme` gives them to
 `<markdown>`, `<code>`, `<diff>`, `<textarea>`).
 
 `Press {onClick, disabled?, focusableWhenDisabled?, role?, style?}` is what presses: the SDK has no

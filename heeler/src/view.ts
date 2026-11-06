@@ -1,8 +1,10 @@
-// pumi's model as herdr's clients see it: sessions are workspaces, tabs are tabs, panes are panes,
-// read from the core's state (`server.getState`) for each request.
+// pumi's model as herdr's clients see it: a session is a workspace, a view is a tab, and a tab on
+// the terminal engine (its `tab_pid` a number) is a pane. Read from the core's state
+// (`server.getState`) for each request, where sessions hold views, views lay out panes, and panes
+// hold the tabs herdr calls panes.
 //
 // herdr's ids are derived from pumi's, so they never need a table: a session `$5` is the workspace
-// `w5` (in herdr's alphabet), its tab `@7` is `w5:t7`, and a pane `%9` in it is `w5:p9`, terminal
+// `w5` (in herdr's alphabet), its view `@7` is `w5:t7`, and a tab `%9` in it is `w5:p9`, terminal
 // `term_9`. A pane's id names its workspace, but only its number is read.
 import { pane as paneId, splitPane, splitTab, tab as tabId, terminal, workspace, workspaceNumber } from "./ids.ts";
 import { HERDR_PROTOCOL, HERDR_VERSION } from "./protocol.ts";
@@ -17,16 +19,23 @@ import {
   type WorkspaceInfo,
 } from "./types.ts";
 
+/** The Agents plugin's trait: the tab option naming the agent a tab runs (`claude`, `pi`, …). */
+const AGENT = "@pumi_dev.agents.agent";
+
+/** What the program in a tab is doing (`working`, `blocked`, `done`, …), on any tab. */
+const STATUS = "@status";
+
 export interface Session {
   id: number;
   name: string;
-  /** `(index, tab)` in the order the session keeps them. */
+  /** `(index, view)` in the order the session keeps them. */
   tabs: [number, number][];
   current?: number;
 }
 
 export interface Tab {
   name?: string;
+  /** The tab in front of the view (herdr's pane), or the first one it holds. */
   active: number;
   zoomed: boolean;
   panes: number[];
@@ -34,6 +43,7 @@ export interface Tab {
 
 export interface Pane {
   id: number;
+  /** The view it is a pane of; nothing for a tab in no view's layout (a float). */
   tab?: number;
   options: Record<string, Json>;
 }
@@ -71,6 +81,14 @@ function leaves(layout: Json | undefined, out: number[]): void {
   for (const child of children) leaves(child, out);
 }
 
+/** The tabs a view's layout pane holds, in its strip's order. */
+function strip(view: Record<string, Json>, pane: number): number[] {
+  const panes = isObject(view.panes) ? view.panes : {};
+  const held = panes[String(pane)];
+  const tabs = isObject(held) ? held.tabs : undefined;
+  return Array.isArray(tabs) ? tabs.flatMap((tab) => number(tab) ?? []) : [];
+}
+
 export class View {
   constructor(
     readonly sessions: Session[],
@@ -79,7 +97,8 @@ export class View {
     readonly current?: [number, number, number],
   ) {}
 
-  /** The model as `server.getState` answers it. */
+  /** The model as `server.getState` answers it: sessions holding views, views laying panes out and
+   * holding tabs, and the tabs themselves — every one on the terminal engine is a pane of herdr's. */
   static fromState(state: Json | undefined): View {
     const at = (key: string): Json | undefined => (isObject(state) ? state[key] : undefined);
     const list = (key: string): Json[] => {
@@ -92,39 +111,54 @@ export class View {
       const id = number(session.id);
       if (id === undefined) continue;
       const tabs: [number, number][] = [];
-      if (Array.isArray(session.tabs)) {
-        for (const pair of session.tabs) {
+      if (Array.isArray(session.views)) {
+        for (const pair of session.views) {
           if (!Array.isArray(pair)) continue;
           const index = number(pair[0]);
-          const tab = number(pair[1]);
-          if (index !== undefined && tab !== undefined) tabs.push([index, tab]);
+          const view = number(pair[1]);
+          if (index !== undefined && view !== undefined) tabs.push([index, view]);
         }
       }
       sessions.push({ id, name: string(session.name) ?? "", tabs, current: number(session.current) });
     }
-    const tabs = new Map<number, Tab>();
+    // Every tab on the terminal engine, by its number: its options are what a pane says of itself.
+    const panes = new Map<number, Pane>();
     for (const tab of list("tabs")) {
       if (!isObject(tab)) continue;
       const id = number(tab.id);
-      const active = number(tab.active);
-      if (id === undefined || active === undefined) continue;
-      const panes: number[] = [];
-      leaves(tab.layout, panes);
-      tabs.set(id, { name: string(tab.name), active, zoomed: tab.zoomed === true, panes });
-    }
-    const panes = new Map<number, Pane>();
-    for (const pane of list("panes")) {
-      if (!isObject(pane)) continue;
-      const id = number(pane.id);
       if (id === undefined) continue;
-      const place = isObject(pane.place) ? pane.place : {};
-      const inTab = place.kind === "tiled" ? number(place.tab) : undefined;
-      panes.set(id, { id, tab: inTab, options: isObject(pane.options) ? pane.options : {} });
+      const options = isObject(tab.options) ? tab.options : {};
+      if (typeof options.tab_pid !== "number") continue;
+      const place = isObject(tab.place) ? tab.place : {};
+      panes.set(id, { id, tab: place.kind === "tiled" ? number(place.view) : undefined, options });
     }
+    // The views are herdr's tabs: the terminal tabs their panes hold, in layout order.
+    const tabs = new Map<number, Tab>();
+    for (const view of list("views")) {
+      if (!isObject(view)) continue;
+      const id = number(view.id);
+      if (id === undefined) continue;
+      const held: number[] = [];
+      const layout: number[] = [];
+      leaves(view.layout, layout);
+      for (const pane of layout) {
+        for (const tab of strip(view, pane)) if (!held.includes(tab)) held.push(tab);
+      }
+      const inside = held.filter((pane) => panes.has(pane));
+      const active = number(view.active);
+      tabs.set(id, {
+        name: string(view.name),
+        active: active !== undefined && inside.includes(active) ? active : (inside[0] ?? 0),
+        zoomed: view.zoomed === true,
+        panes: inside,
+      });
+    }
+    // A tab in no view of the model — a float, or one moving — is in no tab of herdr's.
+    for (const pane of panes.values()) if (pane.tab === undefined || !tabs.has(pane.tab)) pane.tab = undefined;
     const now = isObject(at("current")) ? (at("current") as Record<string, Json>) : undefined;
     const session = now === undefined ? undefined : number(now.session);
-    const tab = now === undefined ? undefined : number(now.tab);
-    const pane = now === undefined ? undefined : number(now.pane);
+    const tab = now === undefined ? undefined : number(now.view);
+    const pane = now === undefined ? undefined : number(now.tab);
     const current = session !== undefined && tab !== undefined && pane !== undefined ? ([session, tab, pane] as [number, number, number]) : undefined;
     return new View(sessions, tabs, panes, current);
   }
@@ -161,7 +195,7 @@ export class View {
     return this.tabs.has(named) ? named : undefined;
   }
 
-  /** A pane from a pane id (`w5:p9`), a terminal id (`term_9`) or pumi's `%9`. */
+  /** A pane from a pane id (`w5:p9`), a terminal id (`term_9`) or the tab's own pumi id (`%9`). */
   pane(id: string): number | undefined {
     const split = splitPane(id);
     const named =
@@ -181,10 +215,22 @@ export class View {
     return typeof value === "string" && value !== "" ? value : undefined;
   }
 
-  /** The pane's `@agent.status`, which pumi's host decides. herdr has no `error`: a failed
+  /** Whether the pane is an agent's: a tab the Agents plugin gave its trait (`@pumi_dev.agents.agent`
+   * names the agent), on the terminal engine. Nothing else is one. */
+  isAgent(pane: number): boolean {
+    const options = this.panes.get(pane)?.options;
+    return options !== undefined && typeof options.tab_pid === "number" && this.text(pane, AGENT) !== undefined;
+  }
+
+  /** The agent a pane runs, as the Agents plugin's trait names it; nothing for anything else. */
+  agent(pane: number): string | undefined {
+    return this.isAgent(pane) ? this.text(pane, AGENT) : undefined;
+  }
+
+  /** The tab's `@status`, which the core keeps for every tab. herdr has no `error`: a failed
    * program is `done` to its clients, and its record (`program_status`) says so. */
   status(pane: number): AgentStatus {
-    const status = this.text(pane, "@agent.status");
+    const status = this.text(pane, STATUS);
     if (status === undefined) return "unknown";
     return parseAgentStatus(status === "error" ? "done" : status) ?? "unknown";
   }
@@ -251,8 +297,8 @@ export class View {
     if (!session) return undefined;
     const title = this.text(pane, "title");
     const label = this.text(pane, "@label");
-    const agent = this.text(pane, "@agent");
-    const cwd = this.text(pane, "pane_current_path");
+    const agent = this.agent(pane);
+    const cwd = this.text(pane, "tab_current_path");
     const programStatus = this.programStatus(pane);
     return {
       pane_id: this.paneId(pane),
@@ -271,16 +317,16 @@ export class View {
   }
 
   agentInfo(pane: number): AgentInfo | undefined {
-    const agent = this.text(pane, "@agent");
+    const agent = this.agent(pane);
     const info = this.paneInfo(pane, 0);
     if (agent === undefined || info === undefined) return undefined;
-    // herdr's `name` is what an Agent row and `$name` show, and `terminal_title_stripped` is what a
-    // Heeler row draws: the program's title with the agent's own marker taken off (`π - Debug …`
-    // is `Debug …`). `tokens` is what those rows read by name — the workspace and tab are their
-    // labels, not pumi's ids.
+    // herdr's `name` is what an Agent row and `$name` show: the agent the tab says it runs (the
+    // Agents plugin's trait), and `terminal_title_stripped` is what a Heeler row draws: the tab's
+    // title with the program's own marker taken off (`π - Debug …` is `Debug …`). `tokens` is what
+    // those rows read by name — the workspace and tab are their labels, not pumi's ids.
     const label = this.text(pane, "@label");
     const stripped = info.title === undefined ? undefined : stripMark(info.title);
-    const name = label ?? stripped ?? info.title ?? agent;
+    const name = agent;
     const tab = this.panes.get(pane)?.tab;
     const session = tab === undefined ? undefined : this.sessionOfTab(tab);
     const tabLabel = tab === undefined ? undefined : this.text(this.tabs.get(tab)?.active ?? -1, "title");

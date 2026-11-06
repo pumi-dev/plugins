@@ -1,0 +1,111 @@
+{
+  "name": "pumi-deno",
+  "displayName": "Deno",
+  "version": "0.1.0",
+  "description": "Deno as a UI theme, after the Rex app: one quiet graphite window, the views down the side on dark tiles, each pane a bevelled card.",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "deno",
+    "owner": "amresyd",
+    "api": 1,
+    "themes": [
+      "themes/deno"
+    ],
+    "contributes": {
+      "options": {
+        "opacity": {
+          "type": "number",
+          "default": 95,
+          "min": 20,
+          "max": 100,
+          "step": 1,
+          "unit": "%",
+          "label": "Background opacity",
+          "control": "slider",
+          "desc": "How much of the desktop the window hides: 100 is opaque, lower lets it show through.",
+          "group": "Window"
+        },
+        "blur": {
+          "type": "number",
+          "default": 40,
+          "min": 0,
+          "max": 60,
+          "step": 1,
+          "unit": "px",
+          "label": "Background blur",
+          "control": "slider",
+          "desc": "How much what shows through the window is blurred. Nothing at 100% opacity.",
+          "group": "Window"
+        },
+        "pane_titles": {
+          "type": "boolean",
+          "default": true,
+          "label": "Show pane title bars",
+          "desc": "A bar over each pane with its name and buttons, to drag it by. Off, only a pane of several tabs keeps one.",
+          "group": "Panes"
+        },
+        "pane_outline": {
+          "type": "boolean",
+          "default": false,
+          "label": "Outline the focused pane",
+          "desc": "An accent edge on the pane with the focus while its view is split.",
+          "group": "Panes"
+        },
+        "pane_equalize": {
+          "type": "boolean",
+          "default": true,
+          "label": "Even out splits automatically",
+          "desc": "Every pane in a view gets an equal share as one opens or closes.",
+          "group": "Panes"
+        },
+        "focus_follows_mouse": {
+          "type": "boolean",
+          "default": false,
+          "label": "Focus the pane under the mouse",
+          "desc": "A pane takes the focus as the mouse moves onto it, without a click.",
+          "group": "Panes"
+        },
+        "sidebar_swipe": {
+          "type": "boolean",
+          "default": true,
+          "label": "Hide the side bar with a swipe",
+          "desc": "Two fingers swept left over the side bar hide it; ⌘B brings it back.",
+          "group": "Side bar"
+        },
+        "view_icons": {
+          "type": "number",
+          "default": 3,
+          "label": "Tab icons per view",
+          "desc": "How many cards a view's tile stacks for its tabs (a deck behind the front one); 0 hides the tiles.",
+          "group": "Side bar",
+          "min": 0,
+          "max": 3,
+          "step": 1,
+          "control": "slider"
+        },
+        "animate": {
+          "type": "boolean",
+          "default": true,
+          "label": "Animate layout changes",
+          "desc": "Panes glide into place as they open, close, move and zoom.",
+          "group": "Motion and feedback"
+        },
+        "haptics": {
+          "type": "boolean",
+          "default": true,
+          "label": "Haptic feedback",
+          "desc": "A tap on a Force Touch trackpad as a switch turns or a slider steps. Nothing on a mouse.",
+          "group": "Motion and feedback"
+        }
+      }
+    }
+  }
+}

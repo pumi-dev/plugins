@@ -1,85 +1,46 @@
 // agents: what an agent is told about the workspace it is in — a short guide to pumi and a map of
-// the sessions, tabs and panes around it, at a start and the first prompt, then only what changed.
-// The sidebar is the app theme's (`runtime/app/app/theme/default.tsx`); nothing here draws.
+// the sessions, views, panes and tabs around it, at a start and the first prompt, then only what
+// changed. The sidebar is the app theme's (`runtime/app/app/theme/default.tsx`); nothing here draws.
 //
-// What is here is the logic: the model, read from the API when an agent starts or is sent a prompt
-// (`readState`), and the answer to `agent.sending`. The transport (the hook, the queue,
-// `restore_command`) is the core's; this package only says what is said.
+// What this file is: the wiring — the source (`session.list`, then each session's tree),
+// `agent.sending` and `agent.turned` answered by `wire.ts`, and `migrate`, for an installation of
+// the version before this one. The transport (the hook, the queue, `restore_command`) is the core's.
 import { agent, call, option, workspace } from "pumi";
 
-import { compose, map, onFor, settings, type When } from "./context.ts";
+import { settings } from "./context.ts";
 import { num } from "./ids.ts";
-import { read, type Given, type PaneGiven, type Snapshot, type TabGiven } from "./snapshot.ts";
+import type { GivenSession } from "./snapshot.ts";
+import { answer, turned, type Source, type Store } from "./wire.ts";
 
-const text = (value: unknown): string => (typeof value === "string" ? value : "");
+/** Where the model comes from: `session.list`, and `session.get` deep for each of them. */
+const source: Source = {
+  list: () => call("session.list"),
+  get: async (id) => {
+    // `session.get --deep`: one session, with every view and its tabs, in one call.
+    const session = await call("session.get", id, { deep: true });
+    return session;
+  },
+};
 
-/**
- * The model as the workspace has it: every session, its tabs, and every pane with the options that
- * say what it is. `workspace.panes` is every pane, in layout order within a tab.
- */
-async function readState(): Promise<Snapshot> {
-  await workspace.ready;
-  const sessions = workspace.sessions;
-  const here = workspace.currentSession?.id ?? null;
-
-  /** Which session a tab is in. */
-  const owner = new Map<number, number>();
-  const tabs: TabGiven[] = [];
-  for (const each of sessions) {
-    for (const [index, tab] of each.tabs.entries()) {
-      owner.set(num(tab.id), num(each.id));
-      // Its name is the one field the models of a session's tabs are not listed with.
-      const info = await call("tab.get", tab.id);
-      tabs.push({ id: num(tab.id), space: num(each.id), index, label: info.name ?? "" });
-    }
-  }
-
-  const panes: PaneGiven[] = (await workspace.panes()).map((pane) => {
-    const options = (pane.options ?? {}) as Record<string, unknown>;
-    const at = pane.tab?.id ?? null;
-    return {
-      id: num(pane.id),
-      tab: at === null ? null : num(at),
-      space: at === null ? null : (owner.get(num(at)) ?? null),
-      title: text(options["title"]),
-      cwd: text(options["pane_current_path"]),
-      label: text(options["@label"]),
-      options,
-    };
-  });
-
-  const given: Given = {
-    spaces: sessions.map((each) => ({ id: num(each.id), label: each.name ?? "", focused: each.id === here })),
-    tabs,
-    panes,
-  };
-  return read(given);
-}
-
-/** Where what an agent was told is kept: per agent and its own session (its pane when it has none). */
-const toldKey = (turn: { agent: string; session: string | null; pane: string }): string =>
-  `told:${turn.agent}:${turn.session ?? turn.pane}`;
+/** Where what an agent was told is kept: the plugin's own options. */
+const store: Store = {
+  get: (key) => option.get(key),
+  set: (key, value) => option.set(key, value),
+};
 
 agent.onSend(async (turn) => {
-  const now = await settings();
-  if (!onFor(turn.agent, now)) return null;
-  const model = await readState();
-  const here = num(turn.pane);
-  const space = model.panes.find((each) => each.id === here)?.space ?? null;
-  const said = map(model, { otherSessions: now.otherSessions, space });
-  const key = toldKey(turn);
-  const told = await option.get(key);
-  const when: When = turn.full ? "full" : turn.event === "start" ? "start" : "prompt";
-  const words = compose(when, turn.resumed, told ?? undefined, said, now.updates);
-  // What an agent has seen is the map, whether or not it was said; a peek counts nothing.
-  if (!turn.peek) await option.set(key, said);
-  return words;
+  await workspace.ready;
+  const own = workspace.currentSession;
+  return answer(turn, {
+    source,
+    store,
+    settings: await settings(),
+    here: own === null ? null : num(own.id),
+  });
 });
 
 // A compaction throws away what the agent was told: the next turn hands it the whole thing again.
-agent.onTurn(async (turn) => {
-  if (turn.event === "compact") await option.set(toldKey(turn), null);
-});
+agent.onTurn((turn) => turned(turn, store));
 
 /**
  * Once, for an installation of the version before this one: its options were the core's

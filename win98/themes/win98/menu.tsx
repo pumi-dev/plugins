@@ -4,7 +4,7 @@
 // bar, the desktop's and the Start menu's cascades.
 import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useTheme } from "pumi"
-import { grouped, renderView, type ActionItem, type MenuProps } from "pumi/theme"
+import { grouped, renderComponent, type ActionItem, type MenuProps } from "pumi/theme"
 import { AnyIcon, Art, bevel, FONT, Mark, Separator } from "./kit.tsx"
 
 /** How long a cascade stays once the mouse leaves its row: time to cross to it at a slant. */
@@ -65,10 +65,10 @@ export function MenuCard({ children, width, band }: { children: ReactNode; width
 }
 
 /**
- * A menu where the mouse is (or under a menu bar's title): `actions` as rows, and `views` after
- * them. A press outside it, or a pick, closes it.
+ * A menu where the mouse is (or under a menu bar's title): `actions` as rows, and the slot's
+ * `components` after them. A press outside it, or a pick, closes it.
  */
-export function PopupMenu({ at, actions, views, args, close, large, band, width }: MenuProps & { large?: boolean; band?: ReactNode; width?: number }) {
+export function PopupMenu({ at, actions, components, args, close, large, band, width }: MenuProps & { large?: boolean; band?: ReactNode; width?: number }) {
   const state = useCard()
   return (
     <anchored position={at} fit="snap" snapMargin={4} deferred occlude priority={1} style={{ backgroundColor: "transparent" }}>
@@ -76,8 +76,8 @@ export function PopupMenu({ at, actions, views, args, close, large, band, width 
         <div onMouseDownOutside={() => state.inside() || close()} style={{ display: "flex" }}>
           <MenuCard band={band} width={width}>
             <Rows actions={actions} close={close} large={large} />
-            {views?.length ? (actions.length ? <Separator /> : null) : null}
-            {views?.map((v) => renderView(v, { ...args, close }))}
+            {components?.length ? (actions.length ? <Separator /> : null) : null}
+            {components?.map((v) => renderComponent(v, { ...args, close }))}
           </MenuCard>
         </div>
       </Card.Provider>

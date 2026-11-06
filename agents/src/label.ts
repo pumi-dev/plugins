@@ -1,24 +1,25 @@
-// How the model is named in the map: a space, a tab and a pane, each by its own name or, when it
-// has none, the one pumi and the core give it (`$3`, `Tab 2`, the directory).
-import type { Pane, Space, Tab } from "./snapshot.ts";
+// How the model is named in the map: a session and a view by their own names, or by the id pumi
+// takes (`$3`, `@2`), and a tab by its title, the agent in it, its directory, or its block.
+import type { Session, Tab, View } from "./snapshot.ts";
 
-/** A space's name: its own, or its id as tmux writes it. */
-export function spaceLabel(space: Space): string {
-  const label = space.label.trim();
-  return label === "" ? `$${space.id}` : label;
+/** A session's name, or its id: `$3 pumi`, `$3`. */
+export function sessionLabel(session: Session): string {
+  const label = session.label.trim();
+  return label === "" ? `$${session.id}` : `$${session.id} ${label}`;
 }
 
-/** A tab's name, or its number: `Tab 2`, as the core says it. */
-export function tabLabel(tab: Tab): string {
-  const label = tab.label.trim();
-  return label === "" ? `Tab ${tab.index + 1}` : label;
+/** A view's name, or its id: `@2 logs`, `@2`. */
+export function viewLabel(view: View): string {
+  const name = view.name.trim();
+  return name === "" ? `@${view.id}` : `@${view.id} ${name}`;
 }
 
-/** A pane's title: its label, its title without decoration, the agent's name, else its directory. */
-export function title(pane: Pane): string {
-  for (const candidate of [pane.label, pane.stripped, pane.title, pane.agent]) {
+/** A tab's name: its title without decoration, the agent's, its directory, else its block. */
+export function tabTitle(tab: Tab): string {
+  for (const candidate of [tab.stripped, tab.title, tab.agent]) {
     if (candidate.trim() !== "") return candidate;
   }
-  const cwd = pane.cwd.replace(/\/+$/, "");
-  return cwd === "" ? "terminal" : cwd;
+  const cwd = tab.cwd.replace(/\/+$/, "");
+  if (cwd !== "") return cwd;
+  return tab.block === "" ? "tab" : tab.block;
 }

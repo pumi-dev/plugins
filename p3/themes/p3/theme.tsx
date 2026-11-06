@@ -1,8 +1,8 @@
 // P3: pumi's window after T3 Code. Flat graphite, no cards and no chrome to speak of: a side bar
-// a shade lighter than the rest with every tab listed as a thread under its project (its
+// a shade lighter than the rest with every view listed as a thread under its project (its
 // session), a breadcrumb over the panes, and the panes themselves edge to edge with a hairline
-// between. `window.tsx` draws the parts; the panes' layout (splits, drags, zoom, floats) is the
-// app's own.
+// between, each pane's tabs in a strip over it. `window.tsx` draws the parts; the panes' layout
+// (splits, drags, zoom, floats) is the app's own.
 import { defineTheme } from "pumi"
 import { P3 } from "./window.tsx"
 

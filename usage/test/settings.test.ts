@@ -30,25 +30,22 @@ test("what the manifest declares is what is read, by the manifest's name", () =>
 });
 
 test("a value of the wrong kind falls back instead of drawing something else", () => {
-  const settings = coerce((option) => (option === "layout" ? "diagonal" : option === "every" ? "soon" : option === "show" ? "yes" : undefined));
-  expect(settings.layout).toBe("detailed");
+  const settings = coerce((option) => (option === "resets" ? "diagonal" : option === "every" ? "soon" : option === "tint" ? "yes" : undefined));
+  expect(settings.resets).toBe("countdown");
   expect(settings.every).toBe(DEFAULT_SETTINGS.every);
-  expect(settings.show).toBe(true);
+  expect(settings.tint).toBe(true);
 });
 
 test("numbers are kept inside the manifest's bounds, and whole where they count things", () => {
-  const settings = coerce((option) => ({ every: 0, windows: 9, meter: 500, warn_at: -20, crit_at: 1000 })[option]);
+  const settings = coerce((option) => ({ every: 0, warn_at: -20, crit_at: 1000 })[option]);
   expect(settings.every).toBe(1);
-  expect(settings.windows).toBe(3);
-  expect(settings.meter).toBe(80);
   expect(settings.warnAt).toBe(1);
   expect(settings.critAt).toBe(99);
-  expect(coerce((option) => ({ windows: 2.6, meter: 36.4 })[option])).toMatchObject({ windows: 3, meter: 36 });
+  expect(coerce((option) => ({ every: 2.6 })[option])).toMatchObject({ every: 3 });
 });
 
 test("the choices are the ones the manifest offers", () => {
-  expect(manifest.contributes.options.layout.choices).toEqual(["detailed", "compact", "meters"]);
   expect(manifest.contributes.options.resets.choices).toEqual(["countdown", "clock", "off"]);
-  expect(coerce((option) => ({ layout: "meters", resets: "clock" })[option])).toMatchObject({ layout: "meters", resets: "clock" });
-  expect(coerce((option) => ({ layout: "meters" })[option]).resets).toBe("countdown");
+  expect(coerce((option) => ({ resets: "clock" })[option])).toMatchObject({ resets: "clock" });
+  expect(coerce((option) => ({ resets: "off" })[option]).resets).toBe("off");
 });

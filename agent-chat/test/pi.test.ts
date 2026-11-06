@@ -56,4 +56,17 @@ describe("PiParser", () => {
     expect(t.entries[0]!.tool!.content[0]).toMatchObject({ type: "diff", path: "/w/a.ts", unified: "--- /w/a.ts\n+++ /w/a.ts\n@@ -1 +1 @@\n-1\n+2" });
     expect(t.entries[1]!.tool!.content).toEqual([{ type: "terminal", output: "clean", exitCode: 0 }]);
   });
+
+  test("a user message keeps its entry's id, which a rewind names", () => {
+    const t = run(new PiParser(), [header, msg("e1", null, { role: "user", content: "first" })]);
+    expect(t.entries[0]).toMatchObject({ kind: "user", text: "first", source: "e1" });
+  });
+
+  test("a rewind's entry moves the session: to another parent, or to a new root before the first message", () => {
+    const parser = new PiParser();
+    run(parser, [header, msg("e1", null, { role: "user", content: "a" }), msg("e2", "e1", { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "b" }] })]);
+    expect(parser.continues({ type: "custom", id: "r1", parentId: null, customType: "pumi-rewind", data: { to: "e1" } })).toBe(false);
+    const t = run(new PiParser(), [header, msg("e1", null, { role: "user", content: "a" }), { type: "custom", id: "r1", parentId: null, customType: "pumi-rewind", data: { to: "e1" } }]);
+    expect(rows(t)).toEqual([]);
+  });
 });
