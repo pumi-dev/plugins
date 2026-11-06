@@ -35,7 +35,7 @@
     "name": "marmaide",
     "owner": "pumi_dev",
     "api": 1,
-    "minPumi": "0.48.0",
+    "minPumi": "0.52.0",
     "uses": [
       "files"
     ],
@@ -80,7 +80,8 @@
         {
           "id": "diagram",
           "title": "Diagram",
-          "icon": "list_tree"
+          "icon": "list_tree",
+          "audience": "agent"
         }
       ]
     },

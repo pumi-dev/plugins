@@ -36,6 +36,7 @@
     "name": "video-editor",
     "owner": "pumi_dev",
     "api": 1,
+    "minPumi": "0.52.0",
     "icon": "icon.png",
     "images": [
       {
@@ -63,7 +64,8 @@
         {
           "id": "editor",
           "title": "Video Editor",
-          "icon": "plugin:icon.svg"
+          "icon": "plugin:icon.svg",
+          "audience": "agent"
         }
       ]
     },
