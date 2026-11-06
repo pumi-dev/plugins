@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">
+  <!-- Halloween: pumi on Halloween night, its agents as a jack-o'-lantern, a ghost and a sweet, a question on a gravestone. -->
+  <clipPath id="w"><rect width="320" height="200" rx="10"/></clipPath>
+  <defs><radialGradient id="moon" cx="0.5" cy="0.45" r="0.6"><stop offset="0" stop-color="#3a2c5c" stop-opacity="0.85"/><stop offset="1" stop-color="#05020a" stop-opacity="0.85"/></radialGradient>
+  <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3246"/><stop offset="1" stop-color="#231d2c"/></linearGradient>
+  <filter id="fog" x="-10%" y="-60%" width="120%" height="220%"><feGaussianBlur stdDeviation="5"/></filter></defs>
+  <g clip-path="url(#w)">
+  <rect width="320" height="200" fill="#0e0a14"/>
+  <!-- The side bar: its title bar, then the agents' tabs, one at work, one waiting, one done. -->
+  <rect width="88" height="200" fill="#140e1c"/><rect x="88" width="1" height="200" fill="#2c2038"/>
+  <circle cx="11" cy="11" r="3" fill="#ff5f57"/><circle cx="21" cy="11" r="3" fill="#febc2e"/><circle cx="31" cy="11" r="3" fill="#28c840"/>
+  <rect x="5" y="28" width="78" height="16" rx="5" fill="#3b2452"/>
+  <g transform="translate(10 30) scale(0.36)"><path d="M16 8c-.4-2.6.8-4.6 3.2-5.4" stroke="#6fae2e" stroke-width="2.6" fill="none" stroke-linecap="round"/><ellipse cx="10.5" cy="19" rx="8" ry="10" fill="#d4560b"/><ellipse cx="21.5" cy="19" rx="8" ry="10" fill="#d4560b"/><ellipse cx="16" cy="19" rx="7.5" ry="11" fill="#ff7a1a"/><path d="M8.5 17l3.2-4.2 3.2 4.2zM17.1 17l3.2-4.2 3.2 4.2z" fill="#ffd84a"/><path d="M8 21.5q8 6.5 16 0l-2.2 4-2.4-1.8-1.7 2.4-1.7-2.4-1.7 2.4-1.7-2.4-2.4 1.8z" fill="#ffd84a"/></g>
+  <rect x="26" y="34" width="44" height="4" rx="2" fill="#f1e9dc"/>
+  <g transform="translate(10 48) scale(0.36)"><path d="M6 30V14a10 10 0 0 1 20 0v16l-3.4-3-3.3 3-3.3-3-3.3 3-3.3-3z" fill="#f3eeff"/><ellipse cx="12.4" cy="14.5" rx="2.1" ry="2.9" fill="#1a1024"/><ellipse cx="19.6" cy="14.5" rx="2.1" ry="2.9" fill="#1a1024"/><ellipse cx="16" cy="21.5" rx="2.1" ry="2.6" fill="#1a1024"/></g>
+  <rect x="26" y="52" width="36" height="4" rx="2" fill="#bba9cc"/>
+  <g transform="translate(10 66) scale(0.36)"><path d="M9.6 16L2.4 10.4v11.2zM22.4 16l7.2-5.6v11.2z" fill="#5fbf2c"/><circle cx="16" cy="16" r="7.4" fill="#8be04e"/></g>
+  <rect x="26" y="70" width="28" height="4" rx="2" fill="#bba9cc"/>
+  <rect x="10" y="92" width="30" height="3" rx="1.5" fill="#7a6a8e"/>
+  <rect x="14" y="102" width="50" height="3" rx="1.5" fill="#7a6a8e"/>
+  <rect x="14" y="112" width="38" height="3" rx="1.5" fill="#7a6a8e"/>
+  <rect x="14" y="122" width="26" height="3" rx="1.5" fill="#7a6a8e"/>
+  <!-- The terminal: an agent at work. -->
+  <rect x="89" width="231" height="200" fill="#0c0911"/>
+  <rect x="89" width="231" height="22" fill="#140e1c"/><rect x="89" y="21" width="231" height="1" fill="#2c2038"/>
+  <g transform="translate(97 5) scale(0.36)"><path d="M16 8c-.4-2.6.8-4.6 3.2-5.4" stroke="#6fae2e" stroke-width="2.6" fill="none" stroke-linecap="round"/><ellipse cx="10.5" cy="19" rx="8" ry="10" fill="#d4560b"/><ellipse cx="21.5" cy="19" rx="8" ry="10" fill="#d4560b"/><ellipse cx="16" cy="19" rx="7.5" ry="11" fill="#ff7a1a"/><path d="M8.5 17l3.2-4.2 3.2 4.2zM17.1 17l3.2-4.2 3.2 4.2z" fill="#ffd84a"/><path d="M8 21.5q8 6.5 16 0l-2.2 4-2.4-1.8-1.7 2.4-1.7-2.4-1.7 2.4-1.7-2.4-2.4 1.8z" fill="#ffd84a"/></g><rect x="112" y="9" width="44" height="4" rx="2" fill="#f1e9dc"/>
+  <rect x="98" y="32" width="60" height="4" rx="2" fill="#8be04e"/>
+  <rect x="98" y="45" width="150" height="4" rx="2" fill="#f1e9dc"/>
+  <rect x="98" y="58" width="120" height="4" rx="2" fill="#f1e9dc"/>
+  <rect x="98" y="71" width="40" height="4" rx="2" fill="#c77dff"/>
+  <rect x="98" y="84" width="170" height="4" rx="2" fill="#f1e9dc"/>
+  <rect x="98" y="97" width="90" height="4" rx="2" fill="#ffb347"/>
+  <rect x="98" y="110" width="130" height="4" rx="2" fill="#f1e9dc"/>
+  <rect x="98" y="123" width="70" height="4" rx="2" fill="#8f7dff"/>
+  <rect x="98" y="136" width="110" height="4" rx="2" fill="#f1e9dc"/>
+  <rect x="98" y="149" width="8" height="4" rx="2" fill="#ff7a1a"/>
+  <!-- A question over it, on a gravestone in the moonlight. -->
+  <rect x="89" y="22" width="231" height="178" fill="url(#moon)"/>
+  <path d="M154 150V104a50 50 0 0 1 100 0v46z" fill="url(#stone)" stroke="#4c4160" stroke-width="1.5"/>
+  <rect x="186" y="84" width="36" height="3" rx="1.5" fill="#8a7da0"/>
+  <rect x="172" y="96" width="64" height="7" rx="2" fill="#ff4d4d"/>
+  <rect x="170" y="110" width="68" height="3" rx="1.5" fill="#bba9cc"/>
+  <rect x="170" y="128" width="30" height="12" rx="3" fill="#1a1522" stroke="#4c4160"/><rect x="208" y="128" width="30" height="12" rx="3" fill="#ff4d4d"/>
+  <path d="M142 156c16-10 40-12 62-12s46 2 62 12z" fill="#1f1409"/>
+  <path d="M150 154l2-6 1 5 2-7 1 7M250 154l2-6 1 5 2-7 1 7" stroke="#3f6b1f" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <!-- The night's critters: a web in the corner and its spider, bats, fog along the foot. -->
+  <path d="M320.0 0.0L320.0 60.9M320.0 0.0L301.2 57.9M320.0 0.0L284.2 49.3M320.0 0.0L270.7 35.8M320.0 0.0L262.1 18.8M320.0 0.0L259.1 0.0M320.0 13.8Q318.2 11.6 315.7 13.2M315.7 13.2Q314.7 10.5 311.9 11.2M311.9 11.2Q311.7 8.3 308.8 8.1M308.8 8.1Q309.5 5.3 306.8 4.3M306.8 4.3Q308.4 1.8 306.2 0.0M320.0 27.7Q316.3 23.2 311.4 26.3M311.4 26.3Q309.3 21.0 303.7 22.4M303.7 22.4Q303.4 16.6 297.6 16.3M297.6 16.3Q299.0 10.7 293.7 8.6M293.7 8.6Q296.8 3.7 292.3 0.0M320.0 41.5Q314.5 34.8 307.2 39.5M307.2 39.5Q304.0 31.4 295.6 33.6M295.6 33.6Q295.1 24.9 286.4 24.4M286.4 24.4Q288.6 16.0 280.5 12.8M280.5 12.8Q285.2 5.5 278.5 0.0M320.0 55.4Q312.6 46.4 302.9 52.7M302.9 52.7Q298.7 41.9 287.5 44.8M287.5 44.8Q286.7 33.3 275.2 32.5M275.2 32.5Q278.1 21.3 267.3 17.1M267.3 17.1Q273.6 7.4 264.6 0.0" stroke="#c9b8e866" stroke-width="0.6" fill="none"/>
+  <path d="M302 0v38" stroke="#c9b8e888" stroke-width="0.6"/>
+  <ellipse cx="302" cy="42" rx="3" ry="3.4" fill="#3b2a52"/><path d="M299 40l-4-2M299 42l-5 0M299 44l-4 2M305 40l4-2M305 42l5 0M305 44l4 2" stroke="#3b2a52" stroke-width="0.8"/>
+  <circle cx="301" cy="40.4" r="0.6" fill="#ff3b3b"/><circle cx="303" cy="40.4" r="0.6" fill="#ff3b3b"/>
+  <g transform="translate(120 32) scale(0.34)"><path fill="#3b2a52" d="M32 13c-1.6 0-2.6 1-3.1 2.2L27.6 12l-.9 3.6C22.2 9 14 3.5 2 2c5 4 7.5 9 6.6 15 3.2-2.4 7.4-2.4 10.4.8 1.2-3 4.2-4.6 7-3.6.9 3 3 5.8 6 8.2 3-2.4 5.1-5.2 6-8.2 2.8-1 5.8.6 7 3.6 3-3.2 7.2-3.2 10.4-.8C54.5 11 57 6 62 2 50 3.5 41.8 9 37.3 15.6l-.9-3.6-1.3 3.2C34.6 14 33.6 13 32 13z"/></g>
+  <g transform="translate(236 58) scale(0.22)"><path fill="#3b2a52" d="M32 13c-1.6 0-2.6 1-3.1 2.2L27.6 12l-.9 3.6C22.2 9 14 3.5 2 2c5 4 7.5 9 6.6 15 3.2-2.4 7.4-2.4 10.4.8 1.2-3 4.2-4.6 7-3.6.9 3 3 5.8 6 8.2 3-2.4 5.1-5.2 6-8.2 2.8-1 5.8.6 7 3.6 3-3.2 7.2-3.2 10.4-.8C54.5 11 57 6 62 2 50 3.5 41.8 9 37.3 15.6l-.9-3.6-1.3 3.2C34.6 14 33.6 13 32 13z"/></g>
+  <g transform="translate(40 150) scale(0.26)"><path fill="#3b2a52" d="M32 13c-1.6 0-2.6 1-3.1 2.2L27.6 12l-.9 3.6C22.2 9 14 3.5 2 2c5 4 7.5 9 6.6 15 3.2-2.4 7.4-2.4 10.4.8 1.2-3 4.2-4.6 7-3.6.9 3 3 5.8 6 8.2 3-2.4 5.1-5.2 6-8.2 2.8-1 5.8.6 7 3.6 3-3.2 7.2-3.2 10.4-.8C54.5 11 57 6 62 2 50 3.5 41.8 9 37.3 15.6l-.9-3.6-1.3 3.2C34.6 14 33.6 13 32 13z"/></g>
+  <g fill="#d9ccff" opacity="0.13" filter="url(#fog)"><ellipse cx="60" cy="196" rx="90" ry="12"/><ellipse cx="190" cy="192" rx="100" ry="14"/><ellipse cx="300" cy="196" rx="70" ry="12"/></g>
+  <g transform="translate(272 140) scale(0.9)"><path d="M6 30V14a10 10 0 0 1 20 0v16l-3.4-3-3.3 3-3.3-3-3.3 3-3.3-3z" fill="#f3eeff" opacity="0.9"/><ellipse cx="12.4" cy="14.5" rx="2.1" ry="2.9" fill="#1a1024"/><ellipse cx="19.6" cy="14.5" rx="2.1" ry="2.9" fill="#1a1024"/><ellipse cx="16" cy="21.5" rx="2.1" ry="2.6" fill="#1a1024"/></g>
+  </g>
+</svg>

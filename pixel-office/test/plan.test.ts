@@ -12,8 +12,26 @@ const tabs = [
 ] as Tab[]
 
 test("a desk for every view, or for every tab", () => {
-  expect(plan([session], views, tabs, 1400, 800, false).pods[0]!.seats.map((s) => s.tab?.tab_id ?? s.view.view_id)).toEqual(["@1", "@2"])
-  expect(plan([session], views, tabs, 1400, 800, true).pods[0]!.seats.map((s) => s.tab?.tab_id)).toEqual(["%1", "%2", "%3"])
+  expect(plan([session], views, tabs, 1400, 800, false).desks.seats.map((s) => s.tab?.tab_id ?? s.view.view_id)).toEqual(["@1", "@2"])
+  expect(plan([session], views, tabs, 1400, 800, true).desks.seats.map((s) => s.tab?.tab_id)).toEqual(["%1", "%2", "%3"])
+})
+
+test("every session's desks on one floor, a session after the other, the free desk last", () => {
+  const other = { workspace_id: "$2", label: "pumi" } as Session
+  const more = [...views, { view_id: "@3", workspace_id: "$2", number: 1, label: "docs", status: "" }] as View[]
+  const room = plan([session, other], more, tabs, 1400, 800, false)
+  expect(room.desks.seats.map((s) => s.view.view_id)).toEqual(["@1", "@2", "@3"])
+  expect(room.desks.cells).toHaveLength(4)
+  // No two desks share a cell, and the floor holds them all.
+  expect(new Set(room.desks.cells.map((c) => `${c.x},${c.y}`)).size).toBe(4)
+  for (const cell of room.desks.cells) expect(cell.x + 176).toBeLessThanOrEqual(room.width)
+})
+
+test("the desks wrap onto more rows when the floor is narrow", () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({ view_id: `@${i + 1}`, workspace_id: "$1", number: i + 1, label: `${i}`, status: "" })) as View[]
+  const room = plan([session], many, [], 600, 800, false)
+  expect(room.desks.cols).toBe(2)
+  expect(room.desks.down).toBe(5)
 })
 
 test("a view's desk says what its most urgent tab is doing; a tab's desk, its own", () => {

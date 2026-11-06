@@ -4,7 +4,7 @@
 // `url` option and writes it back as it goes, and reports what the page says of itself, which is
 // what the package's `url`, `title` and `read` answer with.
 import { useEffect, useRef, useState } from "react";
-import { Icon, WebView, call, useChannelListener, useMetrics, useOption, useTab, useTheme, useWebview, webview, webviewRun, webviewSnapshot, type RendererProps } from "pumi";
+import { COLOR, Icon, WebView, call, useChannelListener, useMetrics, useOption, useTab, useTheme, useWebview, webview, webviewRun, webviewSnapshot, type RendererProps } from "pumi";
 
 import { hostOf, normalize, resolve } from "./address.ts";
 import { kitCall } from "./kit.ts";
@@ -24,11 +24,71 @@ function swallow(err: unknown): void {
   console.error(`browser: ${err instanceof Error ? err.message : String(err)}`);
 }
 
-/** The toolbar's button: an icon, quietened when it cannot be pressed, lit while `active`. */
-function Button({ icon, tip, on, enabled = true, active = false }: { icon: string; tip: string; on(): void; enabled?: boolean; active?: boolean }) {
+/**
+ * What the page is painted with, as `#rrggbb`: what it paints at the top of itself (what its tab
+ * sits above), else the colour most of it is made of, else its body, its root or its
+ * `theme-color`. Its tab and this page's own toolbar take it (`@color`), so a tab looks like the
+ * site it holds, and the two meet with no seam.
+ */
+const MAIN_COLOR = `
+  const hex = (colour) => {
+    const rgba = /rgba?\\(([^)]+)\\)/i.exec(colour || "");
+    if (!rgba) return /^#[0-9a-f]{3,8}$/i.test((colour || "").trim()) ? colour.trim() : null;
+    const parts = rgba[1].split(/[\\s,/]+/).filter(Boolean).map(Number);
+    const [r, g, b] = parts;
+    const alpha = parts.length > 3 ? parts[3] : 1;
+    if (!alpha || [r, g, b].some((n) => !Number.isFinite(n))) return null;
+    return "#" + [r, g, b].map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0")).join("");
+  };
+  const behind = (element) => {
+    for (let at = element; at; at = at.parentElement) {
+      const colour = hex(getComputedStyle(at).backgroundColor);
+      if (colour) return colour;
+    }
+    return null;
+  };
+  const w = innerWidth, h = innerHeight;
+  for (const x of [4, Math.round(w / 2), w - 5]) {
+    const top = behind(document.elementFromPoint(x, 2));
+    if (top) return top;
+  }
+  const counted = new Map();
+  const points = [[4, 4], [w / 2, 4], [w - 5, 4], [4, h / 3], [w / 2, h / 2], [w - 5, h / 3], [4, (2 * h) / 3], [w - 5, (2 * h) / 3]];
+  for (const [x, y] of points) {
+    const colour = behind(document.elementFromPoint(Math.round(x), Math.round(y)));
+    if (colour) counted.set(colour, (counted.get(colour) || 0) + 1);
+  }
+  const main = [...counted].sort((a, b) => b[1] - a[1])[0];
+  const said = document.querySelector('meta[name="theme-color"]');
+  return main ? main[0] : behind(document.body) || behind(document.documentElement) || (said ? hex(said.content) : null);
+`;
+
+/** `#rrggbb` of what reads on `colour`: near-black on a light shade, near-white on a dark one. */
+function inkOn(colour: string): string {
+  const channel = (at: number) => {
+    const value = Number.parseInt(colour.slice(at, at + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  return luminance > 0.45 ? "#0b0c0e" : "#e9ecf1";
+}
+
+/** What a tab's `@color` says, as the tab and this toolbar are painted: its background, and the
+ *  ink that reads on it. `null` while it names none the app takes. */
+function shadeOf(value: unknown): { background: string; ink: string } | null {
+  const said = value && typeof value === "object" ? (value as { background?: unknown }).background : value;
+  if (typeof said !== "string" || !/^#[0-9a-f]{3,8}$/i.test(said)) return null;
+  const digits = said.slice(1);
+  const background = digits.length <= 4 ? `#${[...digits].map((d) => d + d).join("")}` : said;
+  return { background, ink: inkOn(background) };
+}
+
+/** The toolbar's button: an icon, quietened when it cannot be pressed, lit while `active`. `ink`
+ *  is what it is drawn in when the page has given the toolbar a colour of its own. */
+function Button({ icon, tip, on, enabled = true, active = false, ink }: { icon: string; tip: string; on(): void; enabled?: boolean; active?: boolean; ink?: string }) {
   const t = useTheme();
   const m = useMetrics();
-  const color = active ? t.accent : enabled ? t.muted : t.faint;
+  const color = active ? t.accent : ink ? (enabled ? ink : `${ink}88`) : enabled ? t.muted : t.faint;
   return (
     <div
       aria-label={tip}
@@ -128,6 +188,8 @@ export function Page({ tab, block }: RendererProps) {
   const handle = id;
   const view = useWebview(handle);
   const each = useTab(id);
+  /** What the page gave this tab (`@color`, below): the tab and this toolbar are painted with it. */
+  const shade = shadeOf((each?.options ?? {})[COLOR]);
   const [home] = useOption<string>(`${prefix}home_url`);
   const [chosen] = useOption<string>(`${prefix}search_url`);
   const search = chosen ?? SEARCH;
@@ -244,6 +306,26 @@ export function Page({ tab, block }: RendererProps) {
     if (view?.url) setSrc((was) => (view.url === was ? was : view.url));
   }, [view?.url]);
 
+  // The page's own colour on its tab (`@color`), each time it lands somewhere: a site is dark or
+  // light, and the tab above it says which. A page that says nothing of it keeps the theme's.
+  // Asked again if it does not answer: at its first paint it may not be ready to.
+  useEffect(() => {
+    if (!view?.url || view.loading) return;
+    let live = true;
+    const ask = (tries: number): Promise<void> =>
+      webviewRun<string | null>(handle, MAIN_COLOR)
+        .then((colour) => {
+          // The tab takes it (`@color`), and so does this page's own toolbar: the two meet.
+          if (live) call("option.set", COLOR, colour, { scope: "tab", id }).catch(swallow);
+          return undefined;
+        })
+        .catch(() => (live && tries > 0 ? new Promise<void>((ok) => setTimeout(ok, 400)).then(() => ask(tries - 1)) : undefined));
+    void ask(2);
+    return () => {
+      live = false;
+    };
+  }, [handle, id, view?.url, view?.loading]);
+
   // The block's methods (`navigate`, `back`, `forward`, `reload`), and the protocol's `input`:
   // what is typed into the address bar, and Enter with it. Its functions run in the worker
   // (`tab.call` reaches `pumi_dev.browser.page.<method>`), which posts them here.
@@ -294,10 +376,10 @@ export function Page({ tab, block }: RendererProps) {
       }}
       style={{ display: "flex", flexDirection: "column", width: "100%", height: "100%", minWidth: 0, minHeight: 0, backgroundColor: t.editor, color: t.text }}
     >
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: TOOLBAR, flexShrink: 0, paddingLeft: 6, paddingRight: 8, backgroundColor: t.surface, borderBottomWidth: 1, borderColor: t.border }}>
-        <Button icon="arrow_left" tip="Back" on={() => webview(handle, "back")} enabled={view?.back !== false} />
-        <Button icon="arrow_right" tip="Forward" on={() => webview(handle, "forward")} enabled={view?.forward !== false} />
-        <Button icon={view?.loading ? "square_minus" : "rotate_ccw"} tip={view?.loading ? "Stop" : "Reload"} on={() => webview(handle, view?.loading ? "stop" : "reload")} />
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: TOOLBAR, flexShrink: 0, paddingLeft: 6, paddingRight: 8, backgroundColor: shade?.background ?? t.surface, borderBottomWidth: 1, borderColor: shade ? `${shade.ink}26` : t.border }}>
+        <Button icon="arrow_left" tip="Back" on={() => webview(handle, "back")} enabled={view?.back !== false} ink={shade?.ink} />
+        <Button icon="arrow_right" tip="Forward" on={() => webview(handle, "forward")} enabled={view?.forward !== false} ink={shade?.ink} />
+        <Button icon={view?.loading ? "square_minus" : "rotate_ccw"} tip={view?.loading ? "Stop" : "Reload"} on={() => webview(handle, view?.loading ? "stop" : "reload")} ink={shade?.ink} />
         <input
           value={shown}
           placeholder={home ?? "Search or enter an address"}
@@ -307,15 +389,15 @@ export function Page({ tab, block }: RendererProps) {
           onKeyDown={(e: any) => {
             if (e?.key === "escape") setDraft(null);
           }}
-          style={{ display: "flex", flexGrow: 1, minWidth: 0, height: FIELD, paddingLeft: 8, paddingRight: 8, borderRadius: 6, backgroundColor: t.editor, color: t.text, fontSize: 12, borderWidth: 1, borderColor: t.border }}
+          style={{ display: "flex", flexGrow: 1, minWidth: 0, height: FIELD, paddingLeft: 8, paddingRight: 8, borderRadius: 6, backgroundColor: shade ? `${shade.ink}1f` : t.editor, color: shade?.ink ?? t.text, fontSize: 12, borderWidth: 1, borderColor: shade ? `${shade.ink}33` : t.border }}
         />
         {/* The name gives way before the address does: it shrinks to nothing, cut with an ellipsis,
             and never runs under the buttons after it. */}
         <div style={{ display: "flex", flexShrink: 1, maxWidth: 220, minWidth: 0, overflow: "hidden", paddingLeft: 6 }}>
-          <text style={{ fontSize: 12, color: t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{title}</text>
+          <text style={{ fontSize: 12, color: shade?.ink ?? t.muted, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{title}</text>
         </div>
-        <Button icon="square_dot" tip={picking ? "Stop picking (Esc)" : "Pick an element and leave a note for the agent"} on={pick} active={picking} />
-        <Button icon="tool_web" tip="Open devtools" on={() => webview(handle, "devtools")} enabled={view?.devtools !== true} />
+        <Button icon="square_dot" tip={picking ? "Stop picking (Esc)" : "Pick an element and leave a note for the agent"} on={pick} active={picking} ink={shade?.ink} />
+        <Button icon="tool_web" tip="Open devtools" on={() => webview(handle, "devtools")} enabled={view?.devtools !== true} ink={shade?.ink} />
       </div>
       {picked ? (
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: TOOLBAR, flexShrink: 0, paddingLeft: 8, paddingRight: 8, backgroundColor: t.surface, borderBottomWidth: 1, borderColor: t.border }}>

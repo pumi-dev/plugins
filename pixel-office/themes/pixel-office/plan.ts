@@ -1,25 +1,20 @@
-// The office's plan: a session is a pod on the carpet with its name on it, and every view in it is a
-// desk — or, with "a desk for every tab" on, one desk for each tab in a split view — plus the free
-// desk that makes a new view. Pods stand next to each other, wrap onto the next row when the floor
-// runs out, and the rows sit in the middle of the room. The plan also says what you bump into
+// The office's plan: every view of every session is a desk — or, with "a desk for every tab" on,
+// one desk for each tab in a split view — all in one block in the middle of the floor, the
+// sessions one after the other, and last the free desk that makes a new view. Which session a desk
+// is in, the sidebar says (and the floor dims the others). The plan also says what you bump into
 // (desks, the shelf, the coffee machine, the wall) and how to walk around it.
 import type { Session, Tab, View } from "pumi/theme"
 
-/** A desk's cell on the carpet. */
+/** A desk's cell on the floor. */
 export const CELL_W = 176
 export const CELL_H = 156
-/** A pod's carpet around its desks, and the name above them. */
-export const CARPET = 22
-export const LABEL_H = 34
 /** What the floor keeps free at its sides (the shelf and the coffee machine stand there). */
 export const MARGIN = 96
 /** The wall along the top. */
 export const WALL = 56
 /** The bar along the foot. */
 export const HUD = 56
-/** Between two pods. */
-export const POD_GAP = 24
-/** How tall the lounge below the pods is. */
+/** How tall the lounge below the desks is. */
 export const LOUNGE_H = 170
 /** The walk grid's cell, in floor pixels. */
 export const GRID = 12
@@ -44,9 +39,8 @@ export interface Seat {
   i: number
 }
 
-/** A session: its carpet, its name, and the cells its desks stand in. */
-export interface Pod {
-  session: Session
+/** The desks: every session's, in rows, and the cells they stand in. */
+export interface Desks {
   cols: number
   down: number
   seats: Seat[]
@@ -72,9 +66,9 @@ export interface Plan {
   width: number
   /** The floor's height, wall included. */
   height: number
-  pods: Pod[]
+  desks: Desks
   props: Prop[]
-  /** The lounge: the open floor below the pods, where the furniture you have not moved stands. */
+  /** The lounge: the open floor below the desks, where the furniture you have not moved stands. */
   lounge: Rect
   /** Where you stand when you have never walked. */
   centre: Pt
@@ -91,56 +85,33 @@ export function seatsOf(view: View, tabs: Tab[], perTab: boolean): Seat[] {
 export const deskKey = (seat: Seat) => `${seat.view.view_id}${seat.tab ? `:${seat.tab.tab_id}` : ""}`
 
 /**
- * The room: each session's pod (its desks in columns, about as wide as tall, and a free desk), the
- * pods in rows in the middle of the floor, the props along its edges.
+ * The room: every session's desks, a session after the other, and the free desk, in rows about as
+ * wide as tall (as many across as the floor has room for) in the middle of the floor; the props
+ * along its edges.
  */
 export function plan(sessions: Session[], views: View[], tabs: Tab[], width: number, viewHeight: number, perTab: boolean, lowest = 0): Plan {
-  const pods: Pod[] = []
-  for (const session of sessions) {
-    const seats = views.filter((view) => view.workspace_id === session.workspace_id).flatMap((view) => seatsOf(view, tabs, perTab))
-    // Its desks, and always a free one.
-    const n = seats.length + 1
-    const down = Math.max(1, Math.min(n, Math.ceil(Math.sqrt(n / 1.4))))
-    const cols = Math.ceil(n / down)
-    pods.push({
-      session,
-      cols,
-      down,
-      seats,
-      x: 0,
-      y: 0,
-      width: cols * CELL_W + CARPET * 2,
-      height: LABEL_H + down * CELL_H + CARPET,
-      cells: Array.from({ length: n }, (_, i) => ({ x: CARPET + Math.floor(i / down) * CELL_W, y: LABEL_H + (i % down) * CELL_H })),
-    })
+  const seats = sessions.flatMap((session) => views.filter((view) => view.workspace_id === session.workspace_id).flatMap((view) => seatsOf(view, tabs, perTab)))
+  // The desks, and always a free one.
+  const n = seats.length + 1
+  const room = Math.max(CELL_W, width - MARGIN * 2)
+  const across = Math.max(1, Math.floor(room / CELL_W))
+  const cols = Math.min(across, Math.ceil(n / Math.max(1, Math.ceil(Math.sqrt(n / 1.4)))))
+  const down = Math.ceil(n / cols)
+  const w = cols * CELL_W
+  const h = down * CELL_H
+  const x = Math.max(MARGIN, Math.floor((width - w) / 2))
+  const y = WALL + Math.max(40, Math.floor((viewHeight - WALL - h - LOUNGE_H - 100) / 2))
+  const desks: Desks = {
+    cols,
+    down,
+    seats,
+    x,
+    y,
+    width: w,
+    height: h,
+    cells: Array.from({ length: n }, (_, i) => ({ x: x + (i % cols) * CELL_W, y: y + Math.floor(i / cols) * CELL_H })),
   }
-  // Pods next to each other, onto the next row when the floor runs out.
-  const room = Math.max(CELL_W + CARPET * 2, width - MARGIN * 2)
-  const rows: { pods: Pod[]; width: number; height: number }[] = []
-  for (const pod of pods) {
-    const row = rows.at(-1)
-    if (row && row.width + POD_GAP + pod.width <= room) {
-      row.pods.push(pod)
-      row.width += POD_GAP + pod.width
-      row.height = Math.max(row.height, pod.height)
-    } else rows.push({ pods: [pod], width: pod.width, height: pod.height })
-  }
-  const tall = rows.reduce((sum, row) => sum + row.height, 0) + Math.max(0, rows.length - 1) * POD_GAP
-  let y = WALL + Math.max(40, Math.floor((viewHeight - WALL - tall - LOUNGE_H - 100) / 2))
-  for (const row of rows) {
-    let x = Math.max(MARGIN, Math.floor((width - row.width) / 2))
-    for (const pod of row.pods) {
-      pod.x = x
-      pod.y = y
-      for (const cell of pod.cells) {
-        cell.x += x
-        cell.y += y
-      }
-      x += pod.width + POD_GAP
-    }
-    y += row.height + POD_GAP
-  }
-  const bottom = pods.reduce((end, pod) => Math.max(end, pod.y + pod.height), WALL + 40)
+  const bottom = Math.max(y + h, WALL + 40)
   const lounge: Rect = { x: 0, y: bottom + 30, w: width, h: LOUNGE_H }
   // The floor reaches past the lounge and whatever was put lower still, to the door.
   const height = Math.max(viewHeight, lounge.y + lounge.h + 70, lowest + 80)
@@ -149,7 +120,7 @@ export function plan(sessions: Session[], views: View[], tabs: Tab[], width: num
     { id: "coffee", label: "Settings", x: 92, y: WALL + 14, w: 32, h: 48 },
     { id: "door", label: "Sessions", x: Math.round(width / 2) - 30, y: height - 32, w: 60, h: 28 },
   ]
-  return { width, height, pods, props, lounge, centre: { x: Math.round(width / 2), y: Math.min(height - 60, bottom + 18) } }
+  return { width, height, desks, props, lounge, centre: { x: Math.round(width / 2), y: Math.min(height - 60, bottom + 18) } }
 }
 
 // ── A desk on the floor ─────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 // The window's parts the office draws in pixel art, beside the room itself (window.tsx):
-// every menu and question of the app's as a framed pixel dialog, the lobby's sections (the players
-// and each plugin's panel on a notice board), a player as the lobby lists it, and a button.
+// every menu and question of the app's as a framed pixel dialog, each plugin's panel on a notice
+// board (in the sessions sidebar), a coworker as the lobby lists it, and a button.
 import { createContext, Fragment, useContext, useState, type ReactNode } from "react"
 import { Icon, useTheme } from "pumi"
 import {
@@ -28,7 +28,7 @@ const swallow = (err: unknown) => console.error(String(err))
 export const RoomContext = createContext<{ visit(tab: string): void } | null>(null)
 
 /**
- * The `Menu` part: every menu of the app's (a desk's, a view's, a tab's, a player's: `useMenu`), as
+ * The `Menu` part: every menu of the app's (a desk's, a view's, a tab's, a coworker's: `useMenu`), as
  * a pixel dialog where the mouse is. Its groups with a rule between; a submenu opens under its row.
  */
 function Menu({ at, actions, components, args, close }: MenuProps) {
@@ -134,20 +134,17 @@ export function Point({ point, args, gap = 4 }: { point: string; args?: Record<s
   )
 }
 
-// ── The lobby ───────────────────────────────────────────────────────────────────────────────
+// ── The sidebars ────────────────────────────────────────────────────────────────────────────
 
 /**
- * The lobby's sections, each under a sign that folds it: the players (every tab with a status,
- * whatever view it's in) and each plugin's panel on a framed notice board.
+ * A slot's components (the plugins' panels, in the sessions sidebar), each on a framed notice
+ * board under a sign that folds it; for `panel`, the session in front's header above them.
  */
 function Panel({ point }: { point: string }) {
   const t = useTheme()
   const { components } = useSlot(point)
   const [collapsed, setCollapsed] = useLocal<string[]>(`office.${point}.collapsed`, [])
-  const sections: { key: string; title: string; icon?: string; body: ReactNode; board: boolean }[] = [
-    { key: "players", title: "Players", icon: "agent", body: <Players />, board: false },
-    ...components.map((c) => ({ key: `${c.plugin}/${c.id}`, title: c.title ?? c.id, icon: c.icon, body: renderComponent(c), board: true })),
-  ]
+  const sections: { key: string; title: string; icon?: string; body: ReactNode }[] = components.map((c) => ({ key: `${c.plugin}/${c.id}`, title: c.title ?? c.id, icon: c.icon, body: renderComponent(c) }))
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, fontFamily: FONT }}>
       {point === "panel" ? <SessionHeader /> : null}
@@ -171,7 +168,11 @@ function Panel({ point }: { point: string }) {
                   flexGrow: 1,
                   minHeight: 0,
                   overflowY: "scroll",
-                  ...(s.board ? { marginLeft: 8, marginRight: 8, marginBottom: 8, padding: 2, ...box(t, "panel") } : {}),
+                  marginLeft: 8,
+                  marginRight: 8,
+                  marginBottom: 8,
+                  padding: 2,
+                  ...box(t, "panel"),
                 }}
               >
                 {s.body}
@@ -198,7 +199,8 @@ function SessionHeader() {
   )
 }
 
-function Players() {
+/** Your coworkers, in the lobby: every tab with a status (an agent at work, …), whatever session it is in. */
+export function Coworkers() {
   const C = useComponents()
   const tabs = useApp((s) => s.snapshot?.tabs.filter((p) => p.status) ?? [])
   const t = useTheme()
@@ -218,7 +220,7 @@ function Players() {
   )
 }
 
-/** A player: the avatar with a bubble saying what its tab's status does, its tag, its row's footer
+/** A coworker: the avatar with a bubble saying what its tab's status does, its tag, its row's footer
  *  and controls. A click walks you to its desk. */
 function TabRow({ tab }: { tab: string }) {
   const t = useTheme()

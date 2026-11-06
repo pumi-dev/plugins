@@ -520,6 +520,20 @@ export async function patch(root: string, spec: DiffSpec): Promise<string> {
   return tracked + (await untrackedPatch(root, await untracked(root)));
 }
 
+/** The text of `path` as the new side of `spec` has it: the work tree's file, the index's, or the
+ *  commit's: `null` when it cannot be read (gone, or not a text file git shows). */
+export async function content(root: string, path: string, spec: DiffSpec, limit = 2_000_000): Promise<string | null> {
+  try {
+    if (spec.kind === "commit") return await ok(root, ["show", `${spec.sha}:${path}`]);
+    if (spec.side === "staged") return await ok(root, ["show", `:${path}`]);
+    const file = Bun.file(`${root}/${path}`);
+    if (file.size > limit) return null;
+    return await file.text();
+  } catch {
+    return null;
+  }
+}
+
 /** The untracked files git does not ignore. */
 async function untracked(root: string): Promise<string[]> {
   const out = await ok(root, ["ls-files", "--others", "--exclude-standard", "-z"]);

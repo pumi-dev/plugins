@@ -2,16 +2,19 @@
 // Everything here takes what it needs as an argument (the source, `session.list` and `session.get`
 // deep; the store of what each agent was told; the settings), so a test hands it a fake and no
 // pumi needs to be running. `main.ts` wires it to the hook and to session tabs.
-import { compose, frame, map, type Settings, type When } from "./context.ts";
+import { blockLines, type Block } from "./blocks.ts";
+import { compose, frame, map, place, type Settings, type When } from "./context.ts";
 import { num } from "./ids.ts";
 import { read, type GivenSession, type Snapshot } from "./snapshot.ts";
 
-/** Where the model comes from: the sessions, and each one's whole tree in one call. */
+/** Where the model comes from: the sessions, each one's whole tree in one call, and the blocks. */
 export interface Source {
   /** Every session's id, in creation order (`session.list`). */
   list(): Promise<string[]>;
   /** One session and its views, panes and tabs (`session.get` with `deep`), or `null`. */
   get(id: string): Promise<GivenSession | null>;
+  /** What a tab can hold, the core's and the plugins' (`blocks.ts` `listed`); none while unknown. */
+  blocks?(): Promise<Block[]>;
 }
 
 /** Where what an agent was told is kept. */
@@ -86,11 +89,17 @@ export async function answer(turn: Turn, ask: Ask): Promise<string | null> {
     otherSessions: ask.settings.otherSessions,
     session: mine?.session ?? current,
     current,
+    you: mine?.id ?? null,
   });
   const key = toldKey(turn);
   const told = await ask.store.get(key);
   const when: When = yes(turn.full) ? "full" : turn.event === "start" ? "start" : "prompt";
-  const words = compose(when, turn.resumed, typeof told === "string" ? told : undefined, said, ask.settings.updates);
+  const heard = typeof told === "string" ? told : undefined;
+  // The block types go out with the guide and nowhere else: a prompt told only what moved costs a
+  // read of the workspace, not one of the registry too.
+  const guide = when === "full" || heard === undefined || (when === "start" && !turn.resumed);
+  const blocks = guide && ask.source.blocks !== undefined ? await ask.source.blocks().catch(() => []) : [];
+  const words = compose(when, turn.resumed, heard, { place: place(mine), tabs: said, blocks: blockLines(blocks) }, ask.settings.updates);
   // What an agent has seen is the map, whether or not it was said; a peek counts nothing.
   if (!yes(turn.peek)) await ask.store.set(key, said);
   return words === null ? null : frame(words);

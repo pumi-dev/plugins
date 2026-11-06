@@ -7,7 +7,7 @@
 // the last post is drawn the moment the sidebar opens, the lines are a windowed `<virtual-list>`
 // whose unchanged rows are not drawn again, and the commit box keeps its own text. The repository,
 // the lines and every action are the worker's (`main.ts`, `panel.ts`, `tree.ts`).
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon, useChannel, useMetrics, usePlugin, useSession, useTab, useTheme, type RendererProps } from "pumi";
 
 import {
@@ -33,6 +33,7 @@ import {
   type Views,
 } from "./main.ts";
 import type { Commit, CommitMode, Sync } from "./git.ts";
+import { foldedAtFirst, parsePatch, PatchView, type FileDiff, type Syntax } from "./diff.tsx";
 import { when } from "./time.ts";
 
 /** A line's height, and a commit's, and the filter box's, in pixels. */
@@ -839,32 +840,6 @@ function Menu({ at: where, items, close }: { at: At; items: Item[]; close(): voi
 
 // ---- the diff tab
 
-/** One line of a patch, and what it is: a file's header, a hunk's, an addition, a deletion. */
-export interface PatchLine {
-  /** The file it is in, as its `diff --git` header names it. */
-  file: string | null;
-  kind: "file" | "hunk" | "add" | "del" | "plain";
-  text: string;
-}
-
-/** A patch as lines, each keeping the file it is in. */
-export function patchLines(patch: string): PatchLine[] {
-  const lines: PatchLine[] = [];
-  let file: string | null = null;
-  for (const text of patch.split("\n")) {
-    if (text.startsWith("diff --git ")) {
-      const at = text.indexOf(" b/");
-      file = at >= 0 ? text.slice(at + 3) : text.slice(11);
-      lines.push({ file, kind: "file", text });
-    } else if (text.startsWith("@@")) lines.push({ file, kind: "hunk", text });
-    else if (text.startsWith("+++") || text.startsWith("---") || text.startsWith("index ")) lines.push({ file, kind: "plain", text });
-    else if (text.startsWith("+")) lines.push({ file, kind: "add", text });
-    else if (text.startsWith("-")) lines.push({ file, kind: "del", text });
-    else lines.push({ file, kind: "plain", text });
-  }
-  return lines;
-}
-
 /** This plugin's options carry its prefix (`pumi_dev.git.`), which is how the tab's own `diff` is
  * named in the state the window reads. */
 function usePrefix(): string {
@@ -897,12 +872,11 @@ function summary(patch: string): { files: string[]; added: number; deleted: numb
 }
 
 /** A diff tab: what the page said to show (the tab's `diff` option), read through the worker and
- * drawn here — its files' lines in the theme's own additions and deletions, each file header
- * folding the lines under it. What it drew stays up while the next read runs, so a change in the
- * work tree never blanks it. */
+ * drawn here as the chats draw a change (`diff.tsx`): a head a file — its name, its folder, what it
+ * adds up to — over its numbered lines, each on the theme's own wash, folding when pressed. What it
+ * drew stays up while the next read runs, so a change in the work tree never blanks it. */
 export function Diff({ tab }: RendererProps) {
   const t = useTheme();
-  const m = useMetrics();
   const each = useTab(tab.id);
   const prefix = usePrefix();
   const value = (each?.options?.[`${prefix}diff`] as string | undefined) ?? "";
@@ -916,7 +890,7 @@ export function Diff({ tab }: RendererProps) {
   // The work tree's diff is read again whenever the page is posted anew; a commit's never changes.
   const changes = useChannel<ChangesView | undefined>("changes", undefined);
   const stamp = spec?.kind === "work" ? changes?.version ?? 0 : 0;
-  const [read, setRead] = useState<{ value: string; patch: string; error: string | null } | null>(null);
+  const [read, setRead] = useState<{ value: string; patch: string; error: string | null; syntax: Syntax } | null>(null);
   const [folded, setFolded] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -932,15 +906,54 @@ export function Diff({ tab }: RendererProps) {
       live = false;
     };
   }, [value, stamp]);
-  // Another diff is another set of files: none of them folded.
-  useEffect(() => setFolded(new Set()), [value]);
+  // Another diff is another set of files: its generated ones (a lock file) and its very long ones
+  // fold at first, as a chat folds them — one file, or a commit of a few, stays open.
+  const foldedFor = useRef<string | null>(null);
 
   const patch = read?.patch ?? "";
-  const lines = useMemo(() => patchLines(patch), [patch]);
-  const info = useMemo(() => summary(patch), [patch]);
-  const many = info.files.length > 1;
-  const allFolded = many && folded.size >= info.files.length;
+  const syntax = read?.syntax;
+  const files = useMemo(() => parsePatch(patch), [patch]);
+  useEffect(() => {
+    if (foldedFor.current === patch) return;
+    foldedFor.current = patch;
+    setFolded(foldedAtFirst(files));
+  }, [patch, files]);
+
+  const info = useMemo(() => {
+    let added = 0;
+    let deleted = 0;
+    for (const file of files) {
+      added += file.added;
+      deleted += file.removed;
+    }
+    return { added, deleted };
+  }, [files]);
+  const many = files.length > 1;
+  const allFolded = many && files.every((file) => folded.has(file.path));
   const path = spec?.kind === "work" ? spec.path : undefined;
+  const root = spec?.root;
+  const toggle = useCallback(
+    (at: string) =>
+      setFolded((had) => {
+        const next = new Set(had);
+        if (!next.delete(at)) next.add(at);
+        return next;
+      }),
+    [],
+  );
+  // The rows are made again only when what they open changes: a scroll asks for rows, not for these.
+  const openFile = useCallback(
+    (file: FileDiff) => {
+      if (root !== undefined) void reveal(root, file.path, null).catch(swallow);
+    },
+    [root],
+  );
+  const openLine = useCallback(
+    (file: FileDiff, line: number) => {
+      if (root !== undefined) void reveal(root, file.path, line).catch(swallow);
+    },
+    [root],
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, color: t.text }}>
@@ -950,7 +963,7 @@ export function Diff({ tab }: RendererProps) {
           {path ?? spec?.title ?? "Diff"}
         </text>
         {spec?.kind === "work" && spec.path === undefined ? null : spec?.kind === "work" && spec.side === "staged" ? <Tag text="Staged" /> : null}
-        {many ? <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap" }}>{`${count(info.files.length)} files`}</text> : null}
+        {many ? <text style={{ fontSize: 12, color: t.faint, whiteSpace: "nowrap" }}>{`${count(files.length)} files`}</text> : null}
         {info.added > 0 ? <text style={{ fontSize: 12, color: t.success, whiteSpace: "nowrap" }}>{`+${count(info.added)}`}</text> : null}
         {info.deleted > 0 ? <text style={{ fontSize: 12, color: t.error, whiteSpace: "nowrap" }}>{`−${count(info.deleted)}`}</text> : null}
         <div style={{ flexGrow: 1 }} />
@@ -959,7 +972,7 @@ export function Diff({ tab }: RendererProps) {
             name={allFolded ? "chevron_down" : "chevron_up_down"}
             label={allFolded ? "Open every file" : "Fold every file"}
             on={false}
-            onClick={() => setFolded(allFolded ? new Set() : new Set(info.files))}
+            onClick={() => setFolded(allFolded ? new Set() : new Set(files.map((file) => file.path)))}
           />
         ) : null}
         {spec?.kind === "work" && path !== undefined ? (
@@ -977,30 +990,14 @@ export function Diff({ tab }: RendererProps) {
           <text style={{ fontSize: 13, color: t.faint }}>No changes</text>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll", backgroundColor: t.editor, borderRadius: m.radiusSmall }}>
-          {lines.map((line, index) => {
-            if (line.file !== null && folded.has(line.file) && line.kind !== "file") return null;
-            const wash = line.kind === "add" ? (t.diffAdd ?? t.active) : line.kind === "del" ? (t.diffDel ?? t.selected) : undefined;
-            return (
-              <div
-                key={index}
-                onClick={
-                  line.file === null || line.kind !== "file"
-                    ? undefined
-                    : () =>
-                        setFolded((had) => {
-                          const next = new Set(had);
-                          if (!next.delete(line.file!)) next.add(line.file!);
-                          return next;
-                        })
-                }
-                style={{ display: "flex", flexShrink: 0, paddingLeft: 8, paddingRight: 8, cursor: line.kind === "file" ? "pointer" : "default", backgroundColor: wash }}
-              >
-                <text style={{ fontSize: m.fontSize - 1, color: line.kind === "file" || line.kind === "hunk" ? t.muted : t.text, whiteSpace: "nowrap" }}>{line.text}</text>
-              </div>
-            );
-          })}
-        </div>
+        <PatchView
+          files={files}
+          folded={folded}
+          syntax={syntax}
+          onToggle={toggle}
+          onOpen={root === undefined ? undefined : openFile}
+          onLine={root === undefined ? undefined : openLine}
+        />
       )}
     </div>
   );

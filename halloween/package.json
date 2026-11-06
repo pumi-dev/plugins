@@ -1,0 +1,81 @@
+{
+  "name": "pumi-halloween",
+  "displayName": "Halloween",
+  "version": "0.2.0",
+  "license": "GPL-3.0-or-later",
+  "description": "A UI theme: pumi on Halloween night. Night purple lit in pumpkin orange, jack-o'-lanterns for working agents and ghosts for blocked ones, menus and questions on gravestones, and bats, cobwebs, fog and a spider over the window's edges. A ghost rises when an agent needs you and lightning strikes when one fails.",
+  "keywords": [
+    "theme",
+    "halloween",
+    "dark",
+    "spooky",
+    "agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pumi-dev/plugins",
+    "directory": "halloween"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  },
+  "pumi": {
+    "name": "halloween",
+    "owner": "pumi_dev",
+    "api": 1,
+    "minPumi": "0.44.0",
+    "icon": "icon.png",
+    "images": [
+      {
+        "path": "preview.svg",
+        "alt": "pumi on Halloween night: a jack-o'-lantern tab at work, a ghost tab waiting, a gravestone question, bats and a spider on its web"
+      }
+    ],
+    "themes": [
+      "themes/halloween"
+    ],
+    "contributes": {
+      "options": {
+        "critters": {
+          "type": "boolean",
+          "default": true,
+          "label": "Bats, cobwebs and the spider",
+          "desc": "Bats crossing the top of the window, cobwebs in two corners and a spider on its thread.",
+          "group": "Halloween"
+        },
+        "fog": {
+          "type": "boolean",
+          "default": true,
+          "label": "Fog",
+          "desc": "A faint fog drifting along the bottom of the window.",
+          "group": "Halloween"
+        },
+        "scares": {
+          "type": "boolean",
+          "default": true,
+          "label": "Scares when agents change",
+          "desc": "A ghost rises when an agent needs you, lightning strikes when one fails, and bats fly out when one is done.",
+          "group": "Halloween"
+        },
+        "pane_outline": {
+          "type": "boolean",
+          "default": true,
+          "label": "Outline the focused pane",
+          "desc": "A pumpkin-orange edge on the pane with the focus.",
+          "group": "Panes"
+        }
+      },
+      "slots": {
+        "window.overlay": {
+          "component": "Night"
+        }
+      }
+    }
+  }
+}

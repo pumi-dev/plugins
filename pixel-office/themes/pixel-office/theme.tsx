@@ -1,10 +1,10 @@
-// Pixel Office: pumi as a pixel office you walk around: wood floors,
-// carpeted rooms with their names on signs, dark name tags, framed game boxes and a pixel font. A
-// desk for every view of every session (or every tab), each with its live screen; sit at one and
-// its real views open on the monitor. Light is the office by day, dark the office at night.
+// Pixel Office: pumi as a pixel office you walk around: wood floors, tiled sidebars, dark name
+// tags, framed game boxes and a pixel font. A desk for every view of every session (or every tab),
+// each with its live screen; sit at one and its real views open on the monitor. The sessions are
+// listed down the right. Light is the office by day, dark the office at night.
 import { defineTheme } from "pumi"
 import { PARTS } from "./parts.tsx"
-import { Office, Starting } from "./window.tsx"
+import { Office, SESSIONS, Starting } from "./window.tsx"
 
 /** What both looks share: the room's status colours. */
 const STATUS = {
@@ -168,6 +168,8 @@ export default defineTheme({
   fonts: [`${import.meta.dir}/fonts/PixelifySans.ttf`],
   metrics: { fontSize: 13, radius: 3, radiusSmall: 2 },
   components: { ...PARTS, Window: Office, Starting },
+  // The sidebar down the right (⌘⌥B): the sessions, and every plugin's panel under them.
+  docks: { [SESSIONS]: { title: "Sessions", size: 270, min: 200, max: 560, panels: ["*"] } },
   tooltip: (tokens) => ({
     backgroundColor: tokens.tag,
     color: tokens.tagText,

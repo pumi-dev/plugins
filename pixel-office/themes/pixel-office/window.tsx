@@ -1,22 +1,25 @@
-// Pixel Office: pumi as a pixel office you walk around. Every session is a carpeted
-// room on the floor with its name on a plate, and every view in it is a desk — or, with "One desk
-// per tab" on, every tab — whose little screen shows the tab in front of it, live, its agent
-// sitting at it with a bubble that says what it is doing. The whole app is in the room at once.
+// Pixel Office: pumi as a pixel office you walk around. Every view of every session is a desk —
+// or, with "One desk per tab" on, every tab — whose little screen shows the tab in front of it,
+// live, its agent sitting at it with a bubble that says what it is doing. The whole app is in the
+// room at once; the desks of the sessions not in front are a little dimmer.
 //
 // It plays like a game: arrow keys or WASD walk you (brisk; you slide along what you bump into), a
 // click walks you there in a moment, and walking up to something lights it and says which key uses
 // it — X (or E, Enter, Space) sits you at a desk and opens its monitor with the real views, opens
 // the lobby, pours a coffee (Settings) or opens the door to your sessions. 1–5 are emotes.
 //
-// The plugins are all here: the lobby down the left (⌘B, or the bookshelf) holds the players and
-// every plugin's panel on a notice board; the top right the minimap; the bar along the foot their
-// status views beside the hotbar; and their overlays, menus (a desk's right click is its view's
-// and its tab's menu) and dialogs are the office's pixel boxes.
+// The lobby down the left (⌘B, or the bookshelf) holds your coworkers, the tabs with a status.
+// The sidebar down the right (⌘⌥B) holds the sessions — a press on one puts it in front — and,
+// under them, the session in front's header and every plugin's panel on a notice board. The top
+// right of the floor has the minimap; the bar along the foot the plugins' status views beside the
+// hotbar; and their overlays, menus (a desk's right click is its view's and its tab's menu) and
+// dialogs are the office's pixel boxes.
 import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
-import { Icon, motion, useHover, useNow, useTheme } from "pumi"
+import { Icon, motion, useHover, useNow, useTheme, type Tokens } from "pumi"
 import {
   call,
   commands,
+  Dock,
   prompt,
   renderComponent,
   useApp,
@@ -24,7 +27,9 @@ import {
   useComponents,
   useFocusedTab,
   useLayout,
+  useDock,
   useLocal,
+  useMenu,
   useSession,
   useSessions,
   useSidebar,
@@ -41,8 +46,8 @@ import {
 import { BuildPanel, Ghost, Lighting, PieceView, WALLS, floorOf, lightNow, type Fx, type Light } from "./build.tsx"
 import { KIND, bodyOf, keepAt, newId, placeOf, seatOf, spotOf, starter, type Piece } from "./furniture.ts"
 import { Game, isWalkKey, near, type You } from "./game.ts"
-import { Bubble, Cursor, FONT, Keycap, LOOKS, Nametag, RoomLabel, Slot, Sprite, WideSlot, art, box, sitArt, useBeat, useFloorArt, walkArt } from "./kit.tsx"
-import { Point, RoomContext } from "./parts.tsx"
+import { Bubble, Cursor, FONT, Keycap, LOOKS, Nametag, RoomLabel, Sign, Slot, Sprite, WideSlot, art, box, sitArt, useBeat, useFloorArt, walkArt } from "./kit.tsx"
+import { Coworkers, Point, RoomContext } from "./parts.tsx"
 import {
   CELL_H,
   CELL_W,
@@ -56,8 +61,8 @@ import {
   propBody,
   propSpot,
   statusOf,
+  type Desks,
   type Plan,
-  type Pod,
   type Prop,
   type Pt,
   type Rect,
@@ -82,6 +87,10 @@ const USE_KEYS = new Set(["x", "e", "enter", "space"])
 /** How far a press may wander before it is a drag. */
 const DRAG_SLOP = 4
 const OFFICE = "pumi_dev/pixel-office"
+/** The sidebar down the right: the theme's dock (`docks` in theme.tsx), ⌘⌥B. */
+export const SESSIONS = "secondary_sidebar"
+/** How bright a desk of a session not in front is. */
+const AWAY = 0.7
 
 /** "Press X to …", over what you stand by: a framed box that fades in, then bobs. */
 function Prompt({ x, y, label }: { x: number; y: number; label: string }) {
@@ -119,65 +128,18 @@ function Room({ width, height, floor, wall, onGround }: { width: number; height:
   )
 }
 
-/** A session's room: a carpet with a rim, and its name on the plate over its top edge. */
-function Carpet({ pod }: { pod: Pod }) {
-  const t = useTheme()
-  const here = useSession()
-  const window = useWindow()
-  const carpet = useFloorArt("carpet")
-  const current = pod.session.workspace_id === here?.workspace_id
-  const status = pod.session.status
-  const dot = status ? (t[`status.${status}`] ?? t["status.unknown"]) : t.success
-  return (
-    <div style={{ position: "absolute", left: pod.x, top: pod.y, width: pod.width, height: pod.height, zIndex: 2, pointerEvents: "none" }}>
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 30,
-          width: pod.width,
-          height: pod.height - 30,
-          borderRadius: 3,
-          borderWidth: 2,
-          borderColor: current ? t.roomRing : t.roomRim,
-          backgroundColor: t.carpetFloor,
-          backgroundImage: { src: carpet.src, repeat: "repeat", size: carpet.size },
-          imageRendering: "pixelated",
-          boxShadow: { offsetX: 0, offsetY: 3, blurRadius: 0, spreadRadius: 0, color: t.drop },
-          pointerEvents: "none",
-        }}
-      />
-      <div style={{ position: "absolute", left: 12, top: 18, display: "flex", flexDirection: "row" }}>
-        <RoomLabel
-          dot={dot}
-          count={pod.seats.length}
-          active={current}
-          title={current ? pod.session.label : `${pod.session.label} — make it the session in front`}
-          onClick={() => {
-            if (!current) window.show(pod.session.workspace_id)
-          }}
-        >
-          {pod.session.label || "Session"}
-        </RoomLabel>
-      </div>
-    </div>
-  )
-}
-
-/** What stands where a pod has room to spare, in the same order each time. */
+/** What stands where the desks' rows have room to spare, in the same order each time. */
 const DECOR = [
   { src: plantArt, w: 36, h: 48, top: 46 },
   { src: coffeeArt, w: 32, h: 48, top: 46 },
   { src: art("decor/aquarium"), w: 68, h: 60, top: 40 },
 ]
 
-/** The places in a pod's grid past its desks and its free desk. */
-function spareCells(pod: Pod): Pt[] {
+/** The places in the desks' last row past the desks and the free desk. */
+function spareCells(desks: Desks): Pt[] {
   const out: Pt[] = []
-  const first = pod.cells[0]
-  if (!first) return out
-  for (let i = pod.cells.length; i < pod.cols * pod.down; i++) {
-    out.push({ x: first.x + Math.floor(i / pod.down) * CELL_W, y: first.y + (i % pod.down) * CELL_H })
+  for (let i = desks.cells.length; i < desks.cols * desks.down; i++) {
+    out.push({ x: desks.x + (i % desks.cols) * CELL_W, y: desks.y + Math.floor(i / desks.cols) * CELL_H })
   }
   return out
 }
@@ -232,7 +194,7 @@ function deskTitle(seat: Seat): string {
   return cwd ? cwd.split("/").pop() || "/" : `${viewTitle(seat)} · ${seat.i}`
 }
 
-/** What a player's name tag says: its tab's title as the tab bar has it (what the agent calls its
+/** What a coworker's name tag says: its tab's title as the tab bar has it (what the agent calls its
  *  session, `π - Fixing the build - pumi`), else the tab's label. */
 function agentName(tab: { terminal_title?: string | null; label?: string | null }): string {
   return tab.terminal_title || tab.label || ""
@@ -319,6 +281,8 @@ interface DeskProps {
   sitting: boolean
   lit: boolean
   peekLeft: boolean
+  /** Its session is not the one in front: drawn a little dimmer, until you point at it or walk up. */
+  away: boolean
   on: DeskHandlers
 }
 
@@ -327,7 +291,7 @@ interface DeskProps {
  * view, the bubble and the name tag. Pressed and dragged it moves; clicked, you walk over and sit;
  * walked up to (or pointed at) its screen opens big beside it.
  */
-const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on }: DeskProps) {
+const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, away, on }: DeskProps) {
   const t = useTheme()
   const key = deskKey(seat)
   const focused = useFocusedTab(seat.view.view_id)
@@ -358,7 +322,7 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
         height: CELL_H,
         // Drawn in depth order with you: behind you when you stand in front, over you behind it.
         zIndex: dragging ? 32000 : over || lit ? 31000 : Math.round(at.y + 96),
-        opacity: dragging ? 0.85 : 1,
+        opacity: dragging ? 0.85 : away && !over && !lit && !sitting ? AWAY : 1,
         pointerEvents: "none",
       }}
     >
@@ -446,8 +410,8 @@ const Desk = memo(function Desk({ seat, at, dragging, sitting, lit, peekLeft, on
   )
 })
 
-/** The desk a room always has free: walking to it (or a click) makes a new view in its session. */
-function FreeDesk({ at, lit, onUse }: { at: Pt; lit: boolean; onUse(): void }) {
+/** The free desk, after all the others: walking to it (or a click) makes a new view in the session in front. */
+function FreeDesk({ at, lit, session, onUse }: { at: Pt; lit: boolean; session: string; onUse(): void }) {
   const t = useTheme()
   const [over, hover] = useHover()
   return (
@@ -457,16 +421,19 @@ function FreeDesk({ at, lit, onUse }: { at: Pt; lit: boolean; onUse(): void }) {
         event?.stopPropagation?.()
         onUse()
       }}
-      title="New desk: a new view in this session"
+      title={`New desk: a new view in ${session}`}
       style={{ position: "absolute", left: at.x, top: at.y, width: CELL_W, height: 130, cursor: "pointer", zIndex: Math.round(at.y + 96), opacity: over || lit ? 1 : 0.6 }}
     >
-      {lit ? <div style={{ position: "absolute", left: DESK_ART.x - 4, top: DESK_ART.y - 4, width: DESK_ART.w + 8, height: DESK_ART.h + 8, borderRadius: 3, borderWidth: 2, borderColor: t.slotActive }} /> : null}
-      <Sprite src={deskArt} width={DESK_ART.w} height={DESK_ART.h} style={{ position: "absolute", left: DESK_ART.x, top: DESK_ART.y }} />
-      <Sprite src={chairArt} width={28} height={24} style={{ position: "absolute", left: 74, top: 72 }} />
-      <div style={{ position: "absolute", left: 0, top: 100, width: CELL_W, display: "flex", flexDirection: "row", justifyContent: "center" }}>
-        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 19, paddingLeft: 7, paddingRight: 8, borderRadius: 6, backgroundColor: t.tagDim }}>
-          <Icon name="plus" size={10} color={t.tagText} />
-          <text style={{ fontSize: 12, color: t.tagText }}>New desk</text>
+      {/* What it draws passes the press to the desk: a filled or placed box would take it. */}
+      <div style={{ position: "absolute", left: 0, top: 0, width: CELL_W, height: 130, pointerEvents: "none" }}>
+        {lit ? <div style={{ position: "absolute", left: DESK_ART.x - 4, top: DESK_ART.y - 4, width: DESK_ART.w + 8, height: DESK_ART.h + 8, borderRadius: 3, borderWidth: 2, borderColor: t.slotActive }} /> : null}
+        <Sprite src={deskArt} width={DESK_ART.w} height={DESK_ART.h} style={{ position: "absolute", left: DESK_ART.x, top: DESK_ART.y }} />
+        <Sprite src={chairArt} width={28} height={24} style={{ position: "absolute", left: 74, top: 72 }} />
+        <div style={{ position: "absolute", left: 0, top: 100, width: CELL_W, display: "flex", flexDirection: "row", justifyContent: "center" }}>
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, height: 19, paddingLeft: 7, paddingRight: 8, borderRadius: 6, backgroundColor: t.tagDim }}>
+            <Icon name="plus" size={10} color={t.tagText} />
+            <text style={{ fontSize: 12, color: t.tagText }}>New desk</text>
+          </div>
         </div>
       </div>
     </div>
@@ -508,9 +475,10 @@ function Camera({ game, children }: { game: Game; children: ReactNode }) {
   return <div style={{ position: "absolute", left: 0, top: -game.cam, width: "100%", height: game.size.height, pointerEvents: "none" }}>{children}</div>
 }
 
-/** The floor from above, in a framed box: the rooms, the desks by how they are, you blinking. */
+/** The floor from above, in a framed box: the desks by how they are (the other sessions' dimmer), you blinking. */
 function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt): void }) {
   const t = useTheme()
+  const here = useWindow().session
   const you = useSyncExternalStore(game.subscribe, game.get)
   const cam = useSyncExternalStore(game.subscribe, () => game.cam)
   const blink = useBeat(450) % 2 === 0
@@ -522,22 +490,26 @@ function Minimap({ game, room, onWalk }: { game: Game; room: Plan; onWalk(at: Pt
     <div onClick={(event: any) => event?.stopPropagation?.()} style={{ display: "flex", flexShrink: 0, padding: 4, ...box(t, "panel") }}>
       <div style={{ position: "relative", width: W, height: H, overflow: "hidden", backgroundColor: t["office.floor"], borderWidth: 1, borderColor: t.roomRim }}>
         <div style={{ position: "absolute", left: 0, top: 0, width: W, height: WALL * k, backgroundColor: t.slot }} />
-        {room.pods.map((pod) => (
-          <div key={pod.session.workspace_id} style={{ position: "absolute", left: pod.x * k, top: (pod.y + 30) * k, width: pod.width * k, height: (pod.height - 30) * k, backgroundColor: t.carpetFloor }} />
-        ))}
-        {room.pods.flatMap((pod) =>
-          pod.seats.map((seat, i) => {
-            const status = statusOf(seat, tabs)
-            const cell = pod.cells[i]!
-            return (
-              <div
-                key={deskKey(seat)}
-                onClick={() => onWalk(deskSpot(cell))}
-                style={{ position: "absolute", left: (cell.x + DESK_ART.x) * k, top: (cell.y + DESK_ART.y) * k, width: Math.max(3, DESK_ART.w * k), height: Math.max(2, DESK_ART.h * k), backgroundColor: status ? (t[`status.${status}`] ?? t.desk) : t.desk, cursor: "pointer" }}
-              />
-            )
-          }),
-        )}
+        {room.desks.seats.map((seat, i) => {
+          const status = statusOf(seat, tabs)
+          const cell = room.desks.cells[i]!
+          return (
+            <div
+              key={deskKey(seat)}
+              onClick={() => onWalk(deskSpot(cell))}
+              style={{
+                position: "absolute",
+                left: (cell.x + DESK_ART.x) * k,
+                top: (cell.y + DESK_ART.y) * k,
+                width: Math.max(3, DESK_ART.w * k),
+                height: Math.max(2, DESK_ART.h * k),
+                backgroundColor: status ? (t[`status.${status}`] ?? t.desk) : t.desk,
+                opacity: seat.view.workspace_id === here ? 1 : AWAY,
+                cursor: "pointer",
+              }}
+            />
+          )
+        })}
         <div style={{ position: "absolute", left: 0, top: cam * k, width: W, height: game.view * k, borderWidth: 1, borderColor: t.rim }} />
         <div style={{ position: "absolute", left: you.at.x * k - 3, top: you.at.y * k - 5, width: 5, height: 5, backgroundColor: blink ? t.success : t.rim }} />
       </div>
@@ -686,22 +658,41 @@ function DeskMenu({ seat, at, own, onClose }: { seat: Seat; at: Pt; own: ActionI
 
 // ── The lobby ───────────────────────────────────────────────────────────────────────────────
 
-/** The lobby down the left, on tiles: the players and every plugin's panel (`C.Panel`). */
+/** A sidebar's floor: tiles in a rimmed box with a drop under it, as the lobby and the sessions have. */
+function tiled(t: Tokens, tile: { src: string; size: [number, number] }): Record<string, unknown> {
+  return {
+    display: "flex",
+    flexDirection: "column",
+    flexGrow: 1,
+    minHeight: 0,
+    position: "relative",
+    backgroundColor: t.tileFloor,
+    backgroundImage: { src: tile.src, repeat: "repeat", size: tile.size },
+    borderWidth: 2,
+    borderColor: t.roomRim,
+    borderRadius: 3,
+    boxShadow: { offsetX: 0, offsetY: 3, blurRadius: 0, spreadRadius: 0, color: t.drop },
+  }
+}
+
+/** The lobby down the left, on tiles: your coworkers, every tab with a status. */
 function Lobby({ width, setWidth }: { width: number; setWidth(w: number): void }) {
   const t = useTheme()
-  const C = useComponents()
   const tile = useFloorArt("tile")
   const [from, setFrom] = useState<{ x: number; width: number } | undefined>()
   return (
     <div style={{ display: "flex", flexDirection: "column", width, flexShrink: 0, paddingLeft: 10, paddingBottom: 6 }}>
       {/* Over the lobby, the window's top edge: a press and a move there moves the window. */}
       <div style={{ height: 36, flexShrink: 0, appRegion: "drag" }} />
-      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, position: "relative", backgroundColor: t.tileFloor, backgroundImage: { src: tile.src, repeat: "repeat", size: tile.size }, borderWidth: 2, borderColor: t.roomRim, borderRadius: 3, boxShadow: { offsetX: 0, offsetY: 3, blurRadius: 0, spreadRadius: 0, color: t.drop } }}>
+      <div style={tiled(t, tile)}>
         <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", height: 34, alignItems: "center", flexShrink: 0 }}>
           <RoomLabel>Lobby</RoomLabel>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
-          <C.Panel point="panel" />
+        <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center", height: 32, flexShrink: 0 }}>
+          <Sign before={<Icon name="agent" size={10} color={t.signText} />}>Coworkers</Sign>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll" }}>
+          <Coworkers />
         </div>
         <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 4, height: 60, flexShrink: 0, paddingBottom: 4, pointerEvents: "none" }}>
           <Sprite src={plantArt} width={36} height={48} />
@@ -724,14 +715,112 @@ function Lobby({ width, setWidth }: { width: number; setWidth(w: number): void }
   )
 }
 
+// ── The sessions ────────────────────────────────────────────────────────────────────────────
+
+/** A session in the sidebar: what it is doing, its name and how many desks it has. A press puts it
+ *  in front (the floor lights its desks, the panels under the list show it); a right press opens
+ *  its menu (`session.menu`: rename, close, …). */
+function SessionRow({ session, desks }: { session: Session; desks: number }) {
+  const t = useTheme()
+  const window = useWindow()
+  const current = session.workspace_id === window.session
+  const { open, menu } = useMenu("session.menu", { session: session.workspace_id })
+  const dot = session.status ? (t[`status.${session.status}`] ?? t["status.unknown"]) : t.success
+  const label = session.label || session.workspace_id
+  return (
+    <>
+      <div
+        onClick={() => current || window.show(session.workspace_id)}
+        onAuxClick={open}
+        title={current ? `${label}: in front` : `Show ${label}`}
+        style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 7, height: 30, paddingLeft: 8, paddingRight: 8, flexShrink: 0, cursor: "pointer", ...box(t, "slot"), ...(current ? { borderColor: t.slotActive } : {}), hover: { borderColor: t.slotActive } }}
+      >
+        <div style={{ width: 7, height: 7, borderRadius: 4, flexShrink: 0, backgroundColor: dot, pointerEvents: "none" }} />
+        <text style={{ fontSize: 14, color: current ? t.slotText : t.slotTextDim, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{label}</text>
+        <div style={{ flexGrow: 1 }} />
+        <text style={{ fontSize: 12, color: t.faint, flexShrink: 0 }}>{`${desks}`}</text>
+      </div>
+      {menu}
+    </>
+  )
+}
+
+/**
+ * The sidebar down the right, on tiles (the theme's `secondary_sidebar` dock, ⌘⌥B): every session,
+ * a press on one putting it in front, and under them the session in front's header and every
+ * plugin's panel (`C.Panel`), which show that session.
+ */
+function SessionBar() {
+  const t = useTheme()
+  const C = useComponents()
+  const window = useWindow()
+  const tile = useFloorArt("tile")
+  const sessions = useSessions()
+  const views = useApp((s) => s.snapshot?.views ?? [])
+  const newSession = () => {
+    const context = windowContext(window.id)
+    if (context) commands.run("new_workspace", context)
+  }
+  return (
+    <Dock name={SESSIONS} edge="right" style={{ paddingRight: 10, paddingBottom: 6 }} handle={{ left: -8, width: 10, hover: { backgroundColor: `${t.slotActive}66` } }}>
+      {/* Over the sidebar, the window's top edge: a press and a move there moves the window. */}
+      <div style={{ height: 36, flexShrink: 0, appRegion: "drag" }} />
+      <div style={tiled(t, tile)}>
+        <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", height: 34, alignItems: "center", flexShrink: 0 }}>
+          <RoomLabel>Sessions</RoomLabel>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 280, paddingLeft: 8, paddingRight: 8, paddingBottom: 8, flexShrink: 0, overflowY: "scroll" }}>
+          {sessions.map((session) => (
+            <SessionRow key={session.workspace_id} session={session} desks={views.filter((v) => v.workspace_id === session.workspace_id).length} />
+          ))}
+          <div
+            onClick={newSession}
+            title="A new session"
+            style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 26, paddingLeft: 8, paddingRight: 8, flexShrink: 0, cursor: "pointer", borderRadius: 3, hover: { backgroundColor: t.hover } }}
+          >
+            <Icon name="plus" size={11} color={t.muted} />
+            <text style={{ fontSize: 13, color: t.muted }}>New session</text>
+          </div>
+        </div>
+        <div style={{ height: 2, marginLeft: 8, marginRight: 8, flexShrink: 0, backgroundColor: t.roomRim }} />
+        <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, paddingTop: 4 }}>
+          <C.Panel point="panel" />
+        </div>
+      </div>
+    </Dock>
+  )
+}
+
 // ── The bar ─────────────────────────────────────────────────────────────────────────────────
 
 /**
  * The bar along the foot, on the floor: your player card, the hotbar (new desk, decorate, the
- * lobby, settings, one desk per tab, the emotes), and the tray — the agents' counts and the
- * clock.
+ * lobby, the sessions, settings, one desk per tab, the emotes), and the tray — the agents' counts
+ * and the clock.
  */
-function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, onAgent }: { lobby: boolean; look: number; decorating: boolean; onLobby(): void; onLook(): void; onEmote(index: number): void; onDecorate(): void; onAgent(tab: string): void }) {
+function Hud({
+  lobby,
+  sessions,
+  look,
+  decorating,
+  onLobby,
+  onSessions,
+  onLook,
+  onEmote,
+  onDecorate,
+  onAgent,
+}: {
+  lobby: boolean
+  sessions: boolean
+  look: number
+  decorating: boolean
+  onLobby(): void
+  onSessions(): void
+  onLook(): void
+  onEmote(index: number): void
+  onDecorate(): void
+  onAgent(tab: string): void
+}) {
   const t = useTheme()
   const window = useWindow()
   const session = useSession()
@@ -764,7 +853,8 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, padding: 4, flexShrink: 1, minWidth: 0, overflowX: "scroll", ...box(t, "panel") }}>
           <WideSlot icon="plus" label="New desk" onClick={() => run("new_view")} />
           <Slot icon="sparkle" label="Decorate" active={decorating} onClick={onDecorate} />
-          <Slot icon="layout_sidebar_left" label="Lobby: the players and the plugins' panels (⌘B)" active={lobby} onClick={onLobby} />
+          <Slot icon="layout_sidebar_left" label="Lobby: your coworkers (⌘B)" active={lobby} onClick={onLobby} />
+          <Slot icon="layout_sidebar_right" label="Sessions and the plugins' panels (⌘⌥B)" active={sessions} onClick={onSessions} />
           <Slot icon="blocks" label={`One desk per tab: ${perTab ? "on" : "off"}`} active={perTab === true} onClick={() => call("option.set", "pumi_dev.pixel_office.desk_per_tab", !perTab, { scope: "plugin", plugin: OFFICE }).catch(swallow)} />
           <Slot icon="settings" label="Settings" onClick={() => run("settings")} />
           <div style={{ width: 2, height: 30, marginLeft: 2, marginRight: 2, backgroundColor: t.slotRing, flexShrink: 0 }} />
@@ -797,28 +887,12 @@ function Hud({ lobby, look, decorating, onLobby, onLook, onEmote, onDecorate, on
   )
 }
 
-/** Over the floor's top: the session's plate (a press lists the others), the minimap. */
-function TopHud({ left, onDoor, minimap }: { left: number; onDoor(): void; minimap: ReactNode }) {
-  const t = useTheme()
-  const session = useSession()
+/** Over the floor's top right: the minimap. */
+function TopHud({ minimap }: { minimap: ReactNode }) {
   return (
-    <>
-      <div
-        onClick={(event: any) => {
-          event?.stopPropagation?.()
-          onDoor()
-        }}
-        title="Your sessions"
-        style={{ position: "absolute", left, top: 12, zIndex: 45, display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 30, paddingLeft: 8, paddingRight: 8, maxWidth: 260, cursor: "pointer", ...box(t, "panel"), hover: { backgroundColor: t.hover } }}
-      >
-        <div style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: t["office.online"], flexShrink: 0 }} />
-        <text style={{ fontSize: 15, color: t.text, whiteSpace: "nowrap", textOverflow: "ellipsis", flexShrink: 1, minWidth: 0 }}>{session?.label || "pumi"}</text>
-        <Icon name="chevron_up_down" size={11} color={t.muted} />
-      </div>
-      <div onClick={(event: any) => event?.stopPropagation?.()} style={{ position: "absolute", right: 10, top: 10, zIndex: 45, display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
-        {minimap}
-      </div>
-    </>
+    <div onClick={(event: any) => event?.stopPropagation?.()} style={{ position: "absolute", right: 10, top: 10, zIndex: 45, display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
+      {minimap}
+    </div>
   )
 }
 
@@ -839,6 +913,8 @@ export function Office() {
   const wood = useFloorArt("wood")
   const look_ = useAppearance()
   const [lobby, setLobby] = useSidebar()
+  const here = useSession()
+  const right = useDock(SESSIONS)
   const [lobbyWidth, setLobbyWidth] = useLocal<number>("office.lobby.width", 270)
   const [sitting, setSitting] = useState<string | null>(null)
   const [door, setDoor] = useState(false)
@@ -863,7 +939,7 @@ export function Office() {
   // The floor's box, as it was laid out (until then, the window less the lobby and the bar).
   const [box_, setBox] = useState<{ width: number; height: number } | null>(null)
   const now = useNow(60000)
-  const width = Math.max(420, box_?.width ?? size.width - (lobby ? lobbyWidth : 0))
+  const width = Math.max(420, box_?.width ?? size.width - (lobby ? lobbyWidth : 0) - (right.open ? right.size : 0))
   const view = Math.max(200, box_?.height ?? size.height - HUD)
   // The furniture: what you put down, or the starter lounge until you change it.
   const pieces = useMemo(() => stored ?? starter(width), [stored, width])
@@ -893,9 +969,9 @@ export function Office() {
 
   // Where each desk is: its cell, moved by where you dragged it, kept on the floor.
   const clamp = (p: Pt): Pt => ({ x: Math.max(0, Math.min(room.width - CELL_W, p.x)), y: Math.max(WALL - 8, Math.min(room.height - CELL_H, p.y)) })
-  const desks = room.pods.flatMap((pod) => pod.seats.map((seat, i) => ({ seat, key: deskKey(seat), at: clamp(moved[deskKey(seat)] ?? pod.cells[i]!) })))
-  const freeDesks = room.pods.map((pod) => ({ pod, at: pod.cells[pod.seats.length]! }))
-  const spares = room.pods.flatMap(spareCells)
+  const desks = room.desks.seats.map((seat, i) => ({ seat, key: deskKey(seat), at: clamp(moved[deskKey(seat)] ?? room.desks.cells[i]!) }))
+  const freeDesks = [{ at: room.desks.cells[room.desks.seats.length]! }]
+  const spares = spareCells(room.desks)
   const sat = sitting ? desks.find((d) => d.key === sitting)?.seat : undefined
 
   // What you bump into.
@@ -946,7 +1022,10 @@ export function Office() {
       .catch(swallow)
       .finally(() => setFocus((n) => n + 1))
   }
-  const newDesk = (pod: Pod) => call(via(pod.session.workspace_id, "tab.open"), null, {}, { kind: "view", session: pod.session.workspace_id }).catch(swallow)
+  /** A new view in the session in front. */
+  const newDesk = () => {
+    if (here) call(via(here.workspace_id, "tab.open"), null, {}, { kind: "view", session: here.workspace_id }).catch(swallow)
+  }
   const useProp = (prop: Prop) => {
     if (prop.id === "shelf") setLobby((v) => !v)
     else if (prop.id === "coffee") {
@@ -1032,11 +1111,11 @@ export function Office() {
   }
   const spots: Spot[] = [
     ...desks.map((d) => ({ key: `desk:${d.key}`, at: deskSpot(d.at), label: `Sit at ${deskTitle(d.seat)}`, prompt: { x: d.at.x + CELL_W / 2, y: d.at.y - 36 }, use: () => sit(d.seat) })),
-    ...freeDesks.map((d) => ({ key: `free:${d.pod.session.workspace_id}`, at: deskSpot(d.at), label: "Set up a new desk", prompt: { x: d.at.x + CELL_W / 2, y: d.at.y - 16 }, use: () => newDesk(d.pod) })),
+    ...freeDesks.map((d) => ({ key: "free", at: deskSpot(d.at), label: here ? `Set up a new desk in ${here.label || "this session"}` : "Set up a new desk", prompt: { x: d.at.x + CELL_W / 2, y: d.at.y - 16 }, use: newDesk })),
     ...room.props.map((prop) => ({
       key: `prop:${prop.id}`,
       at: propSpot(prop),
-      label: prop.id === "shelf" ? (lobby ? "Close the lobby" : "Open the lobby (plugins)") : prop.id === "coffee" ? "Coffee & settings" : "Go to another session",
+      label: prop.id === "shelf" ? (lobby ? "Close the lobby" : "Open the lobby (coworkers)") : prop.id === "coffee" ? "Coffee & settings" : "Go to another session",
       prompt: { x: prop.x + prop.w / 2, y: prop.y - 30 },
       use: () => useProp(prop),
     })),
@@ -1146,7 +1225,7 @@ export function Office() {
       <div style={{ display: "flex", flexDirection: "column", position: "relative", width: "100%", height: "100%", backgroundColor: t.window, backgroundImage: { src: wood.src, repeat: "repeat", size: wood.size }, color: t.text, fontSize: 13, fontFamily: FONT, imageRendering: "pixelated" }}>
         <div style={{ display: "flex", flexDirection: "row", flexGrow: 1, minHeight: 0 }}>
           {lobby ? <Lobby width={lobbyWidth} setWidth={setLobbyWidth} /> : null}
-          <div style={{ display: "flex", flexGrow: 1, minWidth: 0, paddingLeft: lobby ? 10 : 0 }}>
+          <div style={{ display: "flex", flexGrow: 1, minWidth: 0, paddingLeft: lobby ? 10 : 0, paddingRight: right.open ? 10 : 0 }}>
             {/* The view of the floor: it takes the keys while nothing over it does. */}
             <div
               tabIndex={0}
@@ -1194,9 +1273,6 @@ export function Office() {
                     g.walkTo(floorAt(event))
                   }}
                 />
-                {room.pods.map((pod) => (
-                  <Carpet key={pod.session.workspace_id} pod={pod} />
-                ))}
                 {spares.map((at, i) => (
                   <Decor key={`decor${i}`} at={at} index={i} />
                 ))}
@@ -1230,10 +1306,10 @@ export function Office() {
                   />
                 ))}
                 {freeDesks.map((d) => (
-                  <FreeDesk key={`free${d.pod.session.workspace_id}`} at={d.at} lit={nearKey === `free:${d.pod.session.workspace_id}`} onUse={() => goUse(spots.find((s) => s.key === `free:${d.pod.session.workspace_id}`))} />
+                  <FreeDesk key="free" at={d.at} lit={nearKey === "free"} session={here?.label || "this session"} onUse={() => goUse(spots.find((s) => s.key === "free"))} />
                 ))}
                 {desks.map((d) => (
-                  <Desk key={d.key} seat={d.seat} at={d.at} dragging={dragged === d.key} sitting={sitting === d.key} lit={nearKey === `desk:${d.key}`} peekLeft={d.at.x + CELL_W + 340 > room.width} on={deskOn} />
+                  <Desk key={d.key} seat={d.seat} at={d.at} dragging={dragged === d.key} sitting={sitting === d.key} lit={nearKey === `desk:${d.key}`} peekLeft={d.at.x + CELL_W + 340 > room.width} away={d.seat.view.workspace_id !== here?.workspace_id} on={deskOn} />
                 ))}
                 <Player game={g} look={look % LOOKS} emote={emote} />
                 <Lighting
@@ -1262,9 +1338,9 @@ export function Office() {
                 ) : null}
                 {nearSpot && !overlay && !dragged && !decorating ? <Prompt x={nearSpot.prompt.x} y={nearSpot.prompt.y} label={nearSpot.label} /> : null}
               </Camera>
-              {/* The window's top edge moves it, under the plate and the minimap, which keep their presses. */}
+              {/* The window's top edge moves it, under the minimap, which keeps its presses. */}
               <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: 28, zIndex: 44, appRegion: "drag" }} />
-              <TopHud left={lobby ? 10 : 80} onDoor={() => setDoor(true)} minimap={<Minimap game={g} room={room} onWalk={(at) => g.walkTo(at)} />} />
+              <TopHud minimap={<Minimap game={g} room={room} onWalk={(at) => g.walkTo(at)} />} />
               {/* How to play, until you have walked somewhere. */}
               {!kept && !decorating ? (
                 <div style={{ position: "absolute", left: 12, bottom: 12, display: "flex", flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: 8, paddingRight: 10, height: 34, zIndex: 44, ...box(t, "dialog") }}>
@@ -1275,14 +1351,19 @@ export function Office() {
                   <Keycap>1–5</Keycap>
                   <text style={{ fontSize: 13, color: t.text, paddingRight: 4 }}>emote</text>
                   <Keycap>⌘B</Keycap>
-                  <text style={{ fontSize: 13, color: t.text }}>lobby</text>
+                  <text style={{ fontSize: 13, color: t.text, paddingRight: 4 }}>lobby</text>
+                  <Keycap>⌘⌥B</Keycap>
+                  <text style={{ fontSize: 13, color: t.text }}>sessions</text>
                 </div>
               ) : null}
             </div>
           </div>
+          <SessionBar />
         </div>
         <Hud
           lobby={lobby}
+          sessions={right.open}
+          onSessions={right.toggle}
           look={look % LOOKS}
           decorating={decorating}
           onLobby={() => setLobby((v) => !v)}

@@ -23,6 +23,7 @@ import {
   imageSource,
   outputShown,
   patchOf,
+  previewSide,
   slashHints,
   toolLine,
   toolOpensByDefault,
@@ -333,4 +334,16 @@ test("a timeline keeps its first row as entries come at its foot", () => {
   expect(entriesFrom(entries, "b", 2)).toEqual({ shown: entries.slice(1), hidden: 1 });
   // Gone (a rewind): the last page again.
   expect(entriesFrom(entries, "x", 2)).toEqual({ shown: entries.slice(3), hidden: 3 });
+});
+
+test("a picture's preview opens above its chip, and under it where nothing fits above", () => {
+  expect(previewSide(600)).toBe("top");
+  expect(previewSide(400)).toBe("top");
+  // A chip whose place is not known yet opens its picture above it, like every chip that has room.
+  expect(previewSide(Number.MAX_SAFE_INTEGER)).toBe("top");
+  // Near the top of the window: the picture goes under the chip instead.
+  expect(previewSide(100)).toBe("bottom");
+  expect(previewSide(0)).toBe("bottom");
+  // A taller preview needs more room above it.
+  expect(previewSide(300, 400)).toBe("bottom");
 });

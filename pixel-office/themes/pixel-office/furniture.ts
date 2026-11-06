@@ -1,6 +1,6 @@
 // The office's furniture: what you can put on the floor in Decorate mode, what each piece does when
 // you walk up to it and press X, and the lounge every office starts with. A piece is kept with its
-// place: below the pods it is kept relative to the lounge (so the lounge moves down as the pods
+// place: below the desks it is kept relative to the lounge (so the lounge moves down as the desks
 // grow), above it on the floor itself.
 import type { Plan, Pt, Rect } from "./plan.ts"
 

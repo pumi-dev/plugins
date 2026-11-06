@@ -320,7 +320,8 @@ export function BuildPanel({
   )
   const swatch = (key: string, active: boolean, onClick: () => void, label: string, body: ReactNode) => (
     <div key={key} onClick={onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, width: 76, cursor: "pointer" }}>
-      <div style={{ width: 64, height: 44, overflow: "hidden", borderRadius: 3, borderWidth: 2, borderColor: active ? t.slotActive : t.rim }}>{body}</div>
+      {/* A filled box takes the mouse in pumi, so the art passes clicks through to the swatch. */}
+      <div style={{ width: 64, height: 44, overflow: "hidden", borderRadius: 3, borderWidth: 2, borderColor: active ? t.slotActive : t.rim, pointerEvents: "none" }}>{body}</div>
       <text style={{ fontSize: 12, color: active ? t.text : t.muted, whiteSpace: "nowrap" }}>{label}</text>
     </div>
   )

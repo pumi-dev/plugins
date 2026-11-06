@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Halloween's icon: a jack-o'-lantern lit from inside, on the night, the moon behind it. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22143a"/><stop offset="1" stop-color="#0e0a14"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.6" r="0.5"><stop offset="0" stop-color="#ff7a1a" stop-opacity="0.35"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="378" cy="128" r="44" fill="#fff3c4" opacity="0.9"/>
+  <circle cx="256" cy="300" r="200" fill="url(#glow)"/>
+  <path d="M256 150c-6-40 12-68 48-80" stroke="#6fae2e" stroke-width="26" fill="none" stroke-linecap="round"/>
+  <ellipse cx="180" cy="300" rx="96" ry="124" fill="#d4560b"/>
+  <ellipse cx="332" cy="300" rx="96" ry="124" fill="#d4560b"/>
+  <ellipse cx="256" cy="300" rx="94" ry="138" fill="#ff7a1a"/>
+  <path d="M150 276l42-56 42 56zM278 276l42-56 42 56z" fill="#ffd84a"/>
+  <path d="M146 330q110 86 220 0l-28 52-32-24-22 32-22-32-22 32-22-32-32 24z" fill="#ffd84a"/>
+</svg>

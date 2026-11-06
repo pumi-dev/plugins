@@ -40,7 +40,7 @@ export function QueueCard({ queue, onDelete, onEdit, onSteer, onSendNow, onClear
   const hint = { fontSize: type.small, color: t.faint, whiteSpace: "nowrap" as const, flexShrink: 0 };
   const iconButton: StyleDesc = { display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, flexShrink: 0, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } };
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
+    <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, minWidth: 0, borderRadius: m.radius, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface }}>
       <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 30, paddingLeft: 4, paddingRight: 8 }}>
         <Press
           aria-label={count}
@@ -74,11 +74,11 @@ export function QueueCard({ queue, onDelete, onEdit, onSteer, onSendNow, onClear
               <div
                 key={each.id}
                 role="listitem"
-                style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 0, paddingLeft: 12, paddingRight: 8, paddingTop: 8, paddingBottom: 8, borderTopWidth: index > 0 ? 1 : 0, borderColor: t.border }}
+                style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 0, minWidth: 0, paddingLeft: 12, paddingRight: 8, paddingTop: 8, paddingBottom: 8, borderTopWidth: index > 0 ? 1 : 0, borderColor: t.border }}
               >
                 <div style={{ width: 7, height: 7, flexShrink: 0, borderRadius: 4, backgroundColor: next ? t.accent : t.faint }} />
                 <div style={{ display: "flex", flexGrow: 1, flexShrink: 1, minWidth: 0 }}>
-                  <text style={{ fontFamily: type.mono, fontSize: type.code, lineHeight: type.codeLine, color: t.text, whiteSpace: "normal", lineClamp: 6 }}>{words}</text>
+                  <text style={{ fontFamily: type.mono, fontSize: type.code, lineHeight: type.codeLine, color: t.text, whiteSpace: "normal", lineClamp: 3 }}>{words}</text>
                 </div>
                 <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 }}>
                   {onDelete ? (

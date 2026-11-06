@@ -422,3 +422,22 @@ test("a queued prompt steered mid-turn goes to the agent, and one sent now goes 
   host.send({ t: "stop" });
   expect(await host.proc.exited).toBe(0);
 }, 20_000);
+
+test("claude: a queued prompt sent now stops the turn and goes next", async () => {
+  const host = await startHost("new", "claude");
+  await until(() => host.state?.phase === "ready");
+  expect(host.state?.canSteer).toBe(true);
+  await host.command({ type: "prompt", id: newCommandId(), text: "wait" });
+  await until(() => host.transcript?.status === "working");
+  await host.command({ type: "prompt", id: newCommandId(), text: "quick" });
+  await until(() => host.transcript?.queue.length === 1);
+  const queued = host.transcript!.queue[0]!;
+  const ack = (await host.command({ type: "sendNow", id: newCommandId(), queued: queued.id }))!;
+  expect(ack.rejected).toBeUndefined();
+  await until(() => (host.transcript?.entries ?? []).filter((e) => e.kind === "turn").length >= 2);
+  expect((host.transcript?.entries ?? []).filter((e) => e.kind === "turn")[0]?.turn?.stop).toBe("cancelled");
+  expect(host.transcript?.queue).toEqual([]);
+
+  host.send({ t: "stop" });
+  expect(await host.proc.exited).toBe(0);
+}, 20_000);

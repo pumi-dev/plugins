@@ -520,7 +520,7 @@ export function Composer({
 
   const canSend = !disabled && draft.trim() !== "";
   const who = agent ?? "the agent";
-  const hint = `Ask anything${[commands.length > 0 ? "/ for commands" : undefined, onMentions ? "@ for context" : undefined].filter(Boolean).map((each) => `, ${each}`).join("")}…`;
+  const hint = `Write your prompt here. Ask anything${[commands.length > 0 ? "/ for commands" : undefined, onMentions ? "@ for context" : undefined].filter(Boolean).map((each) => `, ${each}`).join("")}…`;
   const option = (category: ConfigOption["category"]) => options.find((each) => each.category === category && ((each.choices?.length ?? 0) > 0 || typeof each.current === "boolean"));
   const thought = option("thought_level");
   const mode = option("mode");
@@ -572,18 +572,23 @@ export function Composer({
       // Dropped here unless the chat around takes drops for it (`dropped`): one drop, taken once.
       onFileDrop={dropped ? undefined : (e: any) => take(e?.paths ?? [])}
       onKeyDown={onQueueKey}
-      style={{ display: "flex", flexDirection: "column", gap: 8, flexGrow: fill ? 1 : 0, flexShrink: fill ? 1 : 0, minHeight: 0, paddingLeft: 10, paddingRight: 8, paddingTop: 8, paddingBottom: 8, borderTopWidth: fill || shrink !== null ? 0 : 1, borderColor: t.border, backgroundColor: t.editor }}
+      style={{ display: "flex", flexDirection: "column", gap: 8, flexGrow: fill ? 1 : 0, flexShrink: fill ? 1 : 0, minHeight: 0, borderTopWidth: fill || shrink !== null ? 0 : 1, borderColor: t.border, backgroundColor: t.surface }}
     >
       {queue.length > 0 ? (
-        <QueueCard
-          queue={queue}
-          onDelete={onUnqueue}
-          onEdit={onUnqueue && !disabled ? editQueued : undefined}
-          onSteer={onSteer && !disabled ? onSteer : undefined}
-          onSendNow={onSendNow && !disabled ? onSendNow : undefined}
-          onClear={onUnqueue ? clearQueue : undefined}
-        />
+        // A column, so the card takes the chat's width: a row sizes it from its own text, and a
+        // long queued prompt then pushes the card (and its buttons) past the chat's edge.
+        <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, minWidth: 0, paddingLeft: 10, paddingRight: 8, paddingTop: 8 }}>
+          <QueueCard
+            queue={queue}
+            onDelete={onUnqueue}
+            onEdit={onUnqueue && !disabled ? editQueued : undefined}
+            onSteer={onSteer && !disabled ? onSteer : undefined}
+            onSendNow={onSendNow && !disabled ? onSendNow : undefined}
+            onClear={onUnqueue ? clearQueue : undefined}
+          />
+        </div>
       ) : null}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, flexGrow: fill ? 1 : 0, flexShrink: fill ? 1 : 0, minHeight: 0, paddingLeft: 10, paddingRight: 8, paddingTop: 8, paddingBottom: 8, backgroundColor: t.editor }}>
       <div onLayout={(e: any) => typeof e?.width === "number" && e.width !== width && setWidth(e.width)} style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative", flexGrow: fill ? 1 : 0, minHeight: 0 }}>
         {/* A click in the field places its caret: not a tap of the chat's, which would build it again. */}
         <OwnClicks
@@ -698,6 +703,7 @@ export function Composer({
           </div>
         </div>
       </div>
+    </div>
     </div>
     </>
   );

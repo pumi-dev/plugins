@@ -4,7 +4,7 @@
 // out by themselves (`main.ts` `syncHooks`), so a row only says whether its agent is connected.
 // What it reads and writes is the worker's (`main.ts`).
 import { useCallback, useEffect, useState } from "react";
-import { ChoiceGrid, Icon, Note, OptionRow, Page, Row, Section, useOption, useTheme } from "pumi";
+import { ChoiceGrid, Icon, IconImage, Note, OptionRow, Page, Row, Section, useOption, useTheme } from "pumi";
 
 import type { Choice } from "./catalog.ts";
 import { agentRows, setMode, type AgentRow } from "./main.ts";
@@ -29,7 +29,7 @@ function useAgents(): { list?: AgentRow[]; error?: string; reload(): void } {
 
 function AgentLine({ row, onChoose }: { row: AgentRow; onChoose(choice: Choice): void }) {
   const t = useTheme();
-  const mark = row.icon ? <img src={row.icon} objectFit="contain" style={{ width: 18, height: 18, flexShrink: 0 }} /> : <Icon name="sparkle" size={18} color={t.muted} />;
+  const mark = row.icon ? <IconImage icon={{ src: row.icon, tint: true }} size={18} color={t.text} /> : <Icon name="sparkle" size={18} color={t.muted} />;
   const error = row.hook?.error;
   return (
     <Row

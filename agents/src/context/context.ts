@@ -1,11 +1,12 @@
-// What an agent is told about the workspace it is in: the guide (`context/guide.md`), the map of
-// every session, view, pane and tab built from the model, and `compose`, which decides whether an
-// agent is told the whole thing again, only what changed, or nothing. The hook (`hooks/run.ts`)
-// and a session tab (`sessions.ts`) hand it on; `wire.ts` keeps what each agent was told. No
-// `import … from "pumi"` here.
+// What an agent is told about the workspace it is in: the guide (`context/guide.md`, a template
+// that asks for three things — where the agent is, the tabs around it, the block types it can
+// open), the map of every session, view, pane and tab built from the model, and `compose`, which
+// decides whether an agent is told the whole thing again, only what changed, or nothing. The hook
+// (`hooks/run.ts`) and a session tab (`sessions.ts`) hand it on; `wire.ts` keeps what each agent
+// was told. No `import … from "pumi"` here.
 import { readFileSync } from "node:fs";
 
-import { paneRef, tabRef } from "./ids.ts";
+import { paneRef, sessionRef, tabRef, viewRef } from "./ids.ts";
 import { sessionLabel, tabTitle, viewLabel } from "./label.ts";
 import type { Snapshot, Tab } from "./snapshot.ts";
 import { shown } from "./status.ts";
@@ -40,15 +41,23 @@ export function settingsOf(context: unknown, updates: unknown, otherSessions: un
   };
 }
 
-/** One tab's line: its id and name, where it is, what it is doing, and whether it has the focus. */
-function line(tab: Tab): string {
-  const said = [`${tabRef(tab.id)} ${tabTitle(tab)}`];
-  const cwd = tab.cwd.replace(/\/+$/, "");
-  if (cwd !== "") said.push(`— ${cwd}`);
+/** One tab's line, a bullet: `- %3 its name — what it is doing (current)`, `(you)` on its own. */
+function line(tab: Tab, you: number | null): string {
+  const said = [`- ${tabRef(tab.id)}, ${tabTitle(tab)}`];
   const doing = shown(tab);
   if (doing !== "") said.push(`— ${doing}`);
-  if (tab.focused) said.push("(current)");
-  return said.join(" ");
+  const facts = [tab.id === you ? "you" : "", tab.focused ? "current" : ""].filter(Boolean);
+  return `${said.join(" ")}${marks(facts)}`;
+}
+
+/** Where an agent's tab is, as the guide says it: `tab %3, pane :4, view @2, session $1`. */
+export function place(tab: Tab | undefined): string {
+  if (tab === undefined) return "a tab";
+  const said = [`tab ${tabRef(tab.id)}`];
+  if (tab.pane === null) said.push(`floating over view ${viewRef(tab.view)}`);
+  else said.push(`pane ${paneRef(tab.pane)}`, `view ${viewRef(tab.view)}`);
+  said.push(`session ${sessionRef(tab.session)}`);
+  return said.join(", ");
 }
 
 /** What a pane says of itself, after its id: `(focused)`, `(zoomed)`, both, or nothing. */
@@ -62,12 +71,14 @@ function marks(parts: string[]): string {
  * is doing.
  *
  * `session` is the agent's own: `otherSessions` off keeps the map to it. `current` is where the
- * user is, which the markers say; without one it is the agent's session too.
+ * user is, which the markers say; without one it is the agent's session too. `you` is the tab the
+ * agent is in, which says `(you)`.
  */
 export function map(
   snapshot: Snapshot,
-  opts: { otherSessions: boolean; session: number | null; current?: number | null },
+  opts: { otherSessions: boolean; session: number | null; current?: number | null; you?: number | null },
 ): string {
+  const you = opts.you ?? null;
   const where = opts.current === undefined ? opts.session : opts.current;
   const lines: string[] = [];
   for (const session of snapshot.sessions) {
@@ -81,34 +92,54 @@ export function map(
       for (const pane of view.panes) {
         const focused = live && view.focused && pane.focused;
         lines.push(`    ${paneRef(pane.id)}${marks([focused ? "focused" : "", pane.zoomed ? "zoomed" : ""].filter(Boolean))}`);
-        for (const tab of pane.tabs) lines.push(`      ${line(tab)}`);
+        for (const tab of pane.tabs) lines.push(`      ${line(tab, you)}`);
       }
       if (view.floating.length > 0) {
         lines.push("    (floating)");
-        for (const tab of view.floating) lines.push(`      ${line(tab)}`);
+        for (const tab of view.floating) lines.push(`      ${line(tab, you)}`);
       }
     }
   }
   return `${lines.join("\n")}\n`;
 }
 
+/** What the guide asks for, as `compose` fills it in. */
+export interface Now {
+  /** Where the agent is: `tab %3, pane :4, view @2, session $1`. */
+  place: string;
+  /** The tabs around it, as `map` says them. */
+  tabs: string;
+  /** The block types it can open, as `blockLines` says them. */
+  blocks: string;
+}
+
+/** The guide with what it asks for filled in: `{place}`, `{tabs}` and `{blocks}`, in that order. */
+export function fill(now: Now): string {
+  return GUIDE.split("{place}")
+    .join(now.place)
+    .split("{tabs}")
+    .join(now.tabs.replace(/\n+$/, ""))
+    .split("{blocks}")
+    .join(now.blocks.replace(/\n+$/, ""));
+}
+
 /**
- * What an agent is told now: the whole guide and map the first time (or when asked in full), only
- * what changed at a prompt, and nothing when nothing did — unless `updates` is `start`, when an
- * agent hears nothing after its session starts.
+ * What an agent is told now: the whole guide the first time (or when asked in full), only the tabs
+ * that moved at a prompt, and nothing when nothing did — unless `updates` is `start`, when an agent
+ * hears nothing after its session starts.
  */
 export function compose(
   when: When,
   resumed: boolean,
   told: string | undefined,
-  current: string,
+  now: Now,
   updates: Updates,
 ): string | null {
-  const full = () => `${GUIDE}\n<pumi-panes>\n${current}</pumi-panes>\n`;
+  const full = () => fill(now);
   if (when === "full" || told === undefined) return full();
   if (when === "start") return resumed ? null : full();
-  if (told !== current && updates === "changes") {
-    return `<pumi-panes-changed>\nThe panes changed since the last map:\n${current}</pumi-panes-changed>\n`;
+  if (told !== now.tabs && updates === "changes") {
+    return `<pumi-panes-changed>\nThe tabs around you changed; they are now:\n${now.tabs}</pumi-panes-changed>\n`;
   }
   return null;
 }

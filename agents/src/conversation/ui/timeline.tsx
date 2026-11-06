@@ -485,7 +485,7 @@ function RowButton({ icon, title, label, onPress }: { icon: ZedIcon; title: stri
 function UserMessage({ entry }: { entry: Entry }) {
   const t = useTheme();
   const m = useMetrics();
-  const bg = useBlockColor();
+  const bg = t.editor;
   const type = useType();
   const context = useContext(Context);
   const [hovered, hover] = useHover();
@@ -509,7 +509,7 @@ function UserMessage({ entry }: { entry: Entry }) {
           title={editable ? "Click to edit" : undefined}
           style={{ display: "flex", flexDirection: "column", minWidth: 0, paddingLeft: 8, paddingRight: 8, paddingTop: 12, paddingBottom: 12, borderRadius: 6, backgroundColor: bg, borderWidth: 1, borderColor: hovered && editable ? tint(t.accent, 0.8) : t.border, cursor: "text" }}
         >
-          <MentionText text={text} cwd={context.cwd} size={type.code} line={type.codeLine} color={t.text} onLink={context.onLink} />
+          <MentionText text={text} cwd={context.cwd} size={type.prompt} line={type.promptLine} color={t.text} onLink={context.onLink} />
         </div>
         <div style={{ position: "absolute", top: -14, right: 12 }}>
           <Actions shown={hovered} text={text} actions={actions} floating />
@@ -595,7 +595,7 @@ function EditMessage({ entry, restore }: { entry: Entry; restore?: () => void })
               e?.stopPropagation?.();
               cancel();
             }}
-            style={{ flexGrow: 1, minWidth: 0, fontSize: type.code, fontFamily: type.mono, color: t.text, backgroundColor: "transparent" }}
+            style={{ flexGrow: 1, minWidth: 0, fontSize: type.prompt, lineHeight: type.promptLine, fontFamily: type.mono, color: t.text, backgroundColor: "transparent" }}
           />
         </div>
         <div style={{ position: "absolute", top: -14, right: 12, display: "flex", flexDirection: "row", alignItems: "center", gap: 4, overflow: "hidden", borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, backgroundColor: t.editor }}>
