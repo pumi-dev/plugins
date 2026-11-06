@@ -1,17 +1,18 @@
-// How the map names a session, a view and a tab: their own names, or the ones pumi gives them.
+// How the map names a project, a view and a tab: their folder's or their own name, or the ones pumi
+// gives them.
 import { expect, test } from "bun:test";
 
-import { sessionLabel, tabTitle, viewLabel } from "../../src/context/label.ts";
+import { projectLabel, tabTitle, viewLabel } from "../../src/context/label.ts";
 import { read } from "../../src/context/snapshot.ts";
-import { sessions } from "./fake.ts";
+import { projects } from "./fake.ts";
 
-const snap = () => read(sessions(), 1);
+const snap = () => read(projects(), 1);
 
-test("a session's name follows its id, or is only the id", () => {
-  const given = sessions();
-  expect(sessionLabel(read(given, 1).sessions[0]!)).toBe("$1 pumi");
-  given[0]!.name = "";
-  expect(sessionLabel(read(given, 1).sessions[0]!)).toBe("$1");
+test("a project's folder follows its id, or is only the id", () => {
+  const given = projects();
+  expect(projectLabel(read(given, 1).projects[0]!)).toBe("$1 pumi");
+  given[0]!.path = "";
+  expect(projectLabel(read(given, 1).projects[0]!)).toBe("$1");
 });
 
 test("a view's name follows its id, or is only the id", () => {

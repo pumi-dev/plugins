@@ -1,30 +1,30 @@
-// The model: sessions, their views, panes and tabs, and what each tab says of itself — as the map
-// reads it, and as `session.get` with `deep` carries it.
+// The model: projects, their views, panes and tabs, and what each tab says of itself — as the map
+// reads it, and as `project.get` with `deep` carries it.
 import { expect, test } from "bun:test";
 
 import { panesIn, read, strip } from "../../src/context/snapshot.ts";
-import { sessions } from "./fake.ts";
+import { projects } from "./fake.ts";
 
-const snap = (here: number | null = 1) => read(sessions(), here);
+const snap = (here: number | null = 1) => read(projects(), here);
 
-test("every session, view, pane and tab comes back with what it says of itself", () => {
+test("every project, view, pane and tab comes back with what it says of itself", () => {
   const model = snap();
-  expect(model.sessions.map((session) => [session.id, session.label, session.focused, session.views.length])).toEqual([
-    [1, "pumi", true, 2],
-    [2, "site", false, 1],
+  expect(model.projects.map((project) => [project.id, project.path, project.focused, project.views.length])).toEqual([
+    [1, "/Users/me/work/pumi", true, 2],
+    [2, "/Users/me/work/site", false, 1],
   ]);
-  expect(model.views.map((view) => [view.id, view.session, view.name, view.focused, view.panes.length])).toEqual([
+  expect(model.views.map((view) => [view.id, view.project, view.name, view.focused, view.panes.length])).toEqual([
     [1, 1, "main", true, 2],
     [2, 1, "logs", false, 1],
     [3, 2, "", true, 1],
   ]);
-  expect(model.panes.map((pane) => [pane.id, pane.session, pane.view, pane.index, pane.tabs.length])).toEqual([
+  expect(model.panes.map((pane) => [pane.id, pane.project, pane.view, pane.index, pane.tabs.length])).toEqual([
     [4, 1, 1, 0, 1],
     [5, 1, 1, 1, 2],
     [6, 1, 2, 0, 1],
     [7, 2, 3, 0, 1],
   ]);
-  expect(model.tabs.map((tab) => [tab.id, tab.session, tab.view, tab.pane, tab.index, tab.block])).toEqual([
+  expect(model.tabs.map((tab) => [tab.id, tab.project, tab.view, tab.pane, tab.index, tab.block])).toEqual([
     [10, 1, 1, 4, 0, "terminal"],
     [11, 1, 1, 5, 0, "terminal"],
     [12, 1, 1, 5, 1, "terminal"],
@@ -35,7 +35,7 @@ test("every session, view, pane and tab comes back with what it says of itself",
 });
 
 test("a view's panes keep the layout's order, and a pane's tabs its strip's", () => {
-  const given = sessions();
+  const given = projects();
   const view = given[0]!.tree![0]!;
   // The layout splits into :5 then :4, and :5's strip puts the editor in front of the agent.
   view.layout = {
@@ -53,7 +53,7 @@ test("a view's panes keep the layout's order, and a pane's tabs its strip's", ()
 });
 
 test("a tab the layout does not name is still in its pane, after the ones it does", () => {
-  const given = sessions();
+  const given = projects();
   const view = given[0]!.tree![0]!;
   (view.layout as any).second.tabs = ["%11"];
   const model = read(given, 1);
@@ -110,7 +110,7 @@ test("a layout of a pane and a split of two halves flatten in order", () => {
 });
 
 test("an empty model still reads", () => {
-  expect(read([], null)).toEqual({ sessions: [], views: [], panes: [], tabs: [] });
+  expect(read([], null)).toEqual({ projects: [], views: [], panes: [], tabs: [] });
 });
 
 test("a title loses the decoration a program puts round it", () => {

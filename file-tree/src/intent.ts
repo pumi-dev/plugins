@@ -127,12 +127,12 @@ export async function openFile(panel: Panel, rel: string): Promise<void> {
   }
 }
 
-/** A file in a view of its own: the file tab of this session that shows it already, brought
+/** A file in a view of its own: the file tab of this project that shows it already, brought
  *  forward, else a new view holding a file tab of it. */
 async function openInTab(path: string): Promise<void> {
   await workspace.ready;
-  const here = workspace.currentSession?.id ?? null;
-  const tabs = await workspace.tabs(here === null ? { block: "file" } : { session: here, block: "file" });
+  const here = workspace.currentProject?.id ?? null;
+  const tabs = await workspace.tabs(here === null ? { block: "file" } : { project: here, block: "file" });
   for (const each of tabs) {
     if ((each.options ?? {})["path"] !== path) continue;
     await each.view?.focus();

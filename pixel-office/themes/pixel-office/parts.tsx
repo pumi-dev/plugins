@@ -11,7 +11,7 @@ import {
   useComponents,
   useLocal,
   useMenu,
-  useSession,
+  useProject,
   useSlot,
   useTab,
   via,
@@ -150,7 +150,7 @@ function Panel({ point }: { point: string }) {
   ]
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, fontFamily: FONT }}>
-      {point === "panel" ? <SessionHeader /> : null}
+      {point === "panel" ? <ProjectHeader /> : null}
       {sections.map((s) => {
         const open = !collapsed.includes(s.key)
         return (
@@ -184,15 +184,15 @@ function Panel({ point }: { point: string }) {
   )
 }
 
-function SessionHeader() {
+function ProjectHeader() {
   const t = useOfficeTheme()
-  const session = useSession()
-  const { components, actions } = useSlot("session.header", { session: session?.workspace_id })
-  if (!session || (!components.length && !actions.length)) return null
+  const project = useProject()
+  const { components, actions } = useSlot("project.header", { project: project?.project_id })
+  if (!project || (!components.length && !actions.length)) return null
   return (
     <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32, margin: 8, marginBottom: 0, paddingLeft: 8, paddingRight: 4, flexShrink: 0, ...box(t, "panel") }}>
       <div style={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
-        <Point point="session.header" args={{ session: session.workspace_id }} />
+        <Point point="project.header" args={{ project: project.project_id }} />
       </div>
     </div>
   )

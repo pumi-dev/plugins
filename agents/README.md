@@ -4,7 +4,7 @@
 
 Coding agents in pumi's tabs, in one plugin. A pane's `+` menu opens each agent installed here,
 in its own terminal or in a GUI; pumi sees when it works, waits on you or is done; and it is
-told about the sessions, panes and tabs around it.
+told about the projects, panes and tabs around it.
 
 ```sh
 pumi plugin add pumi-dev/plugins/agents
@@ -110,7 +110,7 @@ resumes the session (`restore_command`).
 ## Workspace context
 
 At its start and with each prompt after, an agent is told about the workspace it is in, unseen by
-you: a short guide to pumi (`context/guide.md`) and a map of the sessions, views, panes and tabs
+you: a short guide to pumi (`context/guide.md`) and a map of the projects, views, panes and tabs
 around it, then only what changed.
 
 ```text
@@ -129,7 +129,7 @@ $7 app (current)
 </pumi-context>
 ```
 
-The map's ids are pumi's: `$1` a session, `@2` a view, `:4` a pane, `%3` a tab. `(current)` marks
+The map's ids are pumi's: `$1` a project, `@2` a view, `:4` a pane, `%3` a tab. `(current)` marks
 where you are. A terminal agent hears it through its hook (Claude's `additionalContext`, pi's
 hidden message, OpenCode's system prompt); a GUI tab's host puts it ahead of the prompt.
 After a compaction the agent is told everything again.
@@ -167,7 +167,7 @@ Settings → Agents, one page.
 | Answer permission prompts in pumi | Claude Code's permission prompts come to pumi; unanswered in two minutes, Claude asks itself (off) |
 | Tell agents about my workspace | the guide and the map (on) |
 
-A chat reads the last 4 MB of a session file, and the map has your other sessions' tabs too.
+A chat reads the last 4 MB of a session file, and the map has your other projects' tabs too.
 
 ## Limits
 

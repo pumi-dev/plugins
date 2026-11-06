@@ -6,13 +6,13 @@ import { call, option, workspace } from "pumi";
 
 import { settingsOf } from "./context/context.ts";
 import { num } from "./context/ids.ts";
-import type { GivenSession } from "./context/snapshot.ts";
+import type { GivenProject } from "./context/snapshot.ts";
 import { answer, turned, type Moment, type Source, type Store, type Turn } from "./context/wire.ts";
 
-/** Where the model comes from: `session.list`, and `session.get` deep for each one. */
+/** Where the model comes from: `project.list`, and `project.get` deep for each one. */
 const source: Source = {
-  list: () => call("session.list") as Promise<string[]>,
-  get: (id) => call("session.get", id, { deep: true }) as Promise<GivenSession | null>,
+  list: () => call("project.list") as Promise<string[]>,
+  get: (id) => call("project.get", id, { deep: true }) as Promise<GivenProject | null>,
 };
 
 /** How many agents' last maps are kept: the oldest goes first. */
@@ -34,7 +34,7 @@ export async function tell(turn: Turn): Promise<string | null> {
   // Every change, and the other sessions too: only whether to tell at all is the user's.
   const context = await option.get("context", { scope: "global" }).catch(() => null);
   await workspace.ready;
-  const own = workspace.currentSession;
+  const own = workspace.currentProject;
   return answer(turn, { source, store, settings: settingsOf(context, "changes", true), here: own === null ? null : num(own.id) });
 }
 
