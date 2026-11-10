@@ -107,6 +107,18 @@ The hook tells the plugin the agent's session, model and session file, and its s
 `@status`); the tab shows the agent's mark (`@icon`) and, when the tab comes back after a restart,
 resumes the session (`restore_command`).
 
+## The side bar
+
+The plugin adds two sections to the side bar (`panel`), beside the projects tree and the other
+plugins':
+
+- **Agents** lists every agent tab the views open now hold, the one whose agent did something last
+  first: its agent, the folder it runs in and when it last did something, with a mark while it works
+  or waits on you; its model is in the row's tooltip. A press brings its tab up, where its own chat
+  or terminal is; a search narrows them.
+- **Agents Archive** lists every session the enabled agents kept on this Mac, newest first, in Today / Past
+  Week / Older, with a search over its titles and directories. A press resumes one in a chat tab.
+
 ## Workspace context
 
 At its start and with each prompt after, an agent is told about the workspace it is in, unseen by

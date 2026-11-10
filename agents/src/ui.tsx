@@ -1,7 +1,8 @@
 // What the plugin draws, in the window: the title bar's button that flips an agent tab between its
 // terminal and the chat, the agent's block (`term`, on pumi's terminal engine), drawn by `Term`:
 // the chat while the tab's `@tab_renderer` names this plugin, else the terminal; a session tab
-// (`Session`); and Settings → Agents (`settings.tsx`). The
+// (`Session`); its side bar sections, the agents running now (`Agents`) and the past sessions
+// (`History`, titled Agents Archive); and Settings → Agents (`settings.tsx`). The
 // conversation is the worker's (`main.ts` `read`, `send`); the chat follows its batches, on the
 // channel in the plugin host's windows and by the convention's event in any app's.
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,6 +12,7 @@ import { follow, type Update } from "./conversation/change.ts";
 import type { Transcript } from "./conversation/model.ts";
 import { questionsOf } from "./conversation/question.ts";
 import { Button, Conversation, Header, Press, tint } from "./conversation/ui.tsx";
+export { Agents } from "./ui/agents.tsx";
 export { History } from "./ui/history.tsx";
 import { agentSpec, type AgentSpec } from "./agents.ts";
 import { mentions, read, send, setChat, toggle, toolbarPress } from "./main.ts";

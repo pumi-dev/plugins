@@ -13,7 +13,6 @@ import {
   useMenu,
   useProject,
   useSlot,
-  useTab,
   via,
   type ActionItem,
   type Components,
@@ -199,7 +198,6 @@ function ProjectHeader() {
 }
 
 function Players() {
-  const C = useComponents()
   const tabs = useApp((s) => s.snapshot?.tabs.filter((p) => p.status) ?? [])
   const t = useOfficeTheme()
   if (!tabs.length) {
@@ -212,27 +210,23 @@ function Players() {
   return (
     <div style={{ display: "flex", flexDirection: "column", paddingLeft: 4, paddingRight: 4, gap: 2 }}>
       {tabs.map((p) => (
-        <C.TabRow key={p.tab_id} tab={p.tab_id} />
+        <TabRow key={p.tab_id} tab={p.tab_id} />
       ))}
     </div>
   )
 }
 
-/** A player: the avatar with a bubble saying what its tab's status does, its tag, its row's footer
- *  and controls. A click walks you to its desk. */
+/** A player: the avatar with a bubble saying what its tab's status does, and its tag. A click walks
+ *  you to its desk. */
 function TabRow({ tab }: { tab: string }) {
   const t = useOfficeTheme()
-  const C = useComponents()
   const room = useContext(RoomContext)
-  const p = useTab(tab)
-  const [hovered, setHovered] = useState(false)
-  const { open, menu } = useMenu("tab.row.menu", { tab })
+  const p = useApp((s) => s.snapshot?.tabs.find((x) => x.tab_id === tab))
+  const { open, menu } = useMenu("tab.menu", { tab })
   if (!p) return null
   const status = p.status || "unknown"
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       onAuxClick={open}
       onClick={() => (room ? room.visit(tab) : call(via(tab, "tab.focus"), tab).catch(swallow))}
       title="Walk over to their desk"
@@ -244,25 +238,8 @@ function TabRow({ tab }: { tab: string }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3, flexGrow: 1, minWidth: 0 }}>
         <Nametag dot={t[`status.${status}`] ?? t["status.unknown"]}>{p.terminal_title || p.label || tab}</Nametag>
-        <Point point="tab.row.footer" args={{ tab }} />
-      </div>
-      <div style={{ display: "flex", flexDirection: "row", opacity: hovered ? 1 : 0 }}>
-        <C.TabRowControls tab={tab} />
       </div>
       {menu}
-    </div>
-  )
-}
-
-function TabRowControls({ tab }: { tab: string }) {
-  const C = useComponents()
-  const { components, actions } = useSlot("tab.row.controls", { tab })
-  return (
-    <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 3 }}>
-      {actions.map((a) => (
-        <C.Action key={`${a.plugin}/${a.id}`} action={a} />
-      ))}
-      {components.map((c) => renderComponent(c, { tab }))}
     </div>
   )
 }
@@ -272,4 +249,4 @@ function Action({ action, args }: { action: ActionItem; args?: unknown }) {
 }
 
 /** The office's parts beside its window: the rest are the app's, in the theme's colours. */
-export const PARTS: Partial<Components> = { Menu, Dialog, Panel, TabRow, TabRowControls, Action }
+export const PARTS: Partial<Components> = { Menu, Dialog, Panel, Action }

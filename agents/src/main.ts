@@ -31,8 +31,9 @@ import {
   type PumiEvent,
 } from "pumi";
 
-import type { Update } from "./conversation/change.ts";
-import type { Ack, Command, Cursor } from "./conversation/model.ts";
+import { statSync } from "node:fs";
+
+import type { Update } from "./conversation/change.ts";import type { Ack, Command, Cursor } from "./conversation/model.ts";
 import { agentSpec } from "./agents.ts";
 import { Bridge, type TabOptions } from "./bridge.ts";
 import { mentions as findMentions } from "./mentions.ts";
@@ -40,7 +41,7 @@ import { PICK_IN_TERMINAL } from "./models.ts";
 import { runHook, requestClosed, type HookApi } from "./hooks/run.ts";
 import { agentLaunch, findAgent, hookRows, install, uninstall } from "./hooks/integrations.ts";
 import { agentIcon, ICON } from "./icons.ts";
-import { AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, SESSION_CWD, STATUS } from "./names.ts";
+import { ACTIVE, AGENT, AGENT_CONVERSATION, AGENT_MODEL, AGENT_SESSION, AGENT_TRANSCRIPT, SESSION_CWD, STATUS } from "./names.ts";
 import { tabToken, type MentionHit } from "./conversation/view.ts";
 import { score } from "./files/score.ts";
 import type { ConversationRead } from "./topics.ts";
@@ -83,6 +84,9 @@ const TAKEN = "@agents.taken";
 /** The options a bridge follows: the agent's hook sets the trait's, pumi-host `@status`. */
 const FOLLOWED = [STATUS, AGENT_SESSION, AGENT_TRANSCRIPT, AGENT_MODEL, "tab_current_path"];
 
+/** What it hears means the tab's agent did something: how it is doing, its session, its model, its file. */
+const DID = [STATUS, AGENT_SESSION, AGENT_MODEL, AGENT_TRANSCRIPT];
+
 /** A tab's id as the API has it (`%3`), from the number this package keeps of it. */
 const tabRef = (tab: number): string => `%${tab}`;
 
@@ -105,8 +109,38 @@ const setTabOption = (name: string, value: unknown, id: number): Promise<null> =
 const bridges = new Map<number, Promise<Bridge>>();
 /** The tabs this plugin draws as a chat now. */
 const drawing = new Set<number>();
+/** The tabs it has seen as agents' (a hook set the trait): the ones it stamps with `ACTIVE`. */
+const agentTabs = new Set<number>();
 /** How much of the end of a session file the chat reads when it opens. */
 const history = 4 << 20;
+
+/**
+ * The tab's agent did something now, so the Agents section lists it first (`names.ts` `ACTIVE`). A
+ * tab the plugin never saw as an agent's is left alone.
+ */
+function touch(tab: number): void {
+  if (!agentTabs.has(tab)) return;
+  void setTabOption(ACTIVE, Date.now(), tab).catch(() => {});
+}
+
+/**
+ * What a tab's agent last did, as its session file says (when it was written last), else now: what a
+ * tab already running when the plugin starts is stamped with.
+ */
+function didLast(tab: number): Promise<number> {
+  return tabOption(AGENT_TRANSCRIPT, tab).then(
+    (transcript) => {
+      const path = text(transcript);
+      if (!path) return Date.now();
+      try {
+        return statSync(path).mtimeMs;
+      } catch {
+        return Date.now();
+      }
+    },
+    () => Date.now(),
+  );
+}
 
 /**
  * One of the options Settings shows, where Settings keeps it: the global scope (the SDK's
@@ -656,6 +690,10 @@ function optionChanged(event: PumiEvent): void {
     }
     if (name === AGENT) {
       const next = patch[name];
+      // An agent started here: it is the latest the section has seen, and it is stamped from now on.
+      if (text(next)) agentTabs.add(tab);
+      else agentTabs.delete(tab);
+      touch(tab);
       if (agentSpec(next)) {
         stop(tab);
         void claim(tab)
@@ -672,6 +710,8 @@ function optionChanged(event: PumiEvent): void {
       continue;
     }
     if (FOLLOWED.includes(name)) bridges.get(tab)?.then((bridge) => bridge.optionChanged(name, patch[name]), () => {});
+    // How it is doing, or its session: it did something, and the section says so first.
+    if (DID.includes(name)) touch(tab);
   }
 }
 
@@ -682,6 +722,7 @@ on("tab.closed", { desc: "Agents lets a closed tab's chat go" }, (e: PumiEvent) 
   const tab = numberOf(e.tab);
   stop(tab);
   drawing.delete(tab);
+  agentTabs.delete(tab);
   listen();
 });
 
@@ -743,7 +784,10 @@ async function startup(): Promise<void> {
   for (const each of await workspace.tabs()) {
     const tab = numberOf(each.id);
     if (!agentSpec(await tabOption(AGENT, tab))) continue;
+    agentTabs.add(tab);
     await claim(tab);
+    // Where the section puts a tab already running: when its agent last wrote its session.
+    await setTabOption(ACTIVE, await didLast(tab), tab).catch(() => {});
     if ((await tabOption(TAB_RENDERER, tab)) === self.plugin.id) rendererChanged(tab, self.plugin.id);
     await takeOver(tab).catch((err) => console.error(`agents: ${message(err)}`));
   }
