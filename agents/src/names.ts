@@ -35,5 +35,11 @@ export const SESSION_ENGINE = "@agents.engine";
 export const KEPT_DRAFT = "@agents.draft";
 export const KEPT_PROMPTS = "@agents.prompts";
 
+/**
+ * When this plugin last saw the tab's agent do something, in ms since the epoch: its hook said how
+ * it is doing, or its session moved. The Agents section lists them by it, the one used last first.
+ */
+export const ACTIVE = "@agents.active";
+
 /** A tab's status, any block's (`working`, `blocked`, `error`, `done`, `idle`, `unknown`): pumi-host's, from what its program reports. */
 export const STATUS = "@status";

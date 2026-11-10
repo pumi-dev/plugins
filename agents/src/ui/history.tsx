@@ -1,11 +1,11 @@
-// The History panel: every session the enabled agents have kept on this Mac, newest first, in
-// Today / Past Week / Older, a search over their titles and directories, and a press to open one
-// in a chat tab that resumes it (`history.ts` finds them, `main.ts` opens them).
+// The Agents Archive panel (`panel`, from `ui.tsx`'s `History` export): every session the enabled
+// agents have kept on this Mac, newest first, in Today / Past Week / Older, a search over their
+// titles and directories, and a press to open one in a chat tab that resumes it (`history.ts` finds
+// them, `main.ts` opens them).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon, IconImage, useMetrics, useTheme } from "pumi";
 
 import { ago, groups, items as flatten, matching, where, type Past, type PastSession } from "../history.ts";
-import { useTextTheme } from "../conversation/ui/style.ts";
 import { historyShow, openPast } from "../main.ts";
 
 function swallow(err: unknown): void {
@@ -21,8 +21,7 @@ const OVERSCAN = 12;
 /** The `panel` slot's component: the agent sessions on this Mac, to go back into. */
 export function History() {
   const t = useTheme();
-  const m = useMetrics();
-  const text = useTextTheme();
+  const [focused, setFocused] = useState(false);
   const [past, setPast] = useState<Past>();
   const [query, setQuery] = useState("");
   useEffect(() => {
@@ -50,21 +49,17 @@ export function History() {
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minWidth: 0, minHeight: 0, backgroundColor: t.surface }}>
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, height: 30, flexShrink: 0, margin: 6, paddingLeft: 7, paddingRight: 7, borderRadius: m.radiusSmall, borderWidth: 1, borderColor: t.border, backgroundColor: t.editor }}>
-        <Icon name="magnifying_glass" size={12} color={t.faint} />
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, width: "100%", height: 34, flexShrink: 0, paddingLeft: 12, paddingRight: 8, borderTopWidth: 1, borderBottomWidth: 1, borderColor: t.border }}>
+        <Icon name="magnifying_glass" size={14} color={focused ? t.muted : t.faint} />
         <input
           aria-label="Search agent sessions"
           value={query}
-          theme={text}
           placeholder="Search all sessions…"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           onChange={(e) => setQuery(e.value ?? "")}
-          style={{ flexGrow: 1, minWidth: 0, height: 22, backgroundColor: "transparent", color: t.text, fontSize: m.fontSize }}
+          style={{ display: "flex", flexGrow: 1, minWidth: 0, height: 22, fontSize: 13, color: t.text, backgroundColor: "transparent" }}
         />
-      </div>
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0, paddingLeft: 14, paddingRight: 10, paddingBottom: 6 }}>
-        <text style={{ fontSize: 11, color: t.muted, flexGrow: 1 }}>
-          {past === undefined ? "Reading the agents' sessions…" : `${sessions.length} session${sessions.length === 1 ? "" : "s"}`}
-        </text>
       </div>
       {list === undefined ? (
         <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0, overflowY: "scroll" }}>
@@ -128,7 +123,7 @@ function Row({ session, mark, onPress }: { session: PastSession; mark?: string; 
       title={`${session.title}\n${session.cwd}`}
       onClick={onPress}
       onKeyDown={(event: { key?: string }) => (event.key === "enter" ? onPress() : undefined)}
-      style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0, paddingLeft: 12, paddingRight: 10, paddingTop: 6, paddingBottom: 6, marginLeft: 6, marginRight: 6, borderRadius: m.radiusSmall, cursor: "pointer", hover: { backgroundColor: t.hover } }}
+      style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0, paddingLeft: 12, paddingRight: 10, paddingTop: 6, paddingBottom: 6, cursor: "pointer", hover: { backgroundColor: t.hover } }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, flexShrink: 0 }}>
         {mark ? <IconImage icon={{ src: mark, tint: true }} size={14} color={t.text} /> : <Icon name="sparkle" size={12} color={t.muted} />}

@@ -40,9 +40,11 @@ describe("the manifest", () => {
 
   test("gives its slot components from ui.tsx", () => {
     const names = exported(ui);
-    const slots: Record<string, { component?: string }> = manifest.contributes.slots;
+    const slots = manifest.contributes.slots as Record<string, { component?: string } | { component?: string }[]>;
     expect(Object.keys(slots)).toEqual(["tab.toolbar", "panel"]);
-    for (const slot of Object.values(slots)) expect(names.has(slot.component!)).toBe(true);
+    for (const given of Object.values(slots)) for (const slot of Array.isArray(given) ? given : [given]) expect(names.has(slot.component!)).toBe(true);
+    // The side bar holds both sections: the agents running now, and the sessions kept.
+    expect((slots["panel"] as { component: string }[]).map((slot) => slot.component)).toEqual(["Agents", "History"]);
   });
 
   test("gives its one Settings page from ui.tsx, and draws every option there", () => {
