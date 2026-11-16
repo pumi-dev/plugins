@@ -7,7 +7,7 @@
 // disk, is the worker's (`main.ts`, `panel.ts`, `intent.ts`): a key, a click and a drop each go
 // there and answer the rows as they are afterwards.
 import { Fragment, memo, useEffect, useRef, useState } from "react";
-import { Icon, useDraggable, useDroppable, useInterval, useMetrics, useProject, useTab, useTheme } from "pumi";
+import { Icon, useDraggable, useDroppable, useInterval, useMetrics, useProject, useTab, useTheme, useWindow } from "pumi";
 
 import { activate, adding, cancelled, chose, committed, dropped, filtered, firstMatch, load, named, pressed, reread, searching, type View } from "./main.ts";
 import { adopt } from "./adopt.ts";
@@ -97,8 +97,16 @@ const TreeAt = memo(function TreeAt({ cwd }: { cwd: string }) {
   const shown = useRef({ start: 0, end: 0 });
   const list = useRef<any>(null);
 
-  /** Every gesture answers the tree as it is after it; one that cleared the search clears the box. */
-  const take = (next: View | null) => setView((had) => adopt(had, next));
+  /** Every gesture answers the tree as it is after it; one that cleared the search clears the box.
+   *  A gesture that put a file in a view of its own says which: the window is showing a view, and
+   *  only it can move itself to that one (`showView`), so a file opened into a view it is not on
+   *  would look as though the click did nothing. */
+  const window = useWindow();
+  const take = (next: View | null) => {
+    setView((had) => adopt(had, next));
+    const show = next?.show;
+    if (show && show !== window.view?.id) window.showView(show);
+  };
   const run = (call: Promise<View>) =>
     void call
       .then((next) => {

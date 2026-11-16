@@ -34,6 +34,9 @@ export interface View {
   /** Goes up whenever what the view says changes: the clock's `reread` is answered `null` for the
    *  version the window has already. */
   version: number;
+  /** The view the window should switch to, when the gesture put a file in a view of its own: a
+   *  window shows one view, and `view.focus` moves the server's, not the window's. */
+  show?: string;
 }
 
 /** The panel as it is now. */
@@ -98,8 +101,9 @@ function heard(at: string, paths: string[]): void {
 
 /** Every gesture answers the tree as it is afterwards, so one round trip draws the result. */
 async function followed(state: Panel, intent: Parameters<typeof perform>[1]): Promise<View> {
-  await perform(state, intent);
-  return view();
+  const show = await perform(state, intent);
+  const next = view();
+  return show === null ? next : { ...next, show };
 }
 
 // ---- what the window asks for

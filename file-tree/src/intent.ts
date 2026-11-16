@@ -25,30 +25,32 @@ export type Intent =
   | { kind: "ignore"; file: "gitignore" | "exclude"; rel: string; isDir: boolean };
 
 /** Carries `intent` out: what touches the disk reads the tree again, and the panel always says so,
- * so that the view draws again. */
-export async function perform(panel: Panel, intent: Intent): Promise<void> {
+ * so that the view draws again. It answers the view the window should switch to, when the gesture
+ * put a file in a view of its own: a window shows the view it is on, and only it can move itself. */
+export async function perform(panel: Panel, intent: Intent): Promise<string | null> {
   switch (intent.kind) {
     case "none":
-      return;
+      return null;
     case "redraw":
       panel.announce();
-      return;
-    case "open":
-      await openFile(panel, intent.rel);
+      return null;
+    case "open": {
+      const show = await openFile(panel, intent.rel);
       panel.announce();
-      return;
+      return show;
+    }
     case "clipboard":
       await ops.putOnClipboard(intent.text);
       panel.announce();
-      return;
+      return null;
     case "reveal":
       await ops.reveal(panel.root, intent.rel);
       panel.announce();
-      return;
+      return null;
     case "systemOpen":
       await ops.openWithSystem(panel.root, intent.rel);
       panel.announce();
-      return;
+      return null;
     case "create":
       ops.create(panel.root, intent.path, intent.isDir);
       break;
@@ -75,7 +77,7 @@ export async function perform(panel: Panel, intent: Intent): Promise<void> {
   await panel.refreshGit();
   panel.announce();
   const opened = opensAfter(panel, intent);
-  if (opened !== null) await openFile(panel, opened);
+  return opened === null ? null : await openFile(panel, opened);
 }
 
 /** What opens by itself once something is made: a new file, and a file a paste put down. A moved
@@ -98,48 +100,55 @@ function opensAfter(panel: Panel, intent: Intent): string | null {
  * (drawn by the viewer that fits it), the user's editor in a terminal tab (the Terminal plugin's
  * block), or the system's app.
  */
-export async function openFile(panel: Panel, rel: string): Promise<void> {
+export async function openFile(panel: Panel, rel: string): Promise<string | null> {
   if (panel.settings.openWith === "system") {
     await ops.openWithSystem(panel.root, rel);
-    return;
+    return null;
   }
   const path = panel.tree.abs(rel);
   if (panel.settings.openWith === "tab") {
     try {
-      await openInTab(path);
+      return await openInTab(path);
     } catch (err) {
       console.error(`${self.plugin.prefix}: cannot open ${path}: ${err instanceof Error ? err.message : String(err)}`);
       await ops.openWithSystem(panel.root, rel);
+      return null;
     }
-    return;
   }
   const place = { kind: "tiled" as const, split: "right" as const };
   const editor = panel.settings.editor.trim();
   const command = editor === "" ? `"\${EDITOR:-vi}" ${quote(path)}` : `${editor} ${quote(path)}`;
   try {
-    if (panel.settings.openWith === "beside") await workspace.openTab("file", { path }, place);
-    else await workspace.openTab("pumi_dev.terminal.shell", { command, cwd: dirname(path) }, place);
+    const tab =
+      panel.settings.openWith === "beside"
+        ? await workspace.openTab("file", { path }, place)
+        : await workspace.openTab("pumi_dev.terminal.shell", { command, cwd: dirname(path) }, place);
+    return tab.view?.id ?? null;
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
     console.error(`${self.plugin.prefix}: cannot open ${path}: ${why}`);
     // The next honest thing: the app the system gives it, rather than nothing at all.
     await ops.openWithSystem(panel.root, rel);
+    return null;
   }
 }
 
 /** A file in a view of its own: the file tab of this project that shows it already, brought
- *  forward, else a new view holding a file tab of it. */
-async function openInTab(path: string): Promise<void> {
+ *  forward, else a new view holding a file tab of it. Either way, the view it is in, for the
+ *  window to switch to: the server's focus is not a window's. */
+async function openInTab(path: string): Promise<string | null> {
   await workspace.ready;
   const here = workspace.currentProject?.id ?? null;
   const tabs = await workspace.tabs(here === null ? { block: "file" } : { project: here, block: "file" });
   for (const each of tabs) {
     if ((each.options ?? {})["path"] !== path) continue;
-    await each.view?.focus();
+    const view = each.view;
+    await view?.focus();
     await each.focus();
-    return;
+    return view?.id ?? null;
   }
-  await workspace.openTab("file", { path }, { kind: "view" });
+  const tab = await workspace.openTab("file", { path }, { kind: "view" });
+  return tab.view?.id ?? null;
 }
 
 /** A path as one shell argument, in single quotes. */
