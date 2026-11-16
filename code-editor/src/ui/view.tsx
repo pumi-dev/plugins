@@ -56,6 +56,12 @@ interface Live {
 export function CodeView({ initial, font, colors, focused, onState, onSave }: CodeViewProps) {
   const [, redraw] = useReducer((n: number) => n + 1, 0);
   const stateRef = useRef(initial);
+  // The surface the keyboard goes to: `autoFocus` takes it when the tab is made, and this takes it
+  // again when the tab comes forward in the window (a tab brought back is not made again).
+  const surface = useRef<any>(null);
+  useEffect(() => {
+    if (focused) surface.current?.focus?.();
+  }, [focused]);
   const live = useRef<Live>({ vp: { top: 0, left: 0, width: 0, height: 0 }, charWidth: font.size * 0.6, input: null, composition: null, focused, drag: null, widest: null }).current;
   const lineHeight = Math.round(font.size * font.lineHeight);
   const m: Metrics = { lineHeight, charWidth: live.charWidth, padding: PADDING };
@@ -316,6 +322,7 @@ export function CodeView({ initial, font, colors, focused, onState, onSave }: Co
 
   return (
     <text-input
+      ref={surface}
       autoFocus={focused}
       caret={caret}
       {...inputProps(s, input)}

@@ -1,7 +1,7 @@
 {
   "name": "pumi-code-editor",
   "displayName": "Code Editor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "GPL-3.0-or-later",
   "description": "A native code editor for file tabs, written in TSX: CodeMirror's state, parsers and commands, drawn by pumi's renderer with no web page.",
   "keywords": [
@@ -46,7 +46,7 @@
     "name": "code-editor",
     "owner": "pumi_dev",
     "api": 1,
-    "minPumi": "0.44.0",
+    "minPumi": "0.55.0",
     "icon": "icon.png",
     "images": [
       {
